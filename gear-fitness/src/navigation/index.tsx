@@ -5,15 +5,17 @@ import {
   StaticParamList,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Image } from 'react-native';
-import bell from '../assets/bell.png';
-import workout from '../assets/workout.png';
-import newspaper from '../assets/newspaper.png';
+import { TouchableOpacity } from 'react-native';
+import { FontAwesome6 } from "@expo/vector-icons";
+import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Home } from './screens/Home';
 import { Profile } from './screens/Profile';
+import { Friends } from './screens/Friends';
 import { Settings } from './screens/Settings';
-import { Updates } from './screens/Updates';
-import { Workout } from './screens/Workout';
+import { Post } from './screens/Post';
+import { Social } from './screens/Social';
 import { NotFound } from './screens/NotFound';
 
 const HomeTabs = createBottomTabNavigator({
@@ -21,47 +23,61 @@ const HomeTabs = createBottomTabNavigator({
     Home: {
       screen: Home,
       options: {
-        title: 'Feed',
+        title: 'Home',
         tabBarIcon: ({ color, size }) => (
-          <Image
-            source={newspaper}
-            tintColor={color}
-            style={{
-              width: size,
-              height: size,
-            }}
-          />
+          <Ionicons  name="home" size={size} color={color} />
         ),
       },
     },
-    Updates: {
-      screen: Updates,
+    Social: {
+      screen: Social,
       options: {
+        title: 'Social',
         tabBarIcon: ({ color, size }) => (
-          <Image
-            source={bell}
-            tintColor={color}
-            style={{
-              width: size,
-              height: size,
-            }}
-          />
+          <FontAwesome name="users" size={size} color={color} />
         ),
       },
     },
-    Workouts: {
-      screen: Workout,
+    Post: {
+      screen: Post,
       options: {
+        title: '',
         tabBarIcon: ({ color, size }) => (
-          <Image
-            source={workout}
-            tintColor={color}
-            style={{
-              width: size,
-              height: size,
-            }}
+          <FontAwesome6 name="square-plus" size={size} color={color} />
+        ),
+      },
+    },
+    Friends: {
+      screen: Friends,
+      options: {
+        title: 'Friends',
+        tabBarIcon: ({ color, size }) => (
+          <FontAwesome5 name="user-friends" size={size} color={color} />
+        ),
+      },
+    },
+    Profile: {
+      screen: Profile,
+      options: ({ navigation }) => ({
+        title: 'Profile',
+        tabBarIcon: ({ color, size }) => (
+          <FontAwesome name="user-circle-o" size={size} color={color} />
+        ),
+        tabBarButton: (props) => (
+          <TouchableOpacity
+            {...props}
+            onPress={() => navigation.navigate('Profile', { user: 'jane' })}
           />
         ),
+      }),
+      linking: {
+        path: ':user(@[a-zA-Z0-9-_]+)',
+        parse: {
+          user: (value) => value.replace(/^@/, ''),
+        },
+        stringify: {
+          user: (value) => `@${value}`,
+        },
       },
     },
   },
@@ -74,18 +90,6 @@ const RootStack = createNativeStackNavigator({
       options: {
         title: 'Home',
         headerShown: false,
-      },
-    },
-    Profile: {
-      screen: Profile,
-      linking: {
-        path: ':user(@[a-zA-Z0-9-_]+)',
-        parse: {
-          user: (value) => value.replace(/^@/, ''),
-        },
-        stringify: {
-          user: (value) => `@${value}`,
-        },
       },
     },
     Settings: {

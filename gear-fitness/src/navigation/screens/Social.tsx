@@ -1,10 +1,10 @@
 import { Text } from '@react-navigation/elements';
 import { StyleSheet, View } from 'react-native';
 
-export function Updates() {
+export function Social() {
   return (
     <View style={styles.container}>
-      <Text>Updates Screen</Text>
+      <Text>This is socializing</Text>
     </View>
   );
 }
