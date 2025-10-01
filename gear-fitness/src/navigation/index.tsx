@@ -7,11 +7,13 @@ import {
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Image } from 'react-native';
 import bell from '../assets/bell.png';
+import workout from '../assets/workout.png';
 import newspaper from '../assets/newspaper.png';
 import { Home } from './screens/Home';
 import { Profile } from './screens/Profile';
 import { Settings } from './screens/Settings';
 import { Updates } from './screens/Updates';
+import { Workout } from './screens/Workout';
 import { NotFound } from './screens/NotFound';
 
 const HomeTabs = createBottomTabNavigator({
@@ -38,6 +40,21 @@ const HomeTabs = createBottomTabNavigator({
         tabBarIcon: ({ color, size }) => (
           <Image
             source={bell}
+            tintColor={color}
+            style={{
+              width: size,
+              height: size,
+            }}
+          />
+        ),
+      },
+    },
+    Workouts: {
+      screen: Workout,
+      options: {
+        tabBarIcon: ({ color, size }) => (
+          <Image
+            source={workout}
             tintColor={color}
             style={{
               width: size,
