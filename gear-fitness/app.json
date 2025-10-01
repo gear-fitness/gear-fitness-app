@@ -4,23 +4,26 @@
     "slug": "gear-fitness",
     "version": "1.0.0",
     "orientation": "default",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/GearLogo.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "scheme": "gearfitness",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.gearfitness"
+      "bundleIdentifier": "com.gearfitness",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/GearLogo.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.gearfitness"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/GearLogo.png"
     },
     "plugins": [
       "expo-asset",
@@ -28,9 +31,14 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#ffffff",
-          "image": "./assets/splash-icon.png"
+          "image": "./assets/GearLogo.png"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "0145d488-18ea-45bb-9084-02f9a50cb2d5"
+      }
+    }
   }
 }
