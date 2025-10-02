@@ -14,6 +14,7 @@ Asset.loadAsync([
   require('./assets/workout.png'),
   require('./assets/community.png'),
   require('./assets/avatar.png'),
+  require( './assets/calendar.png')
 ]);
 
 SplashScreen.preventAutoHideAsync();
