@@ -1,11 +1,10 @@
 import { Button, Text } from '@react-navigation/elements';
-import {StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-export function Workout() {
+export function WorkoutSelection() {
   return (
     <View style={styles.container}>
-    {/* <Button title="Start Workpout" onPress={() => {}} /> */}
-    <Button screen="WorkoutSelection">Add Workout</Button>
+    <Text>Workout Selection Screen</Text>
     </View>
   );
 }

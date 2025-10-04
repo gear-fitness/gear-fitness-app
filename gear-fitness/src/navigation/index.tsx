@@ -19,6 +19,7 @@ import { Friends } from './screens/Friends';
 import { Workout } from './screens/Workout';
 import { NotFound } from './screens/NotFound';
 import { History } from './screens/History';
+import {WorkoutSelection} from './screens/WorkoutSelection';
 
 const HomeTabs = createBottomTabNavigator({
   initialRouteName: 'Home',
@@ -130,6 +131,17 @@ const RootStack = createNativeStackNavigator({
     },
     Settings: {
       screen: Settings,
+      options: ({ navigation }) => ({
+        presentation: 'modal',
+        headerRight: () => (
+          <HeaderButton onPress={navigation.goBack}>
+            <Text>Close</Text>
+          </HeaderButton>
+        ),
+      }),
+    },
+     WorkoutSelection: {
+      screen: WorkoutSelection,
       options: ({ navigation }) => ({
         presentation: 'modal',
         headerRight: () => (
