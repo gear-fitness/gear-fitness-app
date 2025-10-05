@@ -144,7 +144,7 @@ const RootStack = createNativeStackNavigator({
     WorkoutSelection: {
       screen: WorkoutSelection,
       options: ({ navigation }) => ({
-        title: "Select Workout",
+        title: "Select Exercise",
         presentation: "modal",
         headerRight: () => (
           <HeaderButton onPress={navigation.goBack}>
