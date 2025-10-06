@@ -6,7 +6,7 @@ import filter from "../../assets/filter.png";
 import close from "../../assets/close.png";
 import { Image } from "react-native";
 
-export function WorkoutSelection() {
+export function ExerciseSelect() {
   const [searchQuery, setSearchQuery] = useState("");
 
   return (

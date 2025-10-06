@@ -20,7 +20,7 @@ import { Friends } from "./screens/Friends";
 import { Workout } from "./screens/Workout";
 import { NotFound } from "./screens/NotFound";
 import { History } from "./screens/History";
-import { WorkoutSelection } from "./screens/WorkoutSelection";
+import { ExerciseSelect } from "./screens/ExerciseSelect";
 
 const HomeTabs = createBottomTabNavigator({
   initialRouteName: "Home",
@@ -141,8 +141,8 @@ const RootStack = createNativeStackNavigator({
         ),
       }),
     },
-    WorkoutSelection: {
-      screen: WorkoutSelection,
+    ExerciseSelect: {
+      screen: ExerciseSelect,
       options: ({ navigation }) => ({
         title: "Select Exercise",
         presentation: "modal",
