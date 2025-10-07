@@ -5,29 +5,39 @@ import search from "../../assets/search.png";
 import filter from "../../assets/filter.png";
 import close from "../../assets/close.png";
 import { Image } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export function ExerciseSelect() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [isFiltering, setIsFiltering] = useState(false);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.searchContainer}>
-        <Image source={search} style={styles.search} />
+    <SafeAreaView
+      style={styles.searchBox}
+      edges={["top", "left", "right", "bottom"]}
+    >
+      <View style={styles.container}>
+        <View style={styles.searchContainer}>
+          <Image source={search} style={styles.search} />
 
-        <TextInput
-          placeholder="Search Exercises"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          style={styles.searchInput}
-        />
+          <TextInput
+            placeholder="Search Exercises"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            style={styles.searchInput}
+          />
 
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery("")}>
-            <Image source={close} style={styles.clearIcon} />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery("")}>
+              <Image source={close} style={styles.clearIcon} />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={() => setIsFiltering(true)}>
+            <Image source={filter} style={styles.filterIcon} />
           </TouchableOpacity>
-        )}
+        </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 const styles = StyleSheet.create({
@@ -66,5 +76,10 @@ const styles = StyleSheet.create({
     width: 13,
     height: 13,
     tintColor: "#555",
+  },
+  filterIcon: {
+    width: 18,
+    height: 18,
+    marginLeft: 10,
   },
 });

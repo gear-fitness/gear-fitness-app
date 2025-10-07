@@ -1,8 +1,13 @@
 import { Button, Text } from "@react-navigation/elements";
 import { StyleSheet, View, FlatList, TouchableOpacity } from "react-native";
 import { useState, useEffect } from "react";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
 
 export function Workout() {
+  const navigation = useNavigation();
+  const [minutes, setMinutes] = useState(0);
+  const [seconds, setSeconds] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const [workouts, setWorkouts] = useState<Array<{ id: number; name: string }>>(
     []
@@ -18,41 +23,52 @@ export function Workout() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.topbar}>
-        <Text style={styles.dateSelect}>Select Day ▼</Text>
-        <TouchableOpacity onPress={toggleTimer}>
-          <Text style={styles.timer}>{isRunning ? "⏸ Pause" : "▶ Start"}</Text>
-        </TouchableOpacity>
-        <Button screen="ExerciseSelect">Add Exercise</Button>
-      </View>
+    <SafeAreaView
+      style={styles.safeArea}
+      edges={["top", "left", "right", "bottom"]}
+    >
+      <View style={styles.container}>
+        <View style={styles.topbar}>
+          <Text style={styles.dateSelect}>Select Day ▼</Text>
+          <TouchableOpacity onPress={toggleTimer}>
+            <Text style={styles.timer}>
+              {isRunning ? "⏸ Pause" : "▶ Start"}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-      <View style={styles.workoutList}>
-        <Text style={styles.sectionTitle}>Today's Workout</Text>
-        <FlatList
-          data={workouts}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => (
-            <Text style={styles.exercise}>{item.name}</Text>
-          )}
-        />
-      </View>
-      <View style={styles.buttonRow}>
-        <TouchableOpacity style={styles.button} onPress={toggleTimer}>
-          <Text style={styles.buttonText}>
-            {isRunning ? "End Workout" : "StartWorkout"}
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.workoutList}>
+          <Text style={styles.sectionTitle}>Today's Workout</Text>
+          <FlatList
+            data={workouts}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={({ item }) => (
+              <Text style={styles.exercise}>{item.name}</Text>
+            )}
+          />
+        </View>
+        <View style={styles.buttonRow}>
+          <Button onPress={toggleTimer} style={styles.navButton}>
+            {isRunning ? "End Workout" : "Start Workout"}
+          </Button>
 
-        <TouchableOpacity style={styles.button} onPress={addExercise}>
-          <Text style={styles.buttonText}>Add Exercise</Text>
-        </TouchableOpacity>
+          <Button
+            onPress={() => navigation.navigate("ExerciseSelect")}
+            style={styles.navButton}
+          >
+            Add Exercise
+          </Button>
+        </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
   container: {
     flex: 1,
     padding: 20,
@@ -73,17 +89,20 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: "#eee",
   },
-
   buttonRow: {
     flexDirection: "row",
-    justifyContent: "space-around",
-    marginVertical: 20,
+    justifyContent: "space-evenly",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingBottom: 25,
   },
-  button: {
-    backgroundColor: "#007AFF",
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 8,
+  navButton: {
+    borderRadius: 10,
+    backgroundColor: "#E6F0FF",
+    borderColor: "#007AFF",
+    borderWidth: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 25,
   },
   buttonText: {
     fontWeight: "600",
