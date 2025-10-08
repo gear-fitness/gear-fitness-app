@@ -15,9 +15,9 @@ export function DetailedHistory() {
   const isDark = colorScheme === "dark";
 
   const rows = [
-    { image: bench, text: "BENCH ONE REP MAX: 225LBS" },
-    { image: squat, text: "SQUAT ONE REP MAX: 315LBS" },
-    { image: deadlift, text: "DEADLIFT ONE REP MAX: 315LB" },
+    { image: bench, text: "SET 1: Weight: 225 Reps: 8" },
+    { image: squat, text: "SET 1: Weight: 225 Reps: 8" },
+    { image: deadlift, text: "SET 1: Weight: 225 Reps: 8" },
   ];
 
   return (

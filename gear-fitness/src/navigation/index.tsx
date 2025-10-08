@@ -145,6 +145,7 @@ const RootStack = createNativeStackNavigator({
       screen: PR,
       options: {
         title: "Personal Records",
+        headerBackTitle: "History",
         headerShown: true,
       },
     },
@@ -152,6 +153,7 @@ const RootStack = createNativeStackNavigator({
       screen: DetailedHistory,
       options: {
         title: "Detailed Workout History",
+        headerBackTitle: "History",
         headerShown: true,
       },
     },
