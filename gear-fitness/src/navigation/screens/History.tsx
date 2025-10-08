@@ -1,10 +1,150 @@
-import { Text } from '@react-navigation/elements';
-import { StyleSheet, View } from 'react-native';
+import { Text } from "@react-navigation/elements";
+import {
+  StyleSheet,
+  View,
+  FlatList,
+  TouchableOpacity,
+  TextInput,
+  Image,
+} from "react-native";
+import { Calendar } from "react-native-calendars";
+import React, { useState } from "react";
+import { useTheme } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useNavigation } from "@react-navigation/native";
+import weightlifter from "../../assets/weightlifter.png";
+
+type RootStackParamList = {
+  HomeTabs: undefined;
+  Profile: { user: string };
+  Settings: undefined;
+  PR: undefined;
+  DetailedHistory: undefined;
+  NotFound: undefined;
+};
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
+type Post = {
+  id: string;
+  workout: string;
+  content: string;
+};
 
 export function History() {
+  const { colors } = useTheme();
+  const navigation = useNavigation<NavigationProp>();
+
+  // Formats date to be readable for calendar
+  const today = new Date();
+  const formattedToday =
+    today.getFullYear() +
+    "-" +
+    String(today.getMonth() + 1).padStart(2, "0") +
+    "-" +
+    String(today.getDate()).padStart(2, "0");
+
+  const [markedDates, setMarkedDates] = useState({});
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Function for dates being pressed
+  const handleDayPress = (day) => {
+    setMarkedDates((prev) => {
+      const isAlreadyMarked = prev[day.dateString];
+
+      if (isAlreadyMarked) {
+        const { [day.dateString]: _, ...rest } = prev;
+        return rest;
+      } else {
+        return {
+          ...prev,
+          [day.dateString]: {
+            marked: true,
+            dotColor: "orange",
+            selected: true,
+            selectedColor: "orange",
+          },
+        };
+      }
+    });
+  };
+
+  const [data, setData] = useState<Post[]>(
+    Array.from({ length: 10 }, (_, i) => ({
+      id: `${i + 1}`,
+      workout: `Workout ${i + 1}`,
+      content: `Mock workout #${i + 1}.`,
+    }))
+  );
+
+  const loadMore = () => {
+    const newData = Array.from({ length: 10 }, (_, i) => ({
+      id: `${data.length + i + 1}`,
+      workout: `Workout ${data.length + i + 1}`,
+      content: `Generated workout #${data.length + i + 1}.`,
+    }));
+    setData([...data, ...newData]);
+  };
+
+  // Handler for PR button
+  const handlePrPress = () => {
+    navigation.getParent()?.navigate("PR"); // Navigate using parent stack
+  };
+
+  // Render each item as a button that navigates to DetailedHistory
+  const renderItem = ({ item }: { item: Post }) => (
+    <TouchableOpacity
+      style={styles.button}
+      onPress={() => navigation.getParent()?.navigate("DetailedHistory")}
+    >
+      <Text style={styles.buttonText}>{item.workout}</Text>
+    </TouchableOpacity>
+  );
+
   return (
-    <View style={styles.container}>
-      <Text>History Screen</Text>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Calendar
+        key={colors.background}
+        style={styles.calendar}
+        current={formattedToday}
+        onDayPress={handleDayPress}
+        markedDates={markedDates}
+        theme={{
+          backgroundColor: colors.card,
+          calendarBackground: colors.card,
+          dayTextColor: colors.text,
+          monthTextColor: colors.text,
+          textSectionTitleColor: colors.text,
+          todayTextColor: "orange",
+          arrowColor: "orange",
+        }}
+        hideExtraDays={true}
+      />
+
+      {/* Search Bar with PR Button */}
+      <View style={styles.searchContainer}>
+        <TextInput
+          style={[
+            styles.searchInput,
+            { color: colors.text, borderColor: colors.border },
+          ]}
+          placeholder="Search workouts..."
+          placeholderTextColor={colors.text + "80"}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        <TouchableOpacity style={styles.settingsButton} onPress={handlePrPress}>
+          <Image source={weightlifter} style={styles.settingsButtonIcon} />
+        </TouchableOpacity>
+      </View>
+
+      <FlatList
+        data={data}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+      />
     </View>
   );
 }
@@ -12,8 +152,52 @@ export function History() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "flex-start",
+    paddingTop: 50,
+  },
+  calendar: {
+    width: "95%",
+    alignSelf: "center",
+    maxHeight: 350,
+  },
+  button: {
+    backgroundColor: "orange",
+    marginHorizontal: 20,
+    marginVertical: 8,
+    padding: 15,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  buttonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  searchContainer: {
+    flexDirection: "row",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    alignItems: "center",
     gap: 10,
+  },
+  searchInput: {
+    flex: 1,
+    backgroundColor: "white",
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 16,
+  },
+  settingsButton: {
+    backgroundColor: "orange",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  settingsButtonIcon: {
+    width: 24,
+    height: 24,
   },
 });
