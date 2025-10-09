@@ -20,6 +20,8 @@ import { Friends } from "./screens/Friends";
 import { Workout } from "./screens/Workout";
 import { NotFound } from "./screens/NotFound";
 import { History } from "./screens/History";
+import { PR } from "./screens/PR";
+import { DetailedHistory } from "./screens/DetailedHistory";
 import { ExerciseSelect } from "./screens/ExerciseSelect";
 
 const HomeTabs = createBottomTabNavigator({
@@ -140,6 +142,22 @@ const RootStack = createNativeStackNavigator({
           </HeaderButton>
         ),
       }),
+    },
+    PR: {
+      screen: PR,
+      options: {
+        title: "Personal Records",
+        headerBackTitle: "History",
+        headerShown: true,
+      },
+    },
+    DetailedHistory: {
+      screen: DetailedHistory,
+      options: {
+        title: "Detailed Workout History",
+        headerBackTitle: "History",
+        headerShown: true,
+      },
     },
     ExerciseSelect: {
       screen: ExerciseSelect,
