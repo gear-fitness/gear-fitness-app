@@ -106,7 +106,6 @@ const HomeTabs = createBottomTabNavigator({
           />
         ),
       },
-      initialParams: { user: "jane" },
     },
   },
 });
@@ -134,14 +133,6 @@ const RootStack = createNativeStackNavigator({
     },
     Settings: {
       screen: Settings,
-      options: ({ navigation }) => ({
-        presentation: "modal",
-        headerRight: () => (
-          <HeaderButton onPress={navigation.goBack}>
-            <Text>Close</Text>
-          </HeaderButton>
-        ),
-      }),
     },
     PR: {
       screen: PR,
