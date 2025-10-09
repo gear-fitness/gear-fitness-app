@@ -63,7 +63,6 @@ export function ExerciseSelect() {
             <View
               style={{
                 flex: 1,
-                backgroundColor: "rgba(255, 255, 255, 1)",
                 justifyContent: "center",
                 alignItems: "center",
               }}

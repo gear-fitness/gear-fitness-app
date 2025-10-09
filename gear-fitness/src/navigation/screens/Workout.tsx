@@ -67,12 +67,10 @@ export function Workout() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
   },
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: "#FFFFFF",
   },
   topbar: {
     flexDirection: "row",
