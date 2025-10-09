@@ -1,6 +1,6 @@
-import { Text } from '@react-navigation/elements';
-import { StyleSheet, View, FlatList } from 'react-native';
-import { useState } from 'react';
+import { Text } from "@react-navigation/elements";
+import { StyleSheet, View, FlatList } from "react-native";
+import { useState } from "react";
 
 type Post = {
   id: string;
@@ -49,16 +49,16 @@ export function Friends() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     padding: 10,
   },
   post: {
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
     paddingVertical: 12,
   },
   user: {
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 4,
   },
   content: {
