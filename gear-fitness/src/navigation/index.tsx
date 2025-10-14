@@ -16,7 +16,7 @@ import close from "../assets/close.png";
 import { Home } from "./screens/Home";
 import { Profile } from "./screens/Profile";
 import { Settings } from "./screens/Settings";
-import { Friends } from "./screens/Friends";
+import { Social } from "./screens/Social";
 import { Workout } from "./screens/Workout";
 import { NotFound } from "./screens/NotFound";
 import { History } from "./screens/History";
