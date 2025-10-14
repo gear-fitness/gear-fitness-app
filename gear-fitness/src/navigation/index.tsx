@@ -47,9 +47,11 @@ const HomeTabs = createBottomTabNavigator({
         ),
       },
     },
-    Friends: {
-      screen: Friends,
+    Social: {
+      screen: Social,
       options: {
+        headerShown: true,
+        title: "Social",
         tabBarIcon: ({ color, size }) => (
           <Image
             source={community}
