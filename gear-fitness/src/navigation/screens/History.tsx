@@ -60,9 +60,9 @@ export function History() {
           ...prev,
           [day.dateString]: {
             marked: true,
-            dotColor: "orange",
+            dotColor: "#1877F2",
             selected: true,
-            selectedColor: "orange",
+            selectedColor: "#1877F2",
           },
         };
       }
@@ -115,8 +115,8 @@ export function History() {
           dayTextColor: colors.text,
           monthTextColor: colors.text,
           textSectionTitleColor: colors.text,
-          todayTextColor: "orange",
-          arrowColor: "orange",
+          todayTextColor: "#1877F2",
+          arrowColor: "#1877F2",
         }}
         hideExtraDays={true}
       />
@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
     maxHeight: 350,
   },
   button: {
-    backgroundColor: "orange",
+    backgroundColor: "#1877F2",
     marginHorizontal: 20,
     marginVertical: 8,
     padding: 15,
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   settingsButton: {
-    backgroundColor: "orange",
+    backgroundColor: "#1877F2",
     width: 40,
     height: 40,
     borderRadius: 20,
