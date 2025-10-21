@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from "react";
 import {
-  SafeAreaView,
   View,
   FlatList,
   Image,
@@ -10,6 +9,7 @@ import {
   TextInput,
 } from "react-native";
 import { Text } from "@react-navigation/elements";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 /** 1) DATA TYPES + DUMMY TEMPLATE */
 type Stat = { label: string; value: string };
