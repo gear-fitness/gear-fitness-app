@@ -33,6 +33,12 @@
           "backgroundColor": "#ffffff",
           "image": "./assets/GearLogo.png"
         }
+      ],
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.637676049223-kg32deotit3muuhi3j1q253vfhotnoai"
+        }
       ]
     ],
     "extra": {
