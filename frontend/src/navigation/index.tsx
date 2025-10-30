@@ -23,6 +23,7 @@ import { History } from "./screens/History";
 import { PR } from "./screens/PR";
 import { DetailedHistory } from "./screens/DetailedHistory";
 import { ExerciseSelect } from "./screens/ExerciseSelect";
+import { LoginScreen } from "./screens/Login";
 
 const HomeTabs = createBottomTabNavigator({
   initialRouteName: "Home",
@@ -113,7 +114,14 @@ const HomeTabs = createBottomTabNavigator({
 });
 
 const RootStack = createNativeStackNavigator({
+  initialRouteName: "Login",
   screens: {
+    Login: {
+      screen: LoginScreen,
+      options: {
+        headerShown: false,
+      },
+    },
     HomeTabs: {
       screen: HomeTabs,
       options: {
