@@ -1,0 +1,1 @@
+{"version":3,"names":["createMaterialTopTabNavigator","MaterialTopTabBar","MaterialTopTabView","useTabAnimation"],"sourceRoot":"../../src","sources":["index.tsx"],"mappings":";;AAAA;AACA;AACA;AACA,SAASA,6BAA6B,QAAQ,+CAA4C;;AAE1F;AACA;AACA;AACA,SAASC,iBAAiB,QAAQ,8BAA2B;AAC7D,SAASC,kBAAkB,QAAQ,+BAA4B;;AAE/D;AACA;AACA;AACA,SAASC,eAAe,QAAQ,4BAAyB;;AAEzD;AACA;AACA","ignoreList":[]}

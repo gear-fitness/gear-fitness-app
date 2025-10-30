@@ -1,0 +1,20 @@
+{
+	"name" : "xdate",
+	"version": "0.8.3",
+	"author": "Adam Shaw",
+	"license": "(MIT OR GPL-2.0)",
+	"homepage": "http://arshaw.com/xdate/",
+	"description": "A Modern JavaScript Date Library",
+	"bugs": {
+		"url": "https://github.com/arshaw/xdate/issues"
+	},
+	"repository" : {
+		"type": "git",
+		"url": "https://github.com/arshaw/xdate.git"
+	},
+	"scripts": {
+		"build": "make xdate",
+		"clean": "make clean"
+	},
+	"main": "./src/xdate.js"
+}

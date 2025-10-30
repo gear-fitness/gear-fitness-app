@@ -1,0 +1,35 @@
+env:
+  LC_ALL: 'en_US'
+steps:
+  - block: ":rocket: Release!"
+    prompt: "Fill out the details for release"
+    if: 'build.message =~ /^release\$/i'
+    fields:
+      - select: "IS_SNAPSHOT_BUILD"
+        key: "is-snapshot"
+        hint: "Publish snapshot version"
+        default: 'false'
+        options:
+          - label: "True"
+            value: true
+          - label: "False"
+            value: false
+      - select: "IS_HOTFIX_BUILD"
+        key: "is-hotfix"
+        hint: "Publish hotfix version"
+        default: 'false'
+        options:
+          - label: "True"
+            value: true
+          - label: "False"
+            value: false
+
+  - label: "Build"
+    command: |
+      nvm install
+      yarn
+      yarn test
+      yarn build:ts
+      if [[ $BUILDKITE_PULL_REQUEST == 'false' ]];then
+        yarn release
+      fi
