@@ -7,6 +7,8 @@ import * as React from "react";
 import { useColorScheme } from "react-native";
 import { Navigation } from "./navigation";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
+import { useEffect } from "react";
 
 Asset.loadAsync([
   ...NavigationAssets,
@@ -26,6 +28,13 @@ export function App() {
   const colorScheme = useColorScheme();
 
   const theme = colorScheme === "dark" ? DarkTheme : DefaultTheme;
+  useEffect(() => {
+    GoogleSignin.configure({
+      iosClientId:
+        "637676049223-kg32deotit3muuhi3j1q253vfhotnoai.apps.googleusercontent.com",
+      profileImageSize: 150,
+    });
+  });
 
   return (
     <SafeAreaProvider>
