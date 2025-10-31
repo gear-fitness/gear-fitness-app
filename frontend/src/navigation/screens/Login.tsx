@@ -2,7 +2,7 @@ import {
   GoogleSignin,
   isSuccessResponse,
 } from "@react-native-google-signin/google-signin";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useTheme } from "@react-navigation/native";
 import React from "react";
 import {
   View,
@@ -19,6 +19,7 @@ const { width, height } = Dimensions.get("window");
 
 export function LoginScreen() {
   const navigation = useNavigation();
+  const { colors } = useTheme();
   const handleGoogleSIgnIn = async () => {
     try {
       console.log("Google Sign-In initiated");
@@ -27,7 +28,8 @@ export function LoginScreen() {
       if (isSuccessResponse(respone)) {
         const { idToken, user } = respone.data;
         const backendResponse = await fetch(
-          "http://YOUR_BACKEND_URL/api/auth/google",
+          //INSERT YOUR BACKEND URL HERE (e.g., localhost or your server's IP) spring boot server
+          "http://10.0.0.219:8080/api/auth/google",
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -55,22 +57,18 @@ export function LoginScreen() {
       alignItems: "center",
       paddingTop: insets.top,
       paddingBottom: insets.bottom,
-      backgroundColor: "#f9f9f9",
       paddingHorizontal: 20,
     },
     title: {
       fontSize: 32,
       fontWeight: "bold",
-      color: "#333",
       marginBottom: 40,
     },
     googleButton: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: "white",
       borderWidth: 1,
-      borderColor: "#ddd",
       borderRadius: 8,
       paddingVertical: 12,
       paddingHorizontal: 20,
@@ -83,16 +81,20 @@ export function LoginScreen() {
     },
     buttonText: {
       fontSize: 16,
-      color: "#333",
       fontWeight: "500",
     },
   });
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Ready to hop on Gear?</Text>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Text style={[styles.title, { color: colors.text }]}>
+        Ready to hop on Gear?
+      </Text>
       <TouchableOpacity
-        style={styles.googleButton}
+        style={[
+          styles.googleButton,
+          { borderColor: colors.border, backgroundColor: colors.card },
+        ]}
         onPress={handleGoogleSIgnIn}
       >
         <Image
@@ -101,7 +103,9 @@ export function LoginScreen() {
           }}
           style={styles.googleLogo}
         />
-        <Text style={styles.buttonText}>Sign in with Google</Text>
+        <Text style={[styles.buttonText, { color: colors.text }]}>
+          Sign in with Google
+        </Text>
       </TouchableOpacity>
     </View>
   );
