@@ -33,12 +33,19 @@
           "backgroundColor": "#ffffff",
           "image": "./assets/GearLogo.png"
         }
+      ],
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.637676049223-kg32deotit3muuhi3j1q253vfhotnoai"
+        }
       ]
     ],
     "extra": {
       "eas": {
-        "projectId": "2664b913-b70e-4962-95e7-be3b8be074e8"
+        "projectId": "0145d488-18ea-45bb-9084-02f9a50cb2d5"
       }
-    }
+    },
+    "owner": "kbcrtz"
   }
 }

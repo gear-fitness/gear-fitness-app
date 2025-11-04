@@ -35,6 +35,7 @@ public class AppUser {
     private String passwordHash;
 
     @Column(name = "is_private", nullable = false)
+    @Builder.Default
     private Boolean isPrivate = false;
 
     @CreationTimestamp
