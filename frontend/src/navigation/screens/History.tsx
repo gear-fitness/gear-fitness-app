@@ -8,7 +8,7 @@ import {
   Image,
 } from "react-native";
 import { Calendar } from "react-native-calendars";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useTheme } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNavigation } from "@react-navigation/native";
@@ -25,43 +25,17 @@ type RootStackParamList = {
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-type Workout = {
-  workoutId: string;
-  name: string;
-  datePerformed: string;
+type Post = {
+  id: string;
+  workout: string;
+  content: string;
 };
 
 export function History() {
   const { colors } = useTheme();
   const navigation = useNavigation<NavigationProp>();
 
-  const [markedDates, setMarkedDates] = useState({});
-  const [searchQuery, setSearchQuery] = useState("");
-  const [data, setData] = useState<Workout[]>([]);
-
-  const userId = "550e8400-e29b-41d4-a716-446655440004"; // Bryant's UUID
-  const API_URL = "http://192.168.0.19:8080/api/workouts"; // Replace with your backend address
-
-  useEffect(() => {
-    fetch(`${API_URL}/user/${userId}`)
-      .then((res) => res.json())
-      .then((workouts) => {
-        setData(workouts);
-
-        const marks = {};
-        workouts.forEach((w) => {
-          marks[w.datePerformed] = {
-            marked: true,
-            selected: true,
-            dotColor: "#1877F2",
-            selectedColor: "#1877F2",
-          };
-        });
-        setMarkedDates(marks);
-      })
-      .catch((err) => console.error("Error loading workouts:", err));
-  }, []);
-
+  // Formats date to be readable for calendar
   const today = new Date();
   const formattedToday =
     today.getFullYear() +
@@ -70,9 +44,14 @@ export function History() {
     "-" +
     String(today.getDate()).padStart(2, "0");
 
+  const [markedDates, setMarkedDates] = useState({});
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Function for dates being pressed
   const handleDayPress = (day) => {
     setMarkedDates((prev) => {
       const isAlreadyMarked = prev[day.dateString];
+
       if (isAlreadyMarked) {
         const { [day.dateString]: _, ...rest } = prev;
         return rest;
@@ -81,8 +60,8 @@ export function History() {
           ...prev,
           [day.dateString]: {
             marked: true,
-            selected: true,
             dotColor: "#1877F2",
+            selected: true,
             selectedColor: "#1877F2",
           },
         };
@@ -90,22 +69,35 @@ export function History() {
     });
   };
 
-  const handlePrPress = () => {
-    navigation.getParent()?.navigate("PR");
-  };
-
-  const filteredData = data.filter((item) =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const [data, setData] = useState<Post[]>(
+    Array.from({ length: 10 }, (_, i) => ({
+      id: `${i + 1}`,
+      workout: `Workout ${i + 1}`,
+      content: `Mock workout #${i + 1}.`,
+    }))
   );
 
-  const renderItem = ({ item }: { item: Workout }) => (
+  const loadMore = () => {
+    const newData = Array.from({ length: 10 }, (_, i) => ({
+      id: `${data.length + i + 1}`,
+      workout: `Workout ${data.length + i + 1}`,
+      content: `Generated workout #${data.length + i + 1}.`,
+    }));
+    setData([...data, ...newData]);
+  };
+
+  // Handler for PR button
+  const handlePrPress = () => {
+    navigation.getParent()?.navigate("PR"); // Navigate using parent stack
+  };
+
+  // Render each item as a button that navigates to DetailedHistory
+  const renderItem = ({ item }: { item: Post }) => (
     <TouchableOpacity
       style={styles.button}
       onPress={() => navigation.getParent()?.navigate("DetailedHistory")}
     >
-      <Text style={styles.buttonText}>
-        {item.name} — {item.datePerformed}
-      </Text>
+      <Text style={styles.buttonText}>{item.workout}</Text>
     </TouchableOpacity>
   );
 
@@ -129,7 +121,7 @@ export function History() {
         hideExtraDays={true}
       />
 
-      {/* Search Bar + PR Button */}
+      {/* Search Bar with PR Button */}
       <View style={styles.searchContainer}>
         <TextInput
           style={[
@@ -147,9 +139,11 @@ export function History() {
       </View>
 
       <FlatList
-        data={filteredData}
-        keyExtractor={(item) => item.workoutId}
+        data={data}
+        keyExtractor={(item) => item.id}
         renderItem={renderItem}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
       />
     </View>
   );
