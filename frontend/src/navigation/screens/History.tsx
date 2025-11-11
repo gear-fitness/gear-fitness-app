@@ -19,7 +19,7 @@ type RootStackParamList = {
   Profile: { user: string };
   Settings: undefined;
   PR: undefined;
-  DetailedHistory: undefined;
+  DetailedHistory: { workoutId: string };
   NotFound: undefined;
 };
 
@@ -39,8 +39,8 @@ export function History() {
   const [searchQuery, setSearchQuery] = useState("");
   const [data, setData] = useState<Workout[]>([]);
 
-  const userId = "550e8400-e29b-41d4-a716-446655440004"; // Bryant's UUID
-  const API_URL = "http://192.168.0.19:8080/api/workouts"; // Replace with your backend address
+  const userId = "550e8400-e29b-41d4-a716-446655440004"; // Alton's UUID
+  const API_URL = "http://10.72.10.77:8080/api/workouts"; // Replace with your backend address
 
   useEffect(() => {
     fetch(`${API_URL}/user/${userId}`)
@@ -101,7 +101,11 @@ export function History() {
   const renderItem = ({ item }: { item: Workout }) => (
     <TouchableOpacity
       style={styles.button}
-      onPress={() => navigation.getParent()?.navigate("DetailedHistory")}
+      onPress={() =>
+        navigation.getParent()?.navigate("DetailedHistory", {
+          workoutId: item.workoutId,
+        })
+      }
     >
       <Text style={styles.buttonText}>
         {item.name} — {item.datePerformed}

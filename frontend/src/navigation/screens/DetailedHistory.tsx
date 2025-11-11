@@ -1,115 +1,344 @@
 import {
-  TextInput,
-  Image,
+  Text,
   StyleSheet,
   View,
-  Dimensions,
+  ScrollView,
   useColorScheme,
+  ActivityIndicator,
 } from "react-native";
-import bench from "../../assets/bench.png";
-import squat from "../../assets/squat.png";
-import deadlift from "../../assets/deadlift.png";
+import React, { useState, useEffect } from "react";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 
-export function DetailedHistory() {
+type RootStackParamList = {
+  DetailedHistory: { workoutId: string };
+};
+
+type Props = NativeStackScreenProps<RootStackParamList, "DetailedHistory">;
+
+type WorkoutSet = {
+  workoutSetId: string;
+  setNumber: number;
+  reps: number;
+  weightKg: number | null;
+  isPr: boolean;
+};
+
+type WorkoutExercise = {
+  workoutExerciseId: string;
+  exerciseName: string;
+  bodyPart: string;
+  position: number;
+  note: string | null;
+  sets: WorkoutSet[];
+};
+
+type WorkoutDetail = {
+  workoutId: string;
+  name: string;
+  datePerformed: string;
+  durationMin: number | null;
+  bodyTag: string | null;
+  exercises: WorkoutExercise[];
+};
+
+export function DetailedHistory({ route }: Props) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+  const { workoutId } = route.params;
 
-  const rows = [
-    { image: bench, text: "SET 1: Weight: 225 Reps: 8" },
-    { image: squat, text: "SET 1: Weight: 225 Reps: 8" },
-    { image: deadlift, text: "SET 1: Weight: 225 Reps: 8" },
-  ];
+  const [workout, setWorkout] = useState<WorkoutDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const API_URL = "http://10.72.10.77:8080/api/workouts";
+
+  useEffect(() => {
+    console.log("Fetching workout details for ID:", workoutId);
+
+    fetch(`${API_URL}/${workoutId}`)
+      .then((res) => {
+        console.log("Response status:", res.status);
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then((data) => {
+        console.log("Workout data received:", data);
+        setWorkout(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Error loading workout details:", err);
+        setError(err.message);
+        setLoading(false);
+      });
+  }, [workoutId]);
+
+  if (loading) {
+    return (
+      <View
+        style={[
+          styles.container,
+          styles.centerContent,
+          { backgroundColor: isDark ? "#121212" : "#fff" },
+        ]}
+      >
+        <ActivityIndicator size="large" color="#1877F2" />
+        <Text style={[styles.loadingText, { color: isDark ? "#fff" : "#000" }]}>
+          Loading workout...
+        </Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View
+        style={[
+          styles.container,
+          styles.centerContent,
+          { backgroundColor: isDark ? "#121212" : "#fff" },
+        ]}
+      >
+        <Text style={[styles.errorText, { color: isDark ? "#fff" : "#000" }]}>
+          Error: {error}
+        </Text>
+        <Text
+          style={[styles.errorSubtext, { color: isDark ? "#aaa" : "#666" }]}
+        >
+          Workout ID: {workoutId}
+        </Text>
+      </View>
+    );
+  }
+
+  if (!workout) {
+    return (
+      <View
+        style={[
+          styles.container,
+          styles.centerContent,
+          { backgroundColor: isDark ? "#121212" : "#fff" },
+        ]}
+      >
+        <Text style={[styles.errorText, { color: isDark ? "#fff" : "#000" }]}>
+          Workout not found
+        </Text>
+      </View>
+    );
+  }
 
   return (
-    <View
+    <ScrollView
       style={[
         styles.container,
         { backgroundColor: isDark ? "#121212" : "#fff" },
       ]}
     >
-      {rows.map((row, index) => (
-        <View
-          key={index}
-          style={[styles.row, { borderColor: isDark ? "#555" : "#ccc" }]}
-        >
-          {/* Left cell with image */}
-          <View
-            style={[
-              styles.cell,
-              { backgroundColor: isDark ? "#1e1e1e" : "#fff" },
-            ]}
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={[styles.workoutName, { color: isDark ? "#fff" : "#000" }]}>
+          {workout.name}
+        </Text>
+        <Text style={[styles.workoutDate, { color: isDark ? "#aaa" : "#666" }]}>
+          {workout.datePerformed}
+          {workout.durationMin && ` • ${workout.durationMin} min`}
+        </Text>
+        {workout.bodyTag && (
+          <Text
+            style={[styles.bodyTag, { color: isDark ? "#1877F2" : "#1877F2" }]}
           >
-            <Image
-              source={row.image}
-              style={[
-                styles.image,
-                { tintColor: isDark ? "#fff" : "#000" }, // black in light mode, white in dark mode
-              ]}
-            />
-          </View>
+            {workout.bodyTag}
+          </Text>
+        )}
+      </View>
 
-          {/* Right cell with editable text */}
+      {/* Exercises */}
+      {workout.exercises && workout.exercises.length > 0 ? (
+        workout.exercises.map((exercise) => (
           <View
+            key={exercise.workoutExerciseId}
             style={[
-              styles.cell,
-              { backgroundColor: isDark ? "#1e1e1e" : "#fff" },
+              styles.exerciseCard,
+              {
+                backgroundColor: isDark ? "#1e1e1e" : "#f9f9f9",
+                borderColor: isDark ? "#333" : "#e0e0e0",
+              },
             ]}
           >
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: isDark ? "#2a2a2a" : "#f0f0f0",
-                  color: isDark ? "#fff" : "#000",
-                },
-              ]}
-              defaultValue={row.text}
-              multiline
-            />
+            <Text
+              style={[styles.exerciseName, { color: isDark ? "#fff" : "#000" }]}
+            >
+              {exercise.exerciseName}
+            </Text>
+            <Text
+              style={[styles.bodyPart, { color: isDark ? "#aaa" : "#666" }]}
+            >
+              {exercise.bodyPart}
+            </Text>
+            {exercise.note && (
+              <Text style={[styles.note, { color: isDark ? "#bbb" : "#777" }]}>
+                Note: {exercise.note}
+              </Text>
+            )}
+
+            {/* Sets */}
+            <View style={styles.setsContainer}>
+              {exercise.sets && exercise.sets.length > 0 ? (
+                exercise.sets.map((set) => (
+                  <View
+                    key={set.workoutSetId}
+                    style={[
+                      styles.setRow,
+                      {
+                        backgroundColor: isDark ? "#2a2a2a" : "#fff",
+                        borderColor: isDark ? "#444" : "#ddd",
+                      },
+                      set.isPr && styles.prSet,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.setText,
+                        { color: isDark ? "#fff" : "#000" },
+                      ]}
+                    >
+                      Set {set.setNumber}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.setText,
+                        { color: isDark ? "#fff" : "#000" },
+                      ]}
+                    >
+                      {set.reps} reps
+                      {set.weightKg !== null && ` @ ${set.weightKg} kg`}
+                    </Text>
+                    {set.isPr && <Text style={styles.prBadge}>PR 🏆</Text>}
+                  </View>
+                ))
+              ) : (
+                <Text
+                  style={[
+                    styles.noSetsText,
+                    { color: isDark ? "#aaa" : "#666" },
+                  ]}
+                >
+                  No sets recorded
+                </Text>
+              )}
+            </View>
           </View>
+        ))
+      ) : (
+        <View style={styles.centerContent}>
+          <Text
+            style={[
+              styles.noExercisesText,
+              { color: isDark ? "#aaa" : "#666" },
+            ]}
+          >
+            No exercises recorded for this workout
+          </Text>
         </View>
-      ))}
-    </View>
+      )}
+    </ScrollView>
   );
 }
-
-const screenWidth = Dimensions.get("window").width;
-const columnWidth = screenWidth / 2;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  row: {
-    flex: 1, // equal height for all rows
-    flexDirection: "row",
+  centerContent: {
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  header: {
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+  },
+  workoutName: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 8,
+  },
+  workoutDate: {
+    fontSize: 16,
+    marginBottom: 4,
+  },
+  bodyTag: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginTop: 4,
+  },
+  exerciseCard: {
+    margin: 15,
+    padding: 15,
+    borderRadius: 10,
     borderWidth: 1,
   },
-  cell: {
-    width: columnWidth,
-    borderRightWidth: 1,
-    borderColor: "#ccc",
-    justifyContent: "center", // vertical center
-    alignItems: "center", // horizontal center
+  exerciseName: {
+    fontSize: 20,
+    fontWeight: "600",
+    marginBottom: 4,
   },
-  image: {
-    width: "80%",
-    height: "80%",
-    resizeMode: "contain",
+  bodyPart: {
+    fontSize: 14,
+    marginBottom: 8,
   },
-  input: {
-    width: "90%",
-    height: "60%",
-    textAlign: "center",
-    textAlignVertical: "center",
+  note: {
+    fontSize: 14,
+    fontStyle: "italic",
+    marginBottom: 12,
+  },
+  setsContainer: {
+    marginTop: 10,
+  },
+  setRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 12,
+    marginBottom: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  prSet: {
+    borderColor: "#FFD700",
+    borderWidth: 2,
+  },
+  setText: {
     fontSize: 16,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+  },
+  prBadge: {
+    color: "#FFD700",
+    fontSize: 14,
+    fontWeight: "bold",
+  },
+  errorText: {
+    fontSize: 18,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  errorSubtext: {
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: "center",
+  },
+  loadingText: {
+    fontSize: 16,
+    marginTop: 12,
+  },
+  noExercisesText: {
+    fontSize: 16,
+    fontStyle: "italic",
+  },
+  noSetsText: {
+    fontSize: 14,
+    fontStyle: "italic",
   },
 });
