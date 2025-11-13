@@ -25,10 +25,10 @@ type RootStackParamList = {
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-type Workout = {
-  workoutId: string;
-  name: string;
-  datePerformed: string;
+type Post = {
+  id: string;
+  workout: string;
+  content: string;
 };
 
 export function History() {
@@ -103,9 +103,7 @@ export function History() {
         })
       }
     >
-      <Text style={styles.buttonText}>
-        {item.name} — {item.datePerformed}
-      </Text>
+      <Text style={styles.buttonText}>{item.workout}</Text>
     </TouchableOpacity>
   );
 
@@ -128,7 +126,7 @@ export function History() {
         hideExtraDays={true}
       />
 
-      {/* Search Bar + PR Button */}
+      {/* Search Bar with PR Button */}
       <View style={styles.searchContainer}>
         <TextInput
           style={[
@@ -146,9 +144,11 @@ export function History() {
       </View>
 
       <FlatList
-        data={filteredData}
-        keyExtractor={(item) => item.workoutId}
+        data={data}
+        keyExtractor={(item) => item.id}
         renderItem={renderItem}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
       />
     </View>
   );
