@@ -19,7 +19,7 @@ type WorkoutSet = {
   workoutSetId: string;
   setNumber: number;
   reps: number;
-  weightKg: number | null;
+  weightLbs: number | null; // Changed from weightKg to weightLbs
   isPr: boolean;
 };
 
@@ -50,7 +50,7 @@ export function DetailedHistory({ route }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const API_URL = "http://10.72.10.77:8080/api/workouts";
+  const API_URL = "http://192.168.0.19:8080/api/workouts";
 
   useEffect(() => {
     console.log("Fetching workout details for ID:", workoutId);
@@ -213,7 +213,7 @@ export function DetailedHistory({ route }: Props) {
                       ]}
                     >
                       {set.reps} reps
-                      {set.weightKg !== null && ` @ ${set.weightKg} kg`}
+                      {set.weightLbs !== null && ` @ ${set.weightLbs} lbs`}
                     </Text>
                     {set.isPr && <Text style={styles.prBadge}>PR 🏆</Text>}
                   </View>

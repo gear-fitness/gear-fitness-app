@@ -31,16 +31,10 @@ public class WorkoutService {
         Workout workout = workoutRepository.findById(workoutId)
                 .orElseThrow(() -> new RuntimeException("Workout not found with id: " + workoutId));
 
-        // Force initialization of lazy-loaded collections
-        workout.getWorkoutExercises().size();
-        
         List<WorkoutExerciseDTO> exercises = workout.getWorkoutExercises()
                 .stream()
                 .sorted(Comparator.comparing(WorkoutExercise::getPosition))
                 .map(we -> {
-                    // Force initialization of sets
-                    we.getWorkoutSets().size();
-                    
                     List<WorkoutSetDTO> sets = we.getWorkoutSets()
                             .stream()
                             .sorted(Comparator.comparing(ws -> ws.getSetNumber()))
@@ -48,7 +42,7 @@ public class WorkoutService {
                                     ws.getWorkoutSetId(),
                                     ws.getSetNumber(),
                                     ws.getReps(),
-                                    ws.getWeightKg(),
+                                    ws.getWeightLbs(),  // Changed from getWeightKg to getWeightLbs
                                     ws.getIsPr()
                             ))
                             .collect(Collectors.toList());

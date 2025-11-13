@@ -14,6 +14,6 @@ public class WorkoutSetDTO {
     private UUID workoutSetId;
     private Integer setNumber;
     private Integer reps;
-    private BigDecimal weightKg;
+    private BigDecimal weightLbs;  // Changed from weightKg to weightLbs
     private Boolean isPr;
 }
