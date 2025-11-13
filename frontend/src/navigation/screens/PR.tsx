@@ -35,7 +35,7 @@ export function PR({ route }: Props) {
   const [prs, setPrs] = useState<PersonalRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const API_URL = "http://192.168.0.19:8080/api/personal-records";
+  const API_URL = "http://10.72.10.77:8080/api/personal-records";
 
   useEffect(() => {
     console.log("Fetching PRs for user:", userId);

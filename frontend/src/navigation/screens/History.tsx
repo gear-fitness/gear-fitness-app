@@ -25,10 +25,10 @@ type RootStackParamList = {
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-type Post = {
-  id: string;
-  workout: string;
-  content: string;
+type Workout = {
+  workoutId: string;
+  name: string;
+  datePerformed: string;
 };
 
 export function History() {
@@ -40,7 +40,7 @@ export function History() {
   const [data, setData] = useState<Workout[]>([]);
 
   const userId = "550e8400-e29b-41d4-a716-446655440004"; // Alton's UUID
-  const API_URL = "http://192.168.0.19:8080/api/workouts";
+  const API_URL = "http://10.72.10.77:8080/api/workouts";
 
   // Function to fetch workouts
   const fetchWorkouts = () => {
@@ -103,7 +103,9 @@ export function History() {
         })
       }
     >
-      <Text style={styles.buttonText}>{item.workout}</Text>
+      <Text style={styles.buttonText}>
+        {item.name} — {item.datePerformed}
+      </Text>
     </TouchableOpacity>
   );
 
@@ -126,7 +128,7 @@ export function History() {
         hideExtraDays={true}
       />
 
-      {/* Search Bar with PR Button */}
+      {/* Search Bar + PR Button */}
       <View style={styles.searchContainer}>
         <TextInput
           style={[
@@ -144,11 +146,9 @@ export function History() {
       </View>
 
       <FlatList
-        data={data}
-        keyExtractor={(item) => item.id}
+        data={filteredData}
+        keyExtractor={(item) => item.workoutId}
         renderItem={renderItem}
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.5}
       />
     </View>
   );
