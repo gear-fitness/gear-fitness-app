@@ -50,7 +50,7 @@ export function DetailedHistory({ route }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const API_URL = "http://10.72.10.77:8080/api/workouts";
+  const API_URL = `${process.env.EXPO_PUBLIC_API_URL}/api/workouts`;
 
   useEffect(() => {
     console.log("Fetching workout details for ID:", workoutId);

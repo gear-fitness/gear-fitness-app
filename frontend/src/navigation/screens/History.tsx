@@ -40,7 +40,7 @@ export function History() {
   const [data, setData] = useState<Workout[]>([]);
 
   const userId = "550e8400-e29b-41d4-a716-446655440004"; // Alton's UUID
-  const API_URL = "http://10.72.10.77:8080/api/workouts";
+  const API_URL = `${process.env.EXPO_PUBLIC_API_URL}/api/workouts`;
 
   // Function to fetch workouts
   const fetchWorkouts = () => {
