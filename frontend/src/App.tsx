@@ -30,8 +30,7 @@ export function App() {
   const theme = colorScheme === "dark" ? DarkTheme : DefaultTheme;
   useEffect(() => {
     GoogleSignin.configure({
-      iosClientId:
-        "637676049223-kg32deotit3muuhi3j1q253vfhotnoai.apps.googleusercontent.com",
+      iosClientId: process.env.EXPO_PUBLIC_IOS_CLIENT_ID,
       profileImageSize: 150,
     });
   });
