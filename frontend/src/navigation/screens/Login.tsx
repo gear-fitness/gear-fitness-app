@@ -28,8 +28,7 @@ export function LoginScreen() {
       if (isSuccessResponse(respone)) {
         const { idToken, user } = respone.data;
         const backendResponse = await fetch(
-          //INSERT YOUR BACKEND URL HERE (e.g., localhost or your server's IP) spring boot server
-          "http://10.54.49.13:8080/api/auth/google",
+          `${process.env.EXPO_PUBLIC_API_URL}/api/auth/google`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
