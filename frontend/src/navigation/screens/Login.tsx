@@ -29,19 +29,26 @@ export function LoginScreen() {
         const { idToken, user } = respone.data;
         const backendResponse = await fetch(
           //INSERT YOUR BACKEND URL HERE (e.g., localhost or your server's IP) spring boot server
-          "http://10.54.49.13:8080/api/auth/google",
+          "http://10.0.0.219:8080/api/auth/google",
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ idToken }),
           }
         );
-        const { token, user: userData } = await backendResponse.json();
+        const { token, user: userData, newUser } = await backendResponse.json();
         // Store this token for future API calls
         await AsyncStorage.setItem("authToken", token);
         const { name, email, photo } = user;
         console.log("User Info:", { name, email, photo });
-        navigation.navigate("HomeTabs");
+        console.log("Is new user:", newUser);
+
+        // Navigate to profile setup if new user, otherwise go to home
+        if (newUser) {
+          navigation.navigate("SignUpProfile");
+        } else {
+          navigation.navigate("HomeTabs");
+        }
       }
     } catch (error) {
       console.error("Google Sign-In error:", error);

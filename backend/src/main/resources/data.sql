@@ -5,12 +5,12 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 TRUNCATE TABLE workout_set, workout_exercise, post_comment, post_like, post, workout, exercise, follow, app_user CASCADE;
 
 -- Insert Users
-INSERT INTO app_user (user_id, username, email, password_hash, is_private, created_at)
-VALUES 
-    ('550e8400-e29b-41d4-a716-446655440001', 'bryant', 'bryant@example.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', false, NOW() - INTERVAL '120 days'),
-    ('550e8400-e29b-41d4-a716-446655440002', 'max', 'max@example.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', false, NOW() - INTERVAL '100 days'),
-    ('550e8400-e29b-41d4-a716-446655440003', 'kobe', 'kobe@example.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', true, NOW() - INTERVAL '90 days'),
-    ('550e8400-e29b-41d4-a716-446655440004', 'alton', 'alton@example.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', false, NOW() - INTERVAL '80 days');
+INSERT INTO app_user (user_id, username, email, password_hash, is_private, age, height_inches, weight_lbs, created_at)
+VALUES
+    ('550e8400-e29b-41d4-a716-446655440001', 'bryant', 'bryant@example.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', false, 25, 72, 180, NOW() - INTERVAL '120 days'),
+    ('550e8400-e29b-41d4-a716-446655440002', 'max', 'max@example.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', false, 28, 70, 190, NOW() - INTERVAL '100 days'),
+    ('550e8400-e29b-41d4-a716-446655440003', 'kobe', 'kobe@example.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', true, 24, 73, 195, NOW() - INTERVAL '90 days'),
+    ('550e8400-e29b-41d4-a716-446655440004', 'alton', 'alton@example.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', false, 30, 68, 175, NOW() - INTERVAL '80 days');
 
 -- Insert Exercises
 INSERT INTO exercise (exercise_id, name, body_part, description)
