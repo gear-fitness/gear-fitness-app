@@ -1,5 +1,6 @@
 package com.gearfitness.gear_api.controller;
 
+import com.gearfitness.gear_api.dto.WeeklyVolumeDTO;
 import com.gearfitness.gear_api.dto.WorkoutDTO;
 import com.gearfitness.gear_api.dto.WorkoutDetailDTO;
 import com.gearfitness.gear_api.entity.Workout;
@@ -66,6 +67,20 @@ public class WorkoutController {
                     saved.getName(),
                     saved.getDatePerformed()
             ));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // Weekly volume statistics
+    @GetMapping("/user/{userId}/weekly-volume")
+    public ResponseEntity<List<WeeklyVolumeDTO>> getWeeklyVolume(
+            @PathVariable UUID userId,
+            @RequestParam(defaultValue = "12") int weeks) {
+        try {
+            List<WeeklyVolumeDTO> weeklyVolume = workoutService.getWeeklyVolume(userId, weeks);
+            return ResponseEntity.ok(weeklyVolume);
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
