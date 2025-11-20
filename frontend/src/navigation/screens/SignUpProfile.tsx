@@ -23,6 +23,7 @@ export function SignUpProfileScreen() {
   const [heightInches, setHeightInches] = useState("");
   const [weightLbs, setWeightLbs] = useState("");
   const [age, setAge] = useState("");
+  const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
 
   const validateInputs = () => {
@@ -78,7 +79,7 @@ export function SignUpProfileScreen() {
         return;
       }
 
-      const response = await fetch("http://10.0.0.219:8080/api/users/me", {
+      const response = await fetch("http://10.54.49.13:8080/api/users/me", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

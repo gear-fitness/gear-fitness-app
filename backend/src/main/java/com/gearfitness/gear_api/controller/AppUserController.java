@@ -2,6 +2,7 @@ package com.gearfitness.gear_api.controller;
 
 import com.gearfitness.gear_api.dto.UpdateUserProfileRequest;
 import com.gearfitness.gear_api.dto.UserDTO;
+import com.gearfitness.gear_api.dto.UserProfileDTO;
 import com.gearfitness.gear_api.security.JwtService;
 import com.gearfitness.gear_api.service.AppUserService;
 import lombok.RequiredArgsConstructor;
@@ -20,16 +21,33 @@ public class AppUserController {
 
     /**
      * GET /api/users/me
-     * Get current authenticated user's profile
+     * Get current authenticated user's profile (basic info)
      */
     @GetMapping("/me")
     public ResponseEntity<UserDTO> getCurrentUserProfile(@RequestHeader("Authorization") String authHeader) {
         try {
             String token = authHeader.substring(7); // Remove "Bearer " prefix
             UUID userId = jwtService.extractUserId(token);
-            
+
             UserDTO user = userService.getUserProfile(userId);
             return ResponseEntity.ok(user);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    /**
+     * GET /api/users/me/profile
+     * Get current authenticated user's enhanced profile with workout stats and social metrics
+     */
+    @GetMapping("/me/profile")
+    public ResponseEntity<UserProfileDTO> getCurrentUserEnhancedProfile(@RequestHeader("Authorization") String authHeader) {
+        try {
+            String token = authHeader.substring(7); // Remove "Bearer " prefix
+            UUID userId = jwtService.extractUserId(token);
+
+            UserProfileDTO profile = userService.getEnhancedUserProfile(userId, userId);
+            return ResponseEntity.ok(profile);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
         }
@@ -58,14 +76,29 @@ public class AppUserController {
 
     /**
      * GET /api/users/{username}
-     * Get user profile by username (public endpoint)
+     * Get enhanced user profile by username
+     * Optionally include viewing user's perspective for follow status
      */
     @GetMapping("/{username}")
-    public ResponseEntity<?> getUserByUsername(@PathVariable String username) {
+    public ResponseEntity<?> getUserByUsername(
+            @PathVariable String username,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            UserDTO user = userService.getUserProfileByUsername(username);
+            UUID viewingUserId = null;
+
+            // Extract viewing user ID if authenticated
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                try {
+                    String token = authHeader.substring(7);
+                    viewingUserId = jwtService.extractUserId(token);
+                } catch (Exception e) {
+                    // Ignore token errors, just treat as unauthenticated
+                }
+            }
+
+            UserProfileDTO profile = userService.getEnhancedUserProfileByUsername(username, viewingUserId);
             // TODO: Filter response based on privacy settings
-            return ResponseEntity.ok(user);
+            return ResponseEntity.ok(profile);
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         }
