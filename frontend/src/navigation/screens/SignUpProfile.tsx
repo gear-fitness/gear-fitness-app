@@ -13,7 +13,7 @@ import {
   ScrollView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { updateUserProfile } from "../../api/userService";
 
 export function SignUpProfileScreen() {
   const navigation = useNavigation();
@@ -68,38 +68,14 @@ export function SignUpProfileScreen() {
     setLoading(true);
 
     try {
-      const authToken = await AsyncStorage.getItem("authToken");
+      const userData = await updateUserProfile(
+        parseInt(heightInches),
+        parseInt(weightLbs),
+        parseInt(age)
+      );
 
-      if (!authToken) {
-        Alert.alert(
-          "Error",
-          "Authentication token not found. Please log in again."
-        );
-        navigation.navigate("Login");
-        return;
-      }
-
-      const response = await fetch("http://10.54.49.13:8080/api/users/me", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({
-          heightInches: parseInt(heightInches),
-          weightLbs: parseInt(weightLbs),
-          age: parseInt(age),
-        }),
-      });
-
-      if (response.ok) {
-        const userData = await response.json();
-        console.log("Profile updated successfully:", userData);
-        navigation.navigate("HomeTabs");
-      } else {
-        const errorData = await response.json();
-        Alert.alert("Error", errorData.message || "Failed to update profile");
-      }
+      console.log("Profile updated successfully:", userData);
+      navigation.navigate("HomeTabs");
     } catch (error) {
       console.error("Profile update error:", error);
       Alert.alert("Error", "An error occurred while updating your profile");

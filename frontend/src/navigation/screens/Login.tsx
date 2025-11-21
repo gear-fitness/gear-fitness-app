@@ -13,7 +13,8 @@ import {
   Image,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { setAuthToken } from "../../utils/auth";
+import { loginWithGoogle } from "../../api/authService";
 
 const { width, height } = Dimensions.get("window");
 
@@ -27,18 +28,16 @@ export function LoginScreen() {
       console.log("Google Sign-In successful:", respone);
       if (isSuccessResponse(respone)) {
         const { idToken, user } = respone.data;
-        const backendResponse = await fetch(
-          //INSERT YOUR BACKEND URL HERE (e.g., localhost or your server's IP) spring boot server
-          "http://10.54.49.13:8080/api/auth/google",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ idToken }),
-          }
-        );
-        const { token, user: userData, newUser } = await backendResponse.json();
+
+        if (!idToken) {
+          throw new Error("No ID token received from Google");
+        }
+
+        const { token, newUser } = await loginWithGoogle(idToken);
+
         // Store this token for future API calls
-        await AsyncStorage.setItem("authToken", token);
+        await setAuthToken(token);
+
         const { name, email, photo } = user;
         console.log("User Info:", { name, email, photo });
         console.log("Is new user:", newUser);

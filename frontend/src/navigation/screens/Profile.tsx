@@ -2,6 +2,7 @@ import { StyleSheet, TouchableOpacity, View, ActivityIndicator, Alert } from "re
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button, Text } from "@react-navigation/elements";
 import setting from "../../assets/setting.png";
+import avatar from "../../assets/avatar.png";
 import { Image, ScrollView } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useState, useEffect } from "react";
@@ -210,7 +211,7 @@ export function Profile() {
       <View style={styles.container}>
         <View style={styles.upperSection}>
           <View>
-            <View style={styles.profilePicture}></View>
+            <Image source={avatar} style={styles.profilePicture} />
           </View>
           <TouchableOpacity
             onPress={() => {
