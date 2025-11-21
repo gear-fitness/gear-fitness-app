@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import React, { useState, useEffect } from "react";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { authenticatedFetch } from "../../services/api";
 
 type RootStackParamList = {
   DetailedHistory: { workoutId: string };
@@ -55,7 +56,7 @@ export function DetailedHistory({ route }: Props) {
   useEffect(() => {
     console.log("Fetching workout details for ID:", workoutId);
 
-    fetch(`${API_URL}/${workoutId}`)
+    authenticatedFetch(`${API_URL}/${workoutId}`)
       .then((res) => {
         console.log("Response status:", res.status);
         if (!res.ok) {

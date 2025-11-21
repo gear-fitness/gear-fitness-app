@@ -13,6 +13,7 @@ import { useTheme } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import weightlifter from "../../assets/weightlifter.png";
+import { authenticatedFetch } from "../../services/api";
 
 type RootStackParamList = {
   HomeTabs: undefined;
@@ -45,7 +46,7 @@ export function History() {
   // Function to fetch workouts
   const fetchWorkouts = () => {
     console.log("Fetching workouts for user:", userId);
-    fetch(`${API_URL}/user/${userId}`)
+    authenticatedFetch(`${API_URL}/user/${userId}`)
       .then((res) => res.json())
       .then((workouts) => {
         console.log("Workouts fetched:", workouts.length);
