@@ -12,6 +12,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import bench from "../../assets/bench.png";
 import squat from "../../assets/squat.png";
 import deadlift from "../../assets/deadlift.png";
+import { authenticatedFetch } from "../../services/api";
 
 type RootStackParamList = {
   PR: { userId: string };
@@ -40,7 +41,7 @@ export function PR({ route }: Props) {
   useEffect(() => {
     console.log("Fetching PRs for user:", userId);
 
-    fetch(`${API_URL}/user/${userId}`)
+    authenticatedFetch(`${API_URL}/user/${userId}`)
       .then((res) => {
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status}`);
