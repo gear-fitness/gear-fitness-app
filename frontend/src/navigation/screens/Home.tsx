@@ -1,5 +1,5 @@
 import { Button, Text } from "@react-navigation/elements";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import {
   StyleSheet,
   View,
@@ -11,6 +11,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LineChart } from "react-native-chart-kit";
 import { useEffect, useState } from "react";
+import React from "react";
+import { authenticatedFetch } from "../../services/api";
 
 const { width, height } = Dimensions.get("window");
 
@@ -21,6 +23,14 @@ interface WeeklyVolumeData {
   workoutCount: number;
 }
 
+interface Workout {
+  workoutId: string;
+  name: string;
+  datePerformed: string;
+  durationMin: number | null;
+  bodyTag: string | null;
+}
+
 export function Home() {
   const userId = "550e8400-e29b-41d4-a716-446655440004"; // Alton's UUID
   const API_URL = `${process.env.EXPO_PUBLIC_API_URL}/api/workouts`;
@@ -28,16 +38,35 @@ export function Home() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const [weeklyData, setWeeklyData] = useState<WeeklyVolumeData[]>([]);
+  const [recentWorkouts, setRecentWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Fetch data on initial mount
   useEffect(() => {
-    fetchWeeklyVolume();
+    fetchData();
   }, []);
+
+  // Refetch data every time the screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchData();
+    }, [])
+  );
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      await Promise.all([fetchWeeklyVolume(), fetchRecentWorkouts()]);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchWeeklyVolume = async () => {
     try {
-      setLoading(true);
-      const response = await fetch(
+      const response = await authenticatedFetch(
         `${API_URL}/user/${userId}/weekly-volume?weeks=8`
       );
 
@@ -49,8 +78,23 @@ export function Home() {
       }
     } catch (error) {
       console.error("Error fetching weekly volume:", error);
-    } finally {
-      setLoading(false);
+    }
+  };
+
+  const fetchRecentWorkouts = async () => {
+    try {
+      const response = await authenticatedFetch(`${API_URL}/user/${userId}`);
+
+      if (response.ok) {
+        const workouts = await response.json();
+        // Get the 3 most recent workouts
+        const recent = workouts.slice(0, 3);
+        setRecentWorkouts(recent);
+      } else {
+        console.error("Failed to fetch recent workouts");
+      }
+    } catch (error) {
+      console.error("Error fetching recent workouts:", error);
     }
   };
 
@@ -236,18 +280,30 @@ export function Home() {
         </View>
 
         <View style={styles.activityCards}>
-          <View style={styles.activityCard}>
-            <Text style={styles.cardTitle}>Morning Run</Text>
-            <Text style={styles.cardSubtitle}>5.2 km • 32 min</Text>
-          </View>
-          <View style={styles.activityCard}>
-            <Text style={styles.cardTitle}>Weight Training</Text>
-            <Text style={styles.cardSubtitle}>45 min • Upper Body</Text>
-          </View>
-          <View style={styles.activityCard}>
-            <Text style={styles.cardTitle}>Evening Walk</Text>
-            <Text style={styles.cardSubtitle}>2.1 km • 25 min</Text>
-          </View>
+          {recentWorkouts.length > 0 ? (
+            recentWorkouts.map((workout) => (
+              <TouchableOpacity
+                key={workout.workoutId}
+                style={styles.activityCard}
+                onPress={() => {
+                  navigation.getParent()?.navigate("DetailedHistory", {
+                    workoutId: workout.workoutId,
+                  });
+                }}
+              >
+                <Text style={styles.cardTitle}>{workout.name}</Text>
+                <Text style={styles.cardSubtitle}>
+                  {workout.datePerformed}
+                  {workout.durationMin && ` • ${workout.durationMin} min`}
+                  {workout.bodyTag && ` • ${workout.bodyTag}`}
+                </Text>
+              </TouchableOpacity>
+            ))
+          ) : (
+            <View style={styles.activityCard}>
+              <Text style={styles.cardSubtitle}>No recent workouts</Text>
+            </View>
+          )}
         </View>
       </View>
     </ScrollView>
