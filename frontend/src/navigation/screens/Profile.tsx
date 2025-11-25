@@ -1,13 +1,57 @@
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { StyleSheet, TouchableOpacity, View, ActivityIndicator, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button, Text } from "@react-navigation/elements";
 import setting from "../../assets/setting.png";
+import avatar from "../../assets/avatar.png";
 import { Image, ScrollView } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { useState, useEffect } from "react";
+import { getCurrentUserProfile, getUserFollowers } from "../../api/userService";
+import { UserProfile, FollowerUser } from "../../api/types";
 
 export function Profile() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
+
+  // State management
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [followers, setFollowers] = useState<FollowerUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch profile data on mount
+  useEffect(() => {
+    loadProfileData();
+  }, []);
+
+  const loadProfileData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Fetch profile data
+      const profileData = await getCurrentUserProfile();
+      setProfile(profileData);
+
+      // Fetch followers
+      const followersData = await getUserFollowers(profileData.userId);
+      setFollowers(followersData);
+    } catch (err) {
+      console.error("Error loading profile:", err);
+      setError(err instanceof Error ? err.message : "Failed to load profile");
+      Alert.alert("Error", "Failed to load profile data. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Format height from inches to feet and inches
+  const formatHeight = (heightInches: number | null): string => {
+    if (!heightInches) return "N/A";
+    const feet = Math.floor(heightInches / 12);
+    const inches = heightInches % 12;
+    return `${feet}' ${inches}"`;
+  };
 
   const styles = StyleSheet.create({
     scrollContainer: {
@@ -142,12 +186,32 @@ export function Profile() {
     },
   });
 
+  // Show loading state
+  if (loading) {
+    return (
+      <View style={[styles.scrollContainer, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#0066cc" />
+        <Text style={{ marginTop: 10 }}>Loading profile...</Text>
+      </View>
+    );
+  }
+
+  // Show error state
+  if (error || !profile) {
+    return (
+      <View style={[styles.scrollContainer, { justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
+        <Text style={{ fontSize: 18, marginBottom: 10 }}>Failed to load profile</Text>
+        <Button onPress={loadProfileData}>Retry</Button>
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={styles.scrollContainer}>
       <View style={styles.container}>
         <View style={styles.upperSection}>
           <View>
-            <View style={styles.profilePicture}></View>
+            <Image source={avatar} style={styles.profilePicture} />
           </View>
           <TouchableOpacity
             onPress={() => {
@@ -162,94 +226,81 @@ export function Profile() {
         </View>
 
         <View style={styles.profileCard}>
-          <Text style={styles.username}>jonahmulcrone</Text>
-          <Text style={styles.handle}>@hans</Text>
-          <Text style={styles.bio}>
-            everyone has thought of taking steroids at least once in their life.
-            I think about it every day.
-          </Text>
+          <Text style={styles.username}>{profile.username}</Text>
+          <Text style={styles.handle}>@{profile.username}</Text>
 
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <Text style={styles.statLabel}>Weight</Text>
-              <Text style={styles.statValue}>185lbs</Text>
+              <Text style={styles.statValue}>
+                {profile.weightLbs ? `${profile.weightLbs}lbs` : 'N/A'}
+              </Text>
             </View>
             <View style={styles.statItem}>
               <Text style={styles.statLabel}>Height</Text>
-              <Text style={styles.statValue}>5' 10</Text>
+              <Text style={styles.statValue}>{formatHeight(profile.heightInches)}</Text>
             </View>
             <View style={styles.statItem}>
               <Text style={styles.statLabel}>Age</Text>
-              <Text style={styles.statValue}>23</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Home Gym</Text>
-              <Text style={styles.statValue}>Anytime Fitness</Text>
+              <Text style={styles.statValue}>{profile.age || 'N/A'}</Text>
             </View>
           </View>
 
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Split</Text>
-              <Text style={styles.statValue}>Push, Pull, Legs</Text>
+              <Text style={styles.statLabel}>Completed Workouts</Text>
+              <Text style={styles.statValue}>{profile.workoutStats.totalWorkouts}</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Completed Workouts</Text>
-              <Text style={styles.statValue}>154</Text>
+              <Text style={styles.statLabel}>Followers</Text>
+              <Text style={styles.statValue}>{profile.followersCount}</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statLabel}>Following</Text>
+              <Text style={styles.statValue}>{profile.followingCount}</Text>
             </View>
           </View>
 
           <View style={styles.friendsSection}>
-            <Text style={styles.friendsTitle}>Friends (3)</Text>
+            <Text style={styles.friendsTitle}>Friends ({followers.length})</Text>
             <View style={styles.friendsRow}>
-              <View style={styles.friend}></View>
-              <View style={styles.friend}></View>
-              <View style={styles.friend}></View>
+              {followers.slice(0, 5).map((follower) => (
+                <View key={follower.userId} style={styles.friend}></View>
+              ))}
+              {followers.length === 0 && (
+                <Text style={styles.statValue}>No followers yet</Text>
+              )}
             </View>
           </View>
 
           <View style={styles.weekRow}>
             <View style={styles.dayItem}>
               <Text style={styles.dayLabel}>Mon</Text>
-              <View style={styles.dayCircle}></View>
+              <View style={[styles.dayCircle, profile.workoutStats.weeklySplit.Mon > 0 && styles.dayActive]}></View>
             </View>
             <View style={styles.dayItem}>
               <Text style={styles.dayLabel}>Tue</Text>
-              <View style={[styles.dayCircle, styles.dayActive]}></View>
+              <View style={[styles.dayCircle, profile.workoutStats.weeklySplit.Tue > 0 && styles.dayActive]}></View>
             </View>
             <View style={styles.dayItem}>
               <Text style={styles.dayLabel}>Wed</Text>
-              <View style={styles.dayCircle}></View>
+              <View style={[styles.dayCircle, profile.workoutStats.weeklySplit.Wed > 0 && styles.dayActive]}></View>
             </View>
             <View style={styles.dayItem}>
               <Text style={styles.dayLabel}>Thu</Text>
-              <View style={[styles.dayCircle, styles.dayActive]}></View>
+              <View style={[styles.dayCircle, profile.workoutStats.weeklySplit.Thu > 0 && styles.dayActive]}></View>
             </View>
             <View style={styles.dayItem}>
               <Text style={styles.dayLabel}>Fri</Text>
-              <View style={styles.dayCircle}></View>
+              <View style={[styles.dayCircle, profile.workoutStats.weeklySplit.Fri > 0 && styles.dayActive]}></View>
             </View>
             <View style={styles.dayItem}>
               <Text style={styles.dayLabel}>Sat</Text>
-              <View style={[styles.dayCircle, styles.dayActive]}></View>
+              <View style={[styles.dayCircle, profile.workoutStats.weeklySplit.Sat > 0 && styles.dayActive]}></View>
             </View>
             <View style={styles.dayItem}>
               <Text style={styles.dayLabel}>Sun</Text>
-              <View style={styles.dayCircle}></View>
-            </View>
-          </View>
-
-          <View style={styles.progressSection}>
-            <Text style={styles.progressTitle}>Progress</Text>
-            <View style={styles.chartArea}>
-              <View style={[styles.bar, { height: 40 }]}></View>
-              <View style={[styles.bar, { height: 50 }]}></View>
-              <View style={[styles.bar, { height: 60 }]}></View>
-              <View style={[styles.bar, { height: 55 }]}></View>
-              <View style={[styles.bar, { height: 80 }]}></View>
-              <View style={[styles.bar, { height: 95 }]}></View>
-              <View style={[styles.bar, { height: 110 }]}></View>
-              <View style={[styles.bar, { height: 120 }]}></View>
+              <View style={[styles.dayCircle, profile.workoutStats.weeklySplit.Sun > 0 && styles.dayActive]}></View>
             </View>
           </View>
         </View>
