@@ -13,7 +13,7 @@ export async function loginWithGoogle(
   idToken: string
 ): Promise<GoogleLoginResponse> {
   try {
-    const response = await fetch("http://172.20.10.3:8080/api/auth/google", {
+    const response = await fetch("http://10.54.49.13:8080/api/auth/google", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ idToken }),
