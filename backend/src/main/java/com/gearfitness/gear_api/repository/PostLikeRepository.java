@@ -10,12 +10,13 @@ import java.util.stream.Collectors;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
 
 import com.gearfitness.gear_api.entity.PostLike;
 import com.gearfitness.gear_api.entity.PostLike.PostLikeId;
 
+@Repository
 public interface PostLikeRepository extends JpaRepository<PostLike, PostLikeId> {
-        // ✅ Change the return type to List<Object[]>
         @Query("""
                         SELECT pl.post.postId, COUNT(pl)
                         FROM PostLike pl
@@ -24,7 +25,6 @@ public interface PostLikeRepository extends JpaRepository<PostLike, PostLikeId> 
                         """)
         List<Object[]> countByPostIdsRaw(@Param("postIds") List<UUID> postIds);
 
-        // ✅ Use a default method to convert to Map
         default Map<UUID, Long> countByPostIds(List<UUID> postIds) {
                 if (postIds == null || postIds.isEmpty()) {
                         return Map.of();

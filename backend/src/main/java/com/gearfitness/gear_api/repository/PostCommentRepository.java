@@ -8,9 +8,11 @@ import java.util.stream.Collectors;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
 
 import com.gearfitness.gear_api.entity.PostComment;
 
+@Repository
 public interface PostCommentRepository extends JpaRepository<PostComment, UUID> {
     @Query("""
             SELECT pc.post.postId, COUNT(pc)
