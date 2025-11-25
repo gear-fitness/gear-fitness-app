@@ -3,7 +3,7 @@
  * Wrapper for authenticated fetch requests
  */
 
-import { getAuthHeader } from '../../utils/auth';
+import { getAuthHeader } from "../../utils/auth";
 
 /**
  * Authenticated fetch wrapper that automatically includes JWT token
@@ -20,7 +20,7 @@ export async function authenticatedFetch(
   return fetch(url, {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       ...authHeader,
       ...options.headers,
     },
