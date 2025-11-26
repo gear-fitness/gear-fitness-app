@@ -18,6 +18,7 @@ export function Workout() {
   const iconColor = colorScheme === "dark" ? "white" : "black";
 
   type WorkoutExercise = {
+    id: string; // unique instance ID
     exerciseId: string;
     name: string;
     sets?: Array<{ id: string; reps: string; weight: string }>;
@@ -50,7 +51,7 @@ export function Workout() {
 
           <FlatList
             data={workouts}
-            keyExtractor={(item) => item.exerciseId}
+            keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <View style={styles.exerciseRow}>
                 {/* Click area to open ExerciseDetail */}
@@ -60,7 +61,7 @@ export function Workout() {
                     navigation.navigate("ExerciseDetail", {
                       exercise: item,
                       returnToWorkout: (
-                        exerciseId: string,
+                        instanceId: string,
                         updatedSets: Array<{
                           id: string;
                           reps: string;
@@ -69,7 +70,7 @@ export function Workout() {
                       ) => {
                         setWorkouts((prev) =>
                           prev.map((ex) =>
-                            ex.exerciseId === exerciseId
+                            ex.id === instanceId
                               ? { ...ex, sets: updatedSets ?? [] }
                               : ex
                           )
@@ -93,7 +94,7 @@ export function Workout() {
                 <TouchableOpacity
                   onPress={() =>
                     setWorkouts((prev) =>
-                      prev.filter((ex) => ex.exerciseId !== item.exerciseId)
+                      prev.filter((ex) => ex.id !== item.id)
                     )
                   }
                 >
@@ -117,7 +118,13 @@ export function Workout() {
             onPress={() =>
               navigation.navigate("ExerciseSelect", {
                 onSelectExercise: (exercise: any) => {
-                  setWorkouts((prev) => [...prev, exercise]);
+                  setWorkouts((prev) => [
+                    ...prev,
+                    {
+                      ...exercise,
+                      id: `${exercise.exerciseId}-${Date.now()}-${Math.random()}`,
+                    },
+                  ]);
                 },
               })
             }

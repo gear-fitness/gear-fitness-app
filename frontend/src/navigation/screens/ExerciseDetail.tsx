@@ -51,25 +51,25 @@ export function ExerciseDetail() {
     setWeightInput("");
 
     // Update WorkoutPage
-    returnToWorkout(exercise.exerciseId, [...sets, newSet]);
+    returnToWorkout(exercise.id, [...sets, newSet]);
   };
 
   // Delete an individual set
   const deleteSet = (id: string) => {
     const updated = sets.filter((set) => set.id !== id);
     setSets(updated);
-    returnToWorkout(exercise.exerciseId, updated);
+    returnToWorkout(exercise.id, updated);
   };
 
   // Clear all sets WITHOUT leaving page
   const clearSets = () => {
     setSets([]);
-    returnToWorkout(exercise.exerciseId, []);
+    returnToWorkout(exercise.id, []);
   };
 
   // Save and return to workout page
   const saveAndReturn = () => {
-    returnToWorkout(exercise.exerciseId, sets);
+    returnToWorkout(exercise.id, sets);
     navigation.goBack();
   };
 
