@@ -8,15 +8,13 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-@Data                       
-@NoArgsConstructor           
-@AllArgsConstructor  
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class ExerciseDTO {
-    
-private UUID exerciseId;
-private String name;
-private String description;
-private BodyPart bodyPart;
+    private UUID exerciseId;
+    private String name;
+    private BodyPart bodyPart;
+    private String description;
 }
-
 

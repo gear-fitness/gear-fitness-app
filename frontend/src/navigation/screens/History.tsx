@@ -40,7 +40,7 @@ export function History() {
   const [data, setData] = useState<Workout[]>([]);
 
   const userId = "550e8400-e29b-41d4-a716-446655440004"; // Bryant's UUID
-  const API_URL = "http:///10.58.14.218:8080/api/workouts"; // Replace with your backend address
+  const API_URL = "http://10.58.14.218:8080/api/workouts"; // Replace with your backend address
 
   useEffect(() => {
     fetch(`${API_URL}/user/${userId}`)
@@ -114,8 +114,8 @@ export function History() {
       <Calendar
         key={colors.background}
         style={styles.calendar}
-        current={formattedToday}
-        onDayPress={handleDayPress}
+        // current={formattedToday}
+        // onDayPress={handleDayPress}
         markedDates={markedDates}
         theme={{
           backgroundColor: colors.card,

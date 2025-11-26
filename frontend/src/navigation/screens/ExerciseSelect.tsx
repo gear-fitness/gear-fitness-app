@@ -13,6 +13,7 @@ import filter from "../../assets/filter.png";
 import close from "../../assets/close.png";
 import { Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
 
 type FilterKey =
   | "CALVES"
@@ -26,7 +27,10 @@ type FilterKey =
   | "CORE";
 type SelectedFilters = Record<FilterKey, boolean>;
 
-export function ExerciseSelect() {
+export function ExerciseSelect({ route }: { route: any }) {
+  const navigation = useNavigation();
+  const onSelectExercise = route?.params?.onSelectExercise;
+
   const [searchQuery, setSearchQuery] = useState("");
   const [isFiltering, setIsFiltering] = useState(false);
   const [selectedFilters, setSelectedFilters] = useState<SelectedFilters>({
@@ -41,32 +45,39 @@ export function ExerciseSelect() {
     BICEPS: false,
   });
 
-  const [exercises, setExercises] = useState<
-    Array<{ name: string; muscleGroup: string }>
-  >([]);
-
-  const filteredExercises = exercises.filter((ex: any) => {
-    const matchesFilters =
-      ex.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-      (activeFilters.length === 0 ||
-        activeFilters.includes(ex.muscleGroup.toUpperCase()));
-    return matchesFilters;
-
-    const matchesSearch = ex.name
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase());
-  });
+  const [exercises, setExercises] = useState<any[]>([]);
 
   const activeFilters = Object.entries(selectedFilters)
     .filter(([_, value]) => value)
     .map(([key, _]) => key);
 
+  const filteredExercises = exercises.filter((ex) => {
+    const matchesSearch =
+      ex.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ex.bodyPart.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesFilters =
+      activeFilters.length === 0 ||
+      activeFilters.includes(ex.bodyPart.toUpperCase());
+
+    return matchesSearch && matchesFilters;
+  });
+
   useEffect(() => {
-    // Fetch exercises from backend (placeholder URL)
-    fetch("http:///10.58.14.218:8080/api/exercises")
-      .then((res) => res.json())
-      .then((data) => setExercises(data))
-      .catch((error) => console.error("Error fetching exercises:", error));
+    const loadExercises = async () => {
+      try {
+        const res = await fetch("http://10.58.14.218:8080/api/exercises");
+
+        const text = await res.text();
+        if (!res.ok) return;
+
+        const data = JSON.parse(text);
+        setExercises(data);
+      } catch (err) {
+        console.error("Error fetching exercises:", err);
+      }
+    };
+
+    loadExercises();
   }, []);
 
   const toggleFilter = (key: FilterKey) => {
@@ -106,13 +117,23 @@ export function ExerciseSelect() {
         </TouchableOpacity>
       </View>
 
-      {/* Exercise display */}
       <ScrollView style={{ marginTop: 20 }}>
         {filteredExercises.map((ex: any) => (
-          <View key={ex.id} style={{ paddingVertical: 10 }}>
+          <TouchableOpacity
+            key={ex.exerciseId}
+            onPress={() => {
+              if (onSelectExercise) {
+                onSelectExercise(ex);
+              }
+            }}
+            style={{ paddingVertical: 10 }}
+          >
             <Text style={{ fontSize: 16, fontWeight: "600" }}>{ex.name}</Text>
             <Text style={{ color: "#666" }}>{ex.bodyPart}</Text>
-          </View>
+            <Text style={{ color: "#888", marginTop: 4 }}>
+              {ex.description}
+            </Text>
+          </TouchableOpacity>
         ))}
       </ScrollView>
 
@@ -164,13 +185,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 10,
   },
-
   searchRow: {
     flexDirection: "row",
     alignItems: "center",
     marginTop: 10,
   },
-
   searchContainer: {
     flex: 1,
     flexDirection: "row",
@@ -182,25 +201,21 @@ const styles = StyleSheet.create({
     height: 40,
     backgroundColor: "#fff",
   },
-
   searchIcon: {
     width: 18,
     height: 18,
     tintColor: "#555",
     marginRight: 8,
   },
-
   searchInput: {
     flex: 1,
     fontSize: 16,
   },
-
   clearIcon: {
     width: 16,
     height: 16,
     tintColor: "#555",
   },
-
   filterButton: {
     marginLeft: 10,
     backgroundColor: "#fff",
@@ -216,20 +231,17 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
-
   filterIcon: {
     width: 20,
     height: 20,
     tintColor: "#333",
   },
-
   modalBackground: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "rgba(0,0,0,0.3)",
   },
-
   modalContainer: {
     width: "80%",
     backgroundColor: "#fff",
@@ -241,24 +253,20 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
-
   modalTitle: {
     fontSize: 18,
     fontWeight: "bold",
     marginBottom: 10,
   },
-
   scrollArea: {
     maxHeight: 300,
     marginVertical: 10,
   },
-
   filterOption: {
     flexDirection: "row",
     alignItems: "center",
     marginVertical: 5,
   },
-
   checkbox: {
     width: 20,
     height: 20,
@@ -268,13 +276,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 10,
   },
-
   checkboxInner: {
     width: 10,
     height: 10,
     backgroundColor: "#fff",
   },
-
   filterText: {
     fontSize: 16,
     textTransform: "capitalize",

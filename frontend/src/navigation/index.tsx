@@ -23,6 +23,7 @@ import { History } from "./screens/History";
 import { PR } from "./screens/PR";
 import { DetailedHistory } from "./screens/DetailedHistory";
 import { ExerciseSelect } from "./screens/ExerciseSelect";
+import { ExerciseDetail } from "./screens/ExerciseDetail";
 import { LoginScreen } from "./screens/Login";
 
 const HomeTabs = createBottomTabNavigator({
@@ -160,6 +161,14 @@ const RootStack = createNativeStackNavigator({
         headerShown: true,
       },
     },
+    ExerciseDetail: {
+      screen: ExerciseDetail,
+      options: {
+        title: "Exercise Details",
+        headerBackTitle: "Workout",
+        headerShown: true,
+      },
+    },
     ExerciseSelect: {
       screen: ExerciseSelect,
       options: ({ navigation }) => ({
@@ -190,6 +199,17 @@ type RootStackParamList = StaticParamList<typeof RootStack>;
 
 declare global {
   namespace ReactNavigation {
-    interface RootParamList extends RootStackParamList {}
+    interface RootParamList {
+      ExerciseSelect: {
+        onSelectExercise: (exercise: any) => void;
+      };
+      ExerciseDetail: {
+        exercise: { exerciseId: string; name: string; sets?: any[] };
+        returnToWorkout: (
+          exerciseId: string,
+          updatedSets: any[] | null
+        ) => void;
+      };
+    }
   }
 }

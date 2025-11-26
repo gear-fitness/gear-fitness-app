@@ -1,26 +1,32 @@
 import { Button, Text } from "@react-navigation/elements";
-import { StyleSheet, View, FlatList, TouchableOpacity } from "react-native";
-import { useState, useEffect } from "react";
+import {
+  StyleSheet,
+  View,
+  FlatList,
+  TouchableOpacity,
+  Image,
+} from "react-native";
+import { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
+import { useColorScheme } from "react-native";
+import trash from "../../assets/trash.png";
 
 export function Workout() {
   const navigation = useNavigation();
-  const [minutes, setMinutes] = useState(0);
-  const [seconds, setSeconds] = useState(0);
-  const [isRunning, setIsRunning] = useState(false);
-  const [workouts, setWorkouts] = useState<Array<{ id: number; name: string }>>(
-    []
-  );
-  const toggleTimer = () => setIsRunning(!isRunning);
+  const colorScheme = useColorScheme();
+  const iconColor = colorScheme === "dark" ? "white" : "black";
 
-  const addExercise = () => {
-    const newExercise = {
-      id: Date.now(),
-      name: `Exercise ${workouts.length + 1}`,
-    };
-    setWorkouts([...workouts, newExercise]);
+  type WorkoutExercise = {
+    exerciseId: string;
+    name: string;
+    sets?: Array<{ id: string; reps: string; weight: string }>;
   };
+
+  const [workouts, setWorkouts] = useState<WorkoutExercise[]>([]);
+  const [isRunning, setIsRunning] = useState(false);
+
+  const toggleTimer = () => setIsRunning(!isRunning);
 
   return (
     <SafeAreaView
@@ -28,6 +34,7 @@ export function Workout() {
       edges={["top", "left", "right", "bottom"]}
     >
       <View style={styles.container}>
+        {/* Top Bar */}
         <View style={styles.topbar}>
           <Text style={styles.dateSelect}>Select Day ▼</Text>
           <TouchableOpacity onPress={toggleTimer}>
@@ -37,23 +44,83 @@ export function Workout() {
           </TouchableOpacity>
         </View>
 
+        {/* Workout List */}
         <View style={styles.workoutList}>
           <Text style={styles.sectionTitle}>Today's Workout</Text>
+
           <FlatList
             data={workouts}
-            keyExtractor={(item) => item.id.toString()}
+            keyExtractor={(item) => item.exerciseId}
             renderItem={({ item }) => (
-              <Text style={styles.exercise}>{item.name}</Text>
+              <View style={styles.exerciseRow}>
+                {/* Click area to open ExerciseDetail */}
+                <TouchableOpacity
+                  style={{ flex: 1 }}
+                  onPress={() =>
+                    navigation.navigate("ExerciseDetail", {
+                      exercise: item,
+                      returnToWorkout: (
+                        exerciseId: string,
+                        updatedSets: Array<{
+                          id: string;
+                          reps: string;
+                          weight: string;
+                        }> | null
+                      ) => {
+                        setWorkouts((prev) =>
+                          prev.map((ex) =>
+                            ex.exerciseId === exerciseId
+                              ? { ...ex, sets: updatedSets ?? [] }
+                              : ex
+                          )
+                        );
+                      },
+                    })
+                  }
+                >
+                  <Text style={styles.exercise}>{item.name}</Text>
+
+                  {/* If sets exist, show the latest set summary */}
+                  {item.sets && item.sets.length > 0 && (
+                    <Text style={styles.setPreview}>
+                      Last Set: {item.sets[item.sets.length - 1].weight} ×{" "}
+                      {item.sets[item.sets.length - 1].reps}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+
+                {/* Trash icon to delete exercise */}
+                <TouchableOpacity
+                  onPress={() =>
+                    setWorkouts((prev) =>
+                      prev.filter((ex) => ex.exerciseId !== item.exerciseId)
+                    )
+                  }
+                >
+                  <Image
+                    source={trash}
+                    style={[styles.trashIcon, { tintColor: iconColor }]}
+                  />
+                </TouchableOpacity>
+              </View>
             )}
           />
         </View>
+
+        {/* Buttons */}
         <View style={styles.buttonRow}>
           <Button onPress={toggleTimer} style={styles.navButton}>
             {isRunning ? "End Workout" : "Start Workout"}
           </Button>
 
           <Button
-            onPress={() => navigation.navigate("ExerciseSelect")}
+            onPress={() =>
+              navigation.navigate("ExerciseSelect", {
+                onSelectExercise: (exercise: any) => {
+                  setWorkouts((prev) => [...prev, exercise]);
+                },
+              })
+            }
             style={styles.navButton}
           >
             Add Exercise
@@ -65,13 +132,8 @@ export function Workout() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-  },
-  container: {
-    flex: 1,
-    padding: 20,
-  },
+  safeArea: { flex: 1 },
+  container: { flex: 1, padding: 20 },
   topbar: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -81,17 +143,25 @@ const styles = StyleSheet.create({
   timer: { fontSize: 16, fontWeight: "600" },
   workoutList: { flex: 1 },
   sectionTitle: { fontSize: 20, fontWeight: "700", marginBottom: 10 },
-  exercise: {
-    fontSize: 16,
-    paddingVertical: 8,
+
+  exerciseRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderColor: "#eee",
   },
+
+  exercise: { fontSize: 16, fontWeight: "600" },
+  setPreview: { color: "#777", marginTop: 4, fontSize: 14 },
+
+  trashIcon: { width: 22, height: 22, marginLeft: 10 },
+
   buttonRow: {
     flexDirection: "row",
     justifyContent: "space-evenly",
     alignItems: "center",
-    paddingHorizontal: 20,
     paddingBottom: 25,
   },
   navButton: {
@@ -101,8 +171,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingVertical: 12,
     paddingHorizontal: 25,
-  },
-  buttonText: {
-    fontWeight: "600",
   },
 });
