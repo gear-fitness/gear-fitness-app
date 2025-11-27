@@ -4,23 +4,15 @@ import {
 } from "@react-native-google-signin/google-signin";
 import { useNavigation, useTheme } from "@react-navigation/native";
 import React from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Dimensions,
-  Image,
-} from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { setAuthToken } from "../../utils/auth";
 import { loginWithGoogle } from "../../api/authService";
-
-const { width, height } = Dimensions.get("window");
+import { useAuth } from "../../context/AuthContext";
 
 export function LoginScreen() {
   const navigation = useNavigation();
   const { colors } = useTheme();
+  const { login } = useAuth();
   const handleGoogleSIgnIn = async () => {
     try {
       console.log("Google Sign-In initiated");
@@ -36,7 +28,7 @@ export function LoginScreen() {
         const { token, newUser } = await loginWithGoogle(idToken);
 
         // Store this token for future API calls
-        await setAuthToken(token);
+        await login(token);
 
         const { name, email, photo } = user;
         console.log("User Info:", { name, email, photo });
