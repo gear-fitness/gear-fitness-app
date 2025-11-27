@@ -30,7 +30,10 @@ public class AuthService {
 
         String email = payload.getEmail();
         String name = (String) payload.get("name");
-        
+
+        // Check if user exists
+        boolean isNewUser = !userRepository.existsByEmail(email);
+
         // Find or create user
         AppUser user = userRepository.findByEmail(email)
                 .orElseGet(() -> createNewUser(email, name));
@@ -41,6 +44,7 @@ public class AuthService {
         return AuthResponse.builder()
                 .token(jwtToken)
                 .user(convertToDTO(user))
+                .newUser(isNewUser)
                 .build();
     }
 
@@ -53,6 +57,9 @@ public class AuthService {
                 .username(username)
                 .passwordHash("") // OAuth users don't have passwords
                 .isPrivate(false)
+                .weightLbs(0) // Temporary default - user will set in profile setup
+                .heightInches(0) // Temporary default - user will set in profile setup
+                .age(0) // Temporary default - user will set in profile setup
                 .build();
 
         return userRepository.save(newUser);
@@ -91,6 +98,9 @@ public class AuthService {
                 .userId(user.getUserId())
                 .username(user.getUsername())
                 .email(user.getEmail())
+                .weightLbs(user.getWeightLbs())
+                .heightInches(user.getHeightInches())
+                .age(user.getAge())
                 .isPrivate(user.getIsPrivate())
                 .createdAt(user.getCreatedAt())
                 .build();

@@ -9,6 +9,7 @@ import { Navigation } from "./navigation";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { useEffect } from "react";
+import { AuthProvider } from "./context/AuthContext";
 
 Asset.loadAsync([
   ...NavigationAssets,
@@ -36,17 +37,19 @@ export function App() {
   });
 
   return (
-    <SafeAreaProvider>
-      <Navigation
-        theme={theme}
-        linking={{
-          enabled: "auto",
-          prefixes: [prefix],
-        }}
-        onReady={() => {
-          SplashScreen.hideAsync();
-        }}
-      />
-    </SafeAreaProvider>
+    <AuthProvider>
+      <SafeAreaProvider>
+        <Navigation
+          theme={theme}
+          linking={{
+            enabled: "auto",
+            prefixes: [prefix],
+          }}
+          onReady={() => {
+            SplashScreen.hideAsync();
+          }}
+        />
+      </SafeAreaProvider>
+    </AuthProvider>
   );
 }
