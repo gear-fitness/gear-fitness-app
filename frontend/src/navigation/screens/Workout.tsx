@@ -1,175 +1,77 @@
-import { Button, Text } from "@react-navigation/elements";
-import {
-  StyleSheet,
-  View,
-  FlatList,
-  TouchableOpacity,
-  Image,
-} from "react-native";
-import { useState } from "react";
+import { Text } from "@react-navigation/elements";
+import { StyleSheet, View, TouchableOpacity, Animated } from "react-native";
+import { useRef } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
-import trash from "../../assets/trash.png";
 
 export function Workout() {
   const navigation = useNavigation();
-  const colorScheme = useColorScheme();
-  const iconColor = colorScheme === "dark" ? "white" : "black";
+  const scheme = useColorScheme();
+  const isDark = scheme === "dark";
 
-  type WorkoutExercise = {
-    exerciseId: string;
-    name: string;
-    sets?: Array<{ id: string; reps: string; weight: string }>;
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handleStartPress = () => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1.15,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      navigation.navigate("ExerciseSelect");
+    });
   };
-
-  const [workouts, setWorkouts] = useState<WorkoutExercise[]>([]);
-  const [isRunning, setIsRunning] = useState(false);
-
-  const toggleTimer = () => setIsRunning(!isRunning);
 
   return (
     <SafeAreaView
-      style={styles.safeArea}
-      edges={["top", "left", "right", "bottom"]}
+      style={[
+        styles.container,
+        { backgroundColor: isDark ? "black" : "white" },
+      ]}
     >
-      <View style={styles.container}>
-        {/* Top Bar */}
-        <View style={styles.topbar}>
-          <Text style={styles.dateSelect}>Select Day ▼</Text>
-          <TouchableOpacity onPress={toggleTimer}>
-            <Text style={styles.timer}>
-              {isRunning ? "⏸ Pause" : "▶ Start"}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Workout List */}
-        <View style={styles.workoutList}>
-          <Text style={styles.sectionTitle}>Today's Workout</Text>
-
-          <FlatList
-            data={workouts}
-            keyExtractor={(item) => item.exerciseId}
-            renderItem={({ item }) => (
-              <View style={styles.exerciseRow}>
-                {/* Click area to open ExerciseDetail */}
-                <TouchableOpacity
-                  style={{ flex: 1 }}
-                  onPress={() =>
-                    navigation.navigate("ExerciseDetail", {
-                      exercise: item,
-                      returnToWorkout: (
-                        exerciseId: string,
-                        updatedSets: Array<{
-                          id: string;
-                          reps: string;
-                          weight: string;
-                        }> | null
-                      ) => {
-                        setWorkouts((prev) =>
-                          prev.map((ex) =>
-                            ex.exerciseId === exerciseId
-                              ? { ...ex, sets: updatedSets ?? [] }
-                              : ex
-                          )
-                        );
-                      },
-                    })
-                  }
-                >
-                  <Text style={styles.exercise}>{item.name}</Text>
-
-                  {/* If sets exist, show the latest set summary */}
-                  {item.sets && item.sets.length > 0 && (
-                    <Text style={styles.setPreview}>
-                      Last Set: {item.sets[item.sets.length - 1].weight} ×{" "}
-                      {item.sets[item.sets.length - 1].reps}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-
-                {/* Trash icon to delete exercise */}
-                <TouchableOpacity
-                  onPress={() =>
-                    setWorkouts((prev) =>
-                      prev.filter((ex) => ex.exerciseId !== item.exerciseId)
-                    )
-                  }
-                >
-                  <Image
-                    source={trash}
-                    style={[styles.trashIcon, { tintColor: iconColor }]}
-                  />
-                </TouchableOpacity>
-              </View>
-            )}
-          />
-        </View>
-
-        {/* Buttons */}
-        <View style={styles.buttonRow}>
-          <Button onPress={toggleTimer} style={styles.navButton}>
-            {isRunning ? "End Workout" : "Start Workout"}
-          </Button>
-
-          <Button
-            onPress={() =>
-              navigation.navigate("ExerciseSelect", {
-                onSelectExercise: (exercise: any) => {
-                  setWorkouts((prev) => [...prev, exercise]);
-                },
-              })
-            }
-            style={styles.navButton}
-          >
-            Add Exercise
-          </Button>
-        </View>
-      </View>
+      <Animated.View
+        style={{
+          opacity: fadeAnim,
+          transform: [{ scale: scaleAnim }],
+        }}
+      >
+        <TouchableOpacity style={styles.startButton} onPress={handleStartPress}>
+          <Text style={styles.startText}>START</Text>
+        </TouchableOpacity>
+      </Animated.View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1 },
-  container: { flex: 1, padding: 20 },
-  topbar: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 20,
-  },
-  dateSelect: { fontSize: 16, fontWeight: "500" },
-  timer: { fontSize: 16, fontWeight: "600" },
-  workoutList: { flex: 1 },
-  sectionTitle: { fontSize: 20, fontWeight: "700", marginBottom: 10 },
-
-  exerciseRow: {
-    flexDirection: "row",
+  container: {
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderColor: "#eee",
   },
 
-  exercise: { fontSize: 16, fontWeight: "600" },
-  setPreview: { color: "#777", marginTop: 4, fontSize: 14 },
-
-  trashIcon: { width: 22, height: 22, marginLeft: 10 },
-
-  buttonRow: {
-    flexDirection: "row",
-    justifyContent: "space-evenly",
+  // Blue circle
+  startButton: {
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: "#007AFF", // Blue
+    justifyContent: "center",
     alignItems: "center",
-    paddingBottom: 25,
   },
-  navButton: {
-    borderRadius: 10,
-    backgroundColor: "#E6F0FF",
-    borderColor: "#007AFF",
-    borderWidth: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 25,
+
+  startText: {
+    color: "white",
+    fontSize: 32,
+    fontWeight: "800",
   },
 });

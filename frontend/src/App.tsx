@@ -10,6 +10,8 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { useEffect } from "react";
 
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+
 Asset.loadAsync([
   ...NavigationAssets,
   require("./assets/home.png"),
@@ -26,28 +28,30 @@ const prefix = createURL("/");
 
 export function App() {
   const colorScheme = useColorScheme();
-
   const theme = colorScheme === "dark" ? DarkTheme : DefaultTheme;
+
   useEffect(() => {
     GoogleSignin.configure({
       iosClientId:
         "637676049223-kg32deotit3muuhi3j1q253vfhotnoai.apps.googleusercontent.com",
       profileImageSize: 150,
     });
-  });
+  }, []);
 
   return (
-    <SafeAreaProvider>
-      <Navigation
-        theme={theme}
-        linking={{
-          enabled: "auto",
-          prefixes: [prefix],
-        }}
-        onReady={() => {
-          SplashScreen.hideAsync();
-        }}
-      />
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <Navigation
+          theme={theme}
+          linking={{
+            enabled: "auto",
+            prefixes: [prefix],
+          }}
+          onReady={() => {
+            SplashScreen.hideAsync();
+          }}
+        />
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

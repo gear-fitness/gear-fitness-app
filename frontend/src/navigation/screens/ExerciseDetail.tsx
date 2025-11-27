@@ -1,4 +1,4 @@
-import { Button, Text } from "@react-navigation/elements";
+import { Text } from "@react-navigation/elements";
 import {
   StyleSheet,
   View,
@@ -7,195 +7,312 @@ import {
   FlatList,
   Image,
 } from "react-native";
-import { useColorScheme } from "react-native";
-import { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import trashIcon from "../../assets/trash.png"; // icon for deleting individual sets
+import { useColorScheme } from "react-native";
+import { useState, useEffect } from "react";
+import { Swipeable } from "react-native-gesture-handler";
+
+import stopwatch from "../../assets/stopwatch.png";
+import trashIcon from "../../assets/trash.png";
 
 export function ExerciseDetail() {
   const navigation = useNavigation();
   const route = useRoute<any>();
 
   const exercise = route.params.exercise;
-  const returnToWorkout = route.params.returnToWorkout;
 
-  const [sets, setSets] = useState<
-    Array<{ id: string; reps: string; weight: string }>
-  >(exercise.sets ?? []);
+  const isDark = useColorScheme() === "dark";
 
-  const [repsInput, setRepsInput] = useState("");
-  const [weightInput, setWeightInput] = useState("");
-
-  // DETECT DARK MODE
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-
-  const textColor = isDark ? "white" : "black";
-  const placeholderColor = isDark ? "#999" : "#666";
-  const inputBackground = isDark ? "#1C1C1E" : "white";
-  const borderColor = isDark ? "#3A3A3C" : "#ccc";
-
-  // Add a set
-  const addSet = () => {
-    if (!repsInput || !weightInput) return;
-
-    const newSet = {
-      id: Date.now().toString(),
-      reps: repsInput,
-      weight: weightInput,
-    };
-
-    setSets((prev) => [...prev, newSet]);
-    setRepsInput("");
-    setWeightInput("");
-
-    // Update WorkoutPage
-    returnToWorkout(exercise.exerciseId, [...sets, newSet]);
+  const colors = {
+    bg: isDark ? "#000" : "#fff",
+    text: isDark ? "#fff" : "#000",
+    subtle: isDark ? "#999" : "#666",
+    card: isDark ? "#1c1c1e" : "#fff",
+    border: isDark ? "#333" : "#ccc",
+    inputBg: isDark ? "#2a2a2a" : "#f2f2f2",
   };
 
-  // Delete an individual set
+  /* ---------------- TIMER ---------------- */
+
+  const [seconds, setSeconds] = useState(0);
+
+  // Auto-start timer when page opens
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSeconds((prev) => prev + 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatTime = (t: number) => {
+    const m = Math.floor(t / 60)
+      .toString()
+      .padStart(2, "0");
+    const s = (t % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
+  };
+
+  /* ---------------- SETS ---------------- */
+
+  const [sets, setSets] = useState([{ id: "1", reps: "", weight: "" }]);
+
+  useEffect(() => {
+    const last = sets[sets.length - 1];
+    if (last.reps !== "" && last.weight !== "") {
+      setSets((prev) => [
+        ...prev,
+        { id: Date.now().toString(), reps: "", weight: "" },
+      ]);
+    }
+  }, [sets]);
+
+  const updateSet = (id: string, key: "reps" | "weight", value: string) => {
+    setSets((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, [key]: value } : s))
+    );
+  };
+
   const deleteSet = (id: string) => {
-    const updated = sets.filter((set) => set.id !== id);
-    setSets(updated);
-    returnToWorkout(exercise.exerciseId, updated);
+    setSets((prev) => prev.filter((s) => s.id !== id));
   };
 
-  // Clear all sets WITHOUT leaving page
-  const clearSets = () => {
-    setSets([]);
-    returnToWorkout(exercise.exerciseId, []);
-  };
+  /* ---------- iOS MAIL STYLE DELETE ---------- */
 
-  // Save and return to workout page
-  const saveAndReturn = () => {
-    returnToWorkout(exercise.exerciseId, sets);
-    navigation.goBack();
-  };
+  const renderRightActions = (id: string) => (
+    <View style={styles.deleteBackground}>
+      <TouchableOpacity
+        style={styles.deleteButton}
+        onPress={() => deleteSet(id)}
+      >
+        <Image
+          source={trashIcon}
+          style={{ width: 28, height: 28, tintColor: "#fff" }}
+        />
+      </TouchableOpacity>
+    </View>
+  );
+
+  /* ------------------- UI ------------------- */
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
+      {/* TITLE */}
+      <Text style={[styles.title, { color: colors.text }]}>
+        {exercise.name}
+      </Text>
+
+      <View style={[styles.fullDivider, { borderColor: colors.border }]} />
+
+      {/* TIMER */}
+      <View style={styles.timerRow}>
+        <View style={styles.timerLeft}>
+          <Image
+            source={stopwatch}
+            style={[styles.timerIcon, { tintColor: colors.text }]}
+          />
+          <Text style={[styles.timerText, { color: colors.text }]}>
+            {formatTime(seconds)}
+          </Text>
+        </View>
+      </View>
+
       {/* HEADER */}
-      <View style={styles.headerRow}>
-        <Text style={styles.title}>{exercise.name}</Text>
-
-        <TouchableOpacity onPress={clearSets}>
-          <Text style={styles.clearText}>Clear</Text>
-        </TouchableOpacity>
+      <View style={styles.tableHeaderRow}>
+        <Text style={[styles.tableHeaderNum, { color: colors.subtle }]}>
+          Set
+        </Text>
+        <Text style={[styles.tableHeaderText, { color: colors.subtle }]}>
+          Reps
+        </Text>
+        <Text style={[styles.tableHeaderText, { color: colors.subtle }]}>
+          Weight
+        </Text>
       </View>
 
-      {/* INPUT ROW */}
-      <View style={styles.inputRow}>
-        <TextInput
-          placeholder="Reps"
-          placeholderTextColor={placeholderColor}
-          value={repsInput}
-          onChangeText={setRepsInput}
-          style={[
-            styles.input,
-            { color: textColor, backgroundColor: inputBackground, borderColor },
-          ]}
-          keyboardType="numeric"
-        />
-
-        <TextInput
-          placeholder="Weight"
-          placeholderTextColor={placeholderColor}
-          value={weightInput}
-          onChangeText={setWeightInput}
-          style={[
-            styles.input,
-            { color: textColor, backgroundColor: inputBackground, borderColor },
-          ]}
-          keyboardType="numeric"
-        />
-
-        <Button onPress={addSet}>Add</Button>
-      </View>
-
-      {/* LIST OF SETS */}
+      {/* SET ROWS */}
       <FlatList
         data={sets}
         keyExtractor={(item) => item.id}
-        style={{ marginTop: 20 }}
+        contentContainerStyle={{ paddingBottom: 30 }}
         renderItem={({ item, index }) => (
-          <View style={styles.setRow}>
-            <Text style={[styles.setText, { color: textColor }]}>
-              Set {index + 1}: {item.weight} × {item.reps}
-            </Text>
+          <View style={styles.rowWrapper}>
+            <Swipeable
+              overshootRight={false}
+              friction={2} // MEDIUM SWIPE
+              rightThreshold={40} // Easier activation
+              renderRightActions={() => renderRightActions(item.id)}
+            >
+              <View
+                style={[
+                  styles.setCard,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                ]}
+              >
+                <Text style={[styles.setNumber, { color: colors.text }]}>
+                  {index + 1}
+                </Text>
 
-            <TouchableOpacity onPress={() => deleteSet(item.id)}>
-              <Image
-                source={trashIcon}
-                style={{
-                  width: 20,
-                  height: 20,
-                  tintColor: isDark ? "white" : "black",
-                }}
-              />
-            </TouchableOpacity>
+                <TextInput
+                  placeholder="Reps"
+                  placeholderTextColor={colors.subtle}
+                  value={item.reps}
+                  onChangeText={(t) => updateSet(item.id, "reps", t)}
+                  keyboardType="numeric"
+                  style={[
+                    styles.input,
+                    { color: colors.text, backgroundColor: colors.inputBg },
+                  ]}
+                />
+
+                <TextInput
+                  placeholder="Weight"
+                  placeholderTextColor={colors.subtle}
+                  value={item.weight}
+                  onChangeText={(t) => updateSet(item.id, "weight", t)}
+                  keyboardType="numeric"
+                  style={[
+                    styles.input,
+                    { color: colors.text, backgroundColor: colors.inputBg },
+                  ]}
+                />
+              </View>
+            </Swipeable>
           </View>
         )}
       />
 
-      {/* SAVE BUTTON */}
-      <Button onPress={saveAndReturn} style={styles.saveButton}>
-        Save
-      </Button>
+      {/* FOOTER */}
+      <View style={[styles.footerRow, { borderColor: colors.border }]}>
+        <TouchableOpacity
+          style={styles.footerButton}
+          onPress={() => navigation.navigate("WorkoutSummary")}
+        >
+          <Text style={styles.footerButtonText}>Summary</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.footerButton}
+          onPress={() => navigation.navigate("ExerciseSelect")}
+        >
+          <Text style={styles.footerButtonText}>+ Add Exercise</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
 
+/* ------------------- STYLES ------------------- */
+
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20 },
 
-  headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: "700",
+    textAlign: "center",
+    marginBottom: 6,
   },
 
-  clearText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#007AFF", // iOS Blue
+  fullDivider: {
+    width: "100%",
+    borderBottomWidth: 1,
+    marginBottom: 16,
   },
 
-  inputRow: {
+  /* TIMER */
+  timerRow: {
     flexDirection: "row",
-    gap: 10,
-    marginTop: 10,
+    justifyContent: "center",
     alignItems: "center",
+    marginBottom: 14,
+  },
+
+  timerLeft: { flexDirection: "row", alignItems: "center", gap: 6 },
+
+  timerIcon: { width: 24, height: 24 },
+  timerText: { fontSize: 22, fontWeight: "600" },
+
+  /* HEADER */
+  tableHeaderRow: {
+    flexDirection: "row",
+    marginTop: 12,
+    marginBottom: 6,
+    paddingHorizontal: 10,
+  },
+
+  tableHeaderNum: { width: 40, fontSize: 14, fontWeight: "600" },
+  tableHeaderText: { flex: 1, fontSize: 14, fontWeight: "600" },
+
+  /* CARD WRAPPER */
+  rowWrapper: {
+    borderRadius: 16,
+    overflow: "hidden",
+    marginVertical: 6,
+  },
+
+  setCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+
+  setNumber: {
+    width: 40,
+    fontSize: 18,
+    fontWeight: "700",
+    textAlign: "center",
   },
 
   input: {
     flex: 1,
-    borderWidth: 1,
+    fontSize: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
     borderRadius: 10,
-    padding: 10,
   },
 
-  setRow: {
+  /* DELETE BG */
+  deleteBackground: {
+    backgroundColor: "#FF3B30",
+    justifyContent: "center",
+    alignItems: "flex-end",
+    width: "100%",
+    paddingRight: 20,
+    height: "100%",
+  },
+
+  deleteButton: {
+    width: 60,
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  /* FOOTER */
+  footerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
+    marginTop: 24,
+    paddingTop: 12,
+    borderTopWidth: 1,
+  },
+
+  footerButton: {
+    flex: 1,
+    padding: 14,
+    marginHorizontal: 6,
+    backgroundColor: "#007AFF",
+    borderRadius: 12,
     alignItems: "center",
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderColor: "#e0e0e0",
   },
 
-  setText: {
+  footerButtonText: {
+    color: "#fff",
     fontSize: 16,
-  },
-
-  saveButton: {
-    marginTop: 25,
-    backgroundColor: "#E6F0FF",
+    fontWeight: "700",
   },
 });
