@@ -12,14 +12,19 @@ interface GoogleLoginResponse {
 export async function loginWithGoogle(
   idToken: string
 ): Promise<GoogleLoginResponse> {
+  const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+  const endpoint = `${apiUrl}/api/auth/google`;
+
   try {
-    const response = await fetch("http://10.54.49.13:8080/api/auth/google", {
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ idToken }),
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Backend returned error:", errorText);
       throw new Error(`Login failed with status: ${response.status}`);
     }
 

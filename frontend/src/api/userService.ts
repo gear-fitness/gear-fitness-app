@@ -6,7 +6,7 @@
 import { getAuthHeader } from "../utils/auth";
 import { UserProfile, FollowerUser, FollowStatusResponse } from "./types";
 
-const API_BASE_URL = "http://10.54.49.13:8080";
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 
 /**
  * Get the current authenticated user's enhanced profile
