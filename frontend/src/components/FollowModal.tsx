@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { Text } from "@react-navigation/elements";
 import { Ionicons } from "@expo/vector-icons";
-import { followApi } from "../api/followApi";
+import { followUserByUsername } from "../api/userService";
 
 interface Props {
   visible: boolean;
@@ -30,7 +30,7 @@ export function FollowModal({ visible, onClose, onSuccess }: Props) {
 
     try {
       setLoading(true);
-      const response = await followApi.followUser(username.trim());
+      const response = await followUserByUsername(username.trim());
 
       Alert.alert("Success", response.message);
       setUsername("");

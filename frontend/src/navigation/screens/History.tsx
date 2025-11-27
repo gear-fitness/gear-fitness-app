@@ -31,6 +31,15 @@ type Post = {
   content: string;
 };
 
+type MarkedDates = {
+  [date: string]: {
+    marked: boolean;
+    dotColor: string;
+    selected: boolean;
+    selectedColor: string;
+  };
+};
+
 export function History() {
   const { colors } = useTheme();
   const navigation = useNavigation<NavigationProp>();
@@ -44,11 +53,11 @@ export function History() {
     "-" +
     String(today.getDate()).padStart(2, "0");
 
-  const [markedDates, setMarkedDates] = useState({});
+  const [markedDates, setMarkedDates] = useState<MarkedDates>({});
   const [searchQuery, setSearchQuery] = useState("");
 
   // Function for dates being pressed
-  const handleDayPress = (day) => {
+  const handleDayPress = (day: { dateString: string }) => {
     setMarkedDates((prev) => {
       const isAlreadyMarked = prev[day.dateString];
 

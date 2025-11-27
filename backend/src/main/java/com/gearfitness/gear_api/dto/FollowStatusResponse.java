@@ -9,9 +9,6 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AuthResponse {
-    private String token;
-    private UserDTO user;
-    private boolean newUser;
-    private String error;
+public class FollowStatusResponse {
+    private boolean isFollowing;
 }

@@ -3,17 +3,29 @@
  * Helper functions for managing JWT tokens
  */
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 
 const TOKEN_KEY = "authToken";
 
 /**
- * Get the authentication token from AsyncStorage
+ * Store JWT token securely
+ */
+export async function storeToken(token: string): Promise<void> {
+  try {
+    await SecureStore.setItemAsync(TOKEN_KEY, token);
+  } catch (error) {
+    console.error("Failed to store token:", error);
+    throw new Error("Failed to store authentication token");
+  }
+}
+
+/**
+ * Get the authentication token from SecureStore
  * @returns The JWT token or null if not found
  */
 export async function getAuthToken(): Promise<string | null> {
   try {
-    const token = await AsyncStorage.getItem(TOKEN_KEY);
+    const token = await SecureStore.getItemAsync(TOKEN_KEY);
     return token;
   } catch (error) {
     console.error("Error retrieving auth token:", error);
@@ -36,24 +48,32 @@ export async function getAuthHeader(): Promise<{ Authorization?: string }> {
 }
 
 /**
- * Save the authentication token to AsyncStorage
+ * Save the authentication token to SecureStore
  * @param token The JWT token to save
  */
 export async function setAuthToken(token: string): Promise<void> {
   try {
-    await AsyncStorage.setItem(TOKEN_KEY, token);
+    await SecureStore.setItemAsync(TOKEN_KEY, token);
   } catch (error) {
     console.error("Error saving auth token:", error);
   }
 }
 
 /**
- * Remove the authentication token from AsyncStorage
+ * Remove the authentication token from SecureStore
  */
 export async function clearAuthToken(): Promise<void> {
   try {
-    await AsyncStorage.removeItem(TOKEN_KEY);
+    await SecureStore.deleteItemAsync(TOKEN_KEY);
   } catch (error) {
     console.error("Error clearing auth token:", error);
   }
+}
+
+/**
+ * Check if user is authenticated (has valid token)
+ */
+export async function isAuthenticated(): Promise<boolean> {
+  const token = await getAuthToken();
+  return token !== null;
 }
