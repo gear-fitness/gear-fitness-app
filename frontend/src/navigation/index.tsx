@@ -198,6 +198,12 @@ export type RootStackParamList = StaticParamList<typeof RootStack>;
 declare global {
   namespace ReactNavigation {
     interface RootParamList {
+      Login: undefined;
+      HomeTabs: undefined;
+      History: undefined;
+      Settings: undefined;
+      Profile: undefined;
+
       ExerciseSelect: undefined;
 
       ExerciseDetail: {
