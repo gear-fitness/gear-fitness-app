@@ -13,7 +13,9 @@ import { useTheme } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import weightlifter from "../../assets/weightlifter.png";
-import { authenticatedFetch } from "../../services/api";
+import { useAuth } from "../../context/AuthContext";
+import { getUserWorkouts } from "../../api/workoutService";
+import { Workout } from "../../api/types";
 
 type RootStackParamList = {
   HomeTabs: undefined;
@@ -26,44 +28,38 @@ type RootStackParamList = {
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-type Workout = {
-  workoutId: string;
-  name: string;
-  datePerformed: string;
-};
-
 export function History() {
   const { colors } = useTheme();
   const navigation = useNavigation<NavigationProp>();
+  const { user } = useAuth();
 
   const [markedDates, setMarkedDates] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
   const [data, setData] = useState<Workout[]>([]);
 
-  const userId = "550e8400-e29b-41d4-a716-446655440004"; // Alton's UUID
-  const API_URL = `${process.env.EXPO_PUBLIC_API_URL}/api/workouts`;
-
   // Function to fetch workouts
-  const fetchWorkouts = () => {
-    console.log("Fetching workouts for user:", userId);
-    authenticatedFetch(`${API_URL}/user/${userId}`)
-      .then((res) => res.json())
-      .then((workouts) => {
-        console.log("Workouts fetched:", workouts.length);
-        setData(workouts);
+  const fetchWorkouts = async () => {
+    if (!user?.userId) return;
 
-        const marks = {};
-        workouts.forEach((w) => {
-          marks[w.datePerformed] = {
-            marked: true,
-            selected: true,
-            dotColor: "#1877F2",
-            selectedColor: "#1877F2",
-          };
-        });
-        setMarkedDates(marks);
-      })
-      .catch((err) => console.error("Error loading workouts:", err));
+    console.log("Fetching workouts for user:", user.userId);
+    try {
+      const workouts = await getUserWorkouts(user.userId);
+      console.log("Workouts fetched:", workouts.length);
+      setData(workouts);
+
+      const marks: any = {};
+      workouts.forEach((w) => {
+        marks[w.datePerformed] = {
+          marked: true,
+          selected: true,
+          dotColor: "#1877F2",
+          selectedColor: "#1877F2",
+        };
+      });
+      setMarkedDates(marks);
+    } catch (err) {
+      console.error("Error loading workouts:", err);
+    }
   };
 
   // Fetch workouts on initial mount
@@ -87,8 +83,9 @@ export function History() {
     String(today.getDate()).padStart(2, "0");
 
   const handlePrPress = () => {
+    if (!user?.userId) return;
     // Pass userId to PR screen
-    navigation.getParent()?.navigate("PR", { userId });
+    navigation.getParent()?.navigate("PR", { userId: user.userId });
   };
 
   const filteredData = data.filter((item) =>

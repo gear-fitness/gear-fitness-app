@@ -12,21 +12,14 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import bench from "../../assets/bench.png";
 import squat from "../../assets/squat.png";
 import deadlift from "../../assets/deadlift.png";
-import { authenticatedFetch } from "../../services/api";
+import { getUserPersonalRecords } from "../../api/workoutService";
+import { PersonalRecord } from "../../api/types";
 
 type RootStackParamList = {
   PR: { userId: string };
 };
 
 type Props = NativeStackScreenProps<RootStackParamList, "PR">;
-
-type PersonalRecord = {
-  exerciseName: string;
-  maxWeight: number;
-  repsAtMaxWeight: number;
-  dateAchieved: string | null;
-  workoutName: string | null;
-};
 
 export function PR({ route }: Props) {
   const colorScheme = useColorScheme();
@@ -36,27 +29,22 @@ export function PR({ route }: Props) {
   const [prs, setPrs] = useState<PersonalRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const API_URL = `${process.env.EXPO_PUBLIC_API_URL}/api/personal-records`;
-
   useEffect(() => {
-    console.log("Fetching PRs for user:", userId);
+    const fetchPRs = async () => {
+      console.log("Fetching PRs for user:", userId);
 
-    authenticatedFetch(`${API_URL}/user/${userId}`)
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        return res.json();
-      })
-      .then((data) => {
+      try {
+        const data = await getUserPersonalRecords(userId);
         console.log("PRs received:", data);
         setPrs(data);
         setLoading(false);
-      })
-      .catch((err) => {
+      } catch (err: any) {
         console.error("Error loading PRs:", err);
         setLoading(false);
-      });
+      }
+    };
+
+    fetchPRs();
   }, [userId]);
 
   const getImageForExercise = (exerciseName: string) => {

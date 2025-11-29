@@ -12,29 +12,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LineChart } from "react-native-chart-kit";
 import { useEffect, useState } from "react";
 import React from "react";
-import { authenticatedFetch } from "../../services/api";
+import { useAuth } from "../../context/AuthContext";
+import { getWeeklyVolume, getUserWorkouts } from "../../api/workoutService";
+import { WeeklyVolumeData, Workout } from "../../api/types";
 
 const { width, height } = Dimensions.get("window");
 
-interface WeeklyVolumeData {
-  weekStartDate: string;
-  weekEndDate: string;
-  totalVolumeLbs: number;
-  workoutCount: number;
-}
-
-interface Workout {
-  workoutId: string;
-  name: string;
-  datePerformed: string;
-  durationMin: number | null;
-  bodyTag: string | null;
-}
-
 export function Home() {
-  const userId = "550e8400-e29b-41d4-a716-446655440004"; // Alton's UUID
-  const API_URL = `${process.env.EXPO_PUBLIC_API_URL}/api/workouts`;
-
+  const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const [weeklyData, setWeeklyData] = useState<WeeklyVolumeData[]>([]);
@@ -65,34 +50,24 @@ export function Home() {
   };
 
   const fetchWeeklyVolume = async () => {
-    try {
-      const response = await authenticatedFetch(
-        `${API_URL}/user/${userId}/weekly-volume?weeks=8`
-      );
+    if (!user?.userId) return;
 
-      if (response.ok) {
-        const data = await response.json();
-        setWeeklyData(data);
-      } else {
-        console.error("Failed to fetch weekly volume data");
-      }
+    try {
+      const data = await getWeeklyVolume(user.userId, 8);
+      setWeeklyData(data);
     } catch (error) {
       console.error("Error fetching weekly volume:", error);
     }
   };
 
   const fetchRecentWorkouts = async () => {
-    try {
-      const response = await authenticatedFetch(`${API_URL}/user/${userId}`);
+    if (!user?.userId) return;
 
-      if (response.ok) {
-        const workouts = await response.json();
-        // Get the 3 most recent workouts
-        const recent = workouts.slice(0, 3);
-        setRecentWorkouts(recent);
-      } else {
-        console.error("Failed to fetch recent workouts");
-      }
+    try {
+      const workouts = await getUserWorkouts(user.userId);
+      // Get the 3 most recent workouts
+      const recent = workouts.slice(0, 3);
+      setRecentWorkouts(recent);
     } catch (error) {
       console.error("Error fetching recent workouts:", error);
     }

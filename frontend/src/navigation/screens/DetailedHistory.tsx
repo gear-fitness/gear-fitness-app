@@ -8,39 +8,14 @@ import {
 } from "react-native";
 import React, { useState, useEffect } from "react";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { authenticatedFetch } from "../../services/api";
+import { getWorkoutDetails } from "../../api/workoutService";
+import { WorkoutDetail } from "../../api/types";
 
 type RootStackParamList = {
   DetailedHistory: { workoutId: string };
 };
 
 type Props = NativeStackScreenProps<RootStackParamList, "DetailedHistory">;
-
-type WorkoutSet = {
-  workoutSetId: string;
-  setNumber: number;
-  reps: number;
-  weightLbs: number | null; // Changed from weightKg to weightLbs
-  isPr: boolean;
-};
-
-type WorkoutExercise = {
-  workoutExerciseId: string;
-  exerciseName: string;
-  bodyPart: string;
-  position: number;
-  note: string | null;
-  sets: WorkoutSet[];
-};
-
-type WorkoutDetail = {
-  workoutId: string;
-  name: string;
-  datePerformed: string;
-  durationMin: number | null;
-  bodyTag: string | null;
-  exercises: WorkoutExercise[];
-};
 
 export function DetailedHistory({ route }: Props) {
   const colorScheme = useColorScheme();
@@ -51,29 +26,23 @@ export function DetailedHistory({ route }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const API_URL = `${process.env.EXPO_PUBLIC_API_URL}/api/workouts`;
-
   useEffect(() => {
-    console.log("Fetching workout details for ID:", workoutId);
+    const fetchWorkout = async () => {
+      console.log("Fetching workout details for ID:", workoutId);
 
-    authenticatedFetch(`${API_URL}/${workoutId}`)
-      .then((res) => {
-        console.log("Response status:", res.status);
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        return res.json();
-      })
-      .then((data) => {
+      try {
+        const data = await getWorkoutDetails(workoutId);
         console.log("Workout data received:", data);
         setWorkout(data);
         setLoading(false);
-      })
-      .catch((err) => {
+      } catch (err: any) {
         console.error("Error loading workout details:", err);
         setError(err.message);
         setLoading(false);
-      });
+      }
+    };
+
+    fetchWorkout();
   }, [workoutId]);
 
   if (loading) {

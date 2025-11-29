@@ -12,7 +12,6 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/personal-records")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class PersonalRecordController {
 
     private final PersonalRecordService personalRecordService;
