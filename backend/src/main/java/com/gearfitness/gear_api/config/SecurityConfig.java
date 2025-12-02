@@ -38,9 +38,12 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/public/**").permitAll()
+                .requestMatchers(request ->
+                    request.getMethod().equals("GET") &&
+                    request.getRequestURI().matches("/api/exercises(/filter)?")
+                ).permitAll()  // Only GET requests to /api/exercises and /api/exercises/filter
                 .requestMatchers("/api/workouts/**").permitAll()
-                .requestMatchers("/api/exercises/**").permitAll()
-                .anyRequest().authenticated()
+                .anyRequest().authenticated()  // All other requests, including chat, require auth
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
