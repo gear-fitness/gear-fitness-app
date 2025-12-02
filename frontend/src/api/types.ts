@@ -55,3 +55,52 @@ export interface FollowResponse {
   status: "pending" | "accepted";
   message: string;
 }
+
+export interface WeeklyVolumeData {
+  weekStartDate: string;
+  weekEndDate: string;
+  totalVolumeLbs: number;
+  workoutCount: number;
+}
+
+export interface Workout {
+  workoutId: string;
+  name: string;
+  datePerformed: string;
+  durationMin: number | null;
+  bodyTag: string | null;
+}
+
+export interface WorkoutSet {
+  workoutSetId: string;
+  setNumber: number;
+  reps: number;
+  weightLbs: number | null;
+  isPr: boolean;
+}
+
+export interface WorkoutExercise {
+  workoutExerciseId: string;
+  exerciseName: string;
+  bodyPart: string;
+  position: number;
+  note: string | null;
+  sets: WorkoutSet[];
+}
+
+export interface WorkoutDetail {
+  workoutId: string;
+  name: string;
+  datePerformed: string;
+  durationMin: number | null;
+  bodyTag: string | null;
+  exercises: WorkoutExercise[];
+}
+
+export interface PersonalRecord {
+  exerciseName: string;
+  maxWeight: number;
+  repsAtMaxWeight: number;
+  dateAchieved: string | null;
+  workoutName: string | null;
+}
