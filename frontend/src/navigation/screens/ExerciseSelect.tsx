@@ -7,11 +7,15 @@ import {
   ScrollView,
   Modal,
   Image,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import React, { useState, useEffect } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import search from "../../assets/search.png";
 import filter from "../../assets/filter.png";
 import close from "../../assets/close.png";
+import chat from "../../assets/chat.png";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
@@ -29,6 +33,14 @@ type FilterKey =
   | "CORE";
 
 type SelectedFilters = Record<FilterKey, boolean>;
+
+// Reusing the type from your DTO for local state clarity
+type ChatMessageState = {
+  id: string;
+  text: string;
+  isUser: boolean;
+  timestamp: Date;
+};
 
 export function ExerciseSelect({ route }: { route: any }) {
   const navigation = useNavigation();
@@ -63,6 +75,13 @@ export function ExerciseSelect({ route }: { route: any }) {
 
   const [exercises, setExercises] = useState<any[]>([]);
 
+  // Chat modal state
+  const [chatModalVisible, setChatModalVisible] = useState(false);
+  const [selectedExercise, setSelectedExercise] = useState<any | null>(null);
+  const [messages, setMessages] = useState<ChatMessageState[]>([]);
+  const [inputText, setInputText] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
   const activeFilters = Object.entries(selectedFilters)
     .filter(([_, value]) => value)
     .map(([key]) => key);
@@ -91,6 +110,98 @@ export function ExerciseSelect({ route }: { route: any }) {
 
     loadExercises();
   }, []);
+
+  const handleCloseChat = () => {
+    setChatModalVisible(false);
+    setMessages([]); // Clear chat on close
+    setSelectedExercise(null);
+  };
+
+  const sendMessage = async (userMessage: string) => {
+    if (!selectedExercise || !userMessage.trim()) return;
+
+    setIsLoading(true);
+
+    // 1. Add user message
+    const newUserMessage: ChatMessageState = {
+      id: Date.now().toString(),
+      text: userMessage.trim(),
+      isUser: true,
+      timestamp: new Date(),
+    };
+
+    // The current messages state + the new user message
+    const updatedMessages = [...messages, newUserMessage];
+    setMessages(updatedMessages);
+    setInputText("");
+
+    try {
+      // Get JWT token from storage
+      const token = await AsyncStorage.getItem("authToken");
+      console.log(
+        "Token retrieved:",
+        token ? "Token exists" : "No token found"
+      );
+
+      if (!token) {
+        throw new Error("No authentication token found. Please log in again.");
+      }
+
+      const response = await fetch(
+        `http://172.20.10.3:8080/api/exercises/${selectedExercise.exerciseId}/chat`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            // Send the full, updated history including the AI greeting
+            messages: updatedMessages.map((m) => ({
+              text: m.text,
+              isUser: m.isUser,
+            })),
+          }),
+        }
+      );
+
+      // Check if response is OK before parsing
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Backend error:", response.status, errorText);
+        throw new Error(`Backend error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const aiResponse = data.response;
+
+      if (!aiResponse) {
+        throw new Error("No response from AI");
+      }
+
+      const aiMessage: ChatMessageState = {
+        id: (Date.now() + 1).toString(),
+        text: aiResponse,
+        isUser: false,
+        timestamp: new Date(),
+      };
+
+      // Add the AI response to the history
+      setMessages([...updatedMessages, aiMessage]);
+    } catch (error) {
+      console.error("Chat API error:", error);
+      // Show error message in chat
+      const errorMessage: ChatMessageState = {
+        id: (Date.now() + 1).toString(),
+        text: "Sorry, there was an error. Please try again.",
+        isUser: false,
+        timestamp: new Date(),
+      };
+      setMessages([...updatedMessages, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -143,25 +254,50 @@ export function ExerciseSelect({ route }: { route: any }) {
       {/* Exercises List */}
       <ScrollView style={{ marginTop: 20 }}>
         {filteredExercises.map((ex) => (
-          <TouchableOpacity
-            key={ex.exerciseId}
-            onPress={() =>
-              navigation.navigate("ExerciseDetail", {
-                exercise: ex,
-              })
-            }
-            style={{ paddingVertical: 10 }}
-          >
-            <Text
-              style={{ fontSize: 16, fontWeight: "600", color: colors.text }}
+          <View key={ex.exerciseId} style={styles.exerciseRow}>
+            <TouchableOpacity
+              style={{ flex: 1 }}
+              onPress={() =>
+                navigation.navigate("ExerciseDetail", {
+                  exercise: ex,
+                })
+              }
             >
-              {ex.name}
-            </Text>
-            <Text style={{ color: colors.subtle }}>{ex.bodyPart}</Text>
-            <Text style={{ color: colors.subtle, marginTop: 4 }}>
-              {ex.description}
-            </Text>
-          </TouchableOpacity>
+              <Text
+                style={{ fontSize: 16, fontWeight: "600", color: colors.text }}
+              >
+                {ex.name}
+              </Text>
+              <Text style={{ color: colors.subtle }}>{ex.bodyPart}</Text>
+              <Text style={{ color: colors.subtle, marginTop: 4 }}>
+                {ex.description}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                const greetingText = `Hello, I'm your personal ${ex.name} assistant! If you have any questions on this exercise, let me know!`;
+
+                // FIX: Initialize messages with the AI's greeting
+                setSelectedExercise(ex);
+                setMessages([
+                  {
+                    id: "0",
+                    text: greetingText,
+                    isUser: false,
+                    timestamp: new Date(),
+                  },
+                ]);
+                setChatModalVisible(true);
+              }}
+              style={styles.chatIconButton}
+            >
+              <Image
+                source={chat}
+                style={{ width: 20, height: 20, tintColor: colors.icon }}
+              />
+            </TouchableOpacity>
+          </View>
         ))}
       </ScrollView>
 
@@ -221,6 +357,102 @@ export function ExerciseSelect({ route }: { route: any }) {
             <Button onPress={() => setIsFiltering(false)}>Apply Filters</Button>
           </View>
         </View>
+      </Modal>
+
+      {/* Chat Modal */}
+      <Modal
+        visible={chatModalVisible}
+        animationType="slide"
+        transparent={false}
+      >
+        <KeyboardAvoidingView
+          style={[styles.chatContainer, { backgroundColor: colors.bg }]}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={0}
+        >
+          <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
+            {/* Header with close button and exercise name */}
+            <View
+              style={[styles.chatHeader, { borderBottomColor: colors.border }]}
+            >
+              <TouchableOpacity
+                onPress={handleCloseChat}
+                style={styles.closeButton}
+              >
+                <Image
+                  source={close}
+                  style={[styles.closeIcon, { tintColor: colors.icon }]}
+                />
+              </TouchableOpacity>
+              <View style={styles.chatHeaderContent}>
+                <Text style={[styles.chatTitle, { color: colors.text }]}>
+                  {selectedExercise?.name || "Exercise Chat"}
+                </Text>
+                <Text style={[styles.chatSubtitle, { color: colors.subtle }]}>
+                  AI Assistant
+                </Text>
+              </View>
+              <View style={{ width: 40 }} />
+            </View>
+
+            {/* Messages ScrollView */}
+            <ScrollView
+              style={{ flex: 1, paddingHorizontal: 10 }}
+              contentContainerStyle={{ paddingVertical: 10 }}
+            >
+              {messages.map((msg) => (
+                <View
+                  key={msg.id}
+                  style={[
+                    styles.messageBubble,
+                    {
+                      alignSelf: msg.isUser ? "flex-end" : "flex-start",
+                      backgroundColor: msg.isUser ? "#007AFF" : colors.card,
+                    },
+                  ]}
+                >
+                  <Text style={{ color: msg.isUser ? "#fff" : colors.text }}>
+                    {msg.text}
+                  </Text>
+                </View>
+              ))}
+              {isLoading && (
+                <Text style={{ color: colors.subtle, fontStyle: "italic" }}>
+                  AI is thinking...
+                </Text>
+              )}
+            </ScrollView>
+
+            {/* Input Row */}
+            <View
+              style={[styles.chatInputRow, { borderTopColor: colors.border }]}
+            >
+              <TextInput
+                style={[
+                  styles.chatInput,
+                  { backgroundColor: colors.inputBg, color: colors.text },
+                ]}
+                placeholder="Ask about this exercise..."
+                placeholderTextColor={colors.subtle}
+                value={inputText}
+                onChangeText={setInputText}
+                multiline
+              />
+              <TouchableOpacity
+                onPress={() => sendMessage(inputText)}
+                disabled={!inputText.trim() || isLoading}
+                style={[
+                  styles.sendButton,
+                  { opacity: inputText.trim() && !isLoading ? 1 : 0.5 },
+                ]}
+              >
+                <Text style={{ color: "#007AFF", fontWeight: "600" }}>
+                  Send
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </SafeAreaView>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -286,5 +518,85 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginRight: 10,
     borderRadius: 4,
+  },
+
+  // Chat styles
+  exerciseRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+  },
+
+  chatIconButton: {
+    padding: 10,
+    marginLeft: 10,
+  },
+
+  chatContainer: {
+    flex: 1,
+  },
+
+  chatHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+  },
+
+  closeButton: {
+    padding: 5,
+    width: 40,
+  },
+
+  closeIcon: {
+    width: 24,
+    height: 24,
+  },
+
+  chatHeaderContent: {
+    flex: 1,
+    alignItems: "center",
+  },
+
+  chatTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+
+  chatSubtitle: {
+    fontSize: 12,
+    textAlign: "center",
+    marginTop: 2,
+  },
+
+  messageBubble: {
+    maxWidth: "80%",
+    padding: 12,
+    borderRadius: 16,
+    marginVertical: 4,
+  },
+
+  chatInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 10,
+    borderTopWidth: 1,
+  },
+
+  chatInput: {
+    flex: 1,
+    borderRadius: 20,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    marginRight: 10,
+    maxHeight: 100,
+  },
+
+  sendButton: {
+    paddingHorizontal: 15,
+    paddingVertical: 10,
   },
 });
