@@ -1,3 +1,4 @@
 .DS_Store
 Claude.md
-vscode/settings.json*.code-workspace
+vscode/settings.json
+*.code-workspace
