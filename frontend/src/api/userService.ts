@@ -4,7 +4,12 @@
  */
 
 import { getAuthHeader } from "../utils/auth";
-import { UserProfile, FollowerUser, FollowStatusResponse } from "./types";
+import {
+  UserProfile,
+  FollowerUser,
+  FollowStatusResponse,
+  FollowResponse,
+} from "./types";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -109,7 +114,7 @@ export async function getUserFollowing(
 /**
  * Follow a user
  */
-export async function followUser(userId: string): Promise<void> {
+export async function followUser(userId: string): Promise<FollowResponse> {
   const authHeader = await getAuthHeader();
 
   const response = await fetch(`${API_BASE_URL}/api/follows/${userId}`, {
@@ -124,6 +129,35 @@ export async function followUser(userId: string): Promise<void> {
     const errorText = await response.text();
     throw new Error(`Failed to follow user: ${errorText}`);
   }
+
+  return response.json();
+}
+
+/**
+ * Follow a user by username
+ */
+export async function followUserByUsername(
+  username: string
+): Promise<FollowResponse> {
+  const authHeader = await getAuthHeader();
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/follows/username/${username}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeader,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to follow user: ${errorText}`);
+  }
+
+  return response.json();
 }
 
 /**

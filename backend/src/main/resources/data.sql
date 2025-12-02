@@ -33,10 +33,27 @@ VALUES
 
 -- Insert Workouts for Bryant
 INSERT INTO workout (workout_id, name, date_performed, duration_min, body_tag, created_at, user_id)
-VALUES 
+VALUES
     ('750e8400-e29b-41d4-a716-446655440001', 'Chest Day', CURRENT_DATE - INTERVAL '2 days', 75, 'CHEST', NOW() - INTERVAL '2 days', '550e8400-e29b-41d4-a716-446655440001'),
     ('750e8400-e29b-41d4-a716-446655440002', 'Leg Day', CURRENT_DATE - INTERVAL '5 days', 90, 'LEGS', NOW() - INTERVAL '5 days', '550e8400-e29b-41d4-a716-446655440001'),
-    ('750e8400-e29b-41d4-a716-446655440003', 'Back Day', CURRENT_DATE - INTERVAL '7 days', 80, 'BACK', NOW() - INTERVAL '7 days', '550e8400-e29b-41d4-a716-446655440001');
+    ('750e8400-e29b-41d4-a716-446655440003', 'Back Day', CURRENT_DATE - INTERVAL '7 days', 80, 'BACK', NOW() - INTERVAL '7 days', '550e8400-e29b-41d4-a716-446655440001'),
+    ('750e8400-e29b-41d4-a716-446655440011', 'Shoulder Workout', CURRENT_DATE - INTERVAL '10 days', 65, 'SHOULDERS', NOW() - INTERVAL '10 days', '550e8400-e29b-41d4-a716-446655440001'),
+    ('750e8400-e29b-41d4-a716-446655440012', 'Arm Day', CURRENT_DATE - INTERVAL '12 days', 50, 'BICEPS', NOW() - INTERVAL '12 days', '550e8400-e29b-41d4-a716-446655440001'),
+    ('750e8400-e29b-41d4-a716-446655440013', 'Full Body', CURRENT_DATE - INTERVAL '15 days', 85, 'FULL_BODY', NOW() - INTERVAL '15 days', '550e8400-e29b-41d4-a716-446655440001'),
+    ('750e8400-e29b-41d4-a716-446655440014', 'Chest & Triceps', CURRENT_DATE - INTERVAL '18 days', 70, 'CHEST', NOW() - INTERVAL '18 days', '550e8400-e29b-41d4-a716-446655440001'),
+    ('750e8400-e29b-41d4-a716-446655440015', 'Leg Power', CURRENT_DATE - INTERVAL '20 days', 95, 'LEGS', NOW() - INTERVAL '20 days', '550e8400-e29b-41d4-a716-446655440001'),
+    ('750e8400-e29b-41d4-a716-446655440016', 'Back & Biceps', CURRENT_DATE - INTERVAL '22 days', 75, 'BACK', NOW() - INTERVAL '22 days', '550e8400-e29b-41d4-a716-446655440001'),
+    ('750e8400-e29b-41d4-a716-446655440017', 'Core Workout', CURRENT_DATE - INTERVAL '25 days', 40, 'CORE', NOW() - INTERVAL '25 days', '550e8400-e29b-41d4-a716-446655440001'),
+    ('750e8400-e29b-41d4-a716-446655440018', 'Upper Body', CURRENT_DATE - INTERVAL '28 days', 80, 'CHEST', NOW() - INTERVAL '28 days', '550e8400-e29b-41d4-a716-446655440001'),
+    ('750e8400-e29b-41d4-a716-446655440019', 'Lower Body', CURRENT_DATE - INTERVAL '30 days', 90, 'LEGS', NOW() - INTERVAL '30 days', '550e8400-e29b-41d4-a716-446655440001'),
+    ('750e8400-e29b-41d4-a716-446655440020', 'Push Day', CURRENT_DATE - INTERVAL '33 days', 65, 'CHEST', NOW() - INTERVAL '33 days', '550e8400-e29b-41d4-a716-446655440001'),
+    ('750e8400-e29b-41d4-a716-446655440021', 'Pull Day', CURRENT_DATE - INTERVAL '35 days', 70, 'BACK', NOW() - INTERVAL '35 days', '550e8400-e29b-41d4-a716-446655440001'),
+    ('750e8400-e29b-41d4-a716-446655440022', 'Legs & Glutes', CURRENT_DATE - INTERVAL '38 days', 85, 'LEGS', NOW() - INTERVAL '38 days', '550e8400-e29b-41d4-a716-446655440001'),
+    ('750e8400-e29b-41d4-a716-446655440023', 'Chest Focus', CURRENT_DATE - INTERVAL '40 days', 60, 'CHEST', NOW() - INTERVAL '40 days', '550e8400-e29b-41d4-a716-446655440001'),
+    ('750e8400-e29b-41d4-a716-446655440024', 'Back Thickness', CURRENT_DATE - INTERVAL '42 days', 75, 'BACK', NOW() - INTERVAL '42 days', '550e8400-e29b-41d4-a716-446655440001'),
+    ('750e8400-e29b-41d4-a716-446655440025', 'Shoulder Press Day', CURRENT_DATE - INTERVAL '45 days', 55, 'SHOULDERS', NOW() - INTERVAL '45 days', '550e8400-e29b-41d4-a716-446655440001'),
+    ('750e8400-e29b-41d4-a716-446655440026', 'Squat Day', CURRENT_DATE - INTERVAL '47 days', 100, 'LEGS', NOW() - INTERVAL '47 days', '550e8400-e29b-41d4-a716-446655440001'),
+    ('750e8400-e29b-41d4-a716-446655440027', 'Deadlift Focus', CURRENT_DATE - INTERVAL '50 days', 70, 'BACK', NOW() - INTERVAL '50 days', '550e8400-e29b-41d4-a716-446655440001');
 
 -- Insert Workouts for Max
 INSERT INTO workout (workout_id, name, date_performed, duration_min, body_tag, created_at, user_id)
@@ -203,13 +220,31 @@ VALUES
 
 -- Insert Posts
 INSERT INTO post (post_id, workout_id, image_url, caption, user_id, created_at)
-VALUES 
-    ('a50e8400-e29b-41d4-a716-446655440001', '750e8400-e29b-41d4-a716-446655440001', 'https://example.com/images/bryant-chest.jpg', 'Hit a new PR on bench today! 💪 243 lbs for 5 reps. Feeling strong!', '550e8400-e29b-41d4-a716-446655440001', NOW() - INTERVAL '2 days'),
+VALUES
+    ('a50e8400-e29b-41d4-a716-446655440001', '750e8400-e29b-41d4-a716-446655440001', 'https://example.com/images/bryant-chest.jpg', 'Hit a new PR on bench today! 💪 110kg for 5 reps. Feeling strong!', '550e8400-e29b-41d4-a716-446655440001', NOW() - INTERVAL '2 days'),
     ('a50e8400-e29b-41d4-a716-446655440002', '750e8400-e29b-41d4-a716-446655440002', 'https://example.com/images/bryant-legs.jpg', 'Leg day complete! Squats felt heavy but got through it. 🦵', '550e8400-e29b-41d4-a716-446655440001', NOW() - INTERVAL '5 days'),
     ('a50e8400-e29b-41d4-a716-446655440003', '750e8400-e29b-41d4-a716-446655440004', 'https://example.com/images/max-upper.jpg', 'Upper body power session done! New bench PR 🔥', '550e8400-e29b-41d4-a716-446655440002', NOW() - INTERVAL '1 day'),
     ('a50e8400-e29b-41d4-a716-446655440004', '750e8400-e29b-41d4-a716-446655440006', 'https://example.com/images/kobe-fullbody.jpg', '463 lbs deadlift PR! Been chasing this for months 🎯', '550e8400-e29b-41d4-a716-446655440003', NOW()),
     ('a50e8400-e29b-41d4-a716-446655440005', '750e8400-e29b-41d4-a716-446655440008', 'https://example.com/images/alton-push.jpg', 'Solid push day. Chest and shoulders on fire! 🔥', '550e8400-e29b-41d4-a716-446655440004', NOW() - INTERVAL '1 day'),
-    ('a50e8400-e29b-41d4-a716-446655440006', '750e8400-e29b-41d4-a716-446655440010', 'https://example.com/images/alton-legs.jpg', 'Leg day destroyed me but worth it! Never skip leg day 🦵', '550e8400-e29b-41d4-a716-446655440004', NOW() - INTERVAL '6 days');
+    ('a50e8400-e29b-41d4-a716-446655440006', '750e8400-e29b-41d4-a716-446655440010', 'https://example.com/images/alton-legs.jpg', 'Leg day destroyed me but worth it! Never skip leg day 🦵', '550e8400-e29b-41d4-a716-446655440004', NOW() - INTERVAL '6 days'),
+    ('a50e8400-e29b-41d4-a716-446655440007', '750e8400-e29b-41d4-a716-446655440003', 'https://example.com/images/bryant-back.jpg', 'Back day was intense! Deadlifts and rows on point', '550e8400-e29b-41d4-a716-446655440001', NOW() - INTERVAL '7 days'),
+    ('a50e8400-e29b-41d4-a716-446655440008', '750e8400-e29b-41d4-a716-446655440011', 'https://example.com/images/bryant-shoulders.jpg', 'Shoulder workout done! OHP felt strong today', '550e8400-e29b-41d4-a716-446655440001', NOW() - INTERVAL '10 days'),
+    ('a50e8400-e29b-41d4-a716-446655440009', '750e8400-e29b-41d4-a716-446655440012', 'https://example.com/images/bryant-arms.jpg', 'Arm day pump is unreal! Biceps and triceps looking good', '550e8400-e29b-41d4-a716-446655440001', NOW() - INTERVAL '12 days'),
+    ('a50e8400-e29b-41d4-a716-446655440010', '750e8400-e29b-41d4-a716-446655440013', 'https://example.com/images/bryant-fullbody.jpg', 'Full body session complete! Feeling accomplished', '550e8400-e29b-41d4-a716-446655440001', NOW() - INTERVAL '15 days'),
+    ('a50e8400-e29b-41d4-a716-446655440011', '750e8400-e29b-41d4-a716-446655440014', 'https://example.com/images/bryant-chest2.jpg', 'Chest and triceps day! Great pump from this combo', '550e8400-e29b-41d4-a716-446655440001', NOW() - INTERVAL '18 days'),
+    ('a50e8400-e29b-41d4-a716-446655440012', '750e8400-e29b-41d4-a716-446655440015', 'https://example.com/images/bryant-legpower.jpg', 'Leg power workout crushed me! Heavy squats today', '550e8400-e29b-41d4-a716-446655440001', NOW() - INTERVAL '20 days'),
+    ('a50e8400-e29b-41d4-a716-446655440013', '750e8400-e29b-41d4-a716-446655440016', 'https://example.com/images/bryant-backbiceps.jpg', 'Back and biceps session! Pull day never disappoints', '550e8400-e29b-41d4-a716-446655440001', NOW() - INTERVAL '22 days'),
+    ('a50e8400-e29b-41d4-a716-446655440014', '750e8400-e29b-41d4-a716-446655440017', 'https://example.com/images/bryant-core.jpg', 'Core workout done! Abs are on fire right now', '550e8400-e29b-41d4-a716-446655440001', NOW() - INTERVAL '25 days'),
+    ('a50e8400-e29b-41d4-a716-446655440015', '750e8400-e29b-41d4-a716-446655440018', 'https://example.com/images/bryant-upper.jpg', 'Upper body day complete! Bench and OHP combo', '550e8400-e29b-41d4-a716-446655440001', NOW() - INTERVAL '28 days'),
+    ('a50e8400-e29b-41d4-a716-446655440016', '750e8400-e29b-41d4-a716-446655440019', 'https://example.com/images/bryant-lower.jpg', 'Lower body session finished! Legs are shaking', '550e8400-e29b-41d4-a716-446655440001', NOW() - INTERVAL '30 days'),
+    ('a50e8400-e29b-41d4-a716-446655440017', '750e8400-e29b-41d4-a716-446655440020', 'https://example.com/images/bryant-push.jpg', 'Push day was solid! All pressing movements felt great', '550e8400-e29b-41d4-a716-446655440001', NOW() - INTERVAL '33 days'),
+    ('a50e8400-e29b-41d4-a716-446655440018', '750e8400-e29b-41d4-a716-446655440021', 'https://example.com/images/bryant-pull.jpg', 'Pull day grind! Back width is improving', '550e8400-e29b-41d4-a716-446655440001', NOW() - INTERVAL '35 days'),
+    ('a50e8400-e29b-41d4-a716-446655440019', '750e8400-e29b-41d4-a716-446655440022', 'https://example.com/images/bryant-glutes.jpg', 'Legs and glutes workout! RDLs hit different today', '550e8400-e29b-41d4-a716-446655440001', NOW() - INTERVAL '38 days'),
+    ('a50e8400-e29b-41d4-a716-446655440020', '750e8400-e29b-41d4-a716-446655440023', 'https://example.com/images/bryant-chestfocus.jpg', 'Chest focus session! All bench variations today', '550e8400-e29b-41d4-a716-446655440001', NOW() - INTERVAL '40 days'),
+    ('a50e8400-e29b-41d4-a716-446655440021', '750e8400-e29b-41d4-a716-446655440024', 'https://example.com/images/bryant-thickness.jpg', 'Back thickness day! Rows and deadlifts on deck', '550e8400-e29b-41d4-a716-446655440001', NOW() - INTERVAL '42 days'),
+    ('a50e8400-e29b-41d4-a716-446655440022', '750e8400-e29b-41d4-a716-446655440025', 'https://example.com/images/bryant-shoulderpress.jpg', 'Shoulder press day! Overhead pressing felt smooth', '550e8400-e29b-41d4-a716-446655440001', NOW() - INTERVAL '45 days'),
+    ('a50e8400-e29b-41d4-a716-446655440023', '750e8400-e29b-41d4-a716-446655440026', 'https://example.com/images/bryant-squat.jpg', 'Squat day! Working on depth and form', '550e8400-e29b-41d4-a716-446655440001', NOW() - INTERVAL '47 days'),
+    ('a50e8400-e29b-41d4-a716-446655440024', '750e8400-e29b-41d4-a716-446655440027', 'https://example.com/images/bryant-deadlift.jpg', 'Deadlift focus! These never get easier', '550e8400-e29b-41d4-a716-446655440001', NOW() - INTERVAL '50 days');
 
 -- Insert Post Likes
 INSERT INTO post_like (post_id, user_id, created_at)

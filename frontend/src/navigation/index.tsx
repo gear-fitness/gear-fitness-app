@@ -52,7 +52,7 @@ const HomeTabs = createBottomTabNavigator({
     Social: {
       screen: Social,
       options: {
-        headerShown: true,
+        headerShown: false,
         title: "Social",
         tabBarIcon: ({ color, size }) => (
           <Image

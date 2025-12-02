@@ -49,6 +49,13 @@ export interface FollowStatusResponse {
   isFollowing: boolean;
 }
 
+export interface FollowResponse {
+  followeeId: string;
+  followeeUsername: string;
+  status: "pending" | "accepted";
+  message: string;
+}
+
 export interface WeeklyVolumeData {
   weekStartDate: string;
   weekEndDate: string;
