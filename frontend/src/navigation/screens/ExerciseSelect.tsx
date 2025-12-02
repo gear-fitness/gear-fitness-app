@@ -15,6 +15,7 @@ import close from "../../assets/close.png";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
+import { getAllExercises } from "../../api/exerciseService";
 
 type FilterKey =
   | "CALVES"
@@ -81,10 +82,8 @@ export function ExerciseSelect({ route }: { route: any }) {
   useEffect(() => {
     const loadExercises = async () => {
       try {
-        const res = await fetch("http://10.0.0.48:8080/api/exercises");
-        const text = await res.text();
-        if (!res.ok) return;
-        setExercises(JSON.parse(text));
+        const data = await getAllExercises();
+        setExercises(data);
       } catch (err) {
         console.error("Failed to fetch exercises:", err);
       }
