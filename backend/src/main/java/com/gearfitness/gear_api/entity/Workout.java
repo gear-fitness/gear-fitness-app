@@ -9,8 +9,8 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -48,9 +48,12 @@ public class Workout {
     private LocalDateTime createdAt;
 
     // Relationships
-    @OneToMany(mappedBy = "workout", cascade = CascadeType.ALL, orphanRemoval = true)
+    // CHANGED: fetch = FetchType.EAGER to load exercises when workout is loaded
+    // CHANGED: Using List instead of Set to maintain order
+    @OneToMany(mappedBy = "workout", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OrderBy("position ASC")
     @Builder.Default
-    private Set<WorkoutExercise> workoutExercises = new HashSet<>();
+    private List<WorkoutExercise> workoutExercises = new ArrayList<>();
 
     @OneToOne(mappedBy = "workout", cascade = CascadeType.ALL, orphanRemoval = true)
     private Post post;
