@@ -6,22 +6,26 @@ import {
   TouchableOpacity,
   FlatList,
   Image,
+  Alert,
+  Animated,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Swipeable } from "react-native-gesture-handler";
 
 import stopwatch from "../../assets/stopwatch.png";
 import trashIcon from "../../assets/trash.png";
 
-export function ExerciseDetail() {
-  const navigation = useNavigation();
-  const route = useRoute<any>();
+import { useWorkoutTimer } from "../../context/WorkoutTimerContext";
 
+export function ExerciseDetail() {
+  const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const exercise = route.params.exercise;
 
+  const { seconds, start, addExercise } = useWorkoutTimer();
   const isDark = useColorScheme() === "dark";
 
   const colors = {
@@ -33,72 +37,83 @@ export function ExerciseDetail() {
     inputBg: isDark ? "#2a2a2a" : "#f2f2f2",
   };
 
-  /* ---------------- TIMER ---------------- */
-
-  const [seconds, setSeconds] = useState(0);
-
-  // Auto-start timer when page opens
   useEffect(() => {
-    const timer = setInterval(() => {
-      setSeconds((prev) => prev + 1);
-    }, 1000);
-
-    return () => clearInterval(timer);
+    start();
   }, []);
 
-  const formatTime = (t: number) => {
-    const m = Math.floor(t / 60)
-      .toString()
-      .padStart(2, "0");
-    const s = (t % 60).toString().padStart(2, "0");
-    return `${m}:${s}`;
-  };
-
-  /* ---------------- SETS ---------------- */
+  const formatTime = (t: number) =>
+    `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(
+      2,
+      "0"
+    )}`;
 
   const [sets, setSets] = useState([{ id: "1", reps: "", weight: "" }]);
 
+  // Auto-add empty set when last one is filled
   useEffect(() => {
     const last = sets[sets.length - 1];
-    if (last.reps !== "" && last.weight !== "") {
-      setSets((prev) => [
-        ...prev,
+    if (last.reps && last.weight) {
+      setSets((p) => [
+        ...p,
         { id: Date.now().toString(), reps: "", weight: "" },
       ]);
     }
   }, [sets]);
 
-  const updateSet = (id: string, key: "reps" | "weight", value: string) => {
-    setSets((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, [key]: value } : s))
+  /* ---------- Swipe Auto-Close Setup ---------- */
+  const swipeRefs = useRef<Map<string, Swipeable>>(new Map());
+  const closeSwipe = (id: string) => swipeRefs.current.get(id)?.close();
+
+  const confirmDelete = (id: string) => {
+    Alert.alert("Delete Set", "Are you sure you want to delete this set?", [
+      {
+        text: "Cancel",
+        style: "cancel",
+        onPress: () => closeSwipe(id),
+      },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => {
+          setSets((prev) => prev.filter((s) => s.id !== id));
+          closeSwipe(id);
+        },
+      },
+    ]);
+  };
+
+  const renderRightActions = (
+    progress: Animated.AnimatedInterpolation<number>,
+    dragX: Animated.AnimatedInterpolation<number>,
+    id: string
+  ) => {
+    const translateX = progress.interpolate({
+      inputRange: [0, 1],
+      outputRange: [80, 0],
+    });
+
+    const scale = progress.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0.7, 1],
+    });
+
+    return (
+      <TouchableOpacity
+        style={styles.deleteBackground}
+        onPress={() => confirmDelete(id)}
+      >
+        <Animated.View style={{ transform: [{ translateX }, { scale }] }}>
+          <Image
+            source={trashIcon}
+            style={{ width: 26, height: 26, tintColor: "#fff" }}
+          />
+        </Animated.View>
+      </TouchableOpacity>
     );
   };
 
-  const deleteSet = (id: string) => {
-    setSets((prev) => prev.filter((s) => s.id !== id));
-  };
-
-  /* ---------- iOS MAIL STYLE DELETE ---------- */
-
-  const renderRightActions = (id: string) => (
-    <View style={styles.deleteBackground}>
-      <TouchableOpacity
-        style={styles.deleteButton}
-        onPress={() => deleteSet(id)}
-      >
-        <Image
-          source={trashIcon}
-          style={{ width: 28, height: 28, tintColor: "#fff" }}
-        />
-      </TouchableOpacity>
-    </View>
-  );
-
-  /* ------------------- UI ------------------- */
-
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
-      {/* TITLE */}
       <Text style={[styles.title, { color: colors.text }]}>
         {exercise.name}
       </Text>
@@ -118,7 +133,7 @@ export function ExerciseDetail() {
         </View>
       </View>
 
-      {/* HEADER */}
+      {/* HEADERS */}
       <View style={styles.tableHeaderRow}>
         <Text style={[styles.tableHeaderNum, { color: colors.subtle }]}>
           Set
@@ -131,7 +146,7 @@ export function ExerciseDetail() {
         </Text>
       </View>
 
-      {/* SET ROWS */}
+      {/* SET LIST */}
       <FlatList
         data={sets}
         keyExtractor={(item) => item.id}
@@ -139,10 +154,11 @@ export function ExerciseDetail() {
         renderItem={({ item, index }) => (
           <View style={styles.rowWrapper}>
             <Swipeable
+              ref={(r) => {
+                if (r) swipeRefs.current.set(item.id, r);
+              }}
               overshootRight={false}
-              friction={2} // MEDIUM SWIPE
-              rightThreshold={40} // Easier activation
-              renderRightActions={() => renderRightActions(item.id)}
+              renderRightActions={(p, d) => renderRightActions(p, d, item.id)}
             >
               <View
                 style={[
@@ -158,11 +174,17 @@ export function ExerciseDetail() {
                   placeholder="Reps"
                   placeholderTextColor={colors.subtle}
                   value={item.reps}
-                  onChangeText={(t) => updateSet(item.id, "reps", t)}
                   keyboardType="numeric"
+                  onChangeText={(t) =>
+                    setSets((prev) =>
+                      prev.map((s) =>
+                        s.id === item.id ? { ...s, reps: t } : s
+                      )
+                    )
+                  }
                   style={[
                     styles.input,
-                    { color: colors.text, backgroundColor: colors.inputBg },
+                    { backgroundColor: colors.inputBg, color: colors.text },
                   ]}
                 />
 
@@ -170,11 +192,17 @@ export function ExerciseDetail() {
                   placeholder="Weight"
                   placeholderTextColor={colors.subtle}
                   value={item.weight}
-                  onChangeText={(t) => updateSet(item.id, "weight", t)}
                   keyboardType="numeric"
+                  onChangeText={(t) =>
+                    setSets((prev) =>
+                      prev.map((s) =>
+                        s.id === item.id ? { ...s, weight: t } : s
+                      )
+                    )
+                  }
                   style={[
                     styles.input,
-                    { color: colors.text, backgroundColor: colors.inputBg },
+                    { backgroundColor: colors.inputBg, color: colors.text },
                   ]}
                 />
               </View>
@@ -187,7 +215,14 @@ export function ExerciseDetail() {
       <View style={[styles.footerRow, { borderColor: colors.border }]}>
         <TouchableOpacity
           style={styles.footerButton}
-          onPress={() => navigation.navigate("WorkoutSummary")}
+          onPress={() => {
+            addExercise({
+              id: exercise.exerciseId,
+              name: exercise.name,
+              sets: sets,
+            });
+            navigation.navigate("WorkoutSummary");
+          }}
         >
           <Text style={styles.footerButtonText}>Summary</Text>
         </TouchableOpacity>
@@ -203,8 +238,7 @@ export function ExerciseDetail() {
   );
 }
 
-/* ------------------- STYLES ------------------- */
-
+/* ---------------- STYLES ---------------- */
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20 },
 
@@ -221,11 +255,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
 
-  /* TIMER */
   timerRow: {
     flexDirection: "row",
     justifyContent: "center",
-    alignItems: "center",
     marginBottom: 14,
   },
 
@@ -234,7 +266,6 @@ const styles = StyleSheet.create({
   timerIcon: { width: 24, height: 24 },
   timerText: { fontSize: 22, fontWeight: "600" },
 
-  /* HEADER */
   tableHeaderRow: {
     flexDirection: "row",
     marginTop: 12,
@@ -242,15 +273,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
 
-  tableHeaderNum: { width: 40, fontSize: 14, fontWeight: "600" },
-  tableHeaderText: { flex: 1, fontSize: 14, fontWeight: "600" },
+  tableHeaderNum: { width: 40, fontWeight: "600" },
+  tableHeaderText: { flex: 1, fontWeight: "600" },
 
-  /* CARD WRAPPER */
-  rowWrapper: {
-    borderRadius: 16,
-    overflow: "hidden",
-    marginVertical: 6,
-  },
+  rowWrapper: { borderRadius: 16, overflow: "hidden", marginVertical: 6 },
 
   setCard: {
     flexDirection: "row",
@@ -275,30 +301,21 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
 
-  /* DELETE BG */
   deleteBackground: {
     backgroundColor: "#FF3B30",
     justifyContent: "center",
     alignItems: "flex-end",
     width: "100%",
+    height: "100%",
     paddingRight: 20,
-    height: "100%",
   },
 
-  deleteButton: {
-    width: 60,
-    height: "100%",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  /* FOOTER */
   footerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginTop: 24,
-    paddingTop: 12,
     borderTopWidth: 1,
+    paddingTop: 12,
   },
 
   footerButton: {

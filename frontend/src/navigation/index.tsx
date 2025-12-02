@@ -29,6 +29,7 @@ import { DetailedHistory } from "./screens/DetailedHistory";
 import { ExerciseSelect } from "./screens/ExerciseSelect";
 import { ExerciseDetail } from "./screens/ExerciseDetail";
 import { WorkoutSummary } from "./screens/WorkoutSummary";
+import { WorkoutComplete } from "./screens/WorkoutComplete";
 import { LoginScreen } from "./screens/Login";
 
 /* ---------------------- TABS ---------------------- */
@@ -187,6 +188,15 @@ const RootStack = createNativeStackNavigator({
       options: { title: "404" },
       linking: { path: "*" },
     },
+    /* MODAL 4 — WORKOUT COMPLETE */
+    WorkoutComplete: {
+      screen: WorkoutComplete,
+      options: {
+        title: "Workout Complete",
+        presentation: "modal",
+        headerShown: true,
+      },
+    },
   },
 });
 
@@ -203,7 +213,8 @@ declare global {
       History: undefined;
       Settings: undefined;
       Profile: undefined;
-
+      WorkoutSummary: undefined;
+      WorkoutComplete: undefined;
       ExerciseSelect: undefined;
 
       ExerciseDetail: {
@@ -213,8 +224,6 @@ declare global {
           sets?: any[];
         };
       };
-
-      WorkoutSummary: undefined;
     }
   }
 }

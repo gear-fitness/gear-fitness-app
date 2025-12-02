@@ -9,8 +9,9 @@ import { Navigation } from "./navigation";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { useEffect } from "react";
-
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+
+import { WorkoutTimerProvider } from "./context/WorkoutTimerContext";
 
 Asset.loadAsync([
   ...NavigationAssets,
@@ -41,16 +42,18 @@ export function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <Navigation
-          theme={theme}
-          linking={{
-            enabled: "auto",
-            prefixes: [prefix],
-          }}
-          onReady={() => {
-            SplashScreen.hideAsync();
-          }}
-        />
+        <WorkoutTimerProvider>
+          <Navigation
+            theme={theme}
+            linking={{
+              enabled: "auto",
+              prefixes: [prefix],
+            }}
+            onReady={() => {
+              SplashScreen.hideAsync();
+            }}
+          />
+        </WorkoutTimerProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
