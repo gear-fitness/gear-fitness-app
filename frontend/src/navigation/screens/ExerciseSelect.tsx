@@ -11,7 +11,6 @@ import {
   Platform,
 } from "react-native";
 import React, { useState, useEffect } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import search from "../../assets/search.png";
 import filter from "../../assets/filter.png";
 import close from "../../assets/close.png";
@@ -20,6 +19,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
 import { getAllExercises } from "../../api/exerciseService";
+import { sendExerciseChat } from "../../api/exerciseChatService";
 
 type FilterKey =
   | "CALVES"
@@ -130,67 +130,35 @@ export function ExerciseSelect({ route }: { route: any }) {
       timestamp: new Date(),
     };
 
-    // The current messages state + the new user message
     const updatedMessages = [...messages, newUserMessage];
     setMessages(updatedMessages);
     setInputText("");
 
     try {
-      // Get JWT token from storage
-      const token = await AsyncStorage.getItem("authToken");
-      console.log(
-        "Token retrieved:",
-        token ? "Token exists" : "No token found"
+      // Send chat request
+      const data = await sendExerciseChat(
+        selectedExercise.exerciseId,
+        updatedMessages.map((m) => ({
+          text: m.text,
+          isUser: m.isUser,
+        }))
       );
 
-      if (!token) {
-        throw new Error("No authentication token found. Please log in again.");
-      }
-
-      const response = await fetch(
-        `http://172.20.10.3:8080/api/exercises/${selectedExercise.exerciseId}/chat`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            // Send the full, updated history including the AI greeting
-            messages: updatedMessages.map((m) => ({
-              text: m.text,
-              isUser: m.isUser,
-            })),
-          }),
-        }
-      );
-
-      // Check if response is OK before parsing
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Backend error:", response.status, errorText);
-        throw new Error(`Backend error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const aiResponse = data.response;
-
-      if (!aiResponse) {
+      if (!data.response) {
         throw new Error("No response from AI");
       }
 
       const aiMessage: ChatMessageState = {
         id: (Date.now() + 1).toString(),
-        text: aiResponse,
+        text: data.response,
         isUser: false,
         timestamp: new Date(),
       };
 
-      // Add the AI response to the history
       setMessages([...updatedMessages, aiMessage]);
     } catch (error) {
       console.error("Chat API error:", error);
-      // Show error message in chat
+
       const errorMessage: ChatMessageState = {
         id: (Date.now() + 1).toString(),
         text: "Sorry, there was an error. Please try again.",
