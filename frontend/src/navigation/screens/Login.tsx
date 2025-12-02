@@ -4,22 +4,15 @@ import {
 } from "@react-native-google-signin/google-signin";
 import { useNavigation, useTheme } from "@react-navigation/native";
 import React from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Dimensions,
-  Image,
-} from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
-const { width, height } = Dimensions.get("window");
+import { loginWithGoogle } from "../../api/authService";
+import { useAuth } from "../../context/AuthContext";
 
 export function LoginScreen() {
   const navigation = useNavigation();
   const { colors } = useTheme();
+  const { login } = useAuth();
   const handleGoogleSIgnIn = async () => {
     try {
       console.log("Google Sign-In initiated");
@@ -27,21 +20,26 @@ export function LoginScreen() {
       console.log("Google Sign-In successful:", respone);
       if (isSuccessResponse(respone)) {
         const { idToken, user } = respone.data;
-        const backendResponse = await fetch(
-          //INSERT YOUR BACKEND URL HERE (e.g., localhost or your server's IP) spring boot server
-          "http://10.0.0.48:8080/api/auth/google",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ idToken }),
-          }
-        );
-        const { token, user: userData } = await backendResponse.json();
+
+        if (!idToken) {
+          throw new Error("No ID token received from Google");
+        }
+
+        const { token, newUser } = await loginWithGoogle(idToken);
+
         // Store this token for future API calls
-        await AsyncStorage.setItem("authToken", token);
+        await login(token);
+
         const { name, email, photo } = user;
         console.log("User Info:", { name, email, photo });
-        navigation.navigate("HomeTabs");
+        console.log("Is new user:", newUser);
+
+        // Navigate to profile setup if new user, otherwise go to home
+        if (newUser) {
+          navigation.navigate("SignUpProfile");
+        } else {
+          navigation.navigate("HomeTabs");
+        }
       }
     } catch (error) {
       console.error("Google Sign-In error:", error);

@@ -9,8 +9,8 @@ import { Navigation } from "./navigation";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { useEffect } from "react";
+import { AuthProvider } from "./context/AuthContext";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-
 import { WorkoutTimerProvider } from "./context/WorkoutTimerContext";
 
 Asset.loadAsync([
@@ -33,28 +33,29 @@ export function App() {
 
   useEffect(() => {
     GoogleSignin.configure({
-      iosClientId:
-        "637676049223-kg32deotit3muuhi3j1q253vfhotnoai.apps.googleusercontent.com",
+      iosClientId: process.env.EXPO_PUBLIC_IOS_CLIENT_ID,
       profileImageSize: 150,
     });
   }, []);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <WorkoutTimerProvider>
-          <Navigation
-            theme={theme}
-            linking={{
-              enabled: "auto",
-              prefixes: [prefix],
-            }}
-            onReady={() => {
-              SplashScreen.hideAsync();
-            }}
-          />
-        </WorkoutTimerProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <AuthProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <WorkoutTimerProvider>
+            <Navigation
+              theme={theme}
+              linking={{
+                enabled: "auto",
+                prefixes: [prefix],
+              }}
+              onReady={() => {
+                SplashScreen.hideAsync();
+              }}
+            />
+          </WorkoutTimerProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </AuthProvider>
   );
 }

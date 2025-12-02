@@ -1,5 +1,15 @@
 package com.gearfitness.gear_api.dto;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.List;
+import java.util.UUID;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 import java.util.Set;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
@@ -10,11 +20,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class WorkoutExerciseDTO {
-    private UUID workoutExerciseId;   
-    private UUID exerciseId;          
-    private String exerciseName;      
-    private String note;              
-    private Integer position;         
-    private Set<WorkoutSetDTO> workoutSets; 
+    private UUID workoutExerciseId;
+    private String exerciseName;
+    private String bodyPart;
+    private Integer position;
+    private String note;
+    private List<WorkoutSetDTO> sets;
 }
-

@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# Copy this file to run.sh and update the values
+# cp run.sh.template run.sh
+
+export JWT_SECRET="CHANGE-ME-TO-SECURE-SECRET"
+export DATABASE_URL="jdbc:postgresql://localhost:5432/mydb"
+export DATABASE_USERNAME="myuser"
+export DATABASE_PASSWORD="mypassword"
+export GOOGLE_CLIENT_ID="637676049223-kg32deotit3muuhi3j1q253vfhotnoai.apps.googleusercontent.com"
+export CORS_ALLOWED_ORIGINS="http://localhost:3000,http://localhost:5173"
+
+./gradlew bootRun

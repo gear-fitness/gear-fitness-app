@@ -31,6 +31,7 @@ import { ExerciseDetail } from "./screens/ExerciseDetail";
 import { WorkoutSummary } from "./screens/WorkoutSummary";
 import { WorkoutComplete } from "./screens/WorkoutComplete";
 import { LoginScreen } from "./screens/Login";
+import { SignUpProfileScreen } from "./screens/SignUpProfile";
 
 /* ---------------------- TABS ---------------------- */
 
@@ -58,7 +59,7 @@ const HomeTabs = createBottomTabNavigator({
     Social: {
       screen: Social,
       options: {
-        headerShown: true,
+        headerShown: false,
         title: "Social",
         tabBarIcon: ({ color, size }) => (
           <Image
@@ -121,7 +122,14 @@ const RootStack = createNativeStackNavigator({
       screen: LoginScreen,
       options: { headerShown: false },
     },
-
+    SignUpProfile: {
+      screen: SignUpProfileScreen,
+      options: {
+        headerShown: true,
+        title: "Complete Profile",
+        headerBackVisible: false,
+      },
+    },
     HomeTabs: {
       screen: HomeTabs,
       options: { headerShown: false },

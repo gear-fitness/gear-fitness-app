@@ -11,56 +11,68 @@ import { Calendar } from "react-native-calendars";
 import React, { useState, useEffect } from "react";
 import { useTheme } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import weightlifter from "../../assets/weightlifter.png";
+import { useAuth } from "../../context/AuthContext";
+import { getUserWorkouts } from "../../api/workoutService";
+import { Workout } from "../../api/types";
 
 type RootStackParamList = {
   HomeTabs: undefined;
   Profile: { user: string };
   Settings: undefined;
-  PR: undefined;
-  DetailedHistory: undefined;
+  PR: { userId: string };
+  DetailedHistory: { workoutId: string };
   NotFound: undefined;
 };
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-type Workout = {
-  workoutId: string;
-  name: string;
-  datePerformed: string;
-};
-
 export function History() {
   const { colors } = useTheme();
   const navigation = useNavigation<NavigationProp>();
+  const { user } = useAuth();
 
   const [markedDates, setMarkedDates] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
   const [data, setData] = useState<Workout[]>([]);
 
-  const userId = "550e8400-e29b-41d4-a716-446655440004"; // Bryant's UUID
-  const API_URL = "http://10.0.0.48:8080/api/workouts"; // Replace with your backend address
+  // Function to fetch workouts
+  const fetchWorkouts = async () => {
+    if (!user?.userId) return;
 
+    console.log("Fetching workouts for user:", user.userId);
+    try {
+      const workouts = await getUserWorkouts(user.userId);
+      console.log("Workouts fetched:", workouts.length);
+      setData(workouts);
+
+      const marks: any = {};
+      workouts.forEach((w) => {
+        marks[w.datePerformed] = {
+          marked: true,
+          selected: true,
+          dotColor: "#1877F2",
+          selectedColor: "#1877F2",
+        };
+      });
+      setMarkedDates(marks);
+    } catch (err) {
+      console.error("Error loading workouts:", err);
+    }
+  };
+
+  // Fetch workouts on initial mount
   useEffect(() => {
-    fetch(`${API_URL}/user/${userId}`)
-      .then((res) => res.json())
-      .then((workouts) => {
-        setData(workouts);
-
-        const marks = {};
-        workouts.forEach((w) => {
-          marks[w.datePerformed] = {
-            marked: true,
-            selected: true,
-            dotColor: "#1877F2",
-            selectedColor: "#1877F2",
-          };
-        });
-        setMarkedDates(marks);
-      })
-      .catch((err) => console.error("Error loading workouts:", err));
+    fetchWorkouts();
   }, []);
+
+  // Refetch workouts every time the screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchWorkouts();
+    }, [])
+  );
 
   const today = new Date();
   const formattedToday =
@@ -70,28 +82,10 @@ export function History() {
     "-" +
     String(today.getDate()).padStart(2, "0");
 
-  const handleDayPress = (day) => {
-    setMarkedDates((prev) => {
-      const isAlreadyMarked = prev[day.dateString];
-      if (isAlreadyMarked) {
-        const { [day.dateString]: _, ...rest } = prev;
-        return rest;
-      } else {
-        return {
-          ...prev,
-          [day.dateString]: {
-            marked: true,
-            selected: true,
-            dotColor: "#1877F2",
-            selectedColor: "#1877F2",
-          },
-        };
-      }
-    });
-  };
-
   const handlePrPress = () => {
-    navigation.getParent()?.navigate("PR");
+    if (!user?.userId) return;
+    // Pass userId to PR screen
+    navigation.getParent()?.navigate("PR", { userId: user.userId });
   };
 
   const filteredData = data.filter((item) =>
@@ -101,7 +95,11 @@ export function History() {
   const renderItem = ({ item }: { item: Workout }) => (
     <TouchableOpacity
       style={styles.button}
-      onPress={() => navigation.getParent()?.navigate("DetailedHistory")}
+      onPress={() =>
+        navigation.getParent()?.navigate("DetailedHistory", {
+          workoutId: item.workoutId,
+        })
+      }
     >
       <Text style={styles.buttonText}>
         {item.name} — {item.datePerformed}
@@ -114,8 +112,7 @@ export function History() {
       <Calendar
         key={colors.background}
         style={styles.calendar}
-        // current={formattedToday}
-        // onDayPress={handleDayPress}
+        current={formattedToday}
         markedDates={markedDates}
         theme={{
           backgroundColor: colors.card,
