@@ -75,7 +75,9 @@ public class WorkoutService {
                 .name(workout.getName())
                 .datePerformed(workout.getDatePerformed())
                 .durationMin(workout.getDurationMin())
-                .bodyTag(workout.getBodyTag() != null ? workout.getBodyTag().toString() : null)
+                .bodyTag(workout.getBodyTags() != null && !workout.getBodyTags().isEmpty()
+                        ? workout.getBodyTags().get(0).toString()
+                        : null)
                 .exercises(exercises)
                 .build();
     }
@@ -158,7 +160,7 @@ public class WorkoutService {
                 .name(submission.getName())
                 .datePerformed(LocalDate.now())
                 .durationMin(submission.getDurationMin())
-                .bodyTag(submission.getBodyTag())
+                .bodyTags(submission.getBodyTags() != null ? submission.getBodyTags() : new ArrayList<>())
                 .workoutExercises(new ArrayList<>())
                 .build();
 

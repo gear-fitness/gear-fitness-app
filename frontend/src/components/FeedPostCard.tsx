@@ -47,10 +47,21 @@ export function FeedPostCard({ post }: Props) {
       <View style={styles.workoutInfo}>
         <Text style={[styles.workoutName, { color: colors.text }]}>{post.workoutName}</Text>
         <View style={styles.workoutMeta}>
-          <View style={styles.metaItem}>
-            <Ionicons name="barbell-outline" size={16} color={colors.text} />
-            <Text style={[styles.metaText, { color: colors.text, opacity: 0.7 }]}>{formatBodyTag(post.bodyTag)}</Text>
-          </View>
+          {post.bodyTags && post.bodyTags.length > 0 && (
+            <View style={styles.bodyTagsContainer}>
+              {post.bodyTags.map((tag, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.bodyTagChip,
+                    { backgroundColor: colors.primary, opacity: 0.8 },
+                  ]}
+                >
+                  <Text style={styles.bodyTagText}>{formatBodyTag(tag)}</Text>
+                </View>
+              ))}
+            </View>
+          )}
           {post.durationMin && (
             <View style={styles.metaItem}>
               <Ionicons name="time-outline" size={16} color={colors.text} />
@@ -141,6 +152,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 12,
+  },
+  bodyTagsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  bodyTagChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  bodyTagText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
   },
   metaItem: {
     flexDirection: "row",

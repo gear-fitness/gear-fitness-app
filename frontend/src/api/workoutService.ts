@@ -16,7 +16,7 @@ const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 export interface WorkoutSubmission {
   name: string;
   durationMin: number;
-  bodyTag: string;
+  bodyTags: string[];
   exercises: ExerciseSubmission[];
   createPost?: boolean;
   caption?: string;

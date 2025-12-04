@@ -17,7 +17,7 @@ import java.util.UUID;
 public class WorkoutSubmissionDTO {
     private String name;
     private Integer durationMin;
-    private Workout.BodyTag bodyTag;
+    private List<Workout.BodyTag> bodyTags;
     private List<ExerciseSubmissionDTO> exercises;
 
     // Optional - for creating a post

@@ -22,7 +22,7 @@ export function WorkoutComplete() {
   const { exercises, seconds, reset } = useWorkoutTimer();
 
   const [workoutName, setWorkoutName] = useState("");
-  const [bodyTag, setBodyTag] = useState<string>("FULL_BODY");
+  const [bodyTag, setBodyTag] = useState<string[]>(["FULL_BODY"]);
   const [caption, setCaption] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -50,6 +50,18 @@ export function WorkoutComplete() {
     "CORE",
   ];
 
+  const toggleBodyTag = (tag: string) => {
+    setBodyTag((prev) => {
+      if (prev.includes(tag)) {
+        // Don't allow removing the last tag
+        if (prev.length === 1) return prev;
+        return prev.filter((t) => t !== tag);
+      } else {
+        return [...prev, tag];
+      }
+    });
+  };
+
   const handleSaveWorkout = async (createPost: boolean) => {
     if (!workoutName.trim()) {
       Alert.alert("Error", "Please enter a workout name");
@@ -67,7 +79,7 @@ export function WorkoutComplete() {
       const submission: WorkoutSubmission = {
         name: workoutName,
         durationMin: Math.floor(seconds / 60),
-        bodyTag: bodyTag,
+        bodyTags: bodyTag, // Send all selected tags to backend
         exercises: exercises.map((ex) => ({
           exerciseId: ex.exerciseId,
           sets: ex.sets.map((set) => ({
@@ -146,11 +158,11 @@ export function WorkoutComplete() {
             {bodyTags.map((tag) => (
               <TouchableOpacity
                 key={tag}
-                onPress={() => setBodyTag(tag)}
+                onPress={() => toggleBodyTag(tag)}
                 style={[
                   styles.tagButton,
                   {
-                    backgroundColor: bodyTag === tag ? "#007AFF" : colors.card,
+                    backgroundColor: bodyTag.includes(tag) ? "#007AFF" : colors.card,
                     borderColor: colors.border,
                   },
                 ]}
@@ -158,7 +170,7 @@ export function WorkoutComplete() {
                 <Text
                   style={[
                     styles.tagText,
-                    { color: bodyTag === tag ? "#fff" : colors.text },
+                    { color: bodyTag.includes(tag) ? "#fff" : colors.text },
                   ]}
                 >
                   {tag.replace("_", " ")}
