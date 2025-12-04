@@ -1,8 +1,14 @@
 import { Text } from "@react-navigation/elements";
-import { StyleSheet, View, TouchableOpacity, Animated, Image } from "react-native";
-import { useRef } from "react";
+import {
+  StyleSheet,
+  View,
+  TouchableOpacity,
+  Animated,
+  Image,
+} from "react-native";
+import { useRef, useCallback } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
 
 import stopwatch from "../../assets/stopwatch.png";
@@ -18,6 +24,14 @@ export function Workout() {
   // Animation values
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  // Reset animations when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fadeAnim.setValue(1);
+      scaleAnim.setValue(1);
+    }, [fadeAnim, scaleAnim])
+  );
 
   const handleStartPress = () => {
     Animated.parallel([
@@ -52,41 +66,68 @@ export function Workout() {
         ]}
       >
         <View style={styles.workoutInProgressContainer}>
-          <Text style={[styles.workoutInProgressTitle, { color: isDark ? "#fff" : "#000" }]}>
+          <Text
+            style={[
+              styles.workoutInProgressTitle,
+              { color: isDark ? "#fff" : "#000" },
+            ]}
+          >
             Workout in Progress
           </Text>
 
           <View style={styles.timerContainer}>
             <Image
               source={stopwatch}
-              style={[styles.timerIcon, { tintColor: isDark ? "#fff" : "#000" }]}
+              style={[
+                styles.timerIcon,
+                { tintColor: isDark ? "#fff" : "#000" },
+              ]}
             />
-            <Text style={[styles.timerText, { color: isDark ? "#fff" : "#000" }]}>
+            <Text
+              style={[styles.timerText, { color: isDark ? "#fff" : "#000" }]}
+            >
               {formatTime(seconds)}
             </Text>
           </View>
 
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: isDark ? "#fff" : "#000" }]}>
+              <Text
+                style={[styles.statValue, { color: isDark ? "#fff" : "#000" }]}
+              >
                 {exercises.length}
               </Text>
-              <Text style={[styles.statLabel, { color: isDark ? "#999" : "#666" }]}>
+              <Text
+                style={[styles.statLabel, { color: isDark ? "#999" : "#666" }]}
+              >
                 Exercises
               </Text>
             </View>
 
             <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: isDark ? "#fff" : "#000" }]}>
-                {exercises.reduce((sum, ex) => sum + ex.sets.filter(s => s.reps && s.weight).length, 0)}
+              <Text
+                style={[styles.statValue, { color: isDark ? "#fff" : "#000" }]}
+              >
+                {exercises.reduce(
+                  (sum, ex) =>
+                    sum + ex.sets.filter((s) => s.reps && s.weight).length,
+                  0
+                )}
               </Text>
-              <Text style={[styles.statLabel, { color: isDark ? "#999" : "#666" }]}>
+              <Text
+                style={[styles.statLabel, { color: isDark ? "#999" : "#666" }]}
+              >
                 Sets
               </Text>
             </View>
           </View>
 
-          <Text style={[styles.instructionText, { color: isDark ? "#999" : "#666" }]}>
+          <Text
+            style={[
+              styles.instructionText,
+              { color: isDark ? "#999" : "#666" },
+            ]}
+          >
             {running ? "Tap the mini player below to continue" : "Timer paused"}
           </Text>
 

@@ -10,7 +10,7 @@
     "scheme": "gearfitness",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.gearfitness",
+      "bundleIdentifier": "com.gearfitness.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -39,13 +39,14 @@
         {
           "iosUrlScheme": "com.googleusercontent.apps.637676049223-kg32deotit3muuhi3j1q253vfhotnoai"
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "extra": {
       "eas": {
-        "projectId": "0145d488-18ea-45bb-9084-02f9a50cb2d5"
+        "projectId": "2664b913-b70e-4962-95e7-be3b8be074e8"
       }
     },
-    "owner": "kbcrtz"
+    "owner": "maxizek30"
   }
 }

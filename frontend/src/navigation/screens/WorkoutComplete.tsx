@@ -94,7 +94,6 @@ export function WorkoutComplete() {
       const result = await submitWorkout(submission);
 
       // Reset workout context
-      reset();
 
       Alert.alert(
         "Success",
@@ -105,8 +104,19 @@ export function WorkoutComplete() {
           {
             text: "OK",
             onPress: () => {
-              // Navigate back to home or workout history
-              navigation.navigate("HomeTabs", { screen: "Home" });
+              reset();
+
+              const state = navigation.getState();
+              const modalCount = state.routes.filter((r) =>
+                [
+                  "WorkoutComplete",
+                  "WorkoutSummary",
+                  "ExerciseDetail",
+                  "ExerciseSelect",
+                ].includes(r.name)
+              ).length;
+
+              navigation.pop(modalCount);
             },
           },
         ]
@@ -162,7 +172,9 @@ export function WorkoutComplete() {
                 style={[
                   styles.tagButton,
                   {
-                    backgroundColor: bodyTag.includes(tag) ? "#007AFF" : colors.card,
+                    backgroundColor: bodyTag.includes(tag)
+                      ? "#007AFF"
+                      : colors.card,
                     borderColor: colors.border,
                   },
                 ]}
