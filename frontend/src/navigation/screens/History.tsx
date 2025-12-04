@@ -131,14 +131,14 @@ export function History() {
         <TextInput
           style={[
             styles.searchInput,
-            { color: colors.text, borderColor: colors.border },
+            { color: colors.text, borderColor: colors.border, backgroundColor: colors.card },
           ]}
           placeholder="Search workouts..."
           placeholderTextColor={colors.text + "80"}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
-        <TouchableOpacity style={styles.settingsButton} onPress={handlePrPress}>
+        <TouchableOpacity style={[styles.settingsButton, { backgroundColor: colors.primary }]} onPress={handlePrPress}>
           <Image source={weightlifter} style={styles.settingsButtonIcon} />
         </TouchableOpacity>
       </View>
@@ -185,14 +185,12 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    backgroundColor: "white",
     borderWidth: 1,
     borderRadius: 10,
     padding: 12,
     fontSize: 16,
   },
   settingsButton: {
-    backgroundColor: "#1877F2",
     width: 40,
     height: 40,
     borderRadius: 20,
