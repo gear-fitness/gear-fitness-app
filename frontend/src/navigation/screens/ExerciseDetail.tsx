@@ -6,19 +6,17 @@ import {
   TouchableOpacity,
   FlatList,
   Image,
-  Alert,
-  Animated,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Swipeable } from "react-native-gesture-handler";
 
 import stopwatch from "../../assets/stopwatch.png";
-import trashIcon from "../../assets/trash.png";
 
 import { useWorkoutTimer } from "../../context/WorkoutTimerContext";
+import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
 
 export function ExerciseDetail() {
   const navigation = useNavigation<any>();
@@ -60,57 +58,12 @@ export function ExerciseDetail() {
     }
   }, [sets]);
 
-  /* ---------- Swipe Auto-Close Setup ---------- */
-  const swipeRefs = useRef<Map<string, Swipeable>>(new Map());
-  const closeSwipe = (id: string) => swipeRefs.current.get(id)?.close();
-
-  const confirmDelete = (id: string) => {
-    Alert.alert("Delete Set", "Are you sure you want to delete this set?", [
-      {
-        text: "Cancel",
-        style: "cancel",
-        onPress: () => closeSwipe(id),
-      },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => {
-          setSets((prev) => prev.filter((s) => s.id !== id));
-          closeSwipe(id);
-        },
-      },
-    ]);
-  };
-
-  const renderRightActions = (
-    progress: Animated.AnimatedInterpolation<number>,
-    dragX: Animated.AnimatedInterpolation<number>,
-    id: string
-  ) => {
-    const translateX = progress.interpolate({
-      inputRange: [0, 1],
-      outputRange: [80, 0],
-    });
-
-    const scale = progress.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0.7, 1],
-    });
-
-    return (
-      <TouchableOpacity
-        style={styles.deleteBackground}
-        onPress={() => confirmDelete(id)}
-      >
-        <Animated.View style={{ transform: [{ translateX }, { scale }] }}>
-          <Image
-            source={trashIcon}
-            style={{ width: 26, height: 26, tintColor: "#fff" }}
-          />
-        </Animated.View>
-      </TouchableOpacity>
-    );
-  };
+  // Swipeable delete hook
+  const { getSwipeableProps } = useSwipeableDelete({
+    onDelete: (id) => setSets((prev) => prev.filter((s) => s.id !== id)),
+    deleteTitle: "Delete Set",
+    deleteMessage: "Are you sure you want to delete this set?",
+  });
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -151,64 +104,68 @@ export function ExerciseDetail() {
         data={sets}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: 30 }}
-        renderItem={({ item, index }) => (
-          <View style={styles.rowWrapper}>
-            <Swipeable
-              ref={(r) => {
-                if (r) swipeRefs.current.set(item.id, r);
-              }}
-              overshootRight={false}
-              renderRightActions={(p, d) => renderRightActions(p, d, item.id)}
+        renderItem={({ item, index }) => {
+          const setContent = (
+            <View
+              style={[
+                styles.setCard,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
             >
-              <View
+              <Text style={[styles.setNumber, { color: colors.text }]}>
+                {index + 1}
+              </Text>
+
+              <TextInput
+                placeholder="Reps"
+                placeholderTextColor={colors.subtle}
+                value={item.reps}
+                keyboardType="numeric"
+                onChangeText={(t) =>
+                  setSets((prev) =>
+                    prev.map((s) =>
+                      s.id === item.id ? { ...s, reps: t } : s
+                    )
+                  )
+                }
                 style={[
-                  styles.setCard,
-                  { backgroundColor: colors.card, borderColor: colors.border },
+                  styles.input,
+                  { backgroundColor: colors.inputBg, color: colors.text },
                 ]}
-              >
-                <Text style={[styles.setNumber, { color: colors.text }]}>
-                  {index + 1}
-                </Text>
+              />
 
-                <TextInput
-                  placeholder="Reps"
-                  placeholderTextColor={colors.subtle}
-                  value={item.reps}
-                  keyboardType="numeric"
-                  onChangeText={(t) =>
-                    setSets((prev) =>
-                      prev.map((s) =>
-                        s.id === item.id ? { ...s, reps: t } : s
-                      )
+              <TextInput
+                placeholder="Weight"
+                placeholderTextColor={colors.subtle}
+                value={item.weight}
+                keyboardType="numeric"
+                onChangeText={(t) =>
+                  setSets((prev) =>
+                    prev.map((s) =>
+                      s.id === item.id ? { ...s, weight: t } : s
                     )
-                  }
-                  style={[
-                    styles.input,
-                    { backgroundColor: colors.inputBg, color: colors.text },
-                  ]}
-                />
+                  )
+                }
+                style={[
+                  styles.input,
+                  { backgroundColor: colors.inputBg, color: colors.text },
+                ]}
+              />
+            </View>
+          );
 
-                <TextInput
-                  placeholder="Weight"
-                  placeholderTextColor={colors.subtle}
-                  value={item.weight}
-                  keyboardType="numeric"
-                  onChangeText={(t) =>
-                    setSets((prev) =>
-                      prev.map((s) =>
-                        s.id === item.id ? { ...s, weight: t } : s
-                      )
-                    )
-                  }
-                  style={[
-                    styles.input,
-                    { backgroundColor: colors.inputBg, color: colors.text },
-                  ]}
-                />
-              </View>
-            </Swipeable>
-          </View>
-        )}
+          return (
+            <View style={styles.rowWrapper}>
+              {sets.length > 1 ? (
+                <Swipeable {...getSwipeableProps(item.id)}>
+                  {setContent}
+                </Swipeable>
+              ) : (
+                setContent
+              )}
+            </View>
+          );
+        }}
       />
 
       {/* FOOTER */}
@@ -307,15 +264,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 10,
     borderRadius: 10,
-  },
-
-  deleteBackground: {
-    backgroundColor: "#FF3B30",
-    justifyContent: "center",
-    alignItems: "flex-end",
-    width: "100%",
-    height: "100%",
-    paddingRight: 20,
   },
 
   footerRow: {

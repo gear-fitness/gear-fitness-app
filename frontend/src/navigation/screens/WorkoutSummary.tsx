@@ -4,19 +4,17 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  Alert,
-  Animated,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Swipeable } from "react-native-gesture-handler";
 import { useNavigation } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
-import React, { useRef } from "react";
+import React, { useState } from "react";
 
 import stopwatch from "../../assets/stopwatch.png";
-import trashIcon from "../../assets/trash.png";
 
 import { useWorkoutTimer } from "../../context/WorkoutTimerContext";
+import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
 
 export function WorkoutSummary() {
   const isDark = useColorScheme() === "dark";
@@ -25,11 +23,17 @@ export function WorkoutSummary() {
   const { seconds, running, start, pause, exercises, removeExercise } =
     useWorkoutTimer();
 
-  // Track each Swipeable ref
-  const swipeRefs = useRef<Map<string, Swipeable>>(new Map());
-  const closeSwipe = (id: string) => {
-    swipeRefs.current.get(id)?.close();
-  };
+  // Track touch position for movement-based tap detection
+  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(
+    null
+  );
+
+  // Swipeable delete hook
+  const { getSwipeableProps } = useSwipeableDelete({
+    onDelete: (id) => removeExercise(id),
+    deleteTitle: "Delete Exercise",
+    deleteMessage: "Are you sure you want to remove this exercise?",
+  });
 
   const formatTime = (t: number) =>
     `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(
@@ -42,62 +46,6 @@ export function WorkoutSummary() {
     day: "numeric",
     year: "numeric",
   });
-
-  /* ---------- Delete Animation ---------- */
-  const renderRightActions = (
-    progress: Animated.AnimatedInterpolation<number>,
-    dragX: Animated.AnimatedInterpolation<number>,
-    id: string
-  ) => {
-    const translateX = progress.interpolate({
-      inputRange: [0, 1],
-      outputRange: [80, 0],
-      extrapolate: "clamp",
-    });
-
-    const scale = progress.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0.7, 1],
-      extrapolate: "clamp",
-    });
-
-    const confirmDelete = () => {
-      Alert.alert(
-        "Delete Exercise",
-        "Are you sure you want to remove this exercise?",
-        [
-          {
-            text: "Cancel",
-            style: "cancel",
-            onPress: () => closeSwipe(id),
-          },
-          {
-            text: "Delete",
-            style: "destructive",
-            onPress: () => {
-              removeExercise(id);
-              closeSwipe(id);
-            },
-          },
-        ]
-      );
-    };
-
-    return (
-      <TouchableOpacity
-        style={styles.deleteBackground}
-        onPress={confirmDelete}
-        activeOpacity={0.9}
-      >
-        <Animated.View style={{ transform: [{ translateX }, { scale }] }}>
-          <Image
-            source={trashIcon}
-            style={{ width: 26, height: 26, tintColor: "#fff" }}
-          />
-        </Animated.View>
-      </TouchableOpacity>
-    );
-  };
 
   return (
     <SafeAreaView
@@ -139,20 +87,27 @@ export function WorkoutSummary() {
 
           return (
             <View key={ex.id} style={styles.rowWrapper}>
-              <Swipeable
-                ref={(r) => {
-                  if (r) swipeRefs.current.set(ex.id, r);
-                }}
-                overshootRight={false}
-                renderRightActions={(prog, drag) =>
-                  renderRightActions(prog, drag, ex.id)
-                }
-              >
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={() =>
-                    navigation.replace("ExerciseDetail", { exercise: ex })
-                  }
+              <Swipeable {...getSwipeableProps(ex.id)}>
+                <View
+                  onTouchStart={(e) => {
+                    setTouchStart({
+                      x: e.nativeEvent.pageX,
+                      y: e.nativeEvent.pageY,
+                    });
+                  }}
+                  onTouchEnd={(e) => {
+                    if (!touchStart) return;
+
+                    const deltaX = Math.abs(e.nativeEvent.pageX - touchStart.x);
+                    const deltaY = Math.abs(e.nativeEvent.pageY - touchStart.y);
+
+                    // Only navigate if minimal movement (< 5px in any direction)
+                    if (deltaX < 5 && deltaY < 5) {
+                      navigation.replace("ExerciseDetail", { exercise: ex });
+                    }
+
+                    setTouchStart(null);
+                  }}
                 >
                   <View
                     style={[
@@ -184,7 +139,7 @@ export function WorkoutSummary() {
                       </Text>
                     )}
                   </View>
-                </TouchableOpacity>
+                </View>
               </Swipeable>
             </View>
           );
@@ -271,14 +226,6 @@ const styles = StyleSheet.create({
 
   exerciseCard: { padding: 18, borderRadius: 14 },
   exerciseName: { fontSize: 20, fontWeight: "700" },
-
-  deleteBackground: {
-    backgroundColor: "#FF3B30",
-    justifyContent: "center",
-    alignItems: "flex-end",
-    width: "100%",
-    paddingRight: 20,
-  },
 
   bottomButtons: {
     position: "absolute",
