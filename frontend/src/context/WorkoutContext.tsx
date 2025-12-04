@@ -6,7 +6,8 @@ export interface WorkoutSet {
 }
 
 export interface WorkoutExercise {
-  id: string;
+  workoutExerciseId: string;
+  exerciseId: string;
   name: string;
   sets: WorkoutSet[];
 }
@@ -55,26 +56,35 @@ export function WorkoutTimerProvider({
 
   const addExercise = (exercise: WorkoutExercise) => {
     setExercises((prev) => {
-      // if exercise already exists → replace it
-      const exists = prev.find((e) => e.id === exercise.id);
+      const exists = prev.find(
+        (e) => e.workoutExerciseId === exercise.workoutExerciseId
+      );
       if (exists) {
-        return prev.map((e) => (e.id === exercise.id ? exercise : e));
+        return prev.map((e) =>
+          e.workoutExerciseId === exercise.workoutExerciseId ? exercise : e
+        );
       }
       return [...prev, exercise];
     });
   };
 
   const updateExercise = (
-    id: string,
+    workoutExerciseId: string,
     updatedFields: Partial<WorkoutExercise>
   ) => {
     setExercises((prev) =>
-      prev.map((ex) => (ex.id === id ? { ...ex, ...updatedFields } : ex))
+      prev.map((ex) =>
+        ex.workoutExerciseId === workoutExerciseId
+          ? { ...ex, ...updatedFields }
+          : ex
+      )
     );
   };
 
-  const removeExercise = (id: string) => {
-    setExercises((prev) => prev.filter((ex) => ex.id !== id));
+  const removeExercise = (workoutExerciseId: string) => {
+    setExercises((prev) =>
+      prev.filter((ex) => ex.workoutExerciseId !== workoutExerciseId)
+    );
   };
 
   const start = () => setRunning(true);

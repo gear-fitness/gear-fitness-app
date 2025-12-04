@@ -16,7 +16,7 @@ import React, { useRef } from "react";
 import stopwatch from "../../assets/stopwatch.png";
 import trashIcon from "../../assets/trash.png";
 
-import { useWorkoutTimer } from "../../context/WorkoutTimerContext";
+import { useWorkoutTimer } from "../../context/WorkoutContext";
 
 export function WorkoutSummary() {
   const isDark = useColorScheme() === "dark";
@@ -138,14 +138,14 @@ export function WorkoutSummary() {
               .find((s) => s.reps !== "" && s.weight !== "") || null;
 
           return (
-            <View key={ex.id} style={styles.rowWrapper}>
+            <View key={ex.workoutExerciseId} style={styles.rowWrapper}>
               <Swipeable
                 ref={(r) => {
-                  if (r) swipeRefs.current.set(ex.id, r);
+                  if (r) swipeRefs.current.set(ex.workoutExerciseId, r);
                 }}
                 overshootRight={false}
                 renderRightActions={(prog, drag) =>
-                  renderRightActions(prog, drag, ex.id)
+                  renderRightActions(prog, drag, ex.workoutExerciseId)
                 }
               >
                 <TouchableOpacity

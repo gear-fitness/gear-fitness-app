@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { useState } from "react";
 import { useNavigation } from "@react-navigation/native";
-import { useWorkoutTimer } from "../../context/WorkoutTimerContext";
+import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { submitWorkout, WorkoutSubmission } from "../../api/workoutService";
 
 export function WorkoutComplete() {
@@ -69,7 +69,7 @@ export function WorkoutComplete() {
         durationMin: Math.floor(seconds / 60),
         bodyTag: bodyTag,
         exercises: exercises.map((ex) => ({
-          exerciseId: ex.id,
+          exerciseId: ex.exerciseId,
           sets: ex.sets.map((set) => ({
             reps: set.reps,
             weight: set.weight,
@@ -175,7 +175,7 @@ export function WorkoutComplete() {
           </Text>
           {exercises.map((ex) => (
             <View
-              key={ex.id}
+              key={ex.workoutExerciseId}
               style={[
                 styles.exerciseCard,
                 { backgroundColor: colors.card, borderColor: colors.border },

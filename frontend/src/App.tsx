@@ -11,7 +11,7 @@ import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { useEffect } from "react";
 import { AuthProvider } from "./context/AuthContext";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { WorkoutTimerProvider } from "./context/WorkoutTimerContext";
+import { WorkoutTimerProvider } from "./context/WorkoutContext";
 
 Asset.loadAsync([
   ...NavigationAssets,

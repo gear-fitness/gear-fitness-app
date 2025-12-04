@@ -18,7 +18,7 @@ import { Swipeable } from "react-native-gesture-handler";
 import stopwatch from "../../assets/stopwatch.png";
 import trashIcon from "../../assets/trash.png";
 
-import { useWorkoutTimer } from "../../context/WorkoutTimerContext";
+import { useWorkoutTimer } from "../../context/WorkoutContext";
 
 export function ExerciseDetail() {
   const navigation = useNavigation<any>();
@@ -217,7 +217,9 @@ export function ExerciseDetail() {
           style={styles.footerButton}
           onPress={() => {
             addExercise({
-              id: exercise.exerciseId,
+              workoutExerciseId:
+                route.params.workoutExerciseId || Date.now().toString(),
+              exerciseId: exercise.exerciseId,
               name: exercise.name,
               sets: sets,
             });
@@ -231,7 +233,9 @@ export function ExerciseDetail() {
           style={styles.footerButton}
           onPress={() => {
             addExercise({
-              id: exercise.exerciseId,
+              workoutExerciseId:
+                route.params.workoutExerciseId || Date.now().toString(),
+              exerciseId: exercise.exerciseId,
               name: exercise.name,
               sets: sets,
             });
