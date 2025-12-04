@@ -216,13 +216,18 @@ export function ExerciseDetail() {
         <TouchableOpacity
           style={styles.footerButton}
           onPress={() => {
-            addExercise({
-              workoutExerciseId:
-                route.params.workoutExerciseId || Date.now().toString(),
-              exerciseId: exercise.exerciseId,
-              name: exercise.name,
-              sets: sets,
-            });
+            const validSets = sets.filter(
+              (s) => s.reps.trim() !== "" && s.weight.trim() !== ""
+            );
+            if (validSets.length > 0) {
+              addExercise({
+                workoutExerciseId:
+                  route.params.workoutExerciseId || Date.now().toString(),
+                exerciseId: exercise.exerciseId,
+                name: exercise.name,
+                sets: validSets,
+              });
+            }
             navigation.replace("WorkoutSummary");
           }}
         >
@@ -232,13 +237,18 @@ export function ExerciseDetail() {
         <TouchableOpacity
           style={styles.footerButton}
           onPress={() => {
-            addExercise({
-              workoutExerciseId:
-                route.params.workoutExerciseId || Date.now().toString(),
-              exerciseId: exercise.exerciseId,
-              name: exercise.name,
-              sets: sets,
-            });
+            const validSets = sets.filter(
+              (s) => s.reps.trim() !== "" && s.weight.trim() !== ""
+            );
+            if (validSets.length > 0) {
+              addExercise({
+                workoutExerciseId:
+                  route.params.workoutExerciseId || Date.now().toString(),
+                exerciseId: exercise.exerciseId,
+                name: exercise.name,
+                sets: validSets,
+              });
+            }
 
             navigation.replace("ExerciseSelect");
           }}
