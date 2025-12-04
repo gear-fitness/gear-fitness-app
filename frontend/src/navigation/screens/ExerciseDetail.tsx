@@ -15,7 +15,7 @@ import { Swipeable } from "react-native-gesture-handler";
 
 import stopwatch from "../../assets/stopwatch.png";
 
-import { useWorkoutTimer } from "../../context/WorkoutTimerContext";
+import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
 
 export function ExerciseDetail() {
