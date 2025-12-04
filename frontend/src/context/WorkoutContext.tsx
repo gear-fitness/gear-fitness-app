@@ -23,6 +23,13 @@ interface WorkoutContextValue {
   addExercise: (ex: WorkoutExercise) => void;
   updateExercise: (id: string, fields: Partial<WorkoutExercise>) => void;
   removeExercise: (id: string) => void;
+
+  // Player state
+  playerVisible: boolean;
+  currentExerciseId: string | null;
+  showPlayer: (exerciseId: string) => void;
+  hidePlayer: () => void;
+  setCurrentExercise: (id: string) => void;
 }
 
 const WorkoutTimerContext = createContext<WorkoutContextValue | null>(null);
@@ -36,6 +43,10 @@ export function WorkoutTimerProvider({
   const [running, setRunning] = useState(false);
 
   const [exercises, setExercises] = useState<WorkoutExercise[]>([]);
+
+  // Player state
+  const [playerVisible, setPlayerVisible] = useState(false);
+  const [currentExerciseId, setCurrentExerciseId] = useState<string | null>(null);
 
   // ---------------- TIMER LOOP ----------------
   useEffect(() => {
@@ -94,6 +105,18 @@ export function WorkoutTimerProvider({
     setRunning(false);
     setSeconds(0);
     setExercises([]);
+    hidePlayer();
+  };
+
+  // Player actions
+  const showPlayer = (exerciseId: string) => {
+    setCurrentExerciseId(exerciseId);
+    setPlayerVisible(true);
+  };
+
+  const hidePlayer = () => {
+    setPlayerVisible(false);
+    setCurrentExerciseId(null);
   };
 
   return (
@@ -108,6 +131,11 @@ export function WorkoutTimerProvider({
         addExercise,
         updateExercise,
         removeExercise,
+        playerVisible,
+        currentExerciseId,
+        showPlayer,
+        hidePlayer,
+        setCurrentExercise: setCurrentExerciseId,
       }}
     >
       {children}

@@ -32,6 +32,7 @@ import { WorkoutSummary } from "./screens/WorkoutSummary";
 import { WorkoutComplete } from "./screens/WorkoutComplete";
 import { LoginScreen } from "./screens/Login";
 import { SignUpProfileScreen } from "./screens/SignUpProfile";
+import { ExerciseChat } from "./screens/ExerciseChat";
 
 /* ---------------------- TABS ---------------------- */
 
@@ -205,6 +206,15 @@ const RootStack = createNativeStackNavigator({
         headerShown: true,
       },
     },
+    /* MODAL 5 — EXERCISE CHAT */
+    ExerciseChat: {
+      screen: ExerciseChat,
+      options: {
+        title: "Exercise Chat",
+        presentation: "modal",
+        headerShown: true,
+      },
+    },
   },
 });
 
@@ -231,6 +241,16 @@ declare global {
           name: string;
           sets?: any[];
         };
+      };
+
+      ExerciseChat: {
+        exercise: {
+          exerciseId: string;
+          name: string;
+          bodyPart: string;
+          description: string;
+        };
+        greetingText: string;
       };
     }
   }

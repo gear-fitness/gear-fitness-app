@@ -14,7 +14,7 @@ export function WorkoutSummary() {
   const isDark = useColorScheme() === "dark";
   const navigation = useNavigation<any>();
 
-  const { seconds, running, start, pause, exercises, removeExercise } =
+  const { seconds, running, start, pause, exercises, removeExercise, setCurrentExercise } =
     useWorkoutTimer();
 
   // Track touch position for movement-based tap detection
@@ -97,7 +97,11 @@ export function WorkoutSummary() {
 
                     // Only navigate if minimal movement (< 5px in any direction)
                     if (deltaX < 5 && deltaY < 5) {
-                      navigation.replace("ExerciseDetail", { exercise: ex });
+                      // Set current exercise and navigate to detail
+                      setCurrentExercise(ex.workoutExerciseId);
+                      navigation.replace("ExerciseDetail", {
+                        exercise: ex,
+                      });
                     }
 
                     setTouchStart(null);

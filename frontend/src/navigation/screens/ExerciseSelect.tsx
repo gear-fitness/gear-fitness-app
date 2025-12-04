@@ -7,10 +7,9 @@ import {
   ScrollView,
   Modal,
   Image,
-  KeyboardAvoidingView,
-  Platform,
 } from "react-native";
 import React, { useState, useEffect } from "react";
+import { LinearGradient } from "expo-linear-gradient";
 import search from "../../assets/search.png";
 import filter from "../../assets/filter.png";
 import close from "../../assets/close.png";
@@ -19,9 +18,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
 import { getAllExercises } from "../../api/exerciseService";
-import { sendExerciseChat } from "../../api/exerciseChatService";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../../navigation";
+import { useWorkoutTimer } from "../../context/WorkoutContext";
 
 type FilterKey =
   | "CALVES"
@@ -36,16 +33,9 @@ type FilterKey =
 
 type SelectedFilters = Record<FilterKey, boolean>;
 
-// Reusing the type from your DTO for local state clarity
-type ChatMessageState = {
-  id: string;
-  text: string;
-  isUser: boolean;
-  timestamp: Date;
-};
-
-export function ExerciseSelect({ route }: { route: any }) {
-  const navigation = useNavigation<Nav>();
+export function ExerciseSelect() {
+  const navigation = useNavigation<any>();
+  const { showPlayer, start } = useWorkoutTimer();
 
   const isDark = useColorScheme() === "dark";
 
@@ -77,13 +67,6 @@ export function ExerciseSelect({ route }: { route: any }) {
 
   const [exercises, setExercises] = useState<any[]>([]);
 
-  // Chat modal state
-  const [chatModalVisible, setChatModalVisible] = useState(false);
-  const [selectedExercise, setSelectedExercise] = useState<any | null>(null);
-  const [messages, setMessages] = useState<ChatMessageState[]>([]);
-  const [inputText, setInputText] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-
   const activeFilters = Object.entries(selectedFilters)
     .filter(([_, value]) => value)
     .map(([key]) => key);
@@ -112,66 +95,6 @@ export function ExerciseSelect({ route }: { route: any }) {
 
     loadExercises();
   }, []);
-
-  const handleCloseChat = () => {
-    setChatModalVisible(false);
-    setMessages([]); // Clear chat on close
-    setSelectedExercise(null);
-  };
-
-  const sendMessage = async (userMessage: string) => {
-    if (!selectedExercise || !userMessage.trim()) return;
-
-    setIsLoading(true);
-
-    // 1. Add user message
-    const newUserMessage: ChatMessageState = {
-      id: Date.now().toString(),
-      text: userMessage.trim(),
-      isUser: true,
-      timestamp: new Date(),
-    };
-
-    const updatedMessages = [...messages, newUserMessage];
-    setMessages(updatedMessages);
-    setInputText("");
-
-    try {
-      // Send chat request
-      const data = await sendExerciseChat(
-        selectedExercise.exerciseId,
-        updatedMessages.map((m) => ({
-          text: m.text,
-          isUser: m.isUser,
-        }))
-      );
-
-      if (!data.response) {
-        throw new Error("No response from AI");
-      }
-
-      const aiMessage: ChatMessageState = {
-        id: (Date.now() + 1).toString(),
-        text: data.response,
-        isUser: false,
-        timestamp: new Date(),
-      };
-
-      setMessages([...updatedMessages, aiMessage]);
-    } catch (error) {
-      console.error("Chat API error:", error);
-
-      const errorMessage: ChatMessageState = {
-        id: (Date.now() + 1).toString(),
-        text: "Sorry, there was an error. Please try again.",
-        isUser: false,
-        timestamp: new Date(),
-      };
-      setMessages([...updatedMessages, errorMessage]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -227,11 +150,26 @@ export function ExerciseSelect({ route }: { route: any }) {
           <View key={ex.exerciseId} style={styles.exerciseRow}>
             <TouchableOpacity
               style={{ flex: 1 }}
-              onPress={() =>
+              onPress={() => {
+                // Start timer if not already running
+                start();
+
+                // Generate unique workout exercise ID
+                const workoutExerciseId = Date.now().toString();
+
+                // Show mini player (timer persists)
+                showPlayer(workoutExerciseId);
+
+                // Navigate to ExerciseDetail modal (original workflow)
                 navigation.replace("ExerciseDetail", {
-                  exercise: ex,
-                })
-              }
+                  exercise: {
+                    workoutExerciseId,
+                    exerciseId: ex.exerciseId,
+                    name: ex.name,
+                    sets: [],
+                  },
+                });
+              }}
             >
               <Text
                 style={{ fontSize: 16, fontWeight: "600", color: colors.text }}
@@ -248,24 +186,55 @@ export function ExerciseSelect({ route }: { route: any }) {
               onPress={() => {
                 const greetingText = `Hello, I'm your personal ${ex.name} assistant! If you have any questions on this exercise, let me know!`;
 
-                // FIX: Initialize messages with the AI's greeting
-                setSelectedExercise(ex);
-                setMessages([
-                  {
-                    id: "0",
-                    text: greetingText,
-                    isUser: false,
-                    timestamp: new Date(),
-                  },
-                ]);
-                setChatModalVisible(true);
+                // Navigate to ExerciseChat modal
+                navigation.navigate("ExerciseChat", {
+                  exercise: ex,
+                  greetingText,
+                });
               }}
-              style={styles.chatIconButton}
+              style={styles.chatIconButtonWrapper}
             >
-              <Image
-                source={chat}
-                style={{ width: 20, height: 20, tintColor: colors.icon }}
-              />
+              <LinearGradient
+                colors={
+                  isDark
+                    ? ["rgba(255, 255, 255, 0.25)", "rgba(255, 255, 255, 0.08)"]
+                    : ["rgba(255, 255, 255, 0.4)", "rgba(29, 29, 29, 0.12)"]
+                }
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[
+                  styles.chatIconButton,
+                  {
+                    borderTopColor: isDark
+                      ? "rgba(255, 255, 255, 0.6)"
+                      : "rgba(255, 255, 255, 0.5)",
+                    borderLeftColor: isDark
+                      ? "rgba(255, 255, 255, 0.6)"
+                      : "rgba(255, 255, 255, 0.5)",
+                    borderBottomColor: isDark
+                      ? "rgba(255, 255, 255, 0.05)"
+                      : "rgba(0, 0, 0, 0.08)",
+                    borderRightColor: isDark
+                      ? "rgba(255, 255, 255, 0.05)"
+                      : "rgba(0, 0, 0, 0.08)",
+                    shadowColor: isDark ? "#fff" : "#000",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: isDark ? 0.4 : 0.15,
+                    shadowRadius: 10,
+                    elevation: 8,
+                  },
+                ]}
+              >
+                <Image
+                  source={chat}
+                  style={{
+                    width: 20,
+                    height: 20,
+                    tintColor: isDark ? "#fff" : "#1D1D1D",
+                    transform: [{ translateX: 1.25 }, { translateY: -1 }],
+                  }}
+                />
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         ))}
@@ -327,102 +296,6 @@ export function ExerciseSelect({ route }: { route: any }) {
             <Button onPress={() => setIsFiltering(false)}>Apply Filters</Button>
           </View>
         </View>
-      </Modal>
-
-      {/* Chat Modal */}
-      <Modal
-        visible={chatModalVisible}
-        animationType="slide"
-        transparent={false}
-      >
-        <KeyboardAvoidingView
-          style={[styles.chatContainer, { backgroundColor: colors.bg }]}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={0}
-        >
-          <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
-            {/* Header with close button and exercise name */}
-            <View
-              style={[styles.chatHeader, { borderBottomColor: colors.border }]}
-            >
-              <TouchableOpacity
-                onPress={handleCloseChat}
-                style={styles.closeButton}
-              >
-                <Image
-                  source={close}
-                  style={[styles.closeIcon, { tintColor: colors.icon }]}
-                />
-              </TouchableOpacity>
-              <View style={styles.chatHeaderContent}>
-                <Text style={[styles.chatTitle, { color: colors.text }]}>
-                  {selectedExercise?.name || "Exercise Chat"}
-                </Text>
-                <Text style={[styles.chatSubtitle, { color: colors.subtle }]}>
-                  AI Assistant
-                </Text>
-              </View>
-              <View style={{ width: 40 }} />
-            </View>
-
-            {/* Messages ScrollView */}
-            <ScrollView
-              style={{ flex: 1, paddingHorizontal: 10 }}
-              contentContainerStyle={{ paddingVertical: 10 }}
-            >
-              {messages.map((msg) => (
-                <View
-                  key={msg.id}
-                  style={[
-                    styles.messageBubble,
-                    {
-                      alignSelf: msg.isUser ? "flex-end" : "flex-start",
-                      backgroundColor: msg.isUser ? "#007AFF" : colors.card,
-                    },
-                  ]}
-                >
-                  <Text style={{ color: msg.isUser ? "#fff" : colors.text }}>
-                    {msg.text}
-                  </Text>
-                </View>
-              ))}
-              {isLoading && (
-                <Text style={{ color: colors.subtle, fontStyle: "italic" }}>
-                  AI is thinking...
-                </Text>
-              )}
-            </ScrollView>
-
-            {/* Input Row */}
-            <View
-              style={[styles.chatInputRow, { borderTopColor: colors.border }]}
-            >
-              <TextInput
-                style={[
-                  styles.chatInput,
-                  { backgroundColor: colors.inputBg, color: colors.text },
-                ]}
-                placeholder="Ask about this exercise..."
-                placeholderTextColor={colors.subtle}
-                value={inputText}
-                onChangeText={setInputText}
-                multiline
-              />
-              <TouchableOpacity
-                onPress={() => sendMessage(inputText)}
-                disabled={!inputText.trim() || isLoading}
-                style={[
-                  styles.sendButton,
-                  { opacity: inputText.trim() && !isLoading ? 1 : 0.5 },
-                ]}
-              >
-                <Text style={{ color: "#007AFF", fontWeight: "600" }}>
-                  Send
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </SafeAreaView>
-        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -490,83 +363,25 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
 
-  // Chat styles
   exerciseRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 10,
   },
 
-  chatIconButton: {
-    padding: 10,
+  chatIconButtonWrapper: {
     marginLeft: 10,
   },
 
-  chatContainer: {
-    flex: 1,
-  },
-
-  chatHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-  },
-
-  closeButton: {
-    padding: 5,
-    width: 40,
-  },
-
-  closeIcon: {
-    width: 24,
-    height: 24,
-  },
-
-  chatHeaderContent: {
-    flex: 1,
-    alignItems: "center",
-  },
-
-  chatTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    textAlign: "center",
-  },
-
-  chatSubtitle: {
-    fontSize: 12,
-    textAlign: "center",
-    marginTop: 2,
-  },
-
-  messageBubble: {
-    maxWidth: "80%",
-    padding: 12,
-    borderRadius: 16,
-    marginVertical: 4,
-  },
-
-  chatInputRow: {
-    flexDirection: "row",
-    alignItems: "center",
+  chatIconButton: {
     padding: 10,
+    borderRadius: 24,
     borderTopWidth: 1,
-  },
-
-  chatInput: {
-    flex: 1,
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    marginRight: 10,
-    maxHeight: 100,
-  },
-
-  sendButton: {
-    paddingHorizontal: 15,
-    paddingVertical: 10,
+    borderLeftWidth: 1,
+    borderBottomWidth: 1,
+    borderRightWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
   },
 });

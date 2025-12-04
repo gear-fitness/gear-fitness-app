@@ -1,5 +1,5 @@
 import { Assets as NavigationAssets } from "@react-navigation/elements";
-import { DarkTheme, DefaultTheme } from "@react-navigation/native";
+import { DarkTheme, DefaultTheme, NavigationContainerRefWithCurrent } from "@react-navigation/native";
 import { Asset } from "expo-asset";
 import { createURL } from "expo-linking";
 import * as SplashScreen from "expo-splash-screen";
@@ -12,6 +12,10 @@ import { useEffect } from "react";
 import { AuthProvider } from "./context/AuthContext";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { WorkoutTimerProvider } from "./context/WorkoutContext";
+import { WorkoutPlayer } from "./components/WorkoutPlayer";
+
+// Create navigation ref for use outside NavigationContainer
+export const navigationRef = React.createRef<NavigationContainerRefWithCurrent<any>>();
 
 Asset.loadAsync([
   ...NavigationAssets,
@@ -44,6 +48,7 @@ export function App() {
         <SafeAreaProvider>
           <WorkoutTimerProvider>
             <Navigation
+              ref={navigationRef}
               theme={theme}
               linking={{
                 enabled: "auto",
@@ -53,6 +58,7 @@ export function App() {
                 SplashScreen.hideAsync();
               }}
             />
+            <WorkoutPlayer />
           </WorkoutTimerProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>
