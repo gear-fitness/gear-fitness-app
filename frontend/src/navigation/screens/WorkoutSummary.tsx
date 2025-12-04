@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Swipeable } from "react-native-gesture-handler";
 import { useNavigation } from "@react-navigation/native";
@@ -72,7 +72,10 @@ export function WorkoutSummary() {
       </View>
 
       {/* LIST */}
-      <View style={{ marginTop: 20 }}>
+      <ScrollView
+        style={{ marginTop: 20 }}
+        contentContainerStyle={{ paddingBottom: 120 }}
+      >
         {exercises.map((ex) => {
           const last =
             [...ex.sets]
@@ -142,7 +145,7 @@ export function WorkoutSummary() {
             </View>
           );
         })}
-      </View>
+      </ScrollView>
 
       {/* FOOTER BUTTONS */}
       <View style={styles.bottomButtons}>

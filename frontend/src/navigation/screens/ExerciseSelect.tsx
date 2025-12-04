@@ -145,7 +145,10 @@ export function ExerciseSelect() {
       </View>
 
       {/* Exercises List */}
-      <ScrollView style={{ marginTop: 20 }}>
+      <ScrollView
+        style={{ flex: 1, marginTop: 20 }}
+        contentContainerStyle={{ paddingBottom: 20 }}
+      >
         {filteredExercises.map((ex) => (
           <View key={ex.exerciseId} style={styles.exerciseRow}>
             <TouchableOpacity
