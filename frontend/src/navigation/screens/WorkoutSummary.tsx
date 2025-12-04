@@ -151,7 +151,7 @@ export function WorkoutSummary() {
                 <TouchableOpacity
                   activeOpacity={0.8}
                   onPress={() =>
-                    navigation.navigate("ExerciseDetail", { exercise: ex })
+                    navigation.replace("ExerciseDetail", { exercise: ex })
                   }
                 >
                   <View
@@ -211,7 +211,7 @@ export function WorkoutSummary() {
 
             <TouchableOpacity
               style={[styles.addBtn, { backgroundColor: "#1E90FF" }]}
-              onPress={() => navigation.navigate("ExerciseSelect")}
+              onPress={() => navigation.replace("ExerciseSelect")}
             >
               <Text style={[styles.btnText, { color: "#fff" }]}>
                 Add Exercise

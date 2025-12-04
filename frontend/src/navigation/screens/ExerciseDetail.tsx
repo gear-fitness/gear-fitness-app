@@ -221,7 +221,7 @@ export function ExerciseDetail() {
               name: exercise.name,
               sets: sets,
             });
-            navigation.navigate("WorkoutSummary");
+            navigation.replace("WorkoutSummary");
           }}
         >
           <Text style={styles.footerButtonText}>Summary</Text>
@@ -229,7 +229,7 @@ export function ExerciseDetail() {
 
         <TouchableOpacity
           style={styles.footerButton}
-          onPress={() => navigation.navigate("ExerciseSelect")}
+          onPress={() => navigation.replace("ExerciseSelect")}
         >
           <Text style={styles.footerButtonText}>+ Add Exercise</Text>
         </TouchableOpacity>

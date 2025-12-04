@@ -20,6 +20,8 @@ import { useNavigation } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
 import { getAllExercises } from "../../api/exerciseService";
 import { sendExerciseChat } from "../../api/exerciseChatService";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { RootStackParamList } from "../../navigation";
 
 type FilterKey =
   | "CALVES"
@@ -43,7 +45,7 @@ type ChatMessageState = {
 };
 
 export function ExerciseSelect({ route }: { route: any }) {
-  const navigation = useNavigation();
+  const navigation = useNavigation<Nav>();
 
   const isDark = useColorScheme() === "dark";
 
@@ -226,7 +228,7 @@ export function ExerciseSelect({ route }: { route: any }) {
             <TouchableOpacity
               style={{ flex: 1 }}
               onPress={() =>
-                navigation.navigate("ExerciseDetail", {
+                navigation.replace("ExerciseDetail", {
                   exercise: ex,
                 })
               }
