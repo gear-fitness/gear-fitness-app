@@ -2,6 +2,7 @@ package com.gearfitness.gear_api.dto;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import lombok.AllArgsConstructor;
@@ -26,7 +27,7 @@ public class FeedPostDTO {
     private String workoutName;
     private LocalDate datePerformed;
     private Integer durationMin;
-    private String bodyTag;
+    private List<String> bodyTags;
 
     private Long likeCount;
     private Long commentCount;
