@@ -11,6 +11,7 @@ import {
 import { Text } from "@react-navigation/elements";
 import { Ionicons } from "@expo/vector-icons";
 import { followUserByUsername } from "../api/userService";
+import { useTheme } from "@react-navigation/native";
 
 interface Props {
   visible: boolean;
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export function FollowModal({ visible, onClose, onSuccess }: Props) {
+  const { colors } = useTheme();
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -60,26 +62,27 @@ export function FollowModal({ visible, onClose, onSuccess }: Props) {
       onRequestClose={handleClose}
     >
       <View style={styles.overlay}>
-        <View style={styles.modalContent}>
+        <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
           {/* Header */}
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Follow User</Text>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Follow User</Text>
             <TouchableOpacity onPress={handleClose}>
-              <Ionicons name="close" size={24} color="#666" />
+              <Ionicons name="close" size={24} color={colors.text} />
             </TouchableOpacity>
           </View>
 
           {/* Input */}
-          <View style={styles.inputContainer}>
+          <View style={[styles.inputContainer, { borderColor: colors.border }]}>
             <Ionicons
               name="person-outline"
               size={20}
-              color="#666"
+              color={colors.text}
               style={styles.inputIcon}
             />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: colors.text }]}
               placeholder="Enter username"
+              placeholderTextColor={colors.text + '80'}
               value={username}
               onChangeText={setUsername}
               autoCapitalize="none"
@@ -91,13 +94,13 @@ export function FollowModal({ visible, onClose, onSuccess }: Props) {
           {/* Buttons */}
           <View style={styles.buttonContainer}>
             <TouchableOpacity
-              style={[styles.button, styles.cancelButton]}
+              style={[styles.button, styles.cancelButton, { backgroundColor: colors.border }]}
               onPress={handleClose}
             >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Text style={[styles.cancelButtonText, { color: colors.text }]}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.button, styles.followButton]}
+              style={[styles.button, styles.followButton, { backgroundColor: colors.primary }]}
               onPress={handleFollow}
               disabled={loading}
             >
@@ -122,7 +125,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalContent: {
-    backgroundColor: "#fff",
     borderRadius: 16,
     padding: 24,
     width: "85%",
@@ -142,7 +144,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#ddd",
     borderRadius: 8,
     paddingHorizontal: 12,
     marginBottom: 20,
@@ -167,17 +168,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minHeight: 48,
   },
-  cancelButton: {
-    backgroundColor: "#f0f0f0",
-  },
+  cancelButton: {},
   cancelButtonText: {
-    color: "#333",
     fontSize: 16,
     fontWeight: "600",
   },
-  followButton: {
-    backgroundColor: "#007AFF",
-  },
+  followButton: {},
   followButtonText: {
     color: "#fff",
     fontSize: 16,

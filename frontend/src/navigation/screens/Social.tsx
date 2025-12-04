@@ -14,8 +14,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { socialFeedApi, FeedPost } from "../../api/socialFeedApi";
 import { FollowModal } from "../../components/FollowModal";
 import { FeedPostCard } from "../../components/FeedPostCard";
+import { useTheme } from "@react-navigation/native";
 
 export function Social() {
+  const { colors } = useTheme();
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -84,21 +86,21 @@ export function Social() {
     if (!loadingMore) return null;
     return (
       <View style={styles.footer}>
-        <ActivityIndicator size="small" color="#007AFF" />
-        <Text style={styles.footerText}>Loading more...</Text>
+        <ActivityIndicator size="small" color={colors.primary} />
+        <Text style={[styles.footerText, { color: colors.text }]}>Loading more...</Text>
       </View>
     );
   };
 
   const renderEmpty = () => (
     <View style={styles.emptyState}>
-      <Ionicons name="people-outline" size={64} color="#ccc" />
-      <Text style={styles.emptyText}>No workouts yet</Text>
-      <Text style={styles.emptySubtext}>
+      <Ionicons name="people-outline" size={64} color={colors.border} />
+      <Text style={[styles.emptyText, { color: colors.text }]}>No workouts yet</Text>
+      <Text style={[styles.emptySubtext, { color: colors.text }]}>
         Follow people to see their workouts!
       </Text>
       <TouchableOpacity
-        style={styles.emptyButton}
+        style={[styles.emptyButton, { backgroundColor: colors.primary }]}
         onPress={() => setFollowModalVisible(true)}
       >
         <Text style={styles.emptyButtonText}>Find People to Follow</Text>
@@ -108,33 +110,33 @@ export function Social() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Social Feed</Text>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Social Feed</Text>
           <TouchableOpacity
             style={styles.followButton}
             onPress={() => setFollowModalVisible(true)}
           >
-            <Ionicons name="person-add" size={24} color="#007AFF" />
+            <Ionicons name="person-add" size={24} color={colors.primary} />
           </TouchableOpacity>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Social Feed</Text>
+      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Social Feed</Text>
         <TouchableOpacity
           style={styles.followButton}
           onPress={() => setFollowModalVisible(true)}
         >
-          <Ionicons name="person-add" size={24} color="#007AFF" />
+          <Ionicons name="person-add" size={24} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
@@ -167,16 +169,13 @@ export function Social() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     padding: 16,
-    backgroundColor: "#fff",
     borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
   },
   headerTitle: {
     fontSize: 24,
@@ -205,18 +204,15 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 20,
     fontWeight: "600",
-    color: "#666",
     marginTop: 16,
   },
   emptySubtext: {
     fontSize: 14,
-    color: "#999",
     marginTop: 8,
     textAlign: "center",
   },
   emptyButton: {
     marginTop: 24,
-    backgroundColor: "#007AFF",
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
@@ -233,6 +229,5 @@ const styles = StyleSheet.create({
   footerText: {
     marginTop: 8,
     fontSize: 14,
-    color: "#666",
   },
 });

@@ -2,12 +2,14 @@ import React from "react";
 import { View, StyleSheet, TouchableOpacity } from "react-native";
 import { Text } from "@react-navigation/elements";
 import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "@react-navigation/native";
 import { FeedPost } from "../api/socialFeedApi";
 interface Props {
   post: FeedPost;
 }
 
 export function FeedPostCard({ post }: Props) {
+  const { colors } = useTheme();
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("en-US", {
@@ -25,39 +27,39 @@ export function FeedPostCard({ post }: Props) {
   };
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: colors.card }]}>
       {/* User Header */}
       <View style={styles.header}>
         <View style={styles.userInfo}>
-          <View style={styles.avatar}>
+          <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
             <Text style={styles.avatarText}>
               {post.username.charAt(0).toUpperCase()}
             </Text>
           </View>
           <View>
-            <Text style={styles.username}>{post.username}</Text>
-            <Text style={styles.timestamp}>{formatDate(post.createdAt)}</Text>
+            <Text style={[styles.username, { color: colors.text }]}>{post.username}</Text>
+            <Text style={[styles.timestamp, { color: colors.text, opacity: 0.6 }]}>{formatDate(post.createdAt)}</Text>
           </View>
         </View>
       </View>
 
       {/* Workout Info */}
       <View style={styles.workoutInfo}>
-        <Text style={styles.workoutName}>{post.workoutName}</Text>
+        <Text style={[styles.workoutName, { color: colors.text }]}>{post.workoutName}</Text>
         <View style={styles.workoutMeta}>
           <View style={styles.metaItem}>
-            <Ionicons name="barbell-outline" size={16} color="#666" />
-            <Text style={styles.metaText}>{formatBodyTag(post.bodyTag)}</Text>
+            <Ionicons name="barbell-outline" size={16} color={colors.text} />
+            <Text style={[styles.metaText, { color: colors.text, opacity: 0.7 }]}>{formatBodyTag(post.bodyTag)}</Text>
           </View>
           {post.durationMin && (
             <View style={styles.metaItem}>
-              <Ionicons name="time-outline" size={16} color="#666" />
-              <Text style={styles.metaText}>{post.durationMin} min</Text>
+              <Ionicons name="time-outline" size={16} color={colors.text} />
+              <Text style={[styles.metaText, { color: colors.text, opacity: 0.7 }]}>{post.durationMin} min</Text>
             </View>
           )}
           <View style={styles.metaItem}>
-            <Ionicons name="calendar-outline" size={16} color="#666" />
-            <Text style={styles.metaText}>
+            <Ionicons name="calendar-outline" size={16} color={colors.text} />
+            <Text style={[styles.metaText, { color: colors.text, opacity: 0.7 }]}>
               {formatDate(post.datePerformed)}
             </Text>
           </View>
@@ -65,21 +67,21 @@ export function FeedPostCard({ post }: Props) {
       </View>
 
       {/* Caption */}
-      {post.caption && <Text style={styles.caption}>{post.caption}</Text>}
+      {post.caption && <Text style={[styles.caption, { color: colors.text }]}>{post.caption}</Text>}
 
       {/* Engagement */}
-      <View style={styles.engagement}>
+      <View style={[styles.engagement, { borderTopColor: colors.border }]}>
         <TouchableOpacity style={styles.engagementItem}>
           <Ionicons
             name={post.likedByCurrentUser ? "heart" : "heart-outline"}
             size={24}
-            color={post.likedByCurrentUser ? "#e74c3c" : "#666"}
+            color={post.likedByCurrentUser ? "#e74c3c" : colors.text}
           />
-          <Text style={styles.engagementText}>{post.likeCount}</Text>
+          <Text style={[styles.engagementText, { color: colors.text }]}>{post.likeCount}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.engagementItem}>
-          <Ionicons name="chatbubble-outline" size={24} color="#666" />
-          <Text style={styles.engagementText}>{post.commentCount}</Text>
+          <Ionicons name="chatbubble-outline" size={24} color={colors.text} />
+          <Text style={[styles.engagementText, { color: colors.text }]}>{post.commentCount}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -88,7 +90,6 @@ export function FeedPostCard({ post }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#fff",
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
@@ -111,7 +112,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#007AFF",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
@@ -127,7 +127,6 @@ const styles = StyleSheet.create({
   },
   timestamp: {
     fontSize: 12,
-    color: "#666",
     marginTop: 2,
   },
   workoutInfo: {
@@ -150,11 +149,9 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 14,
-    color: "#666",
   },
   caption: {
     fontSize: 14,
-    color: "#333",
     marginBottom: 12,
     lineHeight: 20,
   },
@@ -163,7 +160,6 @@ const styles = StyleSheet.create({
     gap: 20,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: "#e0e0e0",
   },
   engagementItem: {
     flexDirection: "row",
@@ -172,7 +168,6 @@ const styles = StyleSheet.create({
   },
   engagementText: {
     fontSize: 14,
-    color: "#666",
     fontWeight: "500",
   },
 });
