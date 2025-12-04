@@ -229,7 +229,15 @@ export function ExerciseDetail() {
 
         <TouchableOpacity
           style={styles.footerButton}
-          onPress={() => navigation.replace("ExerciseSelect")}
+          onPress={() => {
+            addExercise({
+              id: exercise.exerciseId,
+              name: exercise.name,
+              sets: sets,
+            });
+
+            navigation.replace("ExerciseSelect");
+          }}
         >
           <Text style={styles.footerButtonText}>+ Add Exercise</Text>
         </TouchableOpacity>
