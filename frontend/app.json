@@ -10,7 +10,7 @@
     "scheme": "gearfitness",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.gearfitness",
+      "bundleIdentifier": "com.gearfitness.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
