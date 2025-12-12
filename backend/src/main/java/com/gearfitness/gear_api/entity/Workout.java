@@ -7,6 +7,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -39,9 +41,12 @@ public class Workout {
     @Column(name = "duration_min")
     private Integer durationMin;
 
-    @Enumerated(EnumType.STRING)
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "workout_body_tags", joinColumns = @JoinColumn(name = "workout_id"))
     @Column(name = "body_tag")
-    private BodyTag bodyTag;
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private List<BodyTag> bodyTags = new ArrayList<>();
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

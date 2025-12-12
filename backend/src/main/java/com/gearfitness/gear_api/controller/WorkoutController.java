@@ -3,12 +3,16 @@ package com.gearfitness.gear_api.controller;
 import com.gearfitness.gear_api.dto.WeeklyVolumeDTO;
 import com.gearfitness.gear_api.dto.WorkoutDTO;
 import com.gearfitness.gear_api.dto.WorkoutDetailDTO;
+import com.gearfitness.gear_api.dto.WorkoutSubmissionDTO;
+import com.gearfitness.gear_api.entity.AppUser;
 import com.gearfitness.gear_api.entity.Workout;
+import com.gearfitness.gear_api.security.JwtService;
 import com.gearfitness.gear_api.service.WorkoutService;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,6 +26,7 @@ import java.util.stream.Collectors;
 public class WorkoutController {
 
     private final WorkoutService workoutService;
+    private final JwtService jwtService;
 
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<WorkoutDTO>> getWorkoutsByUser(@PathVariable UUID userId) {
@@ -31,8 +36,7 @@ public class WorkoutController {
                     .map(w -> new WorkoutDTO(
                             w.getWorkoutId(),
                             w.getName(),
-                            w.getDatePerformed()
-                    ))
+                            w.getDatePerformed()))
                     .collect(Collectors.toList());
             return ResponseEntity.ok(workouts);
         } catch (Exception e) {
@@ -65,8 +69,25 @@ public class WorkoutController {
             return ResponseEntity.ok(new WorkoutDTO(
                     saved.getWorkoutId(),
                     saved.getName(),
-                    saved.getDatePerformed()
-            ));
+                    saved.getDatePerformed()));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @PostMapping("/submit")
+    public ResponseEntity<WorkoutDetailDTO> submitWorkout(
+            @RequestBody WorkoutSubmissionDTO submission,
+            @RequestHeader("Authorization") String authHeader) {
+        try {
+            String token = authHeader.substring(7); // Remove "Bearer "
+            UUID userId = jwtService.extractUserId(token);
+
+            WorkoutDetailDTO workout = workoutService.submitWorkout(submission, userId);
+            return ResponseEntity.ok(workout);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();

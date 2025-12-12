@@ -9,5 +9,6 @@ export DATABASE_USERNAME="myuser"
 export DATABASE_PASSWORD="mypassword"
 export GOOGLE_CLIENT_ID="637676049223-kg32deotit3muuhi3j1q253vfhotnoai.apps.googleusercontent.com"
 export CORS_ALLOWED_ORIGINS="http://localhost:3000,http://localhost:5173"
+export GEMINI_API_KEY="CHANGE-ME-TO-SECURE-API-KEY"
 
 ./gradlew bootRun

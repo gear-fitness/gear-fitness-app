@@ -7,6 +7,8 @@ import {
   RefreshControl,
   TouchableOpacity,
   Alert,
+  TextInput,
+  Image,
 } from "react-native";
 import { Text } from "@react-navigation/elements";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -14,8 +16,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { socialFeedApi, FeedPost } from "../../api/socialFeedApi";
 import { FollowModal } from "../../components/FollowModal";
 import { FeedPostCard } from "../../components/FeedPostCard";
+import { useTheme } from "@react-navigation/native";
 
 export function Social() {
+  const { colors } = useTheme();
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -23,6 +27,7 @@ export function Social() {
   const [currentPage, setCurrentPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [followModalVisible, setFollowModalVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Initial load
   useEffect(() => {
@@ -84,21 +89,25 @@ export function Social() {
     if (!loadingMore) return null;
     return (
       <View style={styles.footer}>
-        <ActivityIndicator size="small" color="#007AFF" />
-        <Text style={styles.footerText}>Loading more...</Text>
+        <ActivityIndicator size="small" color={colors.primary} />
+        <Text style={[styles.footerText, { color: colors.text }]}>
+          Loading more...
+        </Text>
       </View>
     );
   };
 
   const renderEmpty = () => (
     <View style={styles.emptyState}>
-      <Ionicons name="people-outline" size={64} color="#ccc" />
-      <Text style={styles.emptyText}>No workouts yet</Text>
-      <Text style={styles.emptySubtext}>
+      <Ionicons name="people-outline" size={64} color={colors.border} />
+      <Text style={[styles.emptyText, { color: colors.text }]}>
+        No workouts yet
+      </Text>
+      <Text style={[styles.emptySubtext, { color: colors.text }]}>
         Follow people to see their workouts!
       </Text>
       <TouchableOpacity
-        style={styles.emptyButton}
+        style={[styles.emptyButton, { backgroundColor: colors.primary }]}
         onPress={() => setFollowModalVisible(true)}
       >
         <Text style={styles.emptyButtonText}>Find People to Follow</Text>
@@ -108,33 +117,95 @@ export function Social() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Social Feed</Text>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+      >
+        {/* Search Bar */}
+        <View style={styles.searchRow}>
+          <View
+            style={[
+              styles.searchContainer,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+          >
+            <Ionicons
+              name="search"
+              size={20}
+              color={colors.text}
+              style={styles.searchIcon}
+            />
+            <TextInput
+              placeholder="Search..."
+              placeholderTextColor={colors.border}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              style={[styles.searchInput, { color: colors.text }]}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery("")}>
+                <Ionicons name="close-circle" size={20} color={colors.border} />
+              </TouchableOpacity>
+            )}
+          </View>
+
           <TouchableOpacity
-            style={styles.followButton}
+            style={[
+              styles.followIconButton,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
             onPress={() => setFollowModalVisible(true)}
           >
-            <Ionicons name="person-add" size={24} color="#007AFF" />
+            <Ionicons name="person-add" size={20} color={colors.primary} />
           </TouchableOpacity>
         </View>
+
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Social Feed</Text>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
+      {/* Search Bar */}
+      <View style={styles.searchRow}>
+        <View
+          style={[
+            styles.searchContainer,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
+        >
+          <Ionicons
+            name="search"
+            size={20}
+            color={colors.text}
+            style={styles.searchIcon}
+          />
+          <TextInput
+            placeholder="Search..."
+            placeholderTextColor={colors.border}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            style={[styles.searchInput, { color: colors.text }]}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery("")}>
+              <Ionicons name="close-circle" size={20} color={colors.border} />
+            </TouchableOpacity>
+          )}
+        </View>
+
         <TouchableOpacity
-          style={styles.followButton}
+          style={[
+            styles.followIconButton,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
           onPress={() => setFollowModalVisible(true)}
         >
-          <Ionicons name="person-add" size={24} color="#007AFF" />
+          <Ionicons name="person-add" size={20} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
@@ -167,23 +238,37 @@ export function Social() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
   },
-  header: {
+  searchRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    padding: 16,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 10,
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
+  searchContainer: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    height: 40,
   },
-  followButton: {
-    padding: 8,
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+  },
+  followIconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
   loadingContainer: {
     flex: 1,
@@ -205,18 +290,15 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 20,
     fontWeight: "600",
-    color: "#666",
     marginTop: 16,
   },
   emptySubtext: {
     fontSize: 14,
-    color: "#999",
     marginTop: 8,
     textAlign: "center",
   },
   emptyButton: {
     marginTop: 24,
-    backgroundColor: "#007AFF",
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
@@ -233,6 +315,5 @@ const styles = StyleSheet.create({
   footerText: {
     marginTop: 8,
     fontSize: 14,
-    color: "#666",
   },
 });

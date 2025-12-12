@@ -22,7 +22,7 @@ export interface FeedPost {
   workoutName: string;
   datePerformed: string;
   durationMin?: number;
-  bodyTag: string;
+  bodyTags: string[];
   likeCount: number;
   commentCount: number;
   likedByCurrentUser: boolean;

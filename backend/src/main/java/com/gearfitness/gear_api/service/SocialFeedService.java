@@ -58,8 +58,10 @@ public class SocialFeedService {
                 .workoutName(post.getWorkout().getName())
                 .datePerformed(post.getWorkout().getDatePerformed())
                 .durationMin(post.getWorkout().getDurationMin())
-                .bodyTag(post.getWorkout().getBodyTag() != null
-                        ? post.getWorkout().getBodyTag().name()
+                .bodyTags(post.getWorkout().getBodyTags() != null
+                        ? post.getWorkout().getBodyTags().stream()
+                                .map(Enum::name)
+                                .collect(Collectors.toList())
                         : null)
                 .likeCount(likeCounts.getOrDefault(post.getPostId(), 0L))
                 .commentCount(commentCounts.getOrDefault(post.getPostId(), 0L))
