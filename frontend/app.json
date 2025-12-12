@@ -39,7 +39,8 @@
         {
           "iosUrlScheme": "com.googleusercontent.apps.637676049223-kg32deotit3muuhi3j1q253vfhotnoai"
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "extra": {
       "eas": {

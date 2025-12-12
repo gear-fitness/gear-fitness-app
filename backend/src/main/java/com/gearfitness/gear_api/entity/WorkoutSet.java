@@ -32,8 +32,8 @@ public class WorkoutSet {
     @Column(nullable = false)
     private Integer reps;
 
-    @Column(name = "weight_kg", precision = 10, scale = 2)
-    private BigDecimal weightKg;
+    @Column(name = "weight_lbs", precision = 10, scale = 2)  // Changed from weight_kg to weight_lbs
+    private BigDecimal weightLbs;
 
     @Column(name = "is_pr", nullable = false)
     @Builder.Default

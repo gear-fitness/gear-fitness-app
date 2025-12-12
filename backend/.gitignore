@@ -37,3 +37,7 @@ out/
 .vscode/
 
 .DS_Store
+
+
+run.sh
+!run.sh.template

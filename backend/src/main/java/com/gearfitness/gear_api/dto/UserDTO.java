@@ -16,6 +16,9 @@ public class UserDTO {
     private UUID userId;
     private String username;
     private String email;
+    private Integer weightLbs;
+    private Integer heightInches;
+    private Integer age;
     private Boolean isPrivate;
     private LocalDateTime createdAt;
 }
