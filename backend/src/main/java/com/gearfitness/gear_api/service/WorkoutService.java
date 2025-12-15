@@ -157,10 +157,25 @@ public class WorkoutService {
         }
 
         // Calculate date range
-        LocalDate endDate = LocalDate.now();
-        LocalDate startDate = endDate
-                .minusWeeks(numberOfWeeks)
-                .with(TemporalAdjusters.previousOrSame(weekStartDay));
+        // Extend endDate to the end of the current week (Saturday) to ensure full week is displayed
+        LocalDate endDate = LocalDate.now()
+                .with(TemporalAdjusters.nextOrSame(DayOfWeek.SATURDAY));
+
+        // If numberOfWeeks is 0 or negative, fetch all data from the earliest workout
+        LocalDate startDate;
+        if (numberOfWeeks <= 0) {
+            // Find the earliest workout date
+            LocalDate earliestDate = workouts.stream()
+                    .map(Workout::getDatePerformed)
+                    .min(LocalDate::compareTo)
+                    .orElse(endDate);
+            // Align to the week start day
+            startDate = earliestDate.with(TemporalAdjusters.previousOrSame(weekStartDay));
+        } else {
+            startDate = endDate
+                    .minusWeeks(numberOfWeeks)
+                    .with(TemporalAdjusters.previousOrSame(weekStartDay));
+        }
 
         // Group workouts by date
         Map<LocalDate, List<Workout>> workoutsByDate = new TreeMap<>();
