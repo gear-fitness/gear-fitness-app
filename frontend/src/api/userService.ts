@@ -228,3 +228,28 @@ export async function updateUserProfile(
 
   return response.json();
 }
+
+/**
+ * Search users by username (partial match)
+ */
+export async function searchUsers(query: string) {
+  const authHeader = await getAuthHeader();
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/users/search?q=${encodeURIComponent(query)}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeader,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to search users: ${errorText}`);
+  }
+
+  return response.json();
+}

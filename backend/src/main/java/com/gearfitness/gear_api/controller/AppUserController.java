@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -126,5 +127,16 @@ public class AppUserController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
+    }
+     @GetMapping("/search")
+    public ResponseEntity<List<UserDTO>> searchUsers(
+        @RequestParam String q
+    ) {
+    if (q == null || q.trim().isEmpty()) {
+        return ResponseEntity.ok(List.of());
+    }
+    return ResponseEntity.ok(
+            userService.searchUsersByUsername(q.trim())
+    );
     }
 }
