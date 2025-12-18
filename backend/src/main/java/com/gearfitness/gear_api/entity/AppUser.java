@@ -30,13 +30,13 @@ public class AppUser {
     @Column(nullable = false, unique = true)
     private String username;
 
-    @Column(nullable = false)
+    @Column
     private Integer weightLbs;
 
-    @Column(nullable = false)
+    @Column
     private Integer heightInches;
 
-    @Column(nullable = false)
+    @Column
     private Integer age;
 
     @Column(nullable = false, unique = true)
