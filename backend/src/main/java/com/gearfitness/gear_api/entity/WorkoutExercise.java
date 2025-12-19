@@ -6,8 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -27,7 +27,8 @@ public class WorkoutExercise {
     @JoinColumn(name = "workout_id", nullable = false)
     private Workout workout;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    // CHANGED: fetch = FetchType.EAGER to load exercise details (name, bodyPart)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "exercise_id", nullable = false)
     private Exercise exercise;
 
@@ -38,8 +39,10 @@ public class WorkoutExercise {
     private String note;
 
     // Relationships
-    @OneToMany(mappedBy = "workoutExercise", cascade = CascadeType.ALL, orphanRemoval = true)
+    // CHANGED: fetch = FetchType.EAGER to load sets when exercise is loaded
+    // CHANGED: Using List instead of Set to maintain order
+    @OneToMany(mappedBy = "workoutExercise", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @OrderBy("setNumber ASC")
     @Builder.Default
-    private Set<WorkoutSet> workoutSets = new HashSet<>();
+    private List<WorkoutSet> workoutSets = new ArrayList<>();
 }

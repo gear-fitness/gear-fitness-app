@@ -1,108 +1,260 @@
-import { Button, Text } from "@react-navigation/elements";
-import { StyleSheet, View, FlatList, TouchableOpacity } from "react-native";
-import { useState, useEffect } from "react";
+import { Text } from "@react-navigation/elements";
+import {
+  StyleSheet,
+  View,
+  TouchableOpacity,
+  Animated,
+  Image,
+} from "react-native";
+import { useRef, useCallback } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { useColorScheme } from "react-native";
+
+import stopwatch from "../../assets/stopwatch.png";
+import { useWorkoutTimer } from "../../context/WorkoutContext";
 
 export function Workout() {
   const navigation = useNavigation();
-  const [minutes, setMinutes] = useState(0);
-  const [seconds, setSeconds] = useState(0);
-  const [isRunning, setIsRunning] = useState(false);
-  const [workouts, setWorkouts] = useState<Array<{ id: number; name: string }>>(
-    []
-  );
-  const toggleTimer = () => setIsRunning(!isRunning);
+  const scheme = useColorScheme();
+  const isDark = scheme === "dark";
 
-  const addExercise = () => {
-    const newExercise = {
-      id: Date.now(),
-      name: `Exercise ${workouts.length + 1}`,
-    };
-    setWorkouts([...workouts, newExercise]);
+  const { playerVisible, seconds, running, exercises } = useWorkoutTimer();
+
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  // Reset animations when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fadeAnim.setValue(1);
+      scaleAnim.setValue(1);
+    }, [fadeAnim, scaleAnim])
+  );
+
+  const handleStartPress = () => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1.15,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      navigation.navigate("ExerciseSelect");
+    });
   };
 
-  return (
-    <SafeAreaView
-      style={styles.safeArea}
-      edges={["top", "left", "right", "bottom"]}
-    >
-      <View style={styles.container}>
-        <View style={styles.topbar}>
-          <Text style={styles.dateSelect}>Select Day ▼</Text>
-          <TouchableOpacity onPress={toggleTimer}>
-            <Text style={styles.timer}>
-              {isRunning ? "⏸ Pause" : "▶ Start"}
+  const formatTime = (t: number) =>
+    `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(
+      2,
+      "0"
+    )}`;
+
+  // If workout is in progress, show workout status
+  if (playerVisible) {
+    return (
+      <SafeAreaView
+        style={[
+          styles.container,
+          { backgroundColor: isDark ? "black" : "white" },
+        ]}
+      >
+        <View style={styles.workoutInProgressContainer}>
+          <Text
+            style={[
+              styles.workoutInProgressTitle,
+              { color: isDark ? "#fff" : "#000" },
+            ]}
+          >
+            Workout in Progress
+          </Text>
+
+          <View style={styles.timerContainer}>
+            <Image
+              source={stopwatch}
+              style={[
+                styles.timerIcon,
+                { tintColor: isDark ? "#fff" : "#000" },
+              ]}
+            />
+            <Text
+              style={[styles.timerText, { color: isDark ? "#fff" : "#000" }]}
+            >
+              {formatTime(seconds)}
             </Text>
+          </View>
+
+          <View style={styles.statsContainer}>
+            <View style={styles.statItem}>
+              <Text
+                style={[styles.statValue, { color: isDark ? "#fff" : "#000" }]}
+              >
+                {exercises.length}
+              </Text>
+              <Text
+                style={[styles.statLabel, { color: isDark ? "#999" : "#666" }]}
+              >
+                Exercises
+              </Text>
+            </View>
+
+            <View style={styles.statItem}>
+              <Text
+                style={[styles.statValue, { color: isDark ? "#fff" : "#000" }]}
+              >
+                {exercises.reduce(
+                  (sum, ex) =>
+                    sum + ex.sets.filter((s) => s.reps && s.weight).length,
+                  0
+                )}
+              </Text>
+              <Text
+                style={[styles.statLabel, { color: isDark ? "#999" : "#666" }]}
+              >
+                Sets
+              </Text>
+            </View>
+          </View>
+
+          <Text
+            style={[
+              styles.instructionText,
+              { color: isDark ? "#999" : "#666" },
+            ]}
+          >
+            {running ? "Tap the mini player below to continue" : "Timer paused"}
+          </Text>
+
+          <TouchableOpacity
+            style={[styles.expandButton, { backgroundColor: "#007AFF" }]}
+            onPress={() => navigation.navigate("WorkoutSummary")}
+          >
+            <Text style={styles.expandButtonText}>Continue Workout</Text>
           </TouchableOpacity>
         </View>
+      </SafeAreaView>
+    );
+  }
 
-        <View style={styles.workoutList}>
-          <Text style={styles.sectionTitle}>Today's Workout</Text>
-          <FlatList
-            data={workouts}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={({ item }) => (
-              <Text style={styles.exercise}>{item.name}</Text>
-            )}
-          />
-        </View>
-        <View style={styles.buttonRow}>
-          <Button onPress={toggleTimer} style={styles.navButton}>
-            {isRunning ? "End Workout" : "Start Workout"}
-          </Button>
-
-          <Button
-            onPress={() => navigation.navigate("ExerciseSelect")}
-            style={styles.navButton}
-          >
-            Add Exercise
-          </Button>
-        </View>
-      </View>
+  // Default state: Show START button
+  return (
+    <SafeAreaView
+      style={[
+        styles.container,
+        { backgroundColor: isDark ? "black" : "white" },
+      ]}
+    >
+      <Animated.View
+        style={{
+          opacity: fadeAnim,
+          transform: [{ scale: scaleAnim }],
+        }}
+      >
+        <TouchableOpacity style={styles.startButton} onPress={handleStartPress}>
+          <Text style={styles.startText}>START</Text>
+        </TouchableOpacity>
+      </Animated.View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-  },
   container: {
     flex: 1,
-    padding: 20,
-  },
-  topbar: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 20,
-  },
-  dateSelect: { fontSize: 16, fontWeight: "500" },
-  timer: { fontSize: 16, fontWeight: "600" },
-  workoutList: { flex: 1 },
-  sectionTitle: { fontSize: 20, fontWeight: "700", marginBottom: 10 },
-  exercise: {
-    fontSize: 16,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderColor: "#eee",
-  },
-  buttonRow: {
-    flexDirection: "row",
-    justifyContent: "space-evenly",
+    justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 25,
   },
-  navButton: {
-    borderRadius: 10,
-    backgroundColor: "#E6F0FF",
-    borderColor: "#007AFF",
-    borderWidth: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 25,
+
+  // Blue circle
+  startButton: {
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: "#007AFF", // Blue
+    justifyContent: "center",
+    alignItems: "center",
   },
-  buttonText: {
+
+  startText: {
+    color: "white",
+    fontSize: 32,
+    fontWeight: "800",
+  },
+
+  // Workout in progress styles
+  workoutInProgressContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 40,
+  },
+
+  workoutInProgressTitle: {
+    fontSize: 28,
+    fontWeight: "800",
+    marginBottom: 30,
+  },
+
+  timerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 40,
+  },
+
+  timerIcon: {
+    width: 32,
+    height: 32,
+    marginRight: 12,
+  },
+
+  timerText: {
+    fontSize: 48,
+    fontWeight: "700",
+  },
+
+  statsContainer: {
+    flexDirection: "row",
+    gap: 60,
+    marginBottom: 30,
+  },
+
+  statItem: {
+    alignItems: "center",
+  },
+
+  statValue: {
+    fontSize: 36,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+
+  statLabel: {
+    fontSize: 14,
     fontWeight: "600",
+    textTransform: "uppercase",
+  },
+
+  instructionText: {
+    fontSize: 16,
+    textAlign: "center",
+    marginBottom: 30,
+  },
+
+  expandButton: {
+    paddingHorizontal: 40,
+    paddingVertical: 16,
+    borderRadius: 12,
+  },
+
+  expandButtonText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "700",
   },
 });

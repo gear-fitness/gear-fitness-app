@@ -7,10 +7,12 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -39,18 +41,24 @@ public class Workout {
     @Column(name = "duration_min")
     private Integer durationMin;
 
-    @Enumerated(EnumType.STRING)
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "workout_body_tags", joinColumns = @JoinColumn(name = "workout_id"))
     @Column(name = "body_tag")
-    private BodyTag bodyTag;
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private List<BodyTag> bodyTags = new ArrayList<>();
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     // Relationships
-    @OneToMany(mappedBy = "workout", cascade = CascadeType.ALL, orphanRemoval = true)
+    // CHANGED: fetch = FetchType.EAGER to load exercises when workout is loaded
+    // CHANGED: Using List instead of Set to maintain order
+    @OneToMany(mappedBy = "workout", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OrderBy("position ASC")
     @Builder.Default
-    private Set<WorkoutExercise> workoutExercises = new HashSet<>();
+    private List<WorkoutExercise> workoutExercises = new ArrayList<>();
 
     @OneToOne(mappedBy = "workout", cascade = CascadeType.ALL, orphanRemoval = true)
     private Post post;
