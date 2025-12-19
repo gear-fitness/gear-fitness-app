@@ -1,4 +1,12 @@
 .DS_Store
-Claude.md
 .vscode/settings.json
 *.code-workspace
+
+# Documentation files (keep README.md files visible)
+CLAUDE.md
+IMPLEMENTATION_SUMMARY.md
+SIGNUP_FEATURE_DOCUMENTATION.md
+BRANCH_CHANGES_SUMMARY.md
+DEVELOPMENT_TIMELINE.md
+DESIGN_SYSTEM_MIGRATION_PLAN.md
+backend/AUTHEXPLAINED.md
