@@ -31,30 +31,32 @@ export function SignUpProfileScreen() {
     const weight = parseInt(weightLbs);
     const userAge = parseInt(age);
 
-    if (!heightInches || !weightLbs || !age) {
-      Alert.alert("Missing Information", "Please fill in all fields");
-      return false;
+    if (heightInches) {
+      if (isNaN(height) || height < 24 || height > 96) {
+        Alert.alert(
+          "Invalid Height",
+          "Please enter a valid height between 24 and 96 inches (2-8 feet)"
+        );
+        return false;
+      }
     }
-
-    if (isNaN(height) || height < 24 || height > 96) {
-      Alert.alert(
-        "Invalid Height",
-        "Please enter a valid height between 24 and 96 inches (2-8 feet)"
-      );
-      return false;
+    if (weightLbs) {
+      if (isNaN(weight) || weight < 50 || weight > 500) {
+        Alert.alert(
+          "Invalid Weight",
+          "Please enter a valid weight between 50 and 500 lbs"
+        );
+        return false;
+      }
     }
-
-    if (isNaN(weight) || weight < 50 || weight > 500) {
-      Alert.alert(
-        "Invalid Weight",
-        "Please enter a valid weight between 50 and 500 lbs"
-      );
-      return false;
-    }
-
-    if (isNaN(userAge) || userAge < 13 || userAge > 120) {
-      Alert.alert("Invalid Age", "Please enter a valid age between 13 and 120");
-      return false;
+    if (age) {
+      if (isNaN(userAge) || userAge < 13 || userAge > 120) {
+        Alert.alert(
+          "Invalid Age",
+          "Please enter a valid age between 13 and 120"
+        );
+        return false;
+      }
     }
 
     return true;
@@ -69,9 +71,9 @@ export function SignUpProfileScreen() {
 
     try {
       const userData = await updateUserProfile(
-        parseInt(heightInches),
-        parseInt(weightLbs),
-        parseInt(age)
+        heightInches ? parseInt(heightInches) : undefined,
+        weightLbs ? parseInt(weightLbs) : undefined,
+        age ? parseInt(age) : undefined
       );
 
       console.log("Profile updated successfully:", userData);
@@ -160,7 +162,7 @@ export function SignUpProfileScreen() {
 
         <View style={styles.inputContainer}>
           <Text style={[styles.label, { color: colors.text }]}>
-            Height (inches)
+            Height (inches) - optional
           </Text>
           <TextInput
             style={[
@@ -178,7 +180,7 @@ export function SignUpProfileScreen() {
 
         <View style={styles.inputContainer}>
           <Text style={[styles.label, { color: colors.text }]}>
-            Weight (lbs)
+            Weight (lbs) - optional
           </Text>
           <TextInput
             style={[
@@ -195,7 +197,9 @@ export function SignUpProfileScreen() {
         </View>
 
         <View style={styles.inputContainer}>
-          <Text style={[styles.label, { color: colors.text }]}>Age</Text>
+          <Text style={[styles.label, { color: colors.text }]}>
+            Age - optional
+          </Text>
           <TextInput
             style={[
               styles.input,

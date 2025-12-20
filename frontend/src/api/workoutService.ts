@@ -5,6 +5,7 @@
 
 import { getAuthHeader } from "../utils/auth";
 import {
+  DailyVolumeData,
   WeeklyVolumeData,
   Workout,
   WorkoutDetail,
@@ -100,6 +101,35 @@ export async function getWeeklyVolume(
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(`Failed to fetch weekly volume: ${errorText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Get daily volume data for a user
+ */
+export async function getDailyVolume(
+  userId: string,
+  weeks: number = 2,
+  weekStartDay: string = 'SUNDAY'
+): Promise<DailyVolumeData[]> {
+  const authHeader = await getAuthHeader();
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/workouts/user/${userId}/daily-volume?weeks=${weeks}&weekStartDay=${weekStartDay}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeader,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to fetch daily volume: ${errorText}`);
   }
 
   return response.json();

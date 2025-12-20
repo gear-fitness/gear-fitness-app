@@ -36,7 +36,10 @@ export function LoginScreen() {
 
         // Navigate to profile setup if new user, otherwise go to home
         if (newUser) {
-          navigation.navigate("SignUpProfile");
+          navigation.reset({
+            index: 0,
+            routes: [{ name: "SignUpProfile" }],
+          });
         } else {
           // Reset to HomeTabs to prevent back navigation to Login
           navigation.reset({
