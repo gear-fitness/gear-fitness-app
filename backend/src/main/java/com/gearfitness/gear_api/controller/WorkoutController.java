@@ -5,7 +5,6 @@ import com.gearfitness.gear_api.dto.WeeklyVolumeDTO;
 import com.gearfitness.gear_api.dto.WorkoutDTO;
 import com.gearfitness.gear_api.dto.WorkoutDetailDTO;
 import com.gearfitness.gear_api.dto.WorkoutSubmissionDTO;
-import com.gearfitness.gear_api.entity.AppUser;
 import com.gearfitness.gear_api.entity.Workout;
 import com.gearfitness.gear_api.security.JwtService;
 import com.gearfitness.gear_api.service.WorkoutService;
@@ -13,7 +12,6 @@ import com.gearfitness.gear_api.service.WorkoutService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.DayOfWeek;
@@ -24,7 +22,6 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/workouts")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class WorkoutController {
 
     private final WorkoutService workoutService;
