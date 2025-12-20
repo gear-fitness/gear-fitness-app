@@ -1,5 +1,5 @@
 import { Text } from "@react-navigation/elements";
-import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { useNavigation, useFocusEffect, useTheme } from "@react-navigation/native";
 import {
   StyleSheet,
   View,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  useColorScheme,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BarChart } from "react-native-gifted-charts";
@@ -22,13 +23,16 @@ export function Home() {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
+  const { colors } = useTheme();
+  const colorScheme = useColorScheme();
+  const isDarkMode = colorScheme === 'dark';
   const [dailyData, setDailyData] = useState<DailyVolumeData[]>([]);
   const [allDailyData, setAllDailyData] = useState<DailyVolumeData[]>([]);
   const [prevWeekAvg, setPrevWeekAvg] = useState<number>(0);
   const [recentWorkouts, setRecentWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
   const [weekOffset, setWeekOffset] = useState<number>(0); // 0 = current week, -1 = previous week, etc.
-  const [weekDateRange, setWeekDateRange] = useState<string>('');
+  const [weekDateRange, setWeekDateRange] = useState<string>("");
 
   // Fetch data on initial mount
   useEffect(() => {
@@ -58,7 +62,7 @@ export function Home() {
 
     try {
       // Fetch all workout data (weeks = 0 means fetch all from first workout)
-      const data = await getDailyVolume(user.userId, 0, 'SUNDAY');
+      const data = await getDailyVolume(user.userId, 0, "SUNDAY");
       setAllDailyData(data);
 
       // Initialize with current week (offset 0)
@@ -86,14 +90,17 @@ export function Home() {
     const totalDays = allData.length;
     const weeksAvailable = Math.floor(totalDays / 7);
     const clampedOffset = Math.max(-(weeksAvailable - 1), Math.min(0, offset));
-    const endIndex = totalDays + (clampedOffset * 7);
+    const endIndex = totalDays + clampedOffset * 7;
     const startIndex = endIndex - 7;
     return allData.slice(startIndex, endIndex);
   };
 
-  const getPreviousWeekAverage = (allData: DailyVolumeData[], offset: number) => {
+  const getPreviousWeekAverage = (
+    allData: DailyVolumeData[],
+    offset: number
+  ) => {
     const totalDays = allData.length;
-    const prevWeekEndIndex = totalDays + (offset * 7) - 7;
+    const prevWeekEndIndex = totalDays + offset * 7 - 7;
     const prevWeekStartIndex = prevWeekEndIndex - 7;
     if (prevWeekStartIndex < 0) return 0;
     const prevWeek = allData.slice(prevWeekStartIndex, prevWeekEndIndex);
@@ -102,13 +109,24 @@ export function Home() {
   };
 
   const getWeekDateRange = (weekData: DailyVolumeData[]) => {
-    if (weekData.length === 0) return '';
+    if (weekData.length === 0) return "";
     // Parse dates as local dates to avoid timezone issues
-    const [startYear, startMonth, startDay] = weekData[0].date.split('-').map(Number);
-    const [endYear, endMonth, endDay] = weekData[weekData.length - 1].date.split('-').map(Number);
+    const [startYear, startMonth, startDay] = weekData[0].date
+      .split("-")
+      .map(Number);
+    const [endYear, endMonth, endDay] = weekData[weekData.length - 1].date
+      .split("-")
+      .map(Number);
     const startDate = new Date(startYear, startMonth - 1, startDay);
     const endDate = new Date(endYear, endMonth - 1, endDay);
-    return `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+    return `${startDate.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    })} - ${endDate.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })}`;
   };
 
   const updateWeekData = (data: DailyVolumeData[], offset: number) => {
@@ -146,9 +164,9 @@ export function Home() {
 
     return dailyData.map((item, index) => ({
       value: item.totalVolumeLbs,
-      label: ['S', 'M', 'T', 'W', 'T', 'F', 'S'][index],
-      frontColor: '#007AFF',
-      gradientColor: '#5AC8FA',
+      label: ["S", "M", "T", "W", "T", "F", "S"][index],
+      frontColor: "#007AFF",
+      gradientColor: "#5AC8FA",
     }));
   };
 
@@ -170,19 +188,19 @@ export function Home() {
       fontWeight: "700",
       alignSelf: "center",
       letterSpacing: -0.5,
-      color: "#1a1a1a",
+      color: isDarkMode ? "#FFF" : "#1a1a1a",
     },
     sectionTitle: {
       fontSize: 18,
       fontWeight: "700",
       marginTop: 4,
-      color: "#333",
+      color: isDarkMode ? "#FFF" : "#333",
       letterSpacing: -0.3,
     },
     chart: {
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: "white",
+      backgroundColor: isDarkMode ? colors.card : "white",
       width: "100%",
       borderRadius: 16,
       marginVertical: 8,
@@ -196,7 +214,7 @@ export function Home() {
     chartTitle: {
       fontSize: 16,
       fontWeight: "700",
-      color: "#333",
+      color: isDarkMode ? "#FFF" : "#333",
       marginBottom: 2,
       alignSelf: "center",
       letterSpacing: 0.3,
@@ -211,7 +229,7 @@ export function Home() {
       paddingBottom: 20,
     },
     activityCard: {
-      backgroundColor: "white",
+      backgroundColor: isDarkMode ? colors.card : "white",
       padding: 14,
       borderRadius: 12,
       shadowColor: "#000",
@@ -224,12 +242,43 @@ export function Home() {
       fontSize: 15,
       fontWeight: "600",
       marginBottom: 3,
-      color: "#1a1a1a",
+      color: isDarkMode ? "#FFF" : "#1a1a1a",
     },
     cardSubtitle: {
       fontSize: 13,
-      color: "#777",
+      color: isDarkMode ? "#AAA" : "#777",
       fontWeight: "400",
+    },
+    cardContent: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    cardLeft: {
+      flexDirection: "row",
+      alignItems: "center",
+      flex: 1,
+    },
+    cardIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 10,
+      backgroundColor: isDarkMode ? "#1C3A5C" : "#F0F4FF",
+      justifyContent: "center",
+      alignItems: "center",
+      marginRight: 12,
+    },
+    cardIconText: {
+      fontSize: 20,
+    },
+    cardInfo: {
+      flex: 1,
+    },
+    cardChevron: {
+      fontSize: 24,
+      color: "#C7C7CC",
+      fontWeight: "300",
+      marginLeft: 8,
     },
     activityCardsTitle: {
       flexDirection: "row",
@@ -257,23 +306,23 @@ export function Home() {
       width: 32,
       height: 32,
       borderRadius: 8,
-      backgroundColor: "#f5f5f5",
+      backgroundColor: isDarkMode ? "#333" : "#f5f5f5",
       justifyContent: "center",
       alignItems: "center",
     },
     navButtonDisabled: {
-      backgroundColor: "#fafafa",
+      backgroundColor: isDarkMode ? "#222" : "#fafafa",
       opacity: 0.4,
     },
     navButtonText: {
-      color: "#333",
+      color: isDarkMode ? "#FFF" : "#333",
       fontSize: 18,
       fontWeight: "600",
     },
     weekRangeText: {
       fontSize: 13,
       fontWeight: "600",
-      color: "#666",
+      color: isDarkMode ? "#FFF" : "#666",
       flex: 1,
       textAlign: "center",
       marginHorizontal: 12,
@@ -294,7 +343,7 @@ export function Home() {
     },
     prevWeekAvgText: {
       fontSize: 12,
-      color: "#888",
+      color: isDarkMode ? "#FFF" : "#888",
       fontWeight: "400",
       letterSpacing: 0.1,
     },
@@ -310,10 +359,13 @@ export function Home() {
           <View style={styles.weekNavigation}>
             <TouchableOpacity
               onPress={goToPreviousWeek}
-              disabled={weekOffset <= -(Math.floor(allDailyData.length / 7) - 1)}
+              disabled={
+                weekOffset <= -(Math.floor(allDailyData.length / 7) - 1)
+              }
               style={[
                 styles.navButton,
-                weekOffset <= -(Math.floor(allDailyData.length / 7) - 1) && styles.navButtonDisabled
+                weekOffset <= -(Math.floor(allDailyData.length / 7) - 1) &&
+                  styles.navButtonDisabled,
               ]}
             >
               <Text style={styles.navButtonText}>←</Text>
@@ -324,7 +376,10 @@ export function Home() {
             <TouchableOpacity
               onPress={goToNextWeek}
               disabled={weekOffset >= 0}
-              style={[styles.navButton, weekOffset >= 0 && styles.navButtonDisabled]}
+              style={[
+                styles.navButton,
+                weekOffset >= 0 && styles.navButtonDisabled,
+              ]}
             >
               <Text style={styles.navButtonText}>→</Text>
             </TouchableOpacity>
@@ -335,7 +390,7 @@ export function Home() {
             </View>
           ) : dailyData.length === 0 ? (
             <View style={styles.loadingContainer}>
-              <Text style={{ color: '#666' }}>No workout data available</Text>
+              <Text style={{ color: "#666" }}>No workout data available</Text>
             </View>
           ) : (
             <BarChart
@@ -356,17 +411,21 @@ export function Home() {
               yAxisThickness={0}
               xAxisThickness={0}
               hideRules={true}
-              yAxisTextStyle={{ color: '#999', fontSize: 10 }}
-              xAxisLabelTextStyle={{ color: '#666', fontSize: 11, fontWeight: '500' }}
+              yAxisTextStyle={{ color: isDarkMode ? "#FFF" : "#999", fontSize: 10 }}
+              xAxisLabelTextStyle={{
+                color: isDarkMode ? "#FFF" : "#666",
+                fontSize: 11,
+                fontWeight: "500",
+              }}
               formatYLabel={(value: string) => formatVolume(Number(value))}
               showReferenceLine1={prevWeekAvg > 0}
               referenceLine1Position={prevWeekAvg}
               referenceLine1Config={{
-                color: '#FF6B6B',
+                color: "#FF6B6B",
                 thickness: 1.5,
                 dashWidth: 5,
                 dashGap: 5,
-                labelText: '',
+                labelText: "",
                 labelTextStyle: { fontSize: 0 },
               }}
             />
@@ -399,18 +458,36 @@ export function Home() {
               <TouchableOpacity
                 key={workout.workoutId}
                 style={styles.activityCard}
+                activeOpacity={0.7}
                 onPress={() => {
                   navigation.getParent()?.navigate("DetailedHistory", {
                     workoutId: workout.workoutId,
                   });
                 }}
               >
-                <Text style={styles.cardTitle}>{workout.name}</Text>
-                <Text style={styles.cardSubtitle}>
-                  {workout.datePerformed}
-                  {workout.durationMin && ` • ${workout.durationMin} min`}
-                  {workout.bodyTag && ` • ${workout.bodyTag}`}
-                </Text>
+                <View style={styles.cardContent}>
+                  <View style={styles.cardLeft}>
+                    <View style={styles.cardIcon}>
+                      <Text style={styles.cardIconText}>🏋️</Text>
+                    </View>
+                    <View style={styles.cardInfo}>
+                      <Text style={styles.cardTitle}>{workout.name}</Text>
+                      <Text style={styles.cardSubtitle}>
+                        {new Date(workout.datePerformed).toLocaleDateString(
+                          "en-US",
+                          {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          }
+                        )}
+                        {workout.durationMin && ` • ${workout.durationMin} min`}
+                        {workout.bodyTag && ` • ${workout.bodyTag}`}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.cardChevron}>›</Text>
+                </View>
               </TouchableOpacity>
             ))
           ) : (

@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   TextInput,
   Image,
+  useColorScheme,
 } from "react-native";
 import { Calendar } from "react-native-calendars";
 import React, { useState, useEffect } from "react";
@@ -32,6 +33,8 @@ export function History() {
   const { colors } = useTheme();
   const navigation = useNavigation<NavigationProp>();
   const { user } = useAuth();
+  const colorScheme = useColorScheme();
+  const isDarkMode = colorScheme === 'dark';
 
   const [markedDates, setMarkedDates] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
@@ -94,16 +97,31 @@ export function History() {
 
   const renderItem = ({ item }: { item: Workout }) => (
     <TouchableOpacity
-      style={styles.button}
+      style={[styles.button, { backgroundColor: isDarkMode ? colors.card : "white" }]}
+      activeOpacity={0.7}
       onPress={() =>
         navigation.getParent()?.navigate("DetailedHistory", {
           workoutId: item.workoutId,
         })
       }
     >
-      <Text style={styles.buttonText}>
-        {item.name} — {item.datePerformed}
-      </Text>
+      <View style={styles.cardContent}>
+        <View style={styles.cardInfo}>
+          <Text style={[styles.cardTitle, { color: isDarkMode ? "#FFF" : "#1a1a1a" }]}>
+            {item.name}
+          </Text>
+          <Text style={[styles.cardSubtitle, { color: isDarkMode ? "#AAA" : "#777" }]}>
+            {new Date(item.datePerformed).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric'
+            })}
+            {item.durationMin && ` • ${item.durationMin} min`}
+            {item.bodyTag && ` • ${item.bodyTag}`}
+          </Text>
+        </View>
+        <Text style={styles.cardChevron}>›</Text>
+      </View>
     </TouchableOpacity>
   );
 
@@ -164,17 +182,43 @@ const styles = StyleSheet.create({
     maxHeight: 350,
   },
   button: {
-    backgroundColor: "#1877F2",
     marginHorizontal: 20,
-    marginVertical: 8,
-    padding: 15,
-    borderRadius: 10,
-    alignItems: "center",
+    marginVertical: 5,
+    padding: 14,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
   buttonText: {
     color: "white",
     fontSize: 16,
     fontWeight: "600",
+  },
+  cardContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  cardInfo: {
+    flex: 1,
+  },
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    marginBottom: 3,
+  },
+  cardSubtitle: {
+    fontSize: 13,
+    fontWeight: "400",
+  },
+  cardChevron: {
+    fontSize: 24,
+    color: "#C7C7CC",
+    fontWeight: "300",
+    marginLeft: 8,
   },
   searchContainer: {
     flexDirection: "row",

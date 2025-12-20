@@ -38,7 +38,9 @@ public class WorkoutService {
 
     @Transactional(readOnly = true)
     public List<Workout> getWorkoutsByUser(UUID userId) {
-        return workoutRepository.findByUser_UserId(userId);
+        AppUser user = appUserRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+        return workoutRepository.findByUserOrderByDatePerformedDesc(user);
     }
 
     @Transactional(readOnly = true)
