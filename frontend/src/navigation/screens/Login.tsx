@@ -41,6 +41,7 @@ export function LoginScreen() {
             routes: [{ name: "SignUpProfile" }],
           });
         } else {
+          // Reset to HomeTabs to prevent back navigation to Login
           navigation.reset({
             index: 0,
             routes: [{ name: "HomeTabs" }],
