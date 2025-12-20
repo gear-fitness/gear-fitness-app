@@ -38,7 +38,11 @@ export function LoginScreen() {
         if (newUser) {
           navigation.navigate("SignUpProfile");
         } else {
-          navigation.navigate("HomeTabs");
+          // Reset to HomeTabs to prevent back navigation to Login
+          navigation.reset({
+            index: 0,
+            routes: [{ name: "HomeTabs" }],
+          });
         }
       }
     } catch (error) {

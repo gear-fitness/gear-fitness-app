@@ -33,6 +33,7 @@ import { WorkoutComplete } from "./screens/WorkoutComplete";
 import { LoginScreen } from "./screens/Login";
 import { SignUpProfileScreen } from "./screens/SignUpProfile";
 import { ExerciseChat } from "./screens/ExerciseChat";
+import { AuthLoadingScreen } from "./screens/AuthLoading";
 
 /* ---------------------- TABS ---------------------- */
 
@@ -116,9 +117,13 @@ const HomeTabs = createBottomTabNavigator({
 /* ---------------------- STACK (MODALS) ---------------------- */
 
 const RootStack = createNativeStackNavigator({
-  initialRouteName: "Login",
+  initialRouteName: "AuthLoading",
 
   screens: {
+    AuthLoading: {
+      screen: AuthLoadingScreen,
+      options: { headerShown: false },
+    },
     Login: {
       screen: LoginScreen,
       options: { headerShown: false },
@@ -226,6 +231,7 @@ export type RootStackParamList = StaticParamList<typeof RootStack>;
 declare global {
   namespace ReactNavigation {
     interface RootParamList {
+      AuthLoading: undefined;
       Login: undefined;
       HomeTabs: undefined;
       History: undefined;

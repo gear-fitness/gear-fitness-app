@@ -75,7 +75,11 @@ export function SignUpProfileScreen() {
       );
 
       console.log("Profile updated successfully:", userData);
-      navigation.navigate("HomeTabs");
+      // Reset to HomeTabs to prevent back navigation to profile setup
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "HomeTabs" }],
+      });
     } catch (error) {
       console.error("Profile update error:", error);
       Alert.alert("Error", "An error occurred while updating your profile");
