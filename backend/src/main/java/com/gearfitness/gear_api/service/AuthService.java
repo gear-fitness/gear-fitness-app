@@ -57,9 +57,9 @@ public class AuthService {
                 .username(username)
                 .passwordHash("") // OAuth users don't have passwords
                 .isPrivate(false)
-                .weightLbs(0) // Temporary default - user will set in profile setup
-                .heightInches(0) // Temporary default - user will set in profile setup
-                .age(0) // Temporary default - user will set in profile setup
+                .weightLbs(null) // Temporary default - user will set in profile setup
+                .heightInches(null) // Temporary default - user will set in profile setup
+                .age(null) // Temporary default - user will set in profile setup
                 .build();
 
         return userRepository.save(newUser);
