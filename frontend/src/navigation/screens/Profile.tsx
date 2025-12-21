@@ -1,376 +1,291 @@
+import React, { useState, useCallback } from "react";
 import {
   StyleSheet,
-  TouchableOpacity,
   View,
+  ScrollView,
+  TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Image,
 } from "react-native";
+import { Text, Button } from "@react-navigation/elements";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Button, Text } from "@react-navigation/elements";
-import setting from "../../assets/setting.png";
-import avatar from "../../assets/avatar.png";
-import { Image, ScrollView } from "react-native";
-import { useNavigation } from "@react-navigation/native";
-import React, { useState, useEffect } from "react";
-import { getCurrentUserProfile, getUserFollowers } from "../../api/userService";
-import { UserProfile, FollowerUser } from "../../api/types";
+import {
+  useNavigation,
+  useRoute,
+  useFocusEffect,
+} from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
+
+import avatar from "../../assets/avatar.png";
+import {
+  getCurrentUserProfile,
+  getUserProfile,
+  getUserFollowers,
+  followUser,
+  unfollowUser,
+} from "../../api/userService";
+import { UserProfile, FollowerUser } from "../../api/types";
 
 export function Profile() {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
+  const route = useRoute<any>();
 
-  // State management
+  const usernameParam: string | undefined = route.params?.username;
+
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [followers, setFollowers] = useState<FollowerUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch profile data on mount
-  useEffect(() => {
-    loadProfileData();
-  }, []);
+  /* ---------------- LOAD PROFILE ON FOCUS ---------------- */
 
-  const loadProfileData = async () => {
+  const loadProfile = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Fetch profile data
-      const profileData = await getCurrentUserProfile();
+      const profileData = usernameParam
+        ? await getUserProfile(usernameParam)
+        : await getCurrentUserProfile();
+
       setProfile(profileData);
 
-      // Fetch followers
       const followersData = await getUserFollowers(profileData.userId);
       setFollowers(followersData);
-    } catch (err) {
-      console.error("Error loading profile:", err);
-      setError(err instanceof Error ? err.message : "Failed to load profile");
-      Alert.alert("Error", "Failed to load profile data. Please try again.");
+    } catch {
+      setError("Failed to load profile");
+      Alert.alert("Error", "Failed to load profile");
     } finally {
       setLoading(false);
     }
   };
 
-  // Format height from inches to feet and inches
-  const formatHeight = (heightInches: number | null): string => {
-    if (!heightInches) return "N/A";
-    const feet = Math.floor(heightInches / 12);
-    const inches = heightInches % 12;
-    return `${feet}' ${inches}"`;
+  useFocusEffect(
+    useCallback(() => {
+      loadProfile();
+    }, [usernameParam])
+  );
+
+  /* ---------------- FOLLOW / UNFOLLOW ---------------- */
+
+  const handleFollowToggle = async () => {
+    if (!profile) return;
+
+    try {
+      if (profile.isFollowing) {
+        await unfollowUser(profile.userId);
+      } else {
+        await followUser(profile.userId);
+      }
+
+      loadProfile(); // refresh counts immediately
+    } catch {
+      Alert.alert("Error", "Failed to update follow status");
+    }
   };
 
-  const styles = StyleSheet.create({
-    scrollContainer: {
-      flex: 1,
-      paddingTop: insets.top + 20,
-      paddingBottom: insets.bottom,
-      paddingLeft: insets.left,
-      paddingRight: insets.right,
-    },
-    container: {
-      flex: 1,
-      gap: 10,
-      paddingHorizontal: 16,
-    },
-    upperSection: {
-      display: "flex",
-      flexDirection: "row",
-      justifyContent: "space-between",
-    },
-    profilePicture: {
-      width: 100,
-      height: 100,
-      borderRadius: 50,
-      backgroundColor: "#ccc",
-    },
-    badges: {
-      flexDirection: "row",
-      gap: 8,
-      marginTop: 10,
-    },
-    badge: {
-      width: 50,
-      height: 50,
-      backgroundColor: "#333",
-      borderRadius: 4,
-    },
-    profileCard: {
-      borderRadius: 8,
-      padding: 16,
-      marginTop: 10,
-    },
-    username: {
-      fontSize: 24,
-      fontWeight: "bold",
-    },
-    handle: {
-      fontSize: 14,
-      color: "#999",
-      marginBottom: 10,
-    },
-    bio: {
-      fontSize: 14,
-      marginBottom: 16,
-    },
-    statsRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      marginBottom: 16,
-    },
-    statItem: {
-      flex: 1,
-    },
-    statLabel: {
-      fontSize: 12,
-      fontWeight: "bold",
-      marginBottom: 4,
-    },
-    statValue: {
-      fontSize: 14,
-      color: "#999",
-    },
-    friendsSection: {
-      marginTop: 16,
-    },
-    friendsTitle: {
-      fontSize: 14,
-      fontWeight: "bold",
-      marginBottom: 8,
-    },
-    friendsRow: {
-      flexDirection: "row",
-      gap: 16,
-    },
-    friend: {
-      width: 50,
-      height: 50,
-      borderRadius: 25,
-      backgroundColor: "#ccc",
-    },
-    weekRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      marginTop: 16,
-      marginBottom: 16,
-    },
-    dayItem: {
-      alignItems: "center",
-      flex: 1,
-    },
-    dayLabel: {
-      fontSize: 12,
-      marginBottom: 4,
-    },
-    dayCircle: {
-      width: 30,
-      height: 30,
-      borderRadius: 15,
-      backgroundColor: "#eee",
-    },
-    dayActive: {
-      backgroundColor: "#ffc107",
-    },
-    progressSection: {
-      marginTop: 16,
-    },
-    progressTitle: {
-      fontSize: 14,
-      fontWeight: "bold",
-      marginBottom: 8,
-    },
-    chartArea: {
-      height: 150,
-      flexDirection: "row",
-      alignItems: "flex-end",
-      justifyContent: "space-between",
-      gap: 4,
-    },
-    bar: {
-      flex: 1,
-      backgroundColor: "#0066cc",
-      borderRadius: 4,
-    },
-  });
+  const formatHeight = (h: number | null) =>
+    h ? `${Math.floor(h / 12)}' ${h % 12}"` : "N/A";
 
-  // Show loading state
+  /* ---------------- STATES ---------------- */
+
   if (loading) {
     return (
-      <View
-        style={[
-          styles.scrollContainer,
-          { justifyContent: "center", alignItems: "center" },
-        ]}
-      >
-        <ActivityIndicator size="large" color="#0066cc" />
-        <Text style={{ marginTop: 10 }}>Loading profile...</Text>
+      <View style={[styles.center, { paddingTop: insets.top }]}>
+        <ActivityIndicator size="large" />
+        <Text>Loading profile...</Text>
       </View>
     );
   }
 
-  // Show error state
   if (error || !profile) {
     return (
-      <View
-        style={[
-          styles.scrollContainer,
-          { justifyContent: "center", alignItems: "center", padding: 20 },
-        ]}
-      >
-        <Text style={{ fontSize: 18, marginBottom: 10 }}>
-          Failed to load profile
-        </Text>
-        <Button onPress={loadProfileData}>Retry</Button>
+      <View style={[styles.center, { paddingTop: insets.top }]}>
+        <Text>Failed to load profile</Text>
+        <Button onPress={loadProfile}>Retry</Button>
       </View>
     );
   }
 
+  /* ---------------- UI ---------------- */
+
   return (
-    <ScrollView style={styles.scrollContainer}>
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={{
+        paddingTop: insets.top,
+        paddingBottom: 40,
+      }}
+    >
       <View style={styles.container}>
-        <View style={styles.upperSection}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 20 }}>
-            <View>
-              <Image source={avatar} style={styles.profilePicture} />
+        {/* HEADER */}
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <View style={styles.avatarWrapper}>
+              <Image source={avatar} style={styles.avatar} />
             </View>
+
             <View>
               <Text style={styles.username}>{profile.username}</Text>
               <Text style={styles.handle}>@{profile.username}</Text>
-            </View>
-          </View>
 
-          <TouchableOpacity
-            onPress={() => {
-              navigation.navigate("Settings");
-            }}
-          >
-            <Ionicons
-              name="settings-outline"
-              size={40}
-              color="#666"
-              style={{ marginRight: 10, marginTop: 10 }}
-            />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.profileCard}>
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Weight</Text>
-              <Text style={styles.statValue}>
-                {profile.weightLbs ? `${profile.weightLbs}lbs` : "N/A"}
-              </Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Height</Text>
-              <Text style={styles.statValue}>
-                {formatHeight(profile.heightInches)}
-              </Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Age</Text>
-              <Text style={styles.statValue}>{profile.age || "N/A"}</Text>
-            </View>
-          </View>
-
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Completed Workouts</Text>
-              <Text style={styles.statValue}>
-                {profile.workoutStats.totalWorkouts}
-              </Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Followers</Text>
-              <Text style={styles.statValue}>{profile.followersCount}</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Following</Text>
-              <Text style={styles.statValue}>{profile.followingCount}</Text>
-            </View>
-          </View>
-
-          <View style={styles.friendsSection}>
-            <Text style={styles.friendsTitle}>
-              Friends ({followers.length})
-            </Text>
-            <View style={styles.friendsRow}>
-              {followers.slice(0, 5).map((follower) => (
-                <View key={follower.userId} style={styles.friend}></View>
-              ))}
-              {followers.length === 0 && (
-                <Text style={styles.statValue}>No followers yet</Text>
+              {usernameParam && (
+                <TouchableOpacity
+                  style={[
+                    styles.followButton,
+                    {
+                      backgroundColor: profile.isFollowing
+                        ? "#e5e5e5"
+                        : "#007AFF",
+                    },
+                  ]}
+                  onPress={handleFollowToggle}
+                >
+                  <Text
+                    style={{
+                      color: profile.isFollowing ? "#000" : "#fff",
+                      fontWeight: "600",
+                    }}
+                  >
+                    {profile.isFollowing ? "Unfollow" : "Follow"}
+                  </Text>
+                </TouchableOpacity>
               )}
             </View>
           </View>
 
-          <View style={styles.weekRow}>
-            <View style={styles.dayItem}>
-              <Text style={styles.dayLabel}>Mon</Text>
-              <View
-                style={[
-                  styles.dayCircle,
-                  profile.workoutStats.weeklySplit.Mon > 0 && styles.dayActive,
-                ]}
-              ></View>
-            </View>
-            <View style={styles.dayItem}>
-              <Text style={styles.dayLabel}>Tue</Text>
-              <View
-                style={[
-                  styles.dayCircle,
-                  profile.workoutStats.weeklySplit.Tue > 0 && styles.dayActive,
-                ]}
-              ></View>
-            </View>
-            <View style={styles.dayItem}>
-              <Text style={styles.dayLabel}>Wed</Text>
-              <View
-                style={[
-                  styles.dayCircle,
-                  profile.workoutStats.weeklySplit.Wed > 0 && styles.dayActive,
-                ]}
-              ></View>
-            </View>
-            <View style={styles.dayItem}>
-              <Text style={styles.dayLabel}>Thu</Text>
-              <View
-                style={[
-                  styles.dayCircle,
-                  profile.workoutStats.weeklySplit.Thu > 0 && styles.dayActive,
-                ]}
-              ></View>
-            </View>
-            <View style={styles.dayItem}>
-              <Text style={styles.dayLabel}>Fri</Text>
-              <View
-                style={[
-                  styles.dayCircle,
-                  profile.workoutStats.weeklySplit.Fri > 0 && styles.dayActive,
-                ]}
-              ></View>
-            </View>
-            <View style={styles.dayItem}>
-              <Text style={styles.dayLabel}>Sat</Text>
-              <View
-                style={[
-                  styles.dayCircle,
-                  profile.workoutStats.weeklySplit.Sat > 0 && styles.dayActive,
-                ]}
-              ></View>
-            </View>
-            <View style={styles.dayItem}>
-              <Text style={styles.dayLabel}>Sun</Text>
-              <View
-                style={[
-                  styles.dayCircle,
-                  profile.workoutStats.weeklySplit.Sun > 0 && styles.dayActive,
-                ]}
-              ></View>
-            </View>
+          {!usernameParam && (
+            <TouchableOpacity onPress={() => navigation.navigate("Settings")}>
+              <Ionicons name="settings-outline" size={28} color="#777" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* STATS */}
+        <View style={styles.statsSection}>
+          <View style={styles.statsRow}>
+            <Stat
+              label="Weight"
+              value={profile.weightLbs ? `${profile.weightLbs}lbs` : "N/A"}
+            />
+            <Stat label="Height" value={formatHeight(profile.heightInches)} />
+            <Stat label="Age" value={profile.age ?? "N/A"} />
           </View>
+
+          <View style={styles.statsRow}>
+            <Stat label="Workouts" value={profile.workoutStats.totalWorkouts} />
+            <Stat label="Followers" value={profile.followersCount} />
+            <Stat label="Following" value={profile.followingCount} />
+          </View>
+        </View>
+
+        {/* FRIENDS */}
+        <View style={styles.friendsSection}>
+          <Text style={styles.sectionTitle}>Friends</Text>
+
+          {followers.length === 0 ? (
+            <Text style={styles.muted}>No followers yet</Text>
+          ) : (
+            <View style={styles.friendsRow}>
+              {followers.slice(0, 5).map((f) => (
+                <View key={f.userId} style={styles.friend} />
+              ))}
+            </View>
+          )}
         </View>
       </View>
     </ScrollView>
   );
 }
+
+/* ---------------- SMALL COMPONENT ---------------- */
+
+function Stat({ label, value }: { label: string; value: any }) {
+  return (
+    <View style={{ flex: 1 }}>
+      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={styles.statValue}>{value}</Text>
+    </View>
+  );
+}
+
+/* ---------------- STYLES ---------------- */
+
+const styles = StyleSheet.create({
+  scroll: { flex: 1 },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+
+  container: { padding: 16 },
+
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+
+  avatarWrapper: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: "#e5e5e5",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  avatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+  },
+
+  username: { fontSize: 24, fontWeight: "bold" },
+  handle: { color: "#888", marginBottom: 6 },
+
+  followButton: {
+    marginTop: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 18,
+    borderRadius: 6,
+    alignSelf: "flex-start",
+  },
+
+  statsSection: { marginTop: 24 },
+
+  statsRow: {
+    flexDirection: "row",
+    marginBottom: 16,
+  },
+
+  statLabel: { fontSize: 12, fontWeight: "600" },
+  statValue: { color: "#777" },
+
+  friendsSection: { marginTop: 24 },
+
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+
+  friendsRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+
+  friend: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#ccc",
+  },
+
+  muted: { color: "#777" },
+});

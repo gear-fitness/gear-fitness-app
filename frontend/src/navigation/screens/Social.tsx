@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import {
   View,
   FlatList,
@@ -6,17 +6,19 @@ import {
   ActivityIndicator,
   RefreshControl,
   TouchableOpacity,
-  Alert,
   TextInput,
 } from "react-native";
 import { Text } from "@react-navigation/elements";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme, useNavigation } from "@react-navigation/native";
+import {
+  useTheme,
+  useNavigation,
+  useFocusEffect,
+} from "@react-navigation/native";
 
 import { socialFeedApi, FeedPost } from "../../api/socialFeedApi";
 import { searchUsers } from "../../api/userService";
-import { FollowModal } from "../../components/FollowModal";
 import { FeedPostCard } from "../../components/FeedPostCard";
 import { UserSearchCard } from "../../components/UserSearchCard";
 
@@ -31,41 +33,38 @@ export function Social() {
   const [currentPage, setCurrentPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
 
-  const [followModalVisible, setFollowModalVisible] = useState(false);
-
   const [searchQuery, setSearchQuery] = useState("");
   const [userResults, setUserResults] = useState<any[]>([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
 
-  useEffect(() => {
-    loadFeed();
-  }, []);
+  /* ---------------- FEED ---------------- */
 
   const loadFeed = async () => {
     try {
       setLoading(true);
-      const response = await socialFeedApi.getFeed(0, 3);
+      const response = await socialFeedApi.getFeed(0, 5);
       setPosts(response.content);
       setCurrentPage(0);
       setHasMore(!response.last);
-    } catch (error) {
-      console.error("Error loading feed:", error);
-      Alert.alert("Error", "Failed to load feed");
     } finally {
       setLoading(false);
     }
   };
 
+  // Refresh feed whenever returning from profile (after follow)
+  useFocusEffect(
+    useCallback(() => {
+      loadFeed();
+    }, [])
+  );
+
   const onRefresh = useCallback(async () => {
     try {
       setRefreshing(true);
-      const response = await socialFeedApi.getFeed(0, 3);
+      const response = await socialFeedApi.getFeed(0, 5);
       setPosts(response.content);
       setCurrentPage(0);
       setHasMore(!response.last);
-    } catch (error) {
-      console.error("Error refreshing feed:", error);
-      Alert.alert("Error", "Failed to refresh feed");
     } finally {
       setRefreshing(false);
     }
@@ -77,155 +76,111 @@ export function Social() {
     try {
       setLoadingMore(true);
       const nextPage = currentPage + 1;
-      const response = await socialFeedApi.getFeed(nextPage, 3);
-
+      const response = await socialFeedApi.getFeed(nextPage, 5);
       setPosts((prev) => [...prev, ...response.content]);
       setCurrentPage(nextPage);
       setHasMore(!response.last);
-    } catch (error) {
-      console.error("Error loading more posts:", error);
     } finally {
       setLoadingMore(false);
     }
   };
 
-  /* 🔍 SEARCH USERS */
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setUserResults([]);
-      return;
-    }
+  /* ---------------- SEARCH ---------------- */
 
-    const fetchUsers = async () => {
-      try {
-        setSearchingUsers(true);
-        const results = await searchUsers(searchQuery);
-        setUserResults(results);
-      } catch (error) {
-        console.error("Error searching users:", error);
-      } finally {
-        setSearchingUsers(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (!searchQuery.trim()) {
+        setUserResults([]);
+        return;
       }
-    };
 
-    fetchUsers();
-  }, [searchQuery]);
+      const fetchUsers = async () => {
+        try {
+          setSearchingUsers(true);
+          const results = await searchUsers(searchQuery);
+          setUserResults(results);
+        } finally {
+          setSearchingUsers(false);
+        }
+      };
 
-  const renderFooter = () => {
-    if (!loadingMore) return null;
-    return (
-      <View style={styles.footer}>
-        <ActivityIndicator size="small" color={colors.primary} />
-        <Text style={[styles.footerText, { color: colors.text }]}>
-          Loading more...
-        </Text>
-      </View>
-    );
-  };
+      fetchUsers();
+    }, [searchQuery])
+  );
 
   if (loading) {
     return (
-      <SafeAreaView
-        style={[styles.container, { backgroundColor: colors.background }]}
-      >
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+      <SafeAreaView style={styles.center}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.background }]}
-    >
-      {/* 🔍 SEARCH BAR */}
+    <SafeAreaView style={styles.container}>
+      {/* SEARCH BAR */}
       <View style={styles.searchRow}>
-        <View
-          style={[
-            styles.searchContainer,
-            { backgroundColor: colors.card, borderColor: colors.border },
-          ]}
-        >
-          <Ionicons
-            name="search"
-            size={20}
-            color={colors.text}
-            style={styles.searchIcon}
-          />
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={18} color="#777" />
           <TextInput
-            placeholder="Search users..."
-            placeholderTextColor={colors.border}
+            placeholder="Search users"
+            placeholderTextColor="#999"
             value={searchQuery}
             onChangeText={setSearchQuery}
-            style={[styles.searchInput, { color: colors.text }]}
+            style={styles.searchInput}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery("")}>
-              <Ionicons name="close-circle" size={20} color={colors.border} />
+              <Ionicons name="close-circle" size={18} color="#999" />
             </TouchableOpacity>
           )}
         </View>
-
-        <TouchableOpacity
-          style={[
-            styles.followIconButton,
-            { backgroundColor: colors.card, borderColor: colors.border },
-          ]}
-          onPress={() => setFollowModalVisible(true)}
-        >
-          <Ionicons name="person-add" size={20} color={colors.primary} />
-        </TouchableOpacity>
       </View>
 
-      {/* 👤 SEARCH RESULTS (BOXED) */}
-      {searchQuery.length > 0 && (
-        <View>
-          {searchingUsers && (
-            <ActivityIndicator size="small" color={colors.primary} />
-          )}
-
-          {userResults.length > 0 && (
-            <FlatList
-              data={userResults}
-              keyExtractor={(item) => item.userId}
-              renderItem={({ item }) => (
-                <UserSearchCard
-                  username={item.username}
-                  onPress={() => {
-                    setSearchQuery("");
-                    setUserResults([]);
-                    navigation.navigate("UserProfile", {
-                      username: item.username,
-                    });
-                  }}
-                />
-              )}
-              style={{ marginTop: 8 }}
+      {/* SEARCH RESULTS (FEED HIDDEN WHILE SEARCHING) */}
+      {searchQuery.length > 0 ? (
+        <FlatList
+          data={userResults}
+          keyExtractor={(item) => item.userId}
+          renderItem={({ item }) => (
+            <UserSearchCard
+              username={item.username}
+              onPress={() => {
+                setSearchQuery("");
+                setUserResults([]);
+                navigation.navigate("UserProfile", {
+                  username: item.username,
+                });
+              }}
             />
           )}
-        </View>
+          ListEmptyComponent={
+            searchingUsers ? (
+              <ActivityIndicator style={{ marginTop: 20 }} />
+            ) : null
+          }
+        />
+      ) : (
+        <FlatList
+          data={posts}
+          renderItem={({ item }) => <FeedPostCard post={item} />}
+          keyExtractor={(item) => item.postId}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Ionicons name="people-outline" size={64} color="#bbb" />
+              <Text style={styles.emptyTitle}>No workouts yet</Text>
+              <Text style={styles.emptySub}>
+                Follow people to see their activity
+              </Text>
+            </View>
+          }
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
+        />
       )}
-
-      {/* 📰 FEED */}
-      <FlatList
-        data={posts}
-        renderItem={({ item }) => <FeedPostCard post={item} />}
-        keyExtractor={(item) => item.postId}
-        contentContainerStyle={styles.feedList}
-        ListFooterComponent={renderFooter}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.5}
-      />
-
-      <FollowModal
-        visible={followModalVisible}
-        onClose={() => setFollowModalVisible(false)}
-        onSuccess={onRefresh}
-      />
     </SafeAreaView>
   );
 }
@@ -233,41 +188,48 @@ export function Social() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
 
-  searchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 10,
-  },
-  searchContainer: {
+  center: {
     flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  searchRow: {
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 6,
+  },
+
+  searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1,
+    backgroundColor: "#f0f0f0",
     borderRadius: 20,
     paddingHorizontal: 12,
     height: 40,
   },
-  searchIcon: { marginRight: 8 },
-  searchInput: { flex: 1, fontSize: 16 },
-  followIconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    justifyContent: "center",
-    alignItems: "center",
+
+  searchInput: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 15,
   },
 
-  feedList: { padding: 16 },
-
-  footer: { paddingVertical: 20, alignItems: "center" },
-  footerText: { marginTop: 8, fontSize: 14 },
-
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
+  empty: {
     alignItems: "center",
+    marginTop: 80,
+    paddingHorizontal: 24,
+  },
+
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginTop: 12,
+  },
+
+  emptySub: {
+    color: "#777",
+    marginTop: 6,
+    textAlign: "center",
   },
 });

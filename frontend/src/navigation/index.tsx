@@ -8,7 +8,6 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Image } from "react-native";
 
 /* ICONS */
-import bell from "../assets/bell.png";
 import avatar from "../assets/avatar.png";
 import workout from "../assets/workout.png";
 import home from "../assets/home.png";
@@ -34,19 +33,18 @@ import { LoginScreen } from "./screens/Login";
 import { SignUpProfileScreen } from "./screens/SignUpProfile";
 import { ExerciseChat } from "./screens/ExerciseChat";
 
-/* ---------------------- TABS ---------------------- */
+/* ---------------- TABS ---------------- */
 
 const HomeTabs = createBottomTabNavigator({
   initialRouteName: "Home",
   screenOptions: {
-    tabBarShowLabel: true,
     headerShown: false,
+    tabBarShowLabel: true,
   },
   screens: {
     Home: {
       screen: Home,
       options: {
-        title: "Home",
         tabBarIcon: ({ color, size }) => (
           <Image
             source={home}
@@ -56,12 +54,9 @@ const HomeTabs = createBottomTabNavigator({
         ),
       },
     },
-
     Social: {
       screen: Social,
       options: {
-        headerShown: false,
-        title: "Social",
         tabBarIcon: ({ color, size }) => (
           <Image
             source={community}
@@ -71,7 +66,6 @@ const HomeTabs = createBottomTabNavigator({
         ),
       },
     },
-
     Workouts: {
       screen: Workout,
       options: {
@@ -84,7 +78,6 @@ const HomeTabs = createBottomTabNavigator({
         ),
       },
     },
-
     History: {
       screen: History,
       options: {
@@ -97,7 +90,6 @@ const HomeTabs = createBottomTabNavigator({
         ),
       },
     },
-
     Profile: {
       screen: Profile,
       options: {
@@ -113,7 +105,7 @@ const HomeTabs = createBottomTabNavigator({
   },
 });
 
-/* ---------------------- STACK (MODALS) ---------------------- */
+/* ---------------- ROOT STACK ---------------- */
 
 const RootStack = createNativeStackNavigator({
   initialRouteName: "Login",
@@ -123,41 +115,44 @@ const RootStack = createNativeStackNavigator({
       screen: LoginScreen,
       options: { headerShown: false },
     },
+
     SignUpProfile: {
       screen: SignUpProfileScreen,
       options: {
-        headerShown: true,
         title: "Complete Profile",
         headerBackVisible: false,
       },
     },
+
     HomeTabs: {
       screen: HomeTabs,
       options: { headerShown: false },
     },
 
-    Settings: { screen: Settings },
-    Profile: { screen: Profile },
+    Settings: {
+      screen: Settings,
+      options: { title: "" },
+    },
+
+    UserProfile: {
+      screen: Profile,
+      options: {
+        headerShown: true,
+        title: "",
+        headerBackTitleVisible: false,
+      },
+    },
 
     PR: {
       screen: PR,
-      options: {
-        title: "Personal Records",
-        headerBackTitle: "History",
-        headerShown: true,
-      },
+      options: { title: "Personal Records" },
     },
 
     DetailedHistory: {
       screen: DetailedHistory,
-      options: {
-        title: "Detailed Workout History",
-        headerShown: true,
-        headerBackTitle: "History",
-      },
+      options: { title: "Workout" },
     },
 
-    /* MODAL 1 — SELECT EXERCISE */
     ExerciseSelect: {
       screen: ExerciseSelect,
       options: ({ navigation }) => ({
@@ -171,25 +166,24 @@ const RootStack = createNativeStackNavigator({
       }),
     },
 
-    /* MODAL 2 — EXERCISE DETAIL */
     ExerciseDetail: {
       screen: ExerciseDetail,
-      options: {
-        title: "Exercise Detail",
-        presentation: "modal",
-        headerShown: true,
-        headerBackTitle: "Back",
-      },
+      options: { presentation: "modal" },
     },
 
-    /* MODAL 3 — WORKOUT SUMMARY */
     WorkoutSummary: {
       screen: WorkoutSummary,
-      options: {
-        title: "Workout Summary",
-        presentation: "modal",
-        headerShown: true,
-      },
+      options: { presentation: "modal" },
+    },
+
+    WorkoutComplete: {
+      screen: WorkoutComplete,
+      options: { presentation: "modal" },
+    },
+
+    ExerciseChat: {
+      screen: ExerciseChat,
+      options: { presentation: "modal" },
     },
 
     NotFound: {
@@ -197,30 +191,13 @@ const RootStack = createNativeStackNavigator({
       options: { title: "404" },
       linking: { path: "*" },
     },
-    /* MODAL 4 — WORKOUT COMPLETE */
-    WorkoutComplete: {
-      screen: WorkoutComplete,
-      options: {
-        title: "Workout Complete",
-        presentation: "modal",
-        headerShown: true,
-      },
-    },
-    /* MODAL 5 — EXERCISE CHAT */
-    ExerciseChat: {
-      screen: ExerciseChat,
-      options: {
-        title: "Exercise Chat",
-        presentation: "modal",
-        headerShown: true,
-      },
-    },
   },
 });
 
 export const Navigation = createStaticNavigation(RootStack);
 
-/* ---------------------- TYPES ---------------------- */
+/* ---------------- TYPES ---------------- */
+
 export type RootStackParamList = StaticParamList<typeof RootStack>;
 
 declare global {
@@ -228,30 +205,8 @@ declare global {
     interface RootParamList {
       Login: undefined;
       HomeTabs: undefined;
-      History: undefined;
+      UserProfile: { username: string };
       Settings: undefined;
-      Profile: undefined;
-      WorkoutSummary: undefined;
-      WorkoutComplete: undefined;
-      ExerciseSelect: undefined;
-
-      ExerciseDetail: {
-        exercise: {
-          exerciseId: string;
-          name: string;
-          sets?: any[];
-        };
-      };
-
-      ExerciseChat: {
-        exercise: {
-          exerciseId: string;
-          name: string;
-          bodyPart: string;
-          description: string;
-        };
-        greetingText: string;
-      };
     }
   }
 }
