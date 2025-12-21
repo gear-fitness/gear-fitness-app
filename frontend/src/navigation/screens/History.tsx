@@ -8,6 +8,8 @@ import {
   Image,
   useColorScheme,
   Keyboard,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { Calendar } from "react-native-calendars";
 import React, { useState, useEffect } from "react";
@@ -96,6 +98,12 @@ export function History() {
     item.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Parse date string as local date to avoid timezone issues
+  const parseLocalDate = (dateString: string) => {
+    const [year, month, day] = dateString.split("-").map(Number);
+    return new Date(year, month - 1, day);
+  };
+
   const renderItem = ({ item }: { item: Workout }) => (
     <TouchableOpacity
       style={[styles.button, { backgroundColor: isDarkMode ? colors.card : "white" }]}
@@ -112,7 +120,7 @@ export function History() {
             {item.name}
           </Text>
           <Text style={[styles.cardSubtitle, { color: isDarkMode ? "#AAA" : "#777" }]}>
-            {new Date(item.datePerformed).toLocaleDateString('en-US', {
+            {parseLocalDate(item.datePerformed).toLocaleDateString('en-US', {
               month: 'short',
               day: 'numeric',
               year: 'numeric'
@@ -127,8 +135,12 @@ export function History() {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Calendar
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1 }}
+    >
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <Calendar
         key={colors.background}
         style={styles.calendar}
         current={formattedToday}
@@ -168,8 +180,10 @@ export function History() {
         data={filteredData}
         keyExtractor={(item) => item.workoutId}
         renderItem={renderItem}
+        keyboardShouldPersistTaps="handled"
       />
     </View>
+    </KeyboardAvoidingView>
   );
 }
 

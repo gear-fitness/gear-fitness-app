@@ -11,7 +11,9 @@ interface Props {
 export function FeedPostCard({ post }: Props) {
   const { colors } = useTheme();
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+    // Parse date string as local date to avoid timezone issues
+    const [year, month, day] = dateString.split("-").map(Number);
+    const date = new Date(year, month - 1, day);
     return date.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
