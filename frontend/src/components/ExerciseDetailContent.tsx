@@ -9,7 +9,7 @@ import {
   Keyboard,
 } from "react-native";
 import { useColorScheme } from "react-native";
-import { useState, useEffect, forwardRef, useImperativeHandle } from "react";
+import { useState, useEffect, forwardRef, useImperativeHandle, useRef } from "react";
 import { Swipeable } from "react-native-gesture-handler";
 
 import stopwatch from "../assets/stopwatch.png";
@@ -67,14 +67,21 @@ export const ExerciseDetailContent = forwardRef<
       : [{ id: "1", reps: "", weight: "" }]
   );
 
-  // Auto-add empty set when last one is filled
+  // Track which sets we've already auto-added for to prevent duplicate additions
+  const autoAddedFor = useRef(new Set<string>());
+
+  // Auto-add empty set when last one is filled (without causing keyboard dismissal)
   useEffect(() => {
     const last = sets[sets.length - 1];
-    if (last.reps && last.weight) {
-      setSets((p) => [
-        ...p,
-        { id: Date.now().toString(), reps: "", weight: "" },
-      ]);
+    if (last.reps && last.weight && !autoAddedFor.current.has(last.id)) {
+      autoAddedFor.current.add(last.id);
+      // Defer to next tick to prevent keyboard dismissal
+      setTimeout(() => {
+        setSets((p) => [
+          ...p,
+          { id: Date.now().toString(), reps: "", weight: "" },
+        ]);
+      }, 0);
     }
   }, [sets]);
 
@@ -165,6 +172,7 @@ export const ExerciseDetailContent = forwardRef<
         data={sets}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: 30 }}
+        keyboardShouldPersistTaps="handled"
         renderItem={({ item, index }) => {
           const setContent = (
             <View
@@ -219,13 +227,12 @@ export const ExerciseDetailContent = forwardRef<
 
           return (
             <View style={styles.rowWrapper}>
-              {sets.length > 1 ? (
-                <Swipeable {...getSwipeableProps(item.id)}>
-                  {setContent}
-                </Swipeable>
-              ) : (
-                setContent
-              )}
+              <Swipeable
+                {...(sets.length > 1 ? getSwipeableProps(item.id) : {})}
+                enabled={sets.length > 1}
+              >
+                {setContent}
+              </Swipeable>
             </View>
           );
         }}
