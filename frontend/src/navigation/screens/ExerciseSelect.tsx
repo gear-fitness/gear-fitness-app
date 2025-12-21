@@ -7,6 +7,7 @@ import {
   ScrollView,
   Modal,
   Image,
+  Keyboard,
 } from "react-native";
 import React, { useState, useEffect } from "react";
 import { LinearGradient } from "expo-linear-gradient";
@@ -117,6 +118,8 @@ export function ExerciseSelect() {
             value={searchQuery}
             onChangeText={setSearchQuery}
             style={[styles.searchInput, { color: colors.text }]}
+            returnKeyType="done"
+            onSubmitEditing={() => Keyboard.dismiss()}
           />
 
           {searchQuery.length > 0 && (

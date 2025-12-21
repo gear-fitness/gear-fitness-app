@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Keyboard,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { updateUserProfile } from "../../api/userService";
@@ -178,6 +179,8 @@ export function SignUpProfileScreen() {
             value={heightInches}
             onChangeText={setHeightInches}
             maxLength={3}
+            returnKeyType="done"
+            onSubmitEditing={() => Keyboard.dismiss()}
             onFocus={() => {
               setTimeout(() => {
                 scrollViewRef.current?.scrollToEnd({ animated: true });
@@ -201,6 +204,8 @@ export function SignUpProfileScreen() {
             value={weightLbs}
             onChangeText={setWeightLbs}
             maxLength={3}
+            returnKeyType="done"
+            onSubmitEditing={() => Keyboard.dismiss()}
             onFocus={() => {
               setTimeout(() => {
                 scrollViewRef.current?.scrollToEnd({ animated: true });
@@ -224,6 +229,8 @@ export function SignUpProfileScreen() {
             value={age}
             onChangeText={setAge}
             maxLength={3}
+            returnKeyType="done"
+            onSubmitEditing={() => Keyboard.dismiss()}
             onFocus={() => {
               setTimeout(() => {
                 scrollViewRef.current?.scrollToEnd({ animated: true });

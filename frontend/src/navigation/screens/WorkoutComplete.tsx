@@ -10,6 +10,7 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Keyboard,
 } from "react-native";
 import { useState } from "react";
 import { useNavigation } from "@react-navigation/native";
@@ -154,6 +155,8 @@ export function WorkoutComplete() {
             placeholderTextColor={colors.subtle}
             value={workoutName}
             onChangeText={setWorkoutName}
+            returnKeyType="done"
+            onSubmitEditing={() => Keyboard.dismiss()}
           />
         </View>
 
@@ -231,6 +234,7 @@ export function WorkoutComplete() {
             value={caption}
             onChangeText={setCaption}
             multiline
+            blurOnSubmit={true}
           />
         </View>
 

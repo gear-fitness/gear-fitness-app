@@ -7,6 +7,7 @@ import {
   TextInput,
   Image,
   useColorScheme,
+  Keyboard,
 } from "react-native";
 import { Calendar } from "react-native-calendars";
 import React, { useState, useEffect } from "react";
@@ -155,6 +156,8 @@ export function History() {
           placeholderTextColor={colors.text + "80"}
           value={searchQuery}
           onChangeText={setSearchQuery}
+          returnKeyType="done"
+          onSubmitEditing={() => Keyboard.dismiss()}
         />
         <TouchableOpacity style={[styles.settingsButton, { backgroundColor: colors.primary }]} onPress={handlePrPress}>
           <Image source={weightlifter} style={styles.settingsButtonIcon} />

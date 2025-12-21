@@ -191,6 +191,8 @@ export const ExerciseDetailContent = forwardRef<
                   styles.input,
                   { backgroundColor: colors.inputBg, color: colors.text },
                 ]}
+                returnKeyType="done"
+                onSubmitEditing={() => Keyboard.dismiss()}
               />
 
               <TextInput
@@ -209,6 +211,8 @@ export const ExerciseDetailContent = forwardRef<
                   styles.input,
                   { backgroundColor: colors.inputBg, color: colors.text },
                 ]}
+                returnKeyType="done"
+                onSubmitEditing={() => Keyboard.dismiss()}
               />
             </View>
           );
