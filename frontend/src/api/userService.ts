@@ -206,9 +206,9 @@ export async function checkFollowStatus(userId: string): Promise<boolean> {
  * Update the current user's profile with physical stats
  */
 export async function updateUserProfile(
-  heightInches: number,
-  weightLbs: number,
-  age: number
+  heightInches?: number | null,
+  weightLbs?: number | null,
+  age?: number | null
 ): Promise<any> {
   const authHeader = await getAuthHeader();
 

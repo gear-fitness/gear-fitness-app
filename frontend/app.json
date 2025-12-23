@@ -10,9 +10,16 @@
     "scheme": "gearfitness",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.gearfitness.app",
+      "bundleIdentifier": "com.gearfitness",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSAppTransportSecurity": {
+          "NSExceptionDomains": {
+            "gear-fitness.us-west-2.elasticbeanstalk.com": {
+              "NSExceptionAllowsInsecureHTTPLoads": true
+            }
+          }
+        }
       }
     },
     "android": {
@@ -20,7 +27,8 @@
         "foregroundImage": "./assets/GearLogo.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.gearfitness"
+      "package": "com.gearfitness",
+      "usesCleartextTraffic": true
     },
     "web": {
       "favicon": "./assets/GearLogo.png"

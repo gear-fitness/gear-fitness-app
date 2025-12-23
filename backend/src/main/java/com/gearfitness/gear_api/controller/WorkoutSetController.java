@@ -10,7 +10,6 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/workout-sets")
-@CrossOrigin(origins = "*")
 public class WorkoutSetController {
 
     private final WorkoutSetRepository workoutSetRepo;
