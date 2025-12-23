@@ -50,7 +50,7 @@ public interface WorkoutRepository extends JpaRepository<Workout, UUID> {
     List<Workout> findByUserAndDatePerformedBetween(AppUser user, LocalDate startDate, LocalDate endDate);
 
     /**
-     * Find all workouts for a user ordered by date
+     * Find all workouts for a user ordered by date (desc), then by creation time (desc)
      */
-    List<Workout> findByUserOrderByDatePerformedDesc(AppUser user);
+    List<Workout> findByUserOrderByDatePerformedDescCreatedAtDesc(AppUser user);
 }

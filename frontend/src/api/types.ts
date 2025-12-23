@@ -73,8 +73,7 @@ export interface Workout {
   workoutId: string;
   name: string;
   datePerformed: string;
-  durationMin: number | null;
-  bodyTag: string | null;
+  createdAt: string;
 }
 
 export interface WorkoutSet {

@@ -16,6 +16,7 @@ import React from "react";
 import { useAuth } from "../../context/AuthContext";
 import { getDailyVolume, getUserWorkouts } from "../../api/workoutService";
 import { DailyVolumeData, Workout } from "../../api/types";
+import { parseLocalDate } from "../../utils/date";
 
 const { width, height } = Dimensions.get("window");
 
@@ -78,7 +79,7 @@ export function Home() {
 
     try {
       const workouts = await getUserWorkouts(user.userId);
-      // Get the 3 most recent workouts
+      // Backend already sorts by date (desc) and createdAt (desc), so just take the first 3
       const recent = workouts.slice(0, 3);
       setRecentWorkouts(recent);
     } catch (error) {
@@ -473,7 +474,7 @@ export function Home() {
                     <View style={styles.cardInfo}>
                       <Text style={styles.cardTitle}>{workout.name}</Text>
                       <Text style={styles.cardSubtitle}>
-                        {new Date(workout.datePerformed).toLocaleDateString(
+                        {parseLocalDate(workout.datePerformed).toLocaleDateString(
                           "en-US",
                           {
                             month: "short",
@@ -481,8 +482,6 @@ export function Home() {
                             year: "numeric",
                           }
                         )}
-                        {workout.durationMin && ` • ${workout.durationMin} min`}
-                        {workout.bodyTag && ` • ${workout.bodyTag}`}
                       </Text>
                     </View>
                   </View>

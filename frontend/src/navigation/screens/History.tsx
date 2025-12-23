@@ -20,6 +20,7 @@ import weightlifter from "../../assets/weightlifter.png";
 import { useAuth } from "../../context/AuthContext";
 import { getUserWorkouts } from "../../api/workoutService";
 import { Workout } from "../../api/types";
+import { parseLocalDate } from "../../utils/date";
 
 type RootStackParamList = {
   HomeTabs: undefined;
@@ -98,12 +99,6 @@ export function History() {
     item.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Parse date string as local date to avoid timezone issues
-  const parseLocalDate = (dateString: string) => {
-    const [year, month, day] = dateString.split("-").map(Number);
-    return new Date(year, month - 1, day);
-  };
-
   const renderItem = ({ item }: { item: Workout }) => (
     <TouchableOpacity
       style={[styles.button, { backgroundColor: isDarkMode ? colors.card : "white" }]}
@@ -125,8 +120,6 @@ export function History() {
               day: 'numeric',
               year: 'numeric'
             })}
-            {item.durationMin && ` • ${item.durationMin} min`}
-            {item.bodyTag && ` • ${item.bodyTag}`}
           </Text>
         </View>
         <Text style={styles.cardChevron}>›</Text>
@@ -153,8 +146,23 @@ export function History() {
           textSectionTitleColor: colors.text,
           todayTextColor: "#1877F2",
           arrowColor: "#1877F2",
+          textDayFontFamily: 'System',
+          textMonthFontFamily: 'System',
+          textDayHeaderFontFamily: 'System',
+          textDayFontWeight: '400',
+          textMonthFontWeight: '700',
+          textDayHeaderFontWeight: '600',
+          textDayFontSize: 15,
+          textMonthFontSize: 18,
+          textDayHeaderFontSize: 13,
+          selectedDayBackgroundColor: '#1877F2',
+          selectedDayTextColor: '#ffffff',
+          dotColor: '#1877F2',
+          selectedDotColor: '#ffffff',
+          todayBackgroundColor: isDarkMode ? 'rgba(24, 119, 242, 0.15)' : 'rgba(24, 119, 242, 0.1)',
         }}
         hideExtraDays={true}
+        enableSwipeMonths={true}
       />
 
       {/* Search Bar + PR Button */}
@@ -194,9 +202,17 @@ const styles = StyleSheet.create({
     paddingTop: 50,
   },
   calendar: {
-    width: "95%",
+    width: "90%",
     alignSelf: "center",
     maxHeight: 350,
+    borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    marginBottom: 8,
   },
   button: {
     marginHorizontal: 20,

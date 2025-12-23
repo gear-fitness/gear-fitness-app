@@ -40,7 +40,7 @@ public class WorkoutService {
     public List<Workout> getWorkoutsByUser(UUID userId) {
         AppUser user = appUserRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
-        return workoutRepository.findByUserOrderByDatePerformedDesc(user);
+        return workoutRepository.findByUserOrderByDatePerformedDescCreatedAtDesc(user);
     }
 
     @Transactional(readOnly = true)
@@ -244,7 +244,9 @@ public class WorkoutService {
         Workout workout = Workout.builder()
                 .user(user)
                 .name(submission.getName())
-                .datePerformed(LocalDate.now())
+                .datePerformed(submission.getDatePerformed() != null
+                    ? LocalDate.parse(submission.getDatePerformed())
+                    : LocalDate.now())
                 .durationMin(submission.getDurationMin())
                 .bodyTags(submission.getBodyTags() != null ? submission.getBodyTags() : new ArrayList<>())
                 .workoutExercises(new ArrayList<>())

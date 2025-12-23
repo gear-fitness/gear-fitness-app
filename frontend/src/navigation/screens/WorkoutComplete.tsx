@@ -16,6 +16,7 @@ import { useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { submitWorkout, WorkoutSubmission } from "../../api/workoutService";
+import { getCurrentLocalDateString } from "../../utils/date";
 
 export function WorkoutComplete() {
   const isDark = useColorScheme() === "dark";
@@ -80,6 +81,7 @@ export function WorkoutComplete() {
       const submission: WorkoutSubmission = {
         name: workoutName,
         durationMin: Math.floor(seconds / 60),
+        datePerformed: getCurrentLocalDateString(),
         bodyTags: bodyTag, // Send all selected tags to backend
         exercises: exercises.map((ex) => ({
           exerciseId: ex.exerciseId,

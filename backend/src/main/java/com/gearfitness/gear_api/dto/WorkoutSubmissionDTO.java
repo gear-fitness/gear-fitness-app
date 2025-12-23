@@ -17,6 +17,7 @@ import java.util.UUID;
 public class WorkoutSubmissionDTO {
     private String name;
     private Integer durationMin;
+    private String datePerformed; // Optional - date in YYYY-MM-DD format from client
     private List<Workout.BodyTag> bodyTags;
     private List<ExerciseSubmissionDTO> exercises;
 

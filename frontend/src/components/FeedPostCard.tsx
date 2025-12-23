@@ -4,6 +4,7 @@ import { Text } from "@react-navigation/elements";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@react-navigation/native";
 import { FeedPost } from "../api/socialFeedApi";
+import { parseLocalDate } from "../utils/date";
 interface Props {
   post: FeedPost;
 }
@@ -11,10 +12,7 @@ interface Props {
 export function FeedPostCard({ post }: Props) {
   const { colors } = useTheme();
   const formatDate = (dateString: string) => {
-    // Parse date string as local date to avoid timezone issues
-    const [year, month, day] = dateString.split("-").map(Number);
-    const date = new Date(year, month - 1, day);
-    return date.toLocaleDateString("en-US", {
+    return parseLocalDate(dateString).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
