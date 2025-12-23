@@ -1,5 +1,6 @@
 package com.gearfitness.gear_api.service;
 
+import com.gearfitness.gear_api.dto.DailyVolumeDTO;
 import com.gearfitness.gear_api.dto.WeeklyVolumeDTO;
 import com.gearfitness.gear_api.dto.WorkoutDetailDTO;
 import com.gearfitness.gear_api.dto.WorkoutExerciseDTO;
@@ -37,7 +38,9 @@ public class WorkoutService {
 
     @Transactional(readOnly = true)
     public List<Workout> getWorkoutsByUser(UUID userId) {
-        return workoutRepository.findByUser_UserId(userId);
+        AppUser user = appUserRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+        return workoutRepository.findByUserOrderByDatePerformedDesc(user);
     }
 
     @Transactional(readOnly = true)
@@ -144,6 +147,89 @@ public class WorkoutService {
         }
 
         return weeklyVolumes;
+    }
+
+    // Daily volume statistics
+    @Transactional(readOnly = true)
+    public List<DailyVolumeDTO> getDailyVolume(UUID userId, int numberOfWeeks, DayOfWeek weekStartDay) {
+        List<Workout> workouts = workoutRepository.findByUser_UserId(userId);
+
+        if (workouts.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // Calculate date range
+        // Extend endDate to the end of the current week (Saturday) to ensure full week is displayed
+        LocalDate endDate = LocalDate.now()
+                .with(TemporalAdjusters.nextOrSame(DayOfWeek.SATURDAY));
+
+        // If numberOfWeeks is 0 or negative, fetch all data from the earliest workout
+        LocalDate startDate;
+        if (numberOfWeeks <= 0) {
+            // Find the earliest workout date
+            LocalDate earliestDate = workouts.stream()
+                    .map(Workout::getDatePerformed)
+                    .min(LocalDate::compareTo)
+                    .orElse(endDate);
+            // Align to the week start day
+            startDate = earliestDate.with(TemporalAdjusters.previousOrSame(weekStartDay));
+        } else {
+            startDate = endDate
+                    .minusWeeks(numberOfWeeks)
+                    .with(TemporalAdjusters.previousOrSame(weekStartDay));
+        }
+
+        // Group workouts by date
+        Map<LocalDate, List<Workout>> workoutsByDate = new TreeMap<>();
+
+        for (Workout workout : workouts) {
+            LocalDate workoutDate = workout.getDatePerformed();
+            // Only include workouts within the date range
+            if (!workoutDate.isBefore(startDate) && !workoutDate.isAfter(endDate)) {
+                workoutsByDate.computeIfAbsent(workoutDate, k -> new ArrayList<>()).add(workout);
+            }
+        }
+
+        // Calculate volume for each date
+        Map<LocalDate, BigDecimal> volumeByDate = new HashMap<>();
+        Map<LocalDate, Integer> workoutCountByDate = new HashMap<>();
+
+        for (Map.Entry<LocalDate, List<Workout>> entry : workoutsByDate.entrySet()) {
+            LocalDate date = entry.getKey();
+            List<Workout> dateWorkouts = entry.getValue();
+
+            BigDecimal totalVolume = BigDecimal.ZERO;
+
+            for (Workout workout : dateWorkouts) {
+                for (WorkoutExercise exercise : workout.getWorkoutExercises()) {
+                    for (WorkoutSet set : exercise.getWorkoutSets()) {
+                        if (set.getWeightLbs() != null && set.getReps() != null) {
+                            BigDecimal setVolume = set.getWeightLbs()
+                                    .multiply(new BigDecimal(set.getReps()));
+                            totalVolume = totalVolume.add(setVolume);
+                        }
+                    }
+                }
+            }
+
+            volumeByDate.put(date, totalVolume);
+            workoutCountByDate.put(date, dateWorkouts.size());
+        }
+
+        // Fill gaps with zero-volume days and create DTOs
+        List<DailyVolumeDTO> dailyVolumes = new ArrayList<>();
+        LocalDate currentDate = startDate;
+
+        while (!currentDate.isAfter(endDate)) {
+            dailyVolumes.add(DailyVolumeDTO.builder()
+                    .date(currentDate)
+                    .totalVolumeLbs(volumeByDate.getOrDefault(currentDate, BigDecimal.ZERO))
+                    .workoutCount(workoutCountByDate.getOrDefault(currentDate, 0))
+                    .build());
+            currentDate = currentDate.plusDays(1);
+        }
+
+        return dailyVolumes;
     }
 
     @Transactional

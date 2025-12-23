@@ -32,6 +32,7 @@ import { WorkoutComplete } from "./screens/WorkoutComplete";
 import { LoginScreen } from "./screens/Login";
 import { SignUpProfileScreen } from "./screens/SignUpProfile";
 import { ExerciseChat } from "./screens/ExerciseChat";
+import { AuthLoadingScreen } from "./screens/AuthLoading";
 
 /* ---------------- TABS ---------------- */
 
@@ -108,9 +109,13 @@ const HomeTabs = createBottomTabNavigator({
 /* ---------------- ROOT STACK ---------------- */
 
 const RootStack = createNativeStackNavigator({
-  initialRouteName: "Login",
+  initialRouteName: "AuthLoading",
 
   screens: {
+    AuthLoading: {
+      screen: AuthLoadingScreen,
+      options: { headerShown: false },
+    },
     Login: {
       screen: LoginScreen,
       options: { headerShown: false },
@@ -131,8 +136,13 @@ const RootStack = createNativeStackNavigator({
 
     Settings: {
       screen: Settings,
-      options: { title: "" },
+      options: {
+        title: "",
+        headerBackTitle: "Profile",
+      },
     },
+
+    Profile: { screen: Profile },
 
     UserProfile: {
       screen: Profile,
@@ -145,12 +155,20 @@ const RootStack = createNativeStackNavigator({
 
     PR: {
       screen: PR,
-      options: { title: "Personal Records" },
+      options: {
+        headerShown: true,
+        title: "Personal Records",
+        headerBackTitle: "History",
+      },
     },
 
     DetailedHistory: {
       screen: DetailedHistory,
-      options: { title: "Workout" },
+      options: {
+        title: "Workout",
+        headerShown: true,
+        headerBackTitle: "History",
+      },
     },
 
     ExerciseSelect: {
@@ -203,6 +221,7 @@ export type RootStackParamList = StaticParamList<typeof RootStack>;
 declare global {
   namespace ReactNavigation {
     interface RootParamList {
+      AuthLoading: undefined;
       Login: undefined;
       HomeTabs: undefined;
       UserProfile: { username: string };

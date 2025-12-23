@@ -1,10 +1,10 @@
 package com.gearfitness.gear_api.controller;
 
+import com.gearfitness.gear_api.dto.DailyVolumeDTO;
 import com.gearfitness.gear_api.dto.WeeklyVolumeDTO;
 import com.gearfitness.gear_api.dto.WorkoutDTO;
 import com.gearfitness.gear_api.dto.WorkoutDetailDTO;
 import com.gearfitness.gear_api.dto.WorkoutSubmissionDTO;
-import com.gearfitness.gear_api.entity.AppUser;
 import com.gearfitness.gear_api.entity.Workout;
 import com.gearfitness.gear_api.security.JwtService;
 import com.gearfitness.gear_api.service.WorkoutService;
@@ -12,9 +12,9 @@ import com.gearfitness.gear_api.service.WorkoutService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.DayOfWeek;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -22,7 +22,6 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/workouts")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class WorkoutController {
 
     private final WorkoutService workoutService;
@@ -102,6 +101,24 @@ public class WorkoutController {
         try {
             List<WeeklyVolumeDTO> weeklyVolume = workoutService.getWeeklyVolume(userId, weeks);
             return ResponseEntity.ok(weeklyVolume);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // Daily volume statistics
+    @GetMapping("/user/{userId}/daily-volume")
+    public ResponseEntity<List<DailyVolumeDTO>> getDailyVolume(
+            @PathVariable UUID userId,
+            @RequestParam(defaultValue = "2") int weeks,
+            @RequestParam(defaultValue = "SUNDAY") String weekStartDay) {
+        try {
+            DayOfWeek startDay = DayOfWeek.valueOf(weekStartDay.toUpperCase());
+            List<DailyVolumeDTO> dailyVolume = workoutService.getDailyVolume(userId, weeks, startDay);
+            return ResponseEntity.ok(dailyVolume);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();

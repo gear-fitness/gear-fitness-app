@@ -63,6 +63,12 @@ export interface WeeklyVolumeData {
   workoutCount: number;
 }
 
+export interface DailyVolumeData {
+  date: string;
+  totalVolumeLbs: number;
+  workoutCount: number;
+}
+
 export interface Workout {
   workoutId: string;
   name: string;

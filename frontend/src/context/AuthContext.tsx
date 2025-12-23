@@ -18,6 +18,8 @@ interface AuthContextType {
   login: (token: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  authError: string | null;
+  retryAuth: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,6 +31,7 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   // Initialize auth state on app start
   useEffect(() => {
@@ -41,18 +44,40 @@ export function AuthProvider({ children }: AuthProviderProps) {
    */
   const initializeAuth = async () => {
     try {
+      setAuthError(null); // Reset error state
       const authenticated = await isAuthenticated();
 
       if (authenticated) {
         // Token exists, fetch user profile
-        const userProfile = await getCurrentUserProfile();
-        setUser(userProfile);
+        try {
+          const userProfile = await getCurrentUserProfile();
+          setUser(userProfile);
+        } catch (profileError) {
+          console.error("Failed to fetch user profile:", profileError);
+
+          // Check if it's a 401 (expired token) vs network error
+          if (
+            profileError instanceof Error &&
+            profileError.message.includes("401")
+          ) {
+            // Token expired or invalid
+            await clearAuthToken();
+            setUser(null);
+            setAuthError("Session expired. Please login again.");
+          } else {
+            // Network error - keep token but show error
+            setAuthError(
+              "Unable to load profile. Please check your connection."
+            );
+            // Don't clear user or token - allow retry
+          }
+        }
       }
     } catch (error) {
       console.error("Failed to initialize auth:", error);
-      // If profile fetch fails, clear token (might be expired)
       await clearAuthToken();
       setUser(null);
+      setAuthError("Authentication failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -109,6 +134,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  /**
+   * Retry authentication initialization
+   * Useful after network errors
+   */
+  const retryAuth = async () => {
+    setIsLoading(true);
+    await initializeAuth();
+  };
+
   const value: AuthContextType = {
     user,
     isLoading,
@@ -116,6 +150,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     login,
     logout,
     refreshUser,
+    authError,
+    retryAuth,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
