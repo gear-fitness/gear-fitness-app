@@ -21,10 +21,12 @@ import { socialFeedApi, FeedPost } from "../../api/socialFeedApi";
 import { searchUsers } from "../../api/userService";
 import { FeedPostCard } from "../../components/FeedPostCard";
 import { UserSearchCard } from "../../components/UserSearchCard";
+import { useAuth } from "../../context/AuthContext";
 
 export function Social() {
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
+  const { user } = useAuth();
 
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,7 +53,6 @@ export function Social() {
     }
   };
 
-  // Refresh feed whenever returning from profile (after follow)
   useFocusEffect(
     useCallback(() => {
       loadFeed();
@@ -98,14 +99,20 @@ export function Social() {
         try {
           setSearchingUsers(true);
           const results = await searchUsers(searchQuery);
-          setUserResults(results);
+
+          // 🔑 FILTER OUT CURRENT USER
+          const filteredResults = user
+            ? results.filter((u: any) => u.userId !== user.userId)
+            : results;
+
+          setUserResults(filteredResults);
         } finally {
           setSearchingUsers(false);
         }
       };
 
       fetchUsers();
-    }, [searchQuery])
+    }, [searchQuery, user])
   );
 
   if (loading) {
@@ -137,7 +144,7 @@ export function Social() {
         </View>
       </View>
 
-      {/* SEARCH RESULTS (FEED HIDDEN WHILE SEARCHING) */}
+      {/* SEARCH RESULTS */}
       {searchQuery.length > 0 ? (
         <FlatList
           data={userResults}
