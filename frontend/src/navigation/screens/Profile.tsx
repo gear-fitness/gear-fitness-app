@@ -33,6 +33,7 @@ export function Profile() {
   const route = useRoute<any>();
 
   const usernameParam: string | undefined = route.params?.username;
+  const isOtherUser = !!usernameParam;
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [followers, setFollowers] = useState<FollowerUser[]>([]);
@@ -80,7 +81,7 @@ export function Profile() {
         await followUser(profile.userId);
       }
 
-      loadProfile(); // refresh counts immediately
+      loadProfile();
     } catch {
       Alert.alert("Error", "Failed to update follow status");
     }
@@ -112,91 +113,105 @@ export function Profile() {
   /* ---------------- UI ---------------- */
 
   return (
-    <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={{
-        paddingTop: insets.top,
-        paddingBottom: 40,
-      }}
-    >
-      <View style={styles.container}>
-        {/* HEADER */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <View style={styles.avatarWrapper}>
-              <Image source={avatar} style={styles.avatar} />
-            </View>
+    <View style={{ flex: 1 }}>
+      {/* CUSTOM BACK BUTTON (ONLY FOR OTHER USERS) */}
+      {isOtherUser && (
+        <View style={[styles.backButton, { top: insets.top + 8 }]}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Ionicons name="chevron-back" size={30} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      )}
 
-            <View>
-              <Text style={styles.username}>{profile.username}</Text>
-              <Text style={styles.handle}>@{profile.username}</Text>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={{
+          paddingTop: insets.top + (isOtherUser ? 40 : 0),
+          paddingBottom: 40,
+        }}
+      >
+        <View style={styles.container}>
+          {/* HEADER */}
+          <View style={styles.header}>
+            <View style={styles.headerLeft}>
+              <View style={styles.avatarWrapper}>
+                <Image source={avatar} style={styles.avatar} />
+              </View>
 
-              {usernameParam && (
-                <TouchableOpacity
-                  style={[
-                    styles.followButton,
-                    {
-                      backgroundColor: profile.isFollowing
-                        ? "#e5e5e5"
-                        : "#007AFF",
-                    },
-                  ]}
-                  onPress={handleFollowToggle}
-                >
-                  <Text
-                    style={{
-                      color: profile.isFollowing ? "#000" : "#fff",
-                      fontWeight: "600",
-                    }}
+              <View>
+                <Text style={styles.username}>{profile.username}</Text>
+                <Text style={styles.handle}>@{profile.username}</Text>
+
+                {isOtherUser && (
+                  <TouchableOpacity
+                    style={[
+                      styles.followButton,
+                      {
+                        backgroundColor: profile.isFollowing
+                          ? "#e5e5e5"
+                          : "#007AFF",
+                      },
+                    ]}
+                    onPress={handleFollowToggle}
                   >
-                    {profile.isFollowing ? "Unfollow" : "Follow"}
-                  </Text>
-                </TouchableOpacity>
-              )}
+                    <Text
+                      style={{
+                        color: profile.isFollowing ? "#000" : "#fff",
+                        fontWeight: "600",
+                      }}
+                    >
+                      {profile.isFollowing ? "Unfollow" : "Follow"}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+
+            {!isOtherUser && (
+              <TouchableOpacity onPress={() => navigation.navigate("Settings")}>
+                <Ionicons name="settings-outline" size={28} color="#777" />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* STATS */}
+          <View style={styles.statsSection}>
+            <View style={styles.statsRow}>
+              <Stat
+                label="Weight"
+                value={profile.weightLbs ? `${profile.weightLbs}lbs` : "N/A"}
+              />
+              <Stat label="Height" value={formatHeight(profile.heightInches)} />
+              <Stat label="Age" value={profile.age ?? "N/A"} />
+            </View>
+
+            <View style={styles.statsRow}>
+              <Stat
+                label="Workouts"
+                value={profile.workoutStats.totalWorkouts}
+              />
+              <Stat label="Followers" value={profile.followersCount} />
+              <Stat label="Following" value={profile.followingCount} />
             </View>
           </View>
 
-          {!usernameParam && (
-            <TouchableOpacity onPress={() => navigation.navigate("Settings")}>
-              <Ionicons name="settings-outline" size={28} color="#777" />
-            </TouchableOpacity>
-          )}
-        </View>
+          {/* FRIENDS */}
+          <View style={styles.friendsSection}>
+            <Text style={styles.sectionTitle}>Friends</Text>
 
-        {/* STATS */}
-        <View style={styles.statsSection}>
-          <View style={styles.statsRow}>
-            <Stat
-              label="Weight"
-              value={profile.weightLbs ? `${profile.weightLbs}lbs` : "N/A"}
-            />
-            <Stat label="Height" value={formatHeight(profile.heightInches)} />
-            <Stat label="Age" value={profile.age ?? "N/A"} />
-          </View>
-
-          <View style={styles.statsRow}>
-            <Stat label="Workouts" value={profile.workoutStats.totalWorkouts} />
-            <Stat label="Followers" value={profile.followersCount} />
-            <Stat label="Following" value={profile.followingCount} />
+            {followers.length === 0 ? (
+              <Text style={styles.muted}>No followers yet</Text>
+            ) : (
+              <View style={styles.friendsRow}>
+                {followers.slice(0, 5).map((f) => (
+                  <View key={f.userId} style={styles.friend} />
+                ))}
+              </View>
+            )}
           </View>
         </View>
-
-        {/* FRIENDS */}
-        <View style={styles.friendsSection}>
-          <Text style={styles.sectionTitle}>Friends</Text>
-
-          {followers.length === 0 ? (
-            <Text style={styles.muted}>No followers yet</Text>
-          ) : (
-            <View style={styles.friendsRow}>
-              {followers.slice(0, 5).map((f) => (
-                <View key={f.userId} style={styles.friend} />
-              ))}
-            </View>
-          )}
-        </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -218,6 +233,12 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
 
   container: { padding: 16 },
+
+  backButton: {
+    position: "absolute",
+    left: 16,
+    zIndex: 10,
+  },
 
   header: {
     flexDirection: "row",

@@ -147,9 +147,7 @@ const RootStack = createNativeStackNavigator({
     UserProfile: {
       screen: Profile,
       options: {
-        headerShown: true,
-        title: "",
-        headerBackTitleVisible: false,
+        headerShown: false,
       },
     },
 
