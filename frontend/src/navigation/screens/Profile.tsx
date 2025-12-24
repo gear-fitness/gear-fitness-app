@@ -9,12 +9,13 @@ import {
   Image,
 } from "react-native";
 import { Text, Button } from "@react-navigation/elements";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   useNavigation,
   useRoute,
   useFocusEffect,
+  useTheme,
 } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
 import avatar from "../../assets/avatar.png";
@@ -31,28 +32,31 @@ export function Profile() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
+  const { colors } = useTheme();
 
   const usernameParam: string | undefined = route.params?.username;
   const isOtherUser = !!usernameParam;
 
+  // State management
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [followers, setFollowers] = useState<FollowerUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  /* ---------------- LOAD PROFILE ON FOCUS ---------------- */
-
+  // Load profile data when screen is focused
   const loadProfile = async () => {
     try {
       setLoading(true);
       setError(null);
 
+      // Fetch profile data
       const profileData = usernameParam
         ? await getUserProfile(usernameParam)
         : await getCurrentUserProfile();
 
       setProfile(profileData);
 
+      // Fetch followers
       const followersData = await getUserFollowers(profileData.userId);
       setFollowers(followersData);
     } catch {
@@ -69,56 +73,74 @@ export function Profile() {
     }, [usernameParam])
   );
 
-  /* ---------------- FOLLOW / UNFOLLOW ---------------- */
-
+  // Follow or unfollow user
   const handleFollowToggle = async () => {
     if (!profile) return;
 
-    try {
-      if (profile.isFollowing) {
-        await unfollowUser(profile.userId);
-      } else {
-        await followUser(profile.userId);
-      }
+    // Confirm before unfollowing
+    if (profile.isFollowing) {
+      Alert.alert(
+        `Unfollow @${profile.username}?`,
+        "Are you sure you want to unfollow this user?",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Unfollow",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                await unfollowUser(profile.userId);
+                loadProfile();
+              } catch {
+                Alert.alert("Error", "Failed to update follow status");
+              }
+            },
+          },
+        ]
+      );
+      return;
+    }
 
+    // Follow user
+    try {
+      await followUser(profile.userId);
       loadProfile();
     } catch {
       Alert.alert("Error", "Failed to update follow status");
     }
   };
 
+  // Format height from inches to feet and inches
   const formatHeight = (h: number | null) =>
     h ? `${Math.floor(h / 12)}' ${h % 12}"` : "N/A";
 
-  /* ---------------- STATES ---------------- */
-
+  // Show loading state
   if (loading) {
     return (
-      <View style={[styles.center, { paddingTop: insets.top }]}>
+      <View style={styles.center}>
         <ActivityIndicator size="large" />
         <Text>Loading profile...</Text>
       </View>
     );
   }
 
+  // Show error state
   if (error || !profile) {
     return (
-      <View style={[styles.center, { paddingTop: insets.top }]}>
+      <View style={styles.center}>
         <Text>Failed to load profile</Text>
         <Button onPress={loadProfile}>Retry</Button>
       </View>
     );
   }
 
-  /* ---------------- UI ---------------- */
-
   return (
     <View style={{ flex: 1 }}>
-      {/* CUSTOM BACK BUTTON (ONLY FOR OTHER USERS) */}
+      {/* Back button for other users */}
       {isOtherUser && (
-        <View style={[styles.backButton, { top: insets.top + 8 }]}>
+        <View style={[styles.backButton, { top: insets.top - 6 }]}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Ionicons name="chevron-back" size={30} color="#fff" />
+            <Ionicons name="chevron-back" size={30} color={colors.text} />
           </TouchableOpacity>
         </View>
       )}
@@ -126,12 +148,11 @@ export function Profile() {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={{
-          paddingTop: insets.top + (isOtherUser ? 40 : 0),
+          paddingTop: insets.top + (isOtherUser ? 28 : 0),
           paddingBottom: 40,
         }}
       >
         <View style={styles.container}>
-          {/* HEADER */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>
               <View style={styles.avatarWrapper}>
@@ -169,12 +190,16 @@ export function Profile() {
 
             {!isOtherUser && (
               <TouchableOpacity onPress={() => navigation.navigate("Settings")}>
-                <Ionicons name="settings-outline" size={28} color="#777" />
+                <Ionicons
+                  name="settings-outline"
+                  size={40}
+                  color="#666"
+                  style={{ marginRight: 10, marginTop: -16 }}
+                />
               </TouchableOpacity>
             )}
           </View>
 
-          {/* STATS */}
           <View style={styles.statsSection}>
             <View style={styles.statsRow}>
               <Stat
@@ -195,7 +220,6 @@ export function Profile() {
             </View>
           </View>
 
-          {/* FRIENDS */}
           <View style={styles.friendsSection}>
             <Text style={styles.sectionTitle}>Friends</Text>
 
@@ -209,14 +233,30 @@ export function Profile() {
               </View>
             )}
           </View>
+
+          <View style={styles.weekRow}>
+            {(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const).map(
+              (day) => (
+                <View key={day} style={styles.dayItem}>
+                  <Text style={styles.dayLabel}>{day}</Text>
+                  <View
+                    style={[
+                      styles.dayCircle,
+                      profile.workoutStats.weeklySplit[day] > 0 &&
+                        styles.dayActive,
+                    ]}
+                  />
+                </View>
+              )
+            )}
+          </View>
         </View>
       </ScrollView>
     </View>
   );
 }
 
-/* ---------------- SMALL COMPONENT ---------------- */
-
+// Small stat component
 function Stat({ label, value }: { label: string; value: any }) {
   return (
     <View style={{ flex: 1 }}>
@@ -225,8 +265,6 @@ function Stat({ label, value }: { label: string; value: any }) {
     </View>
   );
 }
-
-/* ---------------- STYLES ---------------- */
 
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
@@ -306,6 +344,33 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     backgroundColor: "#ccc",
+  },
+
+  weekRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 24,
+  },
+
+  dayItem: {
+    alignItems: "center",
+    flex: 1,
+  },
+
+  dayLabel: {
+    fontSize: 12,
+    marginBottom: 4,
+  },
+
+  dayCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#eee",
+  },
+
+  dayActive: {
+    backgroundColor: "#ffc107",
   },
 
   muted: { color: "#777" },
