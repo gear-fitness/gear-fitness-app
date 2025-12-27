@@ -41,7 +41,7 @@
           "backgroundColor": "#ffffff",
           "image": "./assets/GearLogoInverse.png",
           "dark": {
-            "backgroundColor": "#121212",
+            "backgroundColor": "#000000",
             "image": "./assets/GearLogo.png"
           }
         }

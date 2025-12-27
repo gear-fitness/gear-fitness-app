@@ -129,6 +129,38 @@ export function WorkoutComplete() {
     }
   };
 
+  const handleDiscardWorkout = () => {
+    Alert.alert(
+      "Discard Workout",
+      "Are you sure you want to discard this workout? All progress will be lost.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Discard",
+          style: "destructive",
+          onPress: () => {
+            reset();
+
+            const state = navigation.getState();
+            const modalCount = state.routes.filter((r: any) =>
+              [
+                "WorkoutComplete",
+                "WorkoutSummary",
+                "ExerciseDetail",
+                "ExerciseSelect",
+              ].includes(r.name)
+            ).length;
+
+            navigation.pop(modalCount);
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -263,6 +295,16 @@ export function WorkoutComplete() {
               </Text>
             )}
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.button, styles.discardButton]}
+            onPress={handleDiscardWorkout}
+            disabled={loading}
+          >
+            <Text style={[styles.buttonText, { color: "#FF3B30" }]}>
+              Discard Workout
+            </Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -341,5 +383,10 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 16,
     fontWeight: "700",
+  },
+  discardButton: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: "#FF3B30",
   },
 });
