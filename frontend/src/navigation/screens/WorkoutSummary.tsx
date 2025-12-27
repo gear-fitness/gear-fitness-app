@@ -1,4 +1,11 @@
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  ScrollView,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Swipeable } from "react-native-gesture-handler";
 import { useNavigation } from "@react-navigation/native";
@@ -14,8 +21,15 @@ export function WorkoutSummary() {
   const isDark = useColorScheme() === "dark";
   const navigation = useNavigation<any>();
 
-  const { seconds, running, start, pause, exercises, removeExercise, setCurrentExercise } =
-    useWorkoutTimer();
+  const {
+    seconds,
+    running,
+    start,
+    pause,
+    exercises,
+    removeExercise,
+    setCurrentExercise,
+  } = useWorkoutTimer();
 
   // Track touch position for movement-based tap detection
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(
@@ -151,27 +165,36 @@ export function WorkoutSummary() {
       <View style={styles.bottomButtons}>
         {running ? (
           <>
-            <TouchableOpacity
-              style={[
-                styles.pauseBtn,
-                { backgroundColor: isDark ? "#333" : "#ddd" },
-              ]}
-              onPress={pause}
-            >
-              <Text
-                style={[styles.btnText, { color: isDark ? "#fff" : "#000" }]}
+            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+              <TouchableOpacity
+                style={[
+                  styles.pauseBtn,
+                  { backgroundColor: isDark ? "#333" : "#ddd" },
+                ]}
+                onPress={pause}
               >
-                Pause
-              </Text>
-            </TouchableOpacity>
+                <Text
+                  style={[styles.btnText, { color: isDark ? "#fff" : "#000" }]}
+                >
+                  Pause
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.addBtn, { backgroundColor: "#1E90FF" }]}
+                onPress={() => navigation.replace("ExerciseSelect")}
+              >
+                <Text style={[styles.btnText, { color: "#fff" }]}>
+                  Select Exercise
+                </Text>
+              </TouchableOpacity>
+            </View>
 
             <TouchableOpacity
-              style={[styles.addBtn, { backgroundColor: "#1E90FF" }]}
-              onPress={() => navigation.replace("ExerciseSelect")}
+              style={[styles.finishBtn, { backgroundColor: "#FF3B30" }]}
+              onPress={() => navigation.navigate("WorkoutComplete")}
             >
-              <Text style={[styles.btnText, { color: "#fff" }]}>
-                Add Exercise
-              </Text>
+              <Text style={[styles.btnText, { color: "#fff" }]}>Finish</Text>
             </TouchableOpacity>
           </>
         ) : (
@@ -188,13 +211,6 @@ export function WorkoutSummary() {
               >
                 Resume
               </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.addBtn, { backgroundColor: "#FF3B30" }]}
-              onPress={() => navigation.navigate("WorkoutComplete")}
-            >
-              <Text style={[styles.btnText, { color: "#fff" }]}>Finish</Text>
             </TouchableOpacity>
           </>
         )}
@@ -233,8 +249,8 @@ const styles = StyleSheet.create({
     bottom: 40,
     left: 20,
     right: 20,
-    flexDirection: "row",
-    justifyContent: "space-between",
+    flexDirection: "column",
+    gap: 16,
   },
 
   pauseBtn: {
@@ -250,6 +266,11 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     marginLeft: 10,
+    alignItems: "center",
+  },
+  finishBtn: {
+    padding: 16,
+    borderRadius: 12,
     alignItems: "center",
   },
 

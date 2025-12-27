@@ -36,12 +36,7 @@ export interface ExerciseDetailContentRef {
 export const ExerciseDetailContent = forwardRef<
   ExerciseDetailContentRef,
   ExerciseDetailContentProps
->(({
-  exercise,
-  onSummary,
-  onAddExercise,
-  isInPlayer = false,
-}, ref) => {
+>(({ exercise, onSummary, onAddExercise, isInPlayer = false }, ref) => {
   const { seconds, addExercise } = useWorkoutTimer();
   const isDark = useColorScheme() === "dark";
 
@@ -114,7 +109,7 @@ export const ExerciseDetailContent = forwardRef<
   // Auto-save on keyboard dismiss
   useEffect(() => {
     const keyboardDidHideListener = Keyboard.addListener(
-      'keyboardDidHide',
+      "keyboardDidHide",
       () => {
         // Save current sets without navigating away
         saveExercise();
@@ -240,7 +235,7 @@ export const ExerciseDetailContent = forwardRef<
           style={styles.footerButton}
           onPress={() => handleSave(onAddExercise)}
         >
-          <Text style={styles.footerButtonText}>+ Add Exercise</Text>
+          <Text style={styles.footerButtonText}>Select Exercise</Text>
         </TouchableOpacity>
       </View>
     </View>
