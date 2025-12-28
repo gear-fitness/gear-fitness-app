@@ -23,6 +23,7 @@ import { searchUsers } from "../../api/userService";
 import { FeedPostCard } from "../../components/FeedPostCard";
 import { UserSearchCard } from "../../components/UserSearchCard";
 import { useAuth } from "../../context/AuthContext";
+import { ActivityModal } from "../../components/ActivityModal";
 
 export function Social() {
   const { colors } = useTheme();
@@ -38,6 +39,9 @@ export function Social() {
   const [searchQuery, setSearchQuery] = useState("");
   const [userResults, setUserResults] = useState<any[]>([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
+
+  // Activity modal state
+  const [showActivity, setShowActivity] = useState(false);
 
   // Initial load
   useEffect(() => {
@@ -188,11 +192,32 @@ export function Social() {
               </TouchableOpacity>
             )}
           </View>
+
+          {/* Bell icon */}
+          <TouchableOpacity
+            onPress={() => setShowActivity(true)}
+            style={[
+              styles.bellButton,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+          >
+            <Ionicons
+              name="notifications-outline"
+              size={22}
+              color={colors.text}
+            />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
+
+        {/* Activity Modal */}
+        <ActivityModal
+          visible={showActivity}
+          onClose={() => setShowActivity(false)}
+        />
       </SafeAreaView>
     );
   }
@@ -231,6 +256,21 @@ export function Social() {
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Bell icon */}
+        <TouchableOpacity
+          onPress={() => setShowActivity(true)}
+          style={[
+            styles.bellButton,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
+        >
+          <Ionicons
+            name="notifications-outline"
+            size={22}
+            color={colors.text}
+          />
+        </TouchableOpacity>
       </View>
 
       {/* Feed List with Infinite Scroll */}
@@ -277,6 +317,12 @@ export function Social() {
           onEndReachedThreshold={0.5}
         />
       )}
+
+      {/* Activity Modal */}
+      <ActivityModal
+        visible={showActivity}
+        onClose={() => setShowActivity(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -307,6 +353,14 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
+  },
+  bellButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
   loadingContainer: {
     flex: 1,

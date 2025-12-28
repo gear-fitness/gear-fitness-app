@@ -25,15 +25,27 @@ public class FollowController {
      * Follow a user
      */
     @PostMapping("/{userId}")
-    public ResponseEntity<FollowResponse> followUser(
+    public ResponseEntity<?> followUser(
             @RequestHeader("Authorization") String authHeader,
             @PathVariable UUID userId) {
-        String token = authHeader.substring(7); // Remove "Bearer " prefix
-        UUID followerId = jwtService.extractUserId(token);
+        try {
+            String token = authHeader.substring(7);
+            UUID followerId = jwtService.extractUserId(token);
 
-        FollowResponse response = followService.followUser(followerId, userId);
-        return ResponseEntity.ok().body(response);
+            FollowResponse response =
+                    followService.followUser(followerId, userId);
 
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(
+                    FollowResponse.builder()
+                            .message(e.getMessage())
+                            .build()
+            );
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body("An error occurred");
+        }
     }
 
     /**
@@ -41,20 +53,26 @@ public class FollowController {
      * Follow a user by their username
      */
     @PostMapping("/username/{username}")
-    public ResponseEntity<FollowResponse> followUserByUsername(
+    public ResponseEntity<?> followUserByUsername(
             @RequestHeader("Authorization") String authHeader,
             @PathVariable String username) {
         try {
             String token = authHeader.substring(7);
             UUID followerId = jwtService.extractUserId(token);
 
-            FollowResponse response = followService.followUserByUsername(followerId, username);
+            FollowResponse response =
+                    followService.followUserByUsername(followerId, username);
+
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(
                     FollowResponse.builder()
                             .message(e.getMessage())
-                            .build());
+                            .build()
+            );
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body("An error occurred");
         }
     }
 
@@ -75,7 +93,8 @@ public class FollowController {
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("An error occurred");
+            return ResponseEntity.internalServerError()
+                    .body("An error occurred");
         }
     }
 
@@ -86,7 +105,8 @@ public class FollowController {
     @GetMapping("/{userId}/followers")
     public ResponseEntity<?> getFollowers(@PathVariable UUID userId) {
         try {
-            List<FollowerDTO> followers = followService.getFollowers(userId);
+            List<FollowerDTO> followers =
+                    followService.getFollowers(userId);
             return ResponseEntity.ok(followers);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -100,7 +120,8 @@ public class FollowController {
     @GetMapping("/{userId}/following")
     public ResponseEntity<?> getFollowing(@PathVariable UUID userId) {
         try {
-            List<FollowerDTO> following = followService.getFollowing(userId);
+            List<FollowerDTO> following =
+                    followService.getFollowing(userId);
             return ResponseEntity.ok(following);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -119,10 +140,94 @@ public class FollowController {
             String token = authHeader.substring(7);
             UUID followerId = jwtService.extractUserId(token);
 
-            boolean isFollowing = followService.isFollowing(followerId, userId);
-            return ResponseEntity.ok().body(new FollowStatusResponse(isFollowing));
+            boolean isFollowing =
+                    followService.isFollowing(followerId, userId);
+
+            return ResponseEntity.ok(
+                    new FollowStatusResponse(isFollowing)
+            );
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
+        }
+    }
+
+    /**
+     * GET /api/follows/requests
+     * Get pending follow requests for current user
+     */
+    @GetMapping("/requests")
+    public ResponseEntity<?> getPendingRequests(
+            @RequestHeader("Authorization") String authHeader) {
+        try {
+            String token = authHeader.substring(7);
+            UUID userId = jwtService.extractUserId(token);
+
+            return ResponseEntity.ok(
+                    followService.getPendingRequests(userId)
+            );
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body("Failed to fetch follow requests");
+        }
+    }
+
+    /**
+     * POST /api/follows/requests/{followerId}/accept
+     * Accept a follow request
+     */
+    @PostMapping("/requests/{followerId}/accept")
+    public ResponseEntity<?> acceptFollowRequest(
+            @RequestHeader("Authorization") String authHeader,
+            @PathVariable UUID followerId) {
+        try {
+            String token = authHeader.substring(7);
+            UUID followeeId = jwtService.extractUserId(token);
+
+            followService.acceptFollowRequest(followeeId, followerId);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body("Failed to accept follow request");
+        }
+    }
+
+    /**
+     * DELETE /api/follows/requests/{followerId}
+     * Decline a follow request
+     */
+    @DeleteMapping("/requests/{followerId}")
+    public ResponseEntity<?> declineFollowRequest(
+            @RequestHeader("Authorization") String authHeader,
+            @PathVariable UUID followerId) {
+        try {
+            String token = authHeader.substring(7);
+            UUID followeeId = jwtService.extractUserId(token);
+
+            followService.declineFollowRequest(followeeId, followerId);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body("Failed to decline follow request");
+        }
+    }
+
+    /**
+     * GET /api/follows/activity
+     * Get recent follow activity for current user
+     */
+    @GetMapping("/activity")
+    public ResponseEntity<?> getFollowActivity(
+            @RequestHeader("Authorization") String authHeader) {
+        try {
+            String token = authHeader.substring(7);
+            UUID userId = jwtService.extractUserId(token);
+
+            return ResponseEntity.ok(
+                    followService.getFollowActivity(userId)
+            );
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body("Failed to fetch follow activity");
         }
     }
 }
