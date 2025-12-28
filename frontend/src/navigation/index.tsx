@@ -142,11 +142,13 @@ const RootStack = createNativeStackNavigator({
     },
 
     Settings: { screen: Settings, options: { headerBackTitle: "Profile" } },
-    Profile: { screen: Profile },
 
     UserProfile: {
       screen: Profile,
-      options: { headerShown: false },
+      options: {
+        headerShown: false,
+        gestureEnabled: true,
+      },
     },
 
     PR: {
