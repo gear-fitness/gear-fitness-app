@@ -3,7 +3,7 @@
     "name": "gear-fitness",
     "slug": "gear-fitness",
     "version": "1.0.0",
-    "orientation": "default",
+    "orientation": "portrait",
     "icon": "./assets/GearLogo.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
