@@ -79,6 +79,7 @@ export function SignUpProfileScreen() {
       );
 
       console.log("Profile updated successfully:", userData);
+      // Reset to HomeTabs to prevent back navigation to profile setup
       navigation.reset({
         index: 0,
         routes: [{ name: "HomeTabs" }],
