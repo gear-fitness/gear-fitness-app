@@ -39,7 +39,11 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#ffffff",
-          "image": "./assets/GearLogo.png"
+          "image": "./assets/GearLogoInverse.png",
+          "dark": {
+            "backgroundColor": "#000000",
+            "image": "./assets/GearLogo.png"
+          }
         }
       ],
       [
