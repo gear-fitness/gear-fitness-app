@@ -14,21 +14,36 @@ import {
 import { Text } from "@react-navigation/elements";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import {
+  useTheme,
+  useNavigation,
+  useFocusEffect,
+} from "@react-navigation/native";
+
 import { socialFeedApi, FeedPost } from "../../api/socialFeedApi";
-import { FollowModal } from "../../components/FollowModal";
+import { searchUsers } from "../../api/userService";
 import { FeedPostCard } from "../../components/FeedPostCard";
-import { useTheme } from "@react-navigation/native";
+import { UserSearchCard } from "../../components/UserSearchCard";
+import { useAuth } from "../../context/AuthContext";
+import { ActivityModal } from "../../components/ActivityModal";
 
 export function Social() {
   const { colors } = useTheme();
+  const navigation = useNavigation<any>();
+  const { user } = useAuth();
+
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
-  const [followModalVisible, setFollowModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [userResults, setUserResults] = useState<any[]>([]);
+  const [searchingUsers, setSearchingUsers] = useState(false);
+
+  // Activity modal state
+  const [showActivity, setShowActivity] = useState(false);
 
   // Initial load
   useEffect(() => {
@@ -39,7 +54,7 @@ export function Social() {
   const loadFeed = async () => {
     try {
       setLoading(true);
-      const response = await socialFeedApi.getFeed(0, 3);
+      const response = await socialFeedApi.getFeed(0, 5);
       setPosts(response.content);
       setCurrentPage(0);
       setHasMore(!response.last);
@@ -55,7 +70,7 @@ export function Social() {
   const onRefresh = useCallback(async () => {
     try {
       setRefreshing(true);
-      const response = await socialFeedApi.getFeed(0, 3);
+      const response = await socialFeedApi.getFeed(0, 5);
       setPosts(response.content);
       setCurrentPage(0);
       setHasMore(!response.last);
@@ -74,7 +89,7 @@ export function Social() {
     try {
       setLoadingMore(true);
       const nextPage = currentPage + 1;
-      const response = await socialFeedApi.getFeed(nextPage, 3);
+      const response = await socialFeedApi.getFeed(nextPage, 5);
 
       setPosts((prev) => [...prev, ...response.content]);
       setCurrentPage(nextPage);
@@ -85,6 +100,40 @@ export function Social() {
       setLoadingMore(false);
     }
   };
+
+  // Search users
+  useFocusEffect(
+    useCallback(() => {
+      if (!searchQuery.trim()) {
+        setUserResults([]);
+        return;
+      }
+
+      const fetchUsers = async () => {
+        try {
+          setSearchingUsers(true);
+          const results = await searchUsers(searchQuery);
+
+          const filteredResults = user
+            ? results.filter((u: any) => u.userId !== user.userId)
+            : results;
+
+          setUserResults(filteredResults);
+        } finally {
+          setSearchingUsers(false);
+        }
+      };
+
+      fetchUsers();
+    }, [searchQuery, user])
+  );
+
+  // Refetch feed when returning to Social screen
+  useFocusEffect(
+    useCallback(() => {
+      loadFeed();
+    }, [])
+  );
 
   const renderFooter = () => {
     if (!loadingMore) return null;
@@ -105,14 +154,8 @@ export function Social() {
         No workouts yet
       </Text>
       <Text style={[styles.emptySubtext, { color: colors.text }]}>
-        Follow people to see their workouts!
+        Follow people to see their activity
       </Text>
-      <TouchableOpacity
-        style={[styles.emptyButton, { backgroundColor: colors.primary }]}
-        onPress={() => setFollowModalVisible(true)}
-      >
-        <Text style={styles.emptyButtonText}>Find People to Follow</Text>
-      </TouchableOpacity>
     </View>
   );
 
@@ -136,10 +179,13 @@ export function Social() {
               style={styles.searchIcon}
             />
             <TextInput
-              placeholder="Search..."
-              placeholderTextColor={colors.border}
+              placeholder="Search users"
+              placeholderTextColor="#999"
               value={searchQuery}
               onChangeText={setSearchQuery}
+              autoCorrect={false}
+              autoCapitalize="none"
+              autoComplete="off"
               style={[styles.searchInput, { color: colors.text }]}
               returnKeyType="done"
               onSubmitEditing={() => Keyboard.dismiss()}
@@ -151,20 +197,31 @@ export function Social() {
             )}
           </View>
 
+          {/* Bell icon */}
           <TouchableOpacity
+            onPress={() => setShowActivity(true)}
             style={[
-              styles.followIconButton,
+              styles.bellButton,
               { backgroundColor: colors.card, borderColor: colors.border },
             ]}
-            onPress={() => setFollowModalVisible(true)}
           >
-            <Ionicons name="person-add" size={20} color={colors.primary} />
+            <Ionicons
+              name="notifications-outline"
+              size={22}
+              color={colors.text}
+            />
           </TouchableOpacity>
         </View>
 
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
+
+        {/* Activity Modal */}
+        <ActivityModal
+          visible={showActivity}
+          onClose={() => setShowActivity(false)}
+        />
       </SafeAreaView>
     );
   }
@@ -188,10 +245,13 @@ export function Social() {
             style={styles.searchIcon}
           />
           <TextInput
-            placeholder="Search..."
-            placeholderTextColor={colors.border}
+            placeholder="Search users"
+            placeholderTextColor="#999"
             value={searchQuery}
             onChangeText={setSearchQuery}
+            autoCorrect={false}
+            autoCapitalize="none"
+            autoComplete="off"
             style={[styles.searchInput, { color: colors.text }]}
           />
           {searchQuery.length > 0 && (
@@ -201,38 +261,71 @@ export function Social() {
           )}
         </View>
 
+        {/* Bell icon */}
         <TouchableOpacity
+          onPress={() => setShowActivity(true)}
           style={[
-            styles.followIconButton,
+            styles.bellButton,
             { backgroundColor: colors.card, borderColor: colors.border },
           ]}
-          onPress={() => setFollowModalVisible(true)}
         >
-          <Ionicons name="person-add" size={20} color={colors.primary} />
+          <Ionicons
+            name="notifications-outline"
+            size={22}
+            color={colors.text}
+          />
         </TouchableOpacity>
       </View>
 
       {/* Feed List with Infinite Scroll */}
-      <FlatList
-        data={posts}
-        renderItem={({ item }) => <FeedPostCard post={item} />}
-        keyExtractor={(item) => item.postId}
-        contentContainerStyle={
-          posts.length === 0 ? styles.emptyContainer : styles.feedList
-        }
-        ListEmptyComponent={renderEmpty}
-        ListFooterComponent={renderFooter}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.5}
-      />
+      {searchQuery.length > 0 ? (
+        <FlatList
+          data={userResults}
+          keyExtractor={(item) => String(item.userId)}
+          renderItem={({ item }) => {
+            if (!item?.userId || !item?.username) return null;
 
-      <FollowModal
-        visible={followModalVisible}
-        onClose={() => setFollowModalVisible(false)}
-        onSuccess={onRefresh}
+            return (
+              <UserSearchCard
+                username={item.username}
+                onPress={() => {
+                  setSearchQuery("");
+                  setUserResults([]);
+                  navigation.navigate("UserProfile", {
+                    username: item.username,
+                  });
+                }}
+              />
+            );
+          }}
+          ListEmptyComponent={
+            searchingUsers ? (
+              <ActivityIndicator style={{ marginTop: 24 }} />
+            ) : null
+          }
+        />
+      ) : (
+        <FlatList
+          data={posts}
+          renderItem={({ item }) => <FeedPostCard post={item} />}
+          keyExtractor={(item) => String(item.postId)}
+          contentContainerStyle={
+            posts.length === 0 ? styles.emptyContainer : styles.feedList
+          }
+          ListEmptyComponent={renderEmpty}
+          ListFooterComponent={renderFooter}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
+        />
+      )}
+
+      {/* Activity Modal */}
+      <ActivityModal
+        visible={showActivity}
+        onClose={() => setShowActivity(false)}
       />
     </SafeAreaView>
   );
@@ -265,7 +358,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
   },
-  followIconButton: {
+  bellButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -279,7 +372,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   feedList: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   emptyContainer: {
     flex: 1,
@@ -299,17 +393,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 8,
     textAlign: "center",
-  },
-  emptyButton: {
-    marginTop: 24,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  emptyButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
   },
   footer: {
     paddingVertical: 20,

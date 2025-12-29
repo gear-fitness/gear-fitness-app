@@ -230,4 +230,15 @@ public class AppUserService {
                 .createdAt(user.getCreatedAt())
                 .build();
     }
+
+    /**
+ * Search users by partial username (case-insensitive)
+ */
+public List<UserDTO> searchUsersByUsername(String query) {
+    return userRepository
+            .searchByUsername(query)
+            .stream()
+            .map(this::convertToDTO)
+            .toList();
+}
 }
