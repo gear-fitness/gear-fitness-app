@@ -144,6 +144,11 @@ const RootStack = createNativeStackNavigator({
     Settings: { screen: Settings, options: { headerBackTitle: "Profile" } },
     Profile: { screen: Profile },
 
+    UserProfile: {
+      screen: Profile,
+      options: { headerShown: false },
+    },
+
     PR: {
       screen: PR,
       options: {
@@ -202,6 +207,7 @@ const RootStack = createNativeStackNavigator({
       options: { title: "404" },
       linking: { path: "*" },
     },
+
     /* MODAL 4 — WORKOUT COMPLETE */
     WorkoutComplete: {
       screen: WorkoutComplete,
@@ -211,6 +217,7 @@ const RootStack = createNativeStackNavigator({
         headerShown: true,
       },
     },
+
     /* MODAL 5 — EXERCISE CHAT */
     ExerciseChat: {
       screen: ExerciseChat,
@@ -237,6 +244,7 @@ declare global {
       History: undefined;
       Settings: undefined;
       Profile: undefined;
+      UserProfile: { username: string };
       WorkoutSummary: undefined;
       WorkoutComplete: undefined;
       ExerciseSelect: undefined;
