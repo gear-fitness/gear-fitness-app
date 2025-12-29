@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   Alert,
   TextInput,
+  Image,
+  Keyboard,
 } from "react-native";
 import { Text } from "@react-navigation/elements";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -185,6 +187,8 @@ export function Social() {
               autoCapitalize="none"
               autoComplete="off"
               style={[styles.searchInput, { color: colors.text }]}
+              returnKeyType="done"
+              onSubmitEditing={() => Keyboard.dismiss()}
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={() => setSearchQuery("")}>

@@ -1,5 +1,5 @@
 import { useNavigation, useTheme } from "@react-navigation/native";
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Keyboard,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { updateUserProfile } from "../../api/userService";
@@ -19,6 +20,7 @@ export function SignUpProfileScreen() {
   const navigation = useNavigation();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const [heightInches, setHeightInches] = useState("");
   const [weightLbs, setWeightLbs] = useState("");
@@ -98,8 +100,8 @@ export function SignUpProfileScreen() {
       paddingHorizontal: 20,
     },
     scrollContent: {
-      flexGrow: 1,
-      justifyContent: "center",
+      paddingTop: 80,
+      paddingBottom: 100,
     },
     title: {
       fontSize: 28,
@@ -148,10 +150,13 @@ export function SignUpProfileScreen() {
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
     >
       <ScrollView
+        ref={scrollViewRef}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
         <Text style={[styles.title, { color: colors.text }]}>
           Complete Your Profile
@@ -175,6 +180,13 @@ export function SignUpProfileScreen() {
             value={heightInches}
             onChangeText={setHeightInches}
             maxLength={3}
+            returnKeyType="done"
+            onSubmitEditing={() => Keyboard.dismiss()}
+            onFocus={() => {
+              setTimeout(() => {
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+              }, 100);
+            }}
           />
         </View>
 
@@ -193,6 +205,13 @@ export function SignUpProfileScreen() {
             value={weightLbs}
             onChangeText={setWeightLbs}
             maxLength={3}
+            returnKeyType="done"
+            onSubmitEditing={() => Keyboard.dismiss()}
+            onFocus={() => {
+              setTimeout(() => {
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+              }, 100);
+            }}
           />
         </View>
 
@@ -211,6 +230,13 @@ export function SignUpProfileScreen() {
             value={age}
             onChangeText={setAge}
             maxLength={3}
+            returnKeyType="done"
+            onSubmitEditing={() => Keyboard.dismiss()}
+            onFocus={() => {
+              setTimeout(() => {
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+              }, 100);
+            }}
           />
         </View>
 

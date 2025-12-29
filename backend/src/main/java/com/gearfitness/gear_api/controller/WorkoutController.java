@@ -35,7 +35,8 @@ public class WorkoutController {
                     .map(w -> new WorkoutDTO(
                             w.getWorkoutId(),
                             w.getName(),
-                            w.getDatePerformed()))
+                            w.getDatePerformed(),
+                            w.getCreatedAt()))
                     .collect(Collectors.toList());
             return ResponseEntity.ok(workouts);
         } catch (Exception e) {
@@ -68,7 +69,8 @@ public class WorkoutController {
             return ResponseEntity.ok(new WorkoutDTO(
                     saved.getWorkoutId(),
                     saved.getName(),
-                    saved.getDatePerformed()));
+                    saved.getDatePerformed(),
+                    saved.getCreatedAt()));
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();

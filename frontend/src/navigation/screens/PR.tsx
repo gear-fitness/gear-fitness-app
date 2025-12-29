@@ -9,11 +9,13 @@ import {
 } from "react-native";
 import React, { useState, useEffect } from "react";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import bench from "../../assets/bench.png";
 import squat from "../../assets/squat.png";
 import deadlift from "../../assets/deadlift.png";
 import { getUserPersonalRecords } from "../../api/workoutService";
 import { PersonalRecord } from "../../api/types";
+import { useWorkoutTimer } from "../../context/WorkoutContext";
 
 type RootStackParamList = {
   PR: { userId: string };
@@ -21,10 +23,14 @@ type RootStackParamList = {
 
 type Props = NativeStackScreenProps<RootStackParamList, "PR">;
 
+const MINI_PLAYER_HEIGHT = 70;
+
 export function PR({ route }: Props) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const { userId } = route.params;
+  const insets = useSafeAreaInsets();
+  const { playerVisible } = useWorkoutTimer();
 
   const [prs, setPrs] = useState<PersonalRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,11 +90,14 @@ export function PR({ route }: Props) {
     );
   }
 
+  // Add bottom padding when miniplayer is visible to prevent content from being covered
+  const bottomPadding = playerVisible ? Math.max(MINI_PLAYER_HEIGHT, insets.bottom) : 0;
+
   return (
     <View
       style={[
         styles.container,
-        { backgroundColor: isDark ? "#121212" : "#fff" },
+        { backgroundColor: isDark ? "#121212" : "#fff", paddingBottom: bottomPadding },
       ]}
     >
       {prs.map((pr, index) => (

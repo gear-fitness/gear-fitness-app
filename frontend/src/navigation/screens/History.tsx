@@ -7,6 +7,9 @@ import {
   TextInput,
   Image,
   useColorScheme,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { Calendar } from "react-native-calendars";
 import React, { useState, useEffect } from "react";
@@ -17,6 +20,7 @@ import weightlifter from "../../assets/weightlifter.png";
 import { useAuth } from "../../context/AuthContext";
 import { getUserWorkouts } from "../../api/workoutService";
 import { Workout } from "../../api/types";
+import { parseLocalDate } from "../../utils/date";
 
 type RootStackParamList = {
   HomeTabs: undefined;
@@ -111,13 +115,11 @@ export function History() {
             {item.name}
           </Text>
           <Text style={[styles.cardSubtitle, { color: isDarkMode ? "#AAA" : "#777" }]}>
-            {new Date(item.datePerformed).toLocaleDateString('en-US', {
+            {parseLocalDate(item.datePerformed).toLocaleDateString('en-US', {
               month: 'short',
               day: 'numeric',
               year: 'numeric'
             })}
-            {item.durationMin && ` • ${item.durationMin} min`}
-            {item.bodyTag && ` • ${item.bodyTag}`}
           </Text>
         </View>
         <Text style={styles.cardChevron}>›</Text>
@@ -126,8 +128,12 @@ export function History() {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Calendar
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1 }}
+    >
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <Calendar
         key={colors.background}
         style={styles.calendar}
         current={formattedToday}
@@ -140,8 +146,23 @@ export function History() {
           textSectionTitleColor: colors.text,
           todayTextColor: "#1877F2",
           arrowColor: "#1877F2",
+          textDayFontFamily: 'System',
+          textMonthFontFamily: 'System',
+          textDayHeaderFontFamily: 'System',
+          textDayFontWeight: '400',
+          textMonthFontWeight: '700',
+          textDayHeaderFontWeight: '600',
+          textDayFontSize: 15,
+          textMonthFontSize: 18,
+          textDayHeaderFontSize: 13,
+          selectedDayBackgroundColor: '#1877F2',
+          selectedDayTextColor: '#ffffff',
+          dotColor: '#1877F2',
+          selectedDotColor: '#ffffff',
+          todayBackgroundColor: isDarkMode ? 'rgba(24, 119, 242, 0.15)' : 'rgba(24, 119, 242, 0.1)',
         }}
         hideExtraDays={true}
+        enableSwipeMonths={true}
       />
 
       {/* Search Bar + PR Button */}
@@ -155,6 +176,8 @@ export function History() {
           placeholderTextColor={colors.text + "80"}
           value={searchQuery}
           onChangeText={setSearchQuery}
+          returnKeyType="done"
+          onSubmitEditing={() => Keyboard.dismiss()}
         />
         <TouchableOpacity style={[styles.settingsButton, { backgroundColor: colors.primary }]} onPress={handlePrPress}>
           <Image source={weightlifter} style={styles.settingsButtonIcon} />
@@ -165,8 +188,10 @@ export function History() {
         data={filteredData}
         keyExtractor={(item) => item.workoutId}
         renderItem={renderItem}
+        keyboardShouldPersistTaps="handled"
       />
     </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -177,9 +202,17 @@ const styles = StyleSheet.create({
     paddingTop: 50,
   },
   calendar: {
-    width: "95%",
+    width: "90%",
     alignSelf: "center",
     maxHeight: 350,
+    borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    marginBottom: 8,
   },
   button: {
     marginHorizontal: 20,
