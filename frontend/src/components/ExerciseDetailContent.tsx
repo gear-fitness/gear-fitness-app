@@ -69,6 +69,7 @@ export const ExerciseDetailContent = forwardRef<
 
   // Track which sets we've already auto-added for to prevent duplicate additions
   const autoAddedFor = useRef(new Set<string>());
+  const flatListRef = useRef<FlatList>(null);
 
   // Auto-add empty set when last one is filled (without causing keyboard dismissal)
   useEffect(() => {
@@ -81,6 +82,10 @@ export const ExerciseDetailContent = forwardRef<
           ...p,
           { id: Date.now().toString(), reps: "", weight: "" },
         ]);
+        // Scroll to the new set after a short delay to ensure it's rendered
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
       }, 0);
     }
   }, [sets]);
@@ -169,6 +174,7 @@ export const ExerciseDetailContent = forwardRef<
 
       {/* SET LIST */}
       <FlatList
+        ref={flatListRef}
         data={sets}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: 30 }}
