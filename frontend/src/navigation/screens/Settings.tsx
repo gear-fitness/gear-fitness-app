@@ -2,8 +2,11 @@ import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { useNavigation, useTheme } from "@react-navigation/native";
 import { useAuth } from "../../context/AuthContext";
+import { useTrackTab } from "../../hooks/useTrackTab";
 
 export function Settings() {
+  useTrackTab("Settings");
+
   const { user, logout } = useAuth();
   const navigation = useNavigation();
   const { colors } = useTheme();

@@ -8,8 +8,11 @@ import {
   ExerciseDetailContent,
   ExerciseDetailContentRef,
 } from "../../components/ExerciseDetailContent";
+import { useTrackTab } from "../../hooks/useTrackTab";
 
 export function ExerciseDetail() {
+  useTrackTab("ExerciseDetail");
+
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const exercise = route.params.exercise;

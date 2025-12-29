@@ -27,8 +27,11 @@ import {
   unfollowUser,
 } from "../../api/userService";
 import { UserProfile, FollowerUser } from "../../api/types";
+import { useTrackTab } from "../../hooks/useTrackTab";
 
 export function Profile() {
+  useTrackTab("Profile");
+
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();

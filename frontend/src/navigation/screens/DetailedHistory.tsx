@@ -11,6 +11,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { getWorkoutDetails } from "../../api/workoutService";
 import { WorkoutDetail } from "../../api/types";
 import { parseLocalDate } from "../../utils/date";
+import { useTrackTab } from "../../hooks/useTrackTab";
 
 type RootStackParamList = {
   DetailedHistory: { workoutId: string };
@@ -19,6 +20,8 @@ type RootStackParamList = {
 type Props = NativeStackScreenProps<RootStackParamList, "DetailedHistory">;
 
 export function DetailedHistory({ route }: Props) {
+  useTrackTab("DetailedHistory");
+
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const { workoutId } = route.params;

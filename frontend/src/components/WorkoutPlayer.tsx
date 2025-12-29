@@ -1,37 +1,64 @@
-import { StyleSheet } from "react-native";
-import { View } from "react-native";
+import { StyleSheet, Animated } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useEffect, useRef } from "react";
 
 import { MiniPlayer } from "./MiniPlayer";
 import { useWorkoutTimer } from "../context/WorkoutContext";
 import { navigationRef } from "../App";
 
 const MINI_PLAYER_HEIGHT = 70;
-// HARD MINIMUM - player will NEVER be lower than this (tab bar ~50px + small margin)
 const MINIMUM_BOTTOM_CLEARANCE = 84;
 
+// Tabs where miniplayer should be visible
+const ALLOWED_TABS = ["Home", "Social", "Workouts", "History", "Profile"];
+
 export function WorkoutPlayer() {
-  const { playerVisible } = useWorkoutTimer();
+  const { playerVisible, activeTab } = useWorkoutTimer();
   const insets = useSafeAreaInsets();
+  const slideAnim = useRef(new Animated.Value(0)).current;
 
   const handleTap = () => {
-    // Navigate to WorkoutSummary (last workout page they were using)
     navigationRef.current?.navigate("WorkoutSummary");
   };
 
-  // Don't render player when no workout is active
-  if (!playerVisible) {
-    return null;
-  }
+  // Check if we're on an allowed tab
+  const isAllowedTab = ALLOWED_TABS.includes(activeTab);
+  const shouldShow = playerVisible && isAllowedTab;
 
-  // Calculate bottom offset: use the LARGER of safe area bottom OR minimum clearance
-  // This ensures it NEVER overlaps nav bar, even during transitions
+  useEffect(() => {
+    Animated.timing(slideAnim, {
+      toValue: shouldShow ? 1 : 0,
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
+  }, [shouldShow, slideAnim]);
+
   const bottomOffset = Math.max(insets.bottom, MINIMUM_BOTTOM_CLEARANCE);
 
+  const translateY = slideAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [MINI_PLAYER_HEIGHT + 20, 0],
+  });
+
+  const opacity = slideAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+  });
+
   return (
-    <View style={[styles.playerContainer, { bottom: bottomOffset }]}>
+    <Animated.View
+      style={[
+        styles.playerContainer,
+        {
+          bottom: bottomOffset,
+          transform: [{ translateY }],
+          opacity,
+        },
+      ]}
+      pointerEvents={shouldShow ? "auto" : "none"}
+    >
       <MiniPlayer onTap={handleTap} isVisible={playerVisible} />
-    </View>
+    </Animated.View>
   );
 }
 
