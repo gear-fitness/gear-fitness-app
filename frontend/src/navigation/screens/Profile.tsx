@@ -167,17 +167,15 @@ export function Profile() {
                   <TouchableOpacity
                     style={[
                       styles.followButton,
-                      {
-                        backgroundColor: profile.isFollowing
-                          ? "#e5e5e5"
-                          : "#007AFF",
-                      },
+                      profile.isFollowing
+                        ? styles.unfollowButton
+                        : { backgroundColor: "#007AFF" },
                     ]}
                     onPress={handleFollowToggle}
                   >
                     <Text
                       style={{
-                        color: profile.isFollowing ? "#000" : "#fff",
+                        color: profile.isFollowing ? "#FF3B30" : "#fff",
                         fontWeight: "600",
                       }}
                     >
@@ -314,6 +312,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     borderRadius: 6,
     alignSelf: "flex-start",
+  },
+
+  // iOS-style unfollow button
+  unfollowButton: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: "#FF3B30",
   },
 
   statsSection: { marginTop: 24 },
