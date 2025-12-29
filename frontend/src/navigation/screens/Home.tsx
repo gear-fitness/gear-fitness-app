@@ -351,7 +351,7 @@ export function Home() {
   });
 
   return (
-    <ScrollView style={styles.scrollContainer}>
+    <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
       <View style={styles.container}>
         <Text style={styles.title}>Activity</Text>
 
