@@ -337,7 +337,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     marginTop: 12,
-    marginBottom: 12, // 👈 add this
+    marginBottom: 12,
     borderTopWidth: 1,
     paddingTop: 12,
     paddingBottom: 20,
