@@ -1,18 +1,12 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { useNavigation, useTheme } from "@react-navigation/native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
-import { useWorkoutTimer } from "../../context/WorkoutContext";
-
-const MINI_PLAYER_HEIGHT = 70;
 
 export function Settings() {
   const { user, logout } = useAuth();
   const navigation = useNavigation();
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
-  const { playerVisible } = useWorkoutTimer();
 
   const handleLogout = () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
@@ -39,11 +33,8 @@ export function Settings() {
     ]);
   };
 
-  // Add bottom padding when miniplayer is visible to prevent content from being covered
-  const bottomPadding = playerVisible ? Math.max(MINI_PLAYER_HEIGHT, insets.bottom) : 0;
-
   return (
-    <View style={[styles.container, { backgroundColor: colors.background, paddingBottom: bottomPadding }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
 
       {user && (

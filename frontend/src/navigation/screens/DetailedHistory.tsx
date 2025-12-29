@@ -8,11 +8,9 @@ import {
 } from "react-native";
 import React, { useState, useEffect } from "react";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getWorkoutDetails } from "../../api/workoutService";
 import { WorkoutDetail } from "../../api/types";
 import { parseLocalDate } from "../../utils/date";
-import { useWorkoutTimer } from "../../context/WorkoutContext";
 
 type RootStackParamList = {
   DetailedHistory: { workoutId: string };
@@ -20,14 +18,10 @@ type RootStackParamList = {
 
 type Props = NativeStackScreenProps<RootStackParamList, "DetailedHistory">;
 
-const MINI_PLAYER_HEIGHT = 70;
-
 export function DetailedHistory({ route }: Props) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const { workoutId } = route.params;
-  const insets = useSafeAreaInsets();
-  const { playerVisible } = useWorkoutTimer();
 
   const [workout, setWorkout] = useState<WorkoutDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -103,16 +97,12 @@ export function DetailedHistory({ route }: Props) {
     );
   }
 
-  // Add bottom padding when miniplayer is visible to prevent content from being covered
-  const bottomPadding = playerVisible ? Math.max(MINI_PLAYER_HEIGHT, insets.bottom) : 0;
-
   return (
     <ScrollView
       style={[
         styles.container,
         { backgroundColor: isDark ? "#121212" : "#fff" },
       ]}
-      contentContainerStyle={{ paddingBottom: bottomPadding }}
     >
       {/* Header */}
       <View style={styles.header}>
