@@ -9,7 +9,13 @@ import {
   Keyboard,
 } from "react-native";
 import { useColorScheme } from "react-native";
-import { useState, useEffect, forwardRef, useImperativeHandle, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  forwardRef,
+  useImperativeHandle,
+  useRef,
+} from "react";
 import { Swipeable } from "react-native-gesture-handler";
 
 import stopwatch from "../assets/stopwatch.png";
@@ -172,7 +178,7 @@ export const ExerciseDetailContent = forwardRef<
         ref={flatListRef}
         data={sets}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingBottom: 30 }}
+        contentContainerStyle={{ paddingBottom: 10 }}
         keyboardShouldPersistTaps="handled"
         renderItem={({ item, index }) => {
           const setContent = (
@@ -261,7 +267,12 @@ export const ExerciseDetailContent = forwardRef<
 
 /* ---------------- STYLES ---------------- */
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20 },
+  container: {
+    flex: 1,
+    paddingTop: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 0,
+  },
 
   title: {
     fontSize: 28,
@@ -325,14 +336,16 @@ const styles = StyleSheet.create({
   footerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 24,
+    marginTop: 12,
+    marginBottom: 12, // 👈 add this
     borderTopWidth: 1,
     paddingTop: 12,
+    paddingBottom: 20,
   },
 
   footerButton: {
     flex: 1,
-    padding: 14,
+    padding: 16,
     marginHorizontal: 6,
     backgroundColor: "#007AFF",
     borderRadius: 12,
