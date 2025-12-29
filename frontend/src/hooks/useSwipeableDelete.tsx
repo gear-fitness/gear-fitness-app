@@ -94,6 +94,6 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     width: "100%",
     paddingRight: 20,
-    height: "100%",
+    flex: 1,
   },
 });
