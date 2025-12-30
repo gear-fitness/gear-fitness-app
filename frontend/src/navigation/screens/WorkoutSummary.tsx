@@ -90,8 +90,8 @@ export function WorkoutSummary() {
 
       {/* LIST */}
       <ScrollView
-        style={{ marginTop: 20 }}
-        contentContainerStyle={{ paddingBottom: 120 }}
+        style={{ marginTop: 20, marginBottom: 160 }}
+        contentContainerStyle={{ paddingBottom: 20 }}
       >
         {exercises.map((ex) => {
           const last =
