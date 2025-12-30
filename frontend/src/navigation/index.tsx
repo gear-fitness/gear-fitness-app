@@ -34,6 +34,7 @@ import { LoginScreen } from "./screens/Login";
 import { SignUpProfileScreen } from "./screens/SignUpProfile";
 import { ExerciseChat } from "./screens/ExerciseChat";
 import { AuthLoadingScreen } from "./screens/AuthLoading";
+import { CommentsScreen } from "../components/CommentsScreen";
 
 /* ---------------------- TABS ---------------------- */
 
@@ -229,6 +230,14 @@ const RootStack = createNativeStackNavigator({
         headerShown: true,
       },
     },
+    Comments: {
+      screen: CommentsScreen,
+      options: {
+        title: "Comments",
+        presentation: "modal",
+        headerShown: true,
+      },
+    },
   },
 });
 
@@ -267,6 +276,10 @@ declare global {
           description: string;
         };
         greetingText: string;
+      };
+
+      Comments: {
+        postId: string;
       };
     }
   }

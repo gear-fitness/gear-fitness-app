@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   Alert,
   TextInput,
-  Image,
   Keyboard,
 } from "react-native";
 import { Text } from "@react-navigation/elements";
@@ -38,6 +37,9 @@ export function Social() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [followModalVisible, setFollowModalVisible] = useState(false);
+  const [commentsVisible, setCommentsVisible] = useState(false);
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [userResults, setUserResults] = useState<any[]>([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
@@ -135,6 +137,16 @@ export function Social() {
     }, [])
   );
 
+  const handleOpenComments = (postId: string) => {
+    setSelectedPostId(postId);
+    setCommentsVisible(true);
+  };
+
+  const handleCloseComments = () => {
+    setCommentsVisible(false);
+    setSelectedPostId(null);
+  };
+
   const renderFooter = () => {
     if (!loadingMore) return null;
     return (
@@ -161,9 +173,7 @@ export function Social() {
 
   if (loading) {
     return (
-      <SafeAreaView
-        style={[styles.container, { backgroundColor: colors.background }]}
-      >
+      <SafeAreaView style={[styles.container]}>
         {/* Search Bar */}
         <View style={styles.searchRow}>
           <View
@@ -227,9 +237,7 @@ export function Social() {
   }
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.background }]}
-    >
+    <SafeAreaView>
       {/* Search Bar */}
       <View style={styles.searchRow}>
         <View
@@ -307,7 +315,9 @@ export function Social() {
       ) : (
         <FlatList
           data={posts}
-          renderItem={({ item }) => <FeedPostCard post={item} />}
+          renderItem={({ item }) => (
+            <FeedPostCard post={item} onOpenComments={handleOpenComments} />
+          )}
           keyExtractor={(item) => String(item.postId)}
           contentContainerStyle={
             posts.length === 0 ? styles.emptyContainer : styles.feedList
@@ -373,7 +383,7 @@ const styles = StyleSheet.create({
   },
   feedList: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 20,
   },
   emptyContainer: {
     flex: 1,
