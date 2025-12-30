@@ -192,43 +192,49 @@ export const ExerciseDetailContent = forwardRef<
                 {index + 1}
               </Text>
 
-              <TextInput
-                placeholder="Reps"
-                placeholderTextColor={colors.subtle}
-                value={item.reps}
-                keyboardType="numeric"
-                onChangeText={(t) =>
-                  setSets((prev) =>
-                    prev.map((s) => (s.id === item.id ? { ...s, reps: t } : s))
-                  )
-                }
-                style={[
-                  styles.input,
-                  { backgroundColor: colors.inputBg, color: colors.text },
-                ]}
-                returnKeyType="done"
-                onSubmitEditing={() => Keyboard.dismiss()}
-              />
-
-              <TextInput
-                placeholder="Weight"
-                placeholderTextColor={colors.subtle}
-                value={item.weight}
-                keyboardType="numeric"
-                onChangeText={(t) =>
-                  setSets((prev) =>
-                    prev.map((s) =>
-                      s.id === item.id ? { ...s, weight: t } : s
+              <View style={styles.inputContainer}>
+                <TextInput
+                  placeholder="Reps"
+                  placeholderTextColor={colors.subtle}
+                  value={item.reps}
+                  keyboardType="numeric"
+                  onChangeText={(t) =>
+                    setSets((prev) =>
+                      prev.map((s) =>
+                        s.id === item.id ? { ...s, reps: t } : s
+                      )
                     )
-                  )
-                }
-                style={[
-                  styles.input,
-                  { backgroundColor: colors.inputBg, color: colors.text },
-                ]}
-                returnKeyType="done"
-                onSubmitEditing={() => Keyboard.dismiss()}
-              />
+                  }
+                  style={[
+                    styles.input,
+                    { backgroundColor: colors.inputBg, color: colors.text },
+                  ]}
+                  returnKeyType="done"
+                  onSubmitEditing={() => Keyboard.dismiss()}
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <TextInput
+                  placeholder="Weight"
+                  placeholderTextColor={colors.subtle}
+                  value={item.weight}
+                  keyboardType="numeric"
+                  onChangeText={(t) =>
+                    setSets((prev) =>
+                      prev.map((s) =>
+                        s.id === item.id ? { ...s, weight: t } : s
+                      )
+                    )
+                  }
+                  style={[
+                    styles.input,
+                    { backgroundColor: colors.inputBg, color: colors.text },
+                  ]}
+                  returnKeyType="done"
+                  onSubmitEditing={() => Keyboard.dismiss()}
+                />
+              </View>
             </View>
           );
 
@@ -325,8 +331,12 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  input: {
+  inputContainer: {
     flex: 1,
+  },
+
+  input: {
+    maxWidth: 130,
     fontSize: 16,
     paddingVertical: 8,
     paddingHorizontal: 10,
