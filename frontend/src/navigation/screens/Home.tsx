@@ -1,5 +1,9 @@
 import { Text } from "@react-navigation/elements";
-import { useNavigation, useFocusEffect, useTheme } from "@react-navigation/native";
+import {
+  useNavigation,
+  useFocusEffect,
+  useTheme,
+} from "@react-navigation/native";
 import {
   StyleSheet,
   View,
@@ -17,16 +21,20 @@ import { useAuth } from "../../context/AuthContext";
 import { getDailyVolume, getUserWorkouts } from "../../api/workoutService";
 import { DailyVolumeData, Workout } from "../../api/types";
 import { parseLocalDate } from "../../utils/date";
+import { useTrackTab } from "../../hooks/useTrackTab";
 
 const { width, height } = Dimensions.get("window");
 
 export function Home() {
+  // Add the tab tracking hook at the beginning
+  useTrackTab("Home");
+
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { colors } = useTheme();
   const colorScheme = useColorScheme();
-  const isDarkMode = colorScheme === 'dark';
+  const isDarkMode = colorScheme === "dark";
   const [dailyData, setDailyData] = useState<DailyVolumeData[]>([]);
   const [allDailyData, setAllDailyData] = useState<DailyVolumeData[]>([]);
   const [prevWeekAvg, setPrevWeekAvg] = useState<number>(0);
@@ -412,7 +420,10 @@ export function Home() {
               yAxisThickness={0}
               xAxisThickness={0}
               hideRules={true}
-              yAxisTextStyle={{ color: isDarkMode ? "#FFF" : "#999", fontSize: 10 }}
+              yAxisTextStyle={{
+                color: isDarkMode ? "#FFF" : "#999",
+                fontSize: 10,
+              }}
               xAxisLabelTextStyle={{
                 color: isDarkMode ? "#FFF" : "#666",
                 fontSize: 11,
@@ -474,14 +485,13 @@ export function Home() {
                     <View style={styles.cardInfo}>
                       <Text style={styles.cardTitle}>{workout.name}</Text>
                       <Text style={styles.cardSubtitle}>
-                        {parseLocalDate(workout.datePerformed).toLocaleDateString(
-                          "en-US",
-                          {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          }
-                        )}
+                        {parseLocalDate(
+                          workout.datePerformed
+                        ).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
                       </Text>
                     </View>
                   </View>

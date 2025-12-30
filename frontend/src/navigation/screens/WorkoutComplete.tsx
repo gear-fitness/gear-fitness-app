@@ -17,8 +17,11 @@ import { useNavigation } from "@react-navigation/native";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { submitWorkout, WorkoutSubmission } from "../../api/workoutService";
 import { getCurrentLocalDateString } from "../../utils/date";
+import { useTrackTab } from "../../hooks/useTrackTab";
 
 export function WorkoutComplete() {
+  useTrackTab("WorkoutComplete");
+
   const isDark = useColorScheme() === "dark";
   const navigation = useNavigation<any>();
   const { exercises, seconds, reset } = useWorkoutTimer();

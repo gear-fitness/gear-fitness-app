@@ -20,6 +20,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
 import { getAllExercises } from "../../api/exerciseService";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
+import { useTrackTab } from "../../hooks/useTrackTab";
 
 type FilterKey =
   | "CALVES"
@@ -35,6 +36,8 @@ type FilterKey =
 type SelectedFilters = Record<FilterKey, boolean>;
 
 export function ExerciseSelect() {
+  useTrackTab("ExerciseSelect");
+
   const navigation = useNavigation<any>();
   const { showPlayer, start } = useWorkoutTimer();
 

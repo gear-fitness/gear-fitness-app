@@ -31,6 +31,10 @@ interface WorkoutContextValue {
   showPlayer: (exerciseId: string) => void;
   hidePlayer: () => void;
   setCurrentExercise: (id: string) => void;
+
+  // Tab tracking
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
 }
 
 const WorkoutTimerContext = createContext<WorkoutContextValue | null>(null);
@@ -51,7 +55,12 @@ export function WorkoutTimerProvider({
 
   // Player state
   const [playerVisible, setPlayerVisible] = useState(false);
-  const [currentExerciseId, setCurrentExerciseId] = useState<string | null>(null);
+  const [currentExerciseId, setCurrentExerciseId] = useState<string | null>(
+    null
+  );
+
+  // Tab tracking
+  const [activeTab, setActiveTab] = useState("Home"); // Default to Home tab
 
   // ---------------- TIMER LOOP ----------------
   // Update seconds based on timestamp calculation
@@ -81,7 +90,10 @@ export function WorkoutTimerProvider({
           const now = Date.now();
           const currentElapsed = Math.floor((now - startTimestamp) / 1000);
           setSeconds(totalElapsedSeconds + currentElapsed);
-          console.log("App returned to foreground, timer synced to:", totalElapsedSeconds + currentElapsed);
+          console.log(
+            "App returned to foreground, timer synced to:",
+            totalElapsedSeconds + currentElapsed
+          );
         } else if (
           nextAppState.match(/inactive|background/) &&
           running &&
@@ -99,7 +111,6 @@ export function WorkoutTimerProvider({
   }, [running, startTimestamp, totalElapsedSeconds]);
 
   // ---------------- EXERCISES LIST ----------------
-
   const addExercise = (exercise: WorkoutExercise) => {
     setExercises((prev) => {
       const exists = prev.find(
@@ -190,6 +201,9 @@ export function WorkoutTimerProvider({
         showPlayer,
         hidePlayer,
         setCurrentExercise: setCurrentExerciseId,
+        // Tab tracking
+        activeTab,
+        setActiveTab,
       }}
     >
       {children}

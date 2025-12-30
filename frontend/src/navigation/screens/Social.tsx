@@ -26,8 +26,11 @@ import { FeedPostCard } from "../../components/FeedPostCard";
 import { UserSearchCard } from "../../components/UserSearchCard";
 import { useAuth } from "../../context/AuthContext";
 import { ActivityModal } from "../../components/ActivityModal";
+import { useTrackTab } from "../../hooks/useTrackTab";
 
 export function Social() {
+  useTrackTab("Social");
+
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
   const { user } = useAuth();

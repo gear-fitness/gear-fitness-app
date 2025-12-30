@@ -14,6 +14,7 @@ import squat from "../../assets/squat.png";
 import deadlift from "../../assets/deadlift.png";
 import { getUserPersonalRecords } from "../../api/workoutService";
 import { PersonalRecord } from "../../api/types";
+import { useTrackTab } from "../../hooks/useTrackTab";
 
 type RootStackParamList = {
   PR: { userId: string };
@@ -22,6 +23,8 @@ type RootStackParamList = {
 type Props = NativeStackScreenProps<RootStackParamList, "PR">;
 
 export function PR({ route }: Props) {
+  useTrackTab("PR");
+
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const { userId } = route.params;

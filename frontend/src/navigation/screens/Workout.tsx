@@ -13,8 +13,11 @@ import { useColorScheme } from "react-native";
 
 import stopwatch from "../../assets/stopwatch.png";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
+import { useTrackTab } from "../../hooks/useTrackTab";
 
 export function Workout() {
+  useTrackTab("Workouts");
+
   const navigation = useNavigation();
   const scheme = useColorScheme();
   const isDark = scheme === "dark";

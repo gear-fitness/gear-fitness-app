@@ -126,4 +126,22 @@ public class WorkoutController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
+
+    @DeleteMapping("/{workoutId}")
+    public ResponseEntity<Void> deleteWorkout(
+            @PathVariable UUID workoutId,
+            @RequestHeader("Authorization") String authHeader) {
+        try {
+            String token = authHeader.substring(7); // Remove "Bearer "
+            UUID userId = jwtService.extractUserId(token);
+
+            workoutService.deleteWorkout(workoutId, userId);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
 }
