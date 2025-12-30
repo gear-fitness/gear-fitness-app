@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  Image,
 } from "react-native";
 import { Text, Button } from "@react-navigation/elements";
 import {
@@ -18,7 +17,6 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
-import avatar from "../../assets/avatar.png";
 import {
   getCurrentUserProfile,
   getUserProfile,
@@ -156,7 +154,9 @@ export function Profile() {
           <View style={styles.header}>
             <View style={styles.headerLeft}>
               <View style={styles.avatarWrapper}>
-                <Image source={avatar} style={styles.avatar} />
+                <Text style={styles.avatarLetter}>
+                  {profile.username.charAt(0).toUpperCase()}
+                </Text>
               </View>
 
               <View>
@@ -226,24 +226,33 @@ export function Profile() {
             ) : (
               <View style={styles.friendsRow}>
                 {followers.slice(0, 5).map((f) => (
-                  <View key={f.userId} style={styles.friend} />
+                  <View key={f.userId} style={styles.friend}>
+                    <Text style={styles.friendLetter}>
+                      {f.username.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
                 ))}
               </View>
             )}
           </View>
 
           <View style={styles.weekRow}>
-            {(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const).map(
+            {(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const).map(
               (day) => (
                 <View key={day} style={styles.dayItem}>
                   <Text style={styles.dayLabel}>{day}</Text>
                   <View
                     style={[
                       styles.dayCircle,
-                      profile.workoutStats.weeklySplit[day] > 0 &&
-                        styles.dayActive,
+                      profile.workoutStats.weeklySplit[day] > 0
+                        ? styles.dayActive
+                        : styles.dayInactive,
                     ]}
-                  />
+                  >
+                    {profile.workoutStats.weeklySplit[day] > 0 && (
+                      <Ionicons name="checkmark" size={20} color="#fff" />
+                    )}
+                  </View>
                 </View>
               )
             )}
@@ -297,10 +306,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+  avatarLetter: {
+    fontSize: 48,
+    fontWeight: "bold",
+    color: "#666",
   },
 
   username: { fontSize: 24, fontWeight: "bold" },
@@ -349,6 +358,15 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     backgroundColor: "#ccc",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  friendLetter: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#666",
+    includeFontPadding: false,
   },
 
   weekRow: {
@@ -371,11 +389,16 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: "#eee",
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   dayActive: {
-    backgroundColor: "#ffc107",
+    backgroundColor: "#007AFF",
+  },
+
+  dayInactive: {
+    backgroundColor: "#eee",
   },
 
   muted: { color: "#777" },
