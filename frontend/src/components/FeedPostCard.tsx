@@ -112,7 +112,7 @@ export function FeedPostCard({ post, onOpenComments }: Props) {
               </Text>
             </View>
           )}
-          {post.bodyTags && post.bodyTags.length > 0 && (
+          {post.bodyTags?.length > 0 && (
             <View style={styles.metaItem}>
               <Ionicons name="fitness-outline" size={16} color={colors.text} />
               <Text
