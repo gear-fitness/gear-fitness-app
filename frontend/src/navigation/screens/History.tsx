@@ -16,11 +16,13 @@ import React, { useState, useEffect } from "react";
 import { useTheme } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { Swipeable } from "react-native-gesture-handler";
 import weightlifter from "../../assets/weightlifter.png";
 import { useAuth } from "../../context/AuthContext";
-import { getUserWorkouts } from "../../api/workoutService";
+import { getUserWorkouts, deleteWorkout } from "../../api/workoutService";
 import { Workout } from "../../api/types";
 import { parseLocalDate } from "../../utils/date";
+import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
 import { useTrackTab } from "../../hooks/useTrackTab";
 
 type RootStackParamList = {
@@ -85,6 +87,39 @@ export function History() {
     }, [])
   );
 
+  const handleDeleteWorkout = async (workoutId: string) => {
+    try {
+      await deleteWorkout(workoutId);
+
+      // Optimistically update local state
+      setData((prevData) => prevData.filter((w) => w.workoutId !== workoutId));
+
+      // Update calendar marks
+      const updatedWorkouts = data.filter((w) => w.workoutId !== workoutId);
+      const marks: any = {};
+      updatedWorkouts.forEach((w) => {
+        marks[w.datePerformed] = {
+          marked: true,
+          selected: true,
+          dotColor: "#1877F2",
+          selectedColor: "#1877F2",
+        };
+      });
+      setMarkedDates(marks);
+    } catch (error) {
+      console.error("Error deleting workout:", error);
+      // Re-fetch to restore state if deletion failed
+      fetchWorkouts();
+    }
+  };
+
+  const { getSwipeableProps } = useSwipeableDelete({
+    onDelete: handleDeleteWorkout,
+    deleteTitle: "Delete Workout",
+    deleteMessage:
+      "Are you sure you want to delete this workout? This action cannot be undone.",
+  });
+
   const today = new Date();
   const formattedToday =
     today.getFullYear() +
@@ -104,44 +139,51 @@ export function History() {
   );
 
   const renderItem = ({ item }: { item: Workout }) => (
-    <TouchableOpacity
-      style={[
-        styles.button,
-        { backgroundColor: isDarkMode ? colors.card : "white" },
-      ]}
-      activeOpacity={0.7}
-      onPress={() =>
-        navigation.getParent()?.navigate("DetailedHistory", {
-          workoutId: item.workoutId,
-        })
-      }
-    >
-      <View style={styles.cardContent}>
-        <View style={styles.cardInfo}>
-          <Text
-            style={[
-              styles.cardTitle,
-              { color: isDarkMode ? "#FFF" : "#1a1a1a" },
-            ]}
-          >
-            {item.name}
-          </Text>
-          <Text
-            style={[
-              styles.cardSubtitle,
-              { color: isDarkMode ? "#AAA" : "#777" },
-            ]}
-          >
-            {parseLocalDate(item.datePerformed).toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            })}
-          </Text>
-        </View>
-        <Text style={styles.cardChevron}>›</Text>
-      </View>
-    </TouchableOpacity>
+    <View style={styles.rowWrapper}>
+      <Swipeable {...getSwipeableProps(item.workoutId)}>
+        <TouchableOpacity
+          style={[
+            styles.button,
+            { backgroundColor: isDarkMode ? colors.card : "white" },
+          ]}
+          activeOpacity={0.7}
+          onPress={() =>
+            navigation.getParent()?.navigate("DetailedHistory", {
+              workoutId: item.workoutId,
+            })
+          }
+        >
+          <View style={styles.cardContent}>
+            <View style={styles.cardInfo}>
+              <Text
+                style={[
+                  styles.cardTitle,
+                  { color: isDarkMode ? "#FFF" : "#1a1a1a" },
+                ]}
+              >
+                {item.name}
+              </Text>
+              <Text
+                style={[
+                  styles.cardSubtitle,
+                  { color: isDarkMode ? "#AAA" : "#777" },
+                ]}
+              >
+                {parseLocalDate(item.datePerformed).toLocaleDateString(
+                  "en-US",
+                  {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  }
+                )}
+              </Text>
+            </View>
+            <Text style={styles.cardChevron}>›</Text>
+          </View>
+        </TouchableOpacity>
+      </Swipeable>
+    </View>
   );
 
   return (
@@ -240,9 +282,13 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     marginBottom: 8,
   },
-  button: {
+  rowWrapper: {
+    borderRadius: 12,
+    overflow: "hidden",
     marginHorizontal: 20,
     marginVertical: 5,
+  },
+  button: {
     padding: 14,
     borderRadius: 12,
     shadowColor: "#000",

@@ -208,3 +208,26 @@ export async function getUserPersonalRecords(
 
   return response.json();
 }
+
+/**
+ * Delete a workout by ID
+ */
+export async function deleteWorkout(workoutId: string): Promise<void> {
+  const authHeader = await getAuthHeader();
+
+  const response = await fetch(`${API_BASE_URL}/api/workouts/${workoutId}`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeader,
+    },
+  });
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error("Workout not found or you don't have permission to delete it");
+    }
+    const errorText = await response.text();
+    throw new Error(`Failed to delete workout: ${errorText}`);
+  }
+}

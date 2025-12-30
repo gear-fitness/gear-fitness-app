@@ -310,4 +310,18 @@ public class WorkoutService {
         // Return workout details
         return getWorkoutDetails(workout.getWorkoutId());
     }
+
+    @Transactional
+    public void deleteWorkout(UUID workoutId, UUID userId) {
+        Workout workout = workoutRepository.findById(workoutId)
+                .orElseThrow(() -> new IllegalArgumentException("Workout not found with id: " + workoutId));
+
+        // Security check: Verify the user owns this workout
+        if (!workout.getUser().getUserId().equals(userId)) {
+            throw new IllegalArgumentException("User does not have permission to delete this workout");
+        }
+
+        // Delete the workout - cascade will handle related entities
+        workoutRepository.delete(workout);
+    }
 }
