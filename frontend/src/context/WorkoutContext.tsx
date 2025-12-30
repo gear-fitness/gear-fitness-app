@@ -30,6 +30,10 @@ interface WorkoutContextValue {
   showPlayer: (exerciseId: string) => void;
   hidePlayer: () => void;
   setCurrentExercise: (id: string) => void;
+
+  // Tab tracking
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
 }
 
 const WorkoutTimerContext = createContext<WorkoutContextValue | null>(null);
@@ -41,12 +45,16 @@ export function WorkoutTimerProvider({
 }) {
   const [seconds, setSeconds] = useState(0);
   const [running, setRunning] = useState(false);
-
   const [exercises, setExercises] = useState<WorkoutExercise[]>([]);
 
   // Player state
   const [playerVisible, setPlayerVisible] = useState(false);
-  const [currentExerciseId, setCurrentExerciseId] = useState<string | null>(null);
+  const [currentExerciseId, setCurrentExerciseId] = useState<string | null>(
+    null
+  );
+
+  // Tab tracking
+  const [activeTab, setActiveTab] = useState("Home"); // Default to Home tab
 
   // ---------------- TIMER LOOP ----------------
   useEffect(() => {
@@ -64,7 +72,6 @@ export function WorkoutTimerProvider({
   }, [running]);
 
   // ---------------- EXERCISES LIST ----------------
-
   const addExercise = (exercise: WorkoutExercise) => {
     setExercises((prev) => {
       const exists = prev.find(
@@ -136,6 +143,9 @@ export function WorkoutTimerProvider({
         showPlayer,
         hidePlayer,
         setCurrentExercise: setCurrentExerciseId,
+        // Tab tracking
+        activeTab,
+        setActiveTab,
       }}
     >
       {children}

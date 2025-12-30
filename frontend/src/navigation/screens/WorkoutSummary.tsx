@@ -16,8 +16,11 @@ import stopwatch from "../../assets/stopwatch.png";
 
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
+import { useTrackTab } from "../../hooks/useTrackTab";
 
 export function WorkoutSummary() {
+  useTrackTab("WorkoutSummary");
+
   const isDark = useColorScheme() === "dark";
   const navigation = useNavigation<any>();
 

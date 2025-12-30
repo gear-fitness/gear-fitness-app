@@ -23,6 +23,7 @@ import { getUserWorkouts, deleteWorkout } from "../../api/workoutService";
 import { Workout } from "../../api/types";
 import { parseLocalDate } from "../../utils/date";
 import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
+import { useTrackTab } from "../../hooks/useTrackTab";
 
 type RootStackParamList = {
   HomeTabs: undefined;
@@ -36,11 +37,14 @@ type RootStackParamList = {
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export function History() {
+  // Add the tab tracking hook at the beginning of the component
+  useTrackTab("History");
+
   const { colors } = useTheme();
   const navigation = useNavigation<NavigationProp>();
   const { user } = useAuth();
   const colorScheme = useColorScheme();
-  const isDarkMode = colorScheme === 'dark';
+  const isDarkMode = colorScheme === "dark";
 
   const [markedDates, setMarkedDates] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
@@ -112,7 +116,8 @@ export function History() {
   const { getSwipeableProps } = useSwipeableDelete({
     onDelete: handleDeleteWorkout,
     deleteTitle: "Delete Workout",
-    deleteMessage: "Are you sure you want to delete this workout? This action cannot be undone.",
+    deleteMessage:
+      "Are you sure you want to delete this workout? This action cannot be undone.",
   });
 
   const today = new Date();
@@ -137,7 +142,10 @@ export function History() {
     <View style={styles.rowWrapper}>
       <Swipeable {...getSwipeableProps(item.workoutId)}>
         <TouchableOpacity
-          style={[styles.button, { backgroundColor: isDarkMode ? colors.card : "white" }]}
+          style={[
+            styles.button,
+            { backgroundColor: isDarkMode ? colors.card : "white" },
+          ]}
           activeOpacity={0.7}
           onPress={() =>
             navigation.getParent()?.navigate("DetailedHistory", {
@@ -147,15 +155,28 @@ export function History() {
         >
           <View style={styles.cardContent}>
             <View style={styles.cardInfo}>
-              <Text style={[styles.cardTitle, { color: isDarkMode ? "#FFF" : "#1a1a1a" }]}>
+              <Text
+                style={[
+                  styles.cardTitle,
+                  { color: isDarkMode ? "#FFF" : "#1a1a1a" },
+                ]}
+              >
                 {item.name}
               </Text>
-              <Text style={[styles.cardSubtitle, { color: isDarkMode ? "#AAA" : "#777" }]}>
-                {parseLocalDate(item.datePerformed).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric'
-                })}
+              <Text
+                style={[
+                  styles.cardSubtitle,
+                  { color: isDarkMode ? "#AAA" : "#777" },
+                ]}
+              >
+                {parseLocalDate(item.datePerformed).toLocaleDateString(
+                  "en-US",
+                  {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  }
+                )}
               </Text>
             </View>
             <Text style={styles.cardChevron}>›</Text>
@@ -172,63 +193,72 @@ export function History() {
     >
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <Calendar
-        key={colors.background}
-        style={styles.calendar}
-        current={formattedToday}
-        markedDates={markedDates}
-        theme={{
-          backgroundColor: colors.card,
-          calendarBackground: colors.card,
-          dayTextColor: colors.text,
-          monthTextColor: colors.text,
-          textSectionTitleColor: colors.text,
-          todayTextColor: "#1877F2",
-          arrowColor: "#1877F2",
-          textDayFontFamily: 'System',
-          textMonthFontFamily: 'System',
-          textDayHeaderFontFamily: 'System',
-          textDayFontWeight: '400',
-          textMonthFontWeight: '700',
-          textDayHeaderFontWeight: '600',
-          textDayFontSize: 15,
-          textMonthFontSize: 18,
-          textDayHeaderFontSize: 13,
-          selectedDayBackgroundColor: '#1877F2',
-          selectedDayTextColor: '#ffffff',
-          dotColor: '#1877F2',
-          selectedDotColor: '#ffffff',
-          todayBackgroundColor: isDarkMode ? 'rgba(24, 119, 242, 0.15)' : 'rgba(24, 119, 242, 0.1)',
-        }}
-        hideExtraDays={true}
-        enableSwipeMonths={true}
-      />
-
-      {/* Search Bar + PR Button */}
-      <View style={styles.searchContainer}>
-        <TextInput
-          style={[
-            styles.searchInput,
-            { color: colors.text, borderColor: colors.border, backgroundColor: colors.card },
-          ]}
-          placeholder="Search workouts..."
-          placeholderTextColor={colors.text + "80"}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          returnKeyType="done"
-          onSubmitEditing={() => Keyboard.dismiss()}
+          key={colors.background}
+          style={styles.calendar}
+          current={formattedToday}
+          markedDates={markedDates}
+          theme={{
+            backgroundColor: colors.card,
+            calendarBackground: colors.card,
+            dayTextColor: colors.text,
+            monthTextColor: colors.text,
+            textSectionTitleColor: colors.text,
+            todayTextColor: "#1877F2",
+            arrowColor: "#1877F2",
+            textDayFontFamily: "System",
+            textMonthFontFamily: "System",
+            textDayHeaderFontFamily: "System",
+            textDayFontWeight: "400",
+            textMonthFontWeight: "700",
+            textDayHeaderFontWeight: "600",
+            textDayFontSize: 15,
+            textMonthFontSize: 18,
+            textDayHeaderFontSize: 13,
+            selectedDayBackgroundColor: "#1877F2",
+            selectedDayTextColor: "#ffffff",
+            dotColor: "#1877F2",
+            selectedDotColor: "#ffffff",
+            todayBackgroundColor: isDarkMode
+              ? "rgba(24, 119, 242, 0.15)"
+              : "rgba(24, 119, 242, 0.1)",
+          }}
+          hideExtraDays={true}
+          enableSwipeMonths={true}
         />
-        <TouchableOpacity style={[styles.settingsButton, { backgroundColor: colors.primary }]} onPress={handlePrPress}>
-          <Image source={weightlifter} style={styles.settingsButtonIcon} />
-        </TouchableOpacity>
-      </View>
 
-      <FlatList
-        data={filteredData}
-        keyExtractor={(item) => item.workoutId}
-        renderItem={renderItem}
-        keyboardShouldPersistTaps="handled"
-      />
-    </View>
+        {/* Search Bar + PR Button */}
+        <View style={styles.searchContainer}>
+          <TextInput
+            style={[
+              styles.searchInput,
+              {
+                color: colors.text,
+                borderColor: colors.border,
+                backgroundColor: colors.card,
+              },
+            ]}
+            placeholder="Search workouts..."
+            placeholderTextColor={colors.text + "80"}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            returnKeyType="done"
+            onSubmitEditing={() => Keyboard.dismiss()}
+          />
+          <TouchableOpacity
+            style={[styles.settingsButton, { backgroundColor: colors.primary }]}
+            onPress={handlePrPress}
+          >
+            <Image source={weightlifter} style={styles.settingsButtonIcon} />
+          </TouchableOpacity>
+        </View>
+
+        <FlatList
+          data={filteredData}
+          keyExtractor={(item) => item.workoutId}
+          renderItem={renderItem}
+          keyboardShouldPersistTaps="handled"
+        />
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -244,7 +274,7 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     maxHeight: 350,
     borderRadius: 16,
-    overflow: 'hidden',
+    overflow: "hidden",
     elevation: 3,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
