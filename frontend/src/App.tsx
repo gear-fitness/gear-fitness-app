@@ -1,5 +1,9 @@
 import { Assets as NavigationAssets } from "@react-navigation/elements";
-import { DarkTheme, DefaultTheme, NavigationContainerRefWithCurrent } from "@react-navigation/native";
+import {
+  DarkTheme,
+  DefaultTheme,
+  NavigationContainerRefWithCurrent,
+} from "@react-navigation/native";
 import { Asset } from "expo-asset";
 import { createURL } from "expo-linking";
 import * as SplashScreen from "expo-splash-screen";
@@ -15,7 +19,8 @@ import { WorkoutTimerProvider } from "./context/WorkoutContext";
 import { WorkoutPlayer } from "./components/WorkoutPlayer";
 
 // Create navigation ref for use outside NavigationContainer
-export const navigationRef = React.createRef<NavigationContainerRefWithCurrent<any>>();
+export const navigationRef =
+  React.createRef<NavigationContainerRefWithCurrent<any>>();
 
 Asset.loadAsync([
   ...NavigationAssets,
@@ -49,7 +54,11 @@ export function App() {
   );
 }
 
-function AppContent({ theme }: { theme: typeof DarkTheme | typeof DefaultTheme }) {
+function AppContent({
+  theme,
+}: {
+  theme: typeof DarkTheme | typeof DefaultTheme;
+}) {
   const [isNavigationReady, setIsNavigationReady] = React.useState(false);
   const { isLoading } = useAuth();
 

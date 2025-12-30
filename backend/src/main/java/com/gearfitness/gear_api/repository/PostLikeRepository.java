@@ -25,6 +25,8 @@ public interface PostLikeRepository extends JpaRepository<PostLike, PostLikeId> 
                         """)
         List<Object[]> countByPostIdsRaw(@Param("postIds") List<UUID> postIds);
 
+        long countByPost_PostId(UUID postId);
+
         default Map<UUID, Long> countByPostIds(List<UUID> postIds) {
                 if (postIds == null || postIds.isEmpty()) {
                         return Map.of();
