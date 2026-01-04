@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useRef } from "react";
 import { AppState, AppStateStatus } from "react-native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface WorkoutSet {
   reps: string;
@@ -12,6 +13,23 @@ export interface WorkoutExercise {
   name: string;
   sets: WorkoutSet[];
 }
+
+interface PersistedWorkoutState {
+  version: number;
+  totalElapsedSeconds: number;
+  startTimestamp: number | null;
+  running: boolean;
+  lastSaveTimestamp: number;
+  exercises: WorkoutExercise[];
+  playerVisible: boolean;
+  currentExerciseId: string | null;
+  activeTab: string;
+}
+
+const WORKOUT_STATE_VERSION = 1;
+const STORAGE_KEY = '@workout_state';
+const SAVE_DEBOUNCE_MS = 500;
+const MAX_STATE_AGE_DAYS = 7;
 
 interface WorkoutContextValue {
   seconds: number;
@@ -62,6 +80,129 @@ export function WorkoutTimerProvider({
   // Tab tracking
   const [activeTab, setActiveTab] = useState("Home"); // Default to Home tab
 
+  // Persistence state
+  const [isRestoringState, setIsRestoringState] = useState(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // ---------------- PERSISTENCE FUNCTIONS ----------------
+  const saveWorkoutState = (immediate = false) => {
+    if (isRestoringState) return; // Don't save during restoration
+
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+
+    const doSave = async () => {
+      const state: PersistedWorkoutState = {
+        version: WORKOUT_STATE_VERSION,
+        totalElapsedSeconds,
+        startTimestamp,
+        running,
+        lastSaveTimestamp: Date.now(),
+        exercises,
+        playerVisible,
+        currentExerciseId,
+        activeTab,
+      };
+
+      try {
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (error) {
+        console.error('Failed to save workout state:', error);
+      }
+    };
+
+    if (immediate) {
+      doSave();
+    } else {
+      saveTimeoutRef.current = setTimeout(doSave, SAVE_DEBOUNCE_MS);
+    }
+  };
+
+  const restoreTimerState = (saved: PersistedWorkoutState) => {
+    const now = Date.now();
+
+    if (saved.running && saved.startTimestamp !== null) {
+      // Timer was running - calculate time elapsed since app was killed
+      const elapsedSinceKill = Math.floor((now - saved.startTimestamp) / 1000);
+      const totalSeconds = saved.totalElapsedSeconds + elapsedSinceKill;
+
+      setTotalElapsedSeconds(totalSeconds);
+      setSeconds(totalSeconds);
+      setStartTimestamp(now); // Reset to current time
+      setRunning(true);
+    } else {
+      // Timer was paused - restore accumulated time
+      setTotalElapsedSeconds(saved.totalElapsedSeconds);
+      setSeconds(saved.totalElapsedSeconds);
+      setStartTimestamp(null);
+      setRunning(false);
+    }
+  };
+
+  const restoreWorkoutState = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(STORAGE_KEY);
+      if (!stored) {
+        setIsRestoringState(false);
+        return;
+      }
+
+      const parsed: PersistedWorkoutState = JSON.parse(stored);
+
+      // Version check
+      if (parsed.version !== WORKOUT_STATE_VERSION) {
+        await AsyncStorage.removeItem(STORAGE_KEY);
+        setIsRestoringState(false);
+        return;
+      }
+
+      // Age check (don't restore workouts older than 7 days)
+      const daysSinceLastSave = (Date.now() - parsed.lastSaveTimestamp) / (1000 * 60 * 60 * 24);
+      if (daysSinceLastSave > MAX_STATE_AGE_DAYS) {
+        await AsyncStorage.removeItem(STORAGE_KEY);
+        setIsRestoringState(false);
+        return;
+      }
+
+      // Restore state
+      setExercises(parsed.exercises);
+      setPlayerVisible(parsed.playerVisible);
+      setCurrentExerciseId(parsed.currentExerciseId);
+      setActiveTab(parsed.activeTab);
+      restoreTimerState(parsed);
+
+      console.log('Workout state restored successfully');
+    } catch (error) {
+      console.error('Failed to restore workout state:', error);
+      await AsyncStorage.removeItem(STORAGE_KEY);
+    } finally {
+      setIsRestoringState(false);
+    }
+  };
+
+  const clearPersistedState = async () => {
+    try {
+      await AsyncStorage.removeItem(STORAGE_KEY);
+    } catch (error) {
+      console.error('Failed to clear workout state:', error);
+    }
+  };
+
+  // Restore workout state on mount
+  useEffect(() => {
+    setIsRestoringState(true);
+    restoreWorkoutState();
+  }, []);
+
+  // Auto-save on state changes
+  useEffect(() => {
+    if (isRestoringState) return; // Don't save during restoration
+
+    // Only save if there's an active workout (exercises exist or timer is running)
+    if (exercises.length > 0 || running || totalElapsedSeconds > 0) {
+      saveWorkoutState(false);
+    }
+  }, [seconds, running, exercises, playerVisible, currentExerciseId, activeTab, totalElapsedSeconds, isRestoringState]);
+
   // ---------------- TIMER LOOP ----------------
   // Update seconds based on timestamp calculation
   useEffect(() => {
@@ -95,12 +236,11 @@ export function WorkoutTimerProvider({
             totalElapsedSeconds + currentElapsed
           );
         } else if (
-          nextAppState.match(/inactive|background/) &&
-          running &&
-          startTimestamp !== null
+          nextAppState.match(/inactive|background/)
         ) {
-          // App going to background while timer is running
-          console.log("App going to background, timer will persist...");
+          // App going to background - save immediately (no debounce)
+          console.log("App going to background, saving state...");
+          saveWorkoutState(true);
         }
       }
     );
@@ -108,7 +248,7 @@ export function WorkoutTimerProvider({
     return () => {
       subscription.remove();
     };
-  }, [running, startTimestamp, totalElapsedSeconds]);
+  }, [running, startTimestamp, totalElapsedSeconds, exercises, playerVisible, currentExerciseId, activeTab]);
 
   // ---------------- EXERCISES LIST ----------------
   const addExercise = (exercise: WorkoutExercise) => {
@@ -164,13 +304,16 @@ export function WorkoutTimerProvider({
     setStartTimestamp(null);
   };
 
-  const reset = () => {
+  const reset = async () => {
     setRunning(false);
     setSeconds(0);
     setStartTimestamp(null);
     setTotalElapsedSeconds(0);
     setExercises([]);
     hidePlayer();
+
+    // Clear persisted state
+    await clearPersistedState();
   };
 
   // Player actions

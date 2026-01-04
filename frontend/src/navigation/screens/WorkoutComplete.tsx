@@ -18,6 +18,7 @@ import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { submitWorkout, WorkoutSubmission } from "../../api/workoutService";
 import { getCurrentLocalDateString } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export function WorkoutComplete() {
   useTrackTab("WorkoutComplete");
@@ -99,7 +100,8 @@ export function WorkoutComplete() {
 
       const result = await submitWorkout(submission);
 
-      // Reset workout context
+      // Clear persisted workout state
+      await AsyncStorage.removeItem('@workout_state');
 
       Alert.alert(
         "Success",
