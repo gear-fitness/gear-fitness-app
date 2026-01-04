@@ -133,13 +133,6 @@ export function Social() {
     }, [searchQuery, user])
   );
 
-  // Refetch feed when returning to Social screen
-  useFocusEffect(
-    useCallback(() => {
-      loadFeed();
-    }, [])
-  );
-
   const handleOpenComments = (postId: string) => {
     setSelectedPostId(postId);
     setCommentsVisible(true);

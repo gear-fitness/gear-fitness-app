@@ -23,6 +23,8 @@ export interface FeedPost {
   datePerformed: string;
   durationMin?: number;
   bodyTags: string[];
+  exerciseCount: number;
+  setCount: number;
   likeCount: number;
   commentCount: number;
   likedByCurrentUser: boolean;
@@ -56,6 +58,26 @@ export const socialFeedApi = {
 
     if (!response.ok) {
       throw new Error("Failed to fetch feed");
+    }
+
+    return response.json();
+  },
+
+  getUserPosts: async (userId: string, page: number, size: number = 20): Promise<Page<FeedPost>> => {
+    const authHeader = await getAuthHeader();
+    const response = await fetch(
+      `${process.env.EXPO_PUBLIC_API_URL}/api/feed/user/${userId}?page=${page}&size=${size}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeader,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch user posts");
     }
 
     return response.json();
