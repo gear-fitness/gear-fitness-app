@@ -30,7 +30,11 @@ type RootStackParamList = {
   Profile: { user: string };
   Settings: undefined;
   PR: { userId: string };
-  DetailedHistory: { workoutId: string };
+  DetailedHistory: {
+    workoutId: string;
+    caption?: string;
+    workoutName?: string;
+  };
   NotFound: undefined;
 };
 

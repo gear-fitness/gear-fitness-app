@@ -28,6 +28,8 @@ public class FeedPostDTO {
     private LocalDate datePerformed;
     private Integer durationMin;
     private List<String> bodyTags;
+    private Long exerciseCount;
+    private Long setCount;
 
     private Long likeCount;
     private Long commentCount;

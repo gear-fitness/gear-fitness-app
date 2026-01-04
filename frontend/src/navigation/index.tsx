@@ -166,7 +166,7 @@ const RootStack = createNativeStackNavigator({
       options: {
         title: "Workout",
         headerShown: true,
-        headerBackTitle: "History",
+        headerBackTitle: "Back",
       },
     },
 

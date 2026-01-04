@@ -26,4 +26,13 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
             @Param("userId") UUID userId,
             Pageable pageable);
 
+    @Query("""
+            SELECT p FROM Post p
+            WHERE p.user.userId = :userId
+            ORDER BY p.createdAt DESC
+            """)
+    Page<Post> findPostsByUser(
+            @Param("userId") UUID userId,
+            Pageable pageable);
+
 }

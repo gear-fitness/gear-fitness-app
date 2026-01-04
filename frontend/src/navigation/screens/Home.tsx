@@ -4,6 +4,7 @@ import {
   useFocusEffect,
   useTheme,
 } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import {
   StyleSheet,
   View,
@@ -25,13 +26,22 @@ import { useTrackTab } from "../../hooks/useTrackTab";
 
 const { width, height } = Dimensions.get("window");
 
+type RootStackParamList = {
+  History: undefined;
+  DetailedHistory: {
+    workoutId: string;
+    caption?: string;
+    workoutName?: string;
+  };
+};
+
 export function Home() {
   // Add the tab tracking hook at the beginning
   useTrackTab("Home");
 
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors } = useTheme();
   const colorScheme = useColorScheme();
   const isDarkMode = colorScheme === "dark";
