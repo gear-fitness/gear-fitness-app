@@ -1,12 +1,12 @@
 import { Text, Button } from "@react-navigation/elements";
-import { StyleSheet, View } from "react-native";
+import { View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 
 export function NotFound() {
   const navigation = useNavigation<any>(); // <- FIX TYPING
 
   return (
-    <View style={styles.container}>
+    <View className="flex-1 justify-center items-center gap-5">
       <Text>404</Text>
 
       <Button onPress={() => navigation.navigate("HomeTabs")}>
@@ -15,12 +15,3 @@ export function NotFound() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 20,
-  },
-});

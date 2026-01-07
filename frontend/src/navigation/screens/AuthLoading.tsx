@@ -5,13 +5,14 @@ import {
   ActivityIndicator,
   Text,
   TouchableOpacity,
-  StyleSheet,
+  useColorScheme,
 } from "react-native";
-import { useNavigation, useTheme } from "@react-navigation/native";
+import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "../../context/AuthContext";
 
 export function AuthLoadingScreen() {
-  const { colors, dark } = useTheme();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
   const navigation = useNavigation();
   const { isLoading, isAuthenticated, authError, retryAuth } = useAuth();
 
@@ -28,31 +29,31 @@ export function AuthLoadingScreen() {
   // Show error state with retry option
   if (authError && !isLoading) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View className="flex-1 justify-center items-center px-5 bg-white dark:bg-black">
         <Image
           source={
-            dark
+            isDark
               ? require("../../../assets/GearLogo.png")
               : require("../../../assets/GearLogoInverse.png")
           }
-          style={styles.logo}
+          className="w-30 h-30 mb-5"
         />
-        <Text style={[styles.errorText, { color: colors.text }]}>
+        <Text className="text-base text-center mb-5 text-black dark:text-white">
           {authError}
         </Text>
         <TouchableOpacity
-          style={[styles.retryButton, { backgroundColor: colors.primary }]}
+          className="py-3 px-8 rounded-lg mb-3 bg-primary active:opacity-80"
           onPress={retryAuth}
         >
-          <Text style={styles.retryText}>Retry</Text>
+          <Text className="text-white text-base font-semibold">Retry</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={styles.loginButton}
+          className="py-3 px-8"
           onPress={() =>
             navigation.reset({ index: 0, routes: [{ name: "Login" }] })
           }
         >
-          <Text style={[styles.loginText, { color: colors.primary }]}>
+          <Text className="text-primary text-base font-semibold">
             Go to Login
           </Text>
         </TouchableOpacity>
@@ -62,58 +63,20 @@ export function AuthLoadingScreen() {
 
   // Show loading state
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View className="flex-1 justify-center items-center px-5 bg-white dark:bg-black">
       <Image
         source={
-          dark
+          isDark
             ? require("../../../assets/GearLogo.png")
             : require("../../../assets/GearLogoInverse.png")
         }
-        style={styles.logo}
+        className="w-30 h-30 mb-5"
       />
       <ActivityIndicator
         size="large"
-        color={colors.primary}
-        style={{ marginTop: 20 }}
+        color="#007AFF"
+        className="mt-5"
       />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 20,
-  },
-  logo: {
-    width: 120,
-    height: 120,
-    marginBottom: 20,
-  },
-  errorText: {
-    fontSize: 16,
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  retryButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-    borderRadius: 8,
-    marginBottom: 12,
-  },
-  retryText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  loginButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-  },
-  loginText: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-});

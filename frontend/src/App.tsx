@@ -1,3 +1,4 @@
+import './styles/global.css';
 import { Assets as NavigationAssets } from "@react-navigation/elements";
 import {
   DarkTheme,
@@ -61,6 +62,8 @@ function AppContent({
 }) {
   const [isNavigationReady, setIsNavigationReady] = React.useState(false);
   const { isLoading } = useAuth();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   useEffect(() => {
     // Hide splash screen only when both navigation AND auth are ready
@@ -70,7 +73,7 @@ function AppContent({
   }, [isNavigationReady, isLoading]);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView className={`flex-1 ${isDark ? 'dark' : ''}`}>
       <SafeAreaProvider>
         <WorkoutTimerProvider>
           <Navigation
