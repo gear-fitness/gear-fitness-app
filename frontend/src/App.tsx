@@ -1,4 +1,3 @@
-import '../global.css';
 import { Assets as NavigationAssets } from "@react-navigation/elements";
 import {
   DarkTheme,

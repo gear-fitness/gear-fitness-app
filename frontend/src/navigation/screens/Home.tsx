@@ -23,7 +23,6 @@ import { getDailyVolume, getUserWorkouts } from "../../api/workoutService";
 import { DailyVolumeData, Workout } from "../../api/types";
 import { parseLocalDate } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
-import { NativeWindTest } from "../../components/NativeWindTest";
 
 const { width, height } = Dimensions.get("window");
 
@@ -373,8 +372,6 @@ export function Home() {
     <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
       <View style={styles.container}>
         <Text style={styles.title}>Activity</Text>
-
-        <NativeWindTest />
 
         <View style={styles.chart}>
           <Text style={styles.chartTitle}>Daily Volume (lbs)</Text>
