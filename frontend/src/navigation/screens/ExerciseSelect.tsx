@@ -200,6 +200,7 @@ export function ExerciseSelect() {
             style={[styles.searchInput, { color: colors.text }]}
             returnKeyType="done"
             autoCorrect={false}
+            autoCapitalize="none"
             onSubmitEditing={() => Keyboard.dismiss()}
           />
 
