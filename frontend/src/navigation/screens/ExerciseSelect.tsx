@@ -38,32 +38,32 @@ type SelectedFilters = Record<FilterKey, boolean>;
 // Map user-friendly search terms to BodyPart enum values
 const bodyPartMapping: Record<string, string> = {
   // Singular forms
-  'bicep': 'BICEPS',
-  'tricep': 'TRICEPS',
-  'leg': 'LEGS',
-  'quad': 'QUADS',
-  'hamstring': 'HAMSTRINGS',
-  'glute': 'GLUTES',
-  'calf': 'CALVES',
-  'trap': 'TRAPS',
-  'forearm': 'FOREARMS',
+  bicep: "BICEPS",
+  tricep: "TRICEPS",
+  leg: "LEGS",
+  quad: "QUADS",
+  hamstring: "HAMSTRINGS",
+  glute: "GLUTES",
+  calf: "CALVES",
+  trap: "TRAPS",
+  forearm: "FOREARMS",
   // Plural forms
-  'biceps': 'BICEPS',
-  'triceps': 'TRICEPS',
-  'legs': 'LEGS',
-  'quads': 'QUADS',
-  'hamstrings': 'HAMSTRINGS',
-  'glutes': 'GLUTES',
-  'calves': 'CALVES',
-  'traps': 'TRAPS',
-  'forearms': 'FOREARMS',
+  biceps: "BICEPS",
+  triceps: "TRICEPS",
+  legs: "LEGS",
+  quads: "QUADS",
+  hamstrings: "HAMSTRINGS",
+  glutes: "GLUTES",
+  calves: "CALVES",
+  traps: "TRAPS",
+  forearms: "FOREARMS",
   // Common terms
-  'chest': 'CHEST',
-  'back': 'BACK',
-  'shoulder': 'SHOULDERS',
-  'shoulders': 'SHOULDERS',
-  'core': 'CORE',
-  'abs': 'CORE',
+  chest: "CHEST",
+  back: "BACK",
+  shoulder: "SHOULDERS",
+  shoulders: "SHOULDERS",
+  core: "CORE",
+  abs: "CORE",
 };
 
 export function ExerciseSelect() {
@@ -199,6 +199,7 @@ export function ExerciseSelect() {
             onChangeText={setSearchQuery}
             style={[styles.searchInput, { color: colors.text }]}
             returnKeyType="done"
+            autoCorrect={false}
             onSubmitEditing={() => Keyboard.dismiss()}
           />
 
