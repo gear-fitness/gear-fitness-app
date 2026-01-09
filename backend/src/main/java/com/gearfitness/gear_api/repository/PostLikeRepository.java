@@ -53,4 +53,6 @@ public interface PostLikeRepository extends JpaRepository<PostLike, PostLikeId> 
                 }
                 return new HashSet<>(findPostIdsLikedByUserRaw(userId, postIds));
         }
+
+        void deleteByPost_PostId(UUID postId);
 }
