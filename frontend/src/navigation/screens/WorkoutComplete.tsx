@@ -11,8 +11,10 @@ import {
   Alert,
   ActivityIndicator,
   Keyboard,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { submitWorkout, WorkoutSubmission } from "../../api/workoutService";
@@ -30,6 +32,7 @@ export function WorkoutComplete() {
   const [bodyTag, setBodyTag] = useState<string[]>(["FULL_BODY"]);
   const [caption, setCaption] = useState("");
   const [loading, setLoading] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const colors = {
     bg: isDark ? "#000" : "#fff",
@@ -168,8 +171,17 @@ export function WorkoutComplete() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: colors.bg }]}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
+    >
+      <SafeAreaView style={{ flex: 1 }}>
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
         <Text style={[styles.title, { color: colors.text }]}>
           Workout Complete! 🎉
         </Text>
@@ -270,6 +282,11 @@ export function WorkoutComplete() {
             placeholderTextColor={colors.subtle}
             value={caption}
             onChangeText={setCaption}
+            onFocus={() => {
+              setTimeout(() => {
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+              }, 100);
+            }}
             multiline
             blurOnSubmit={true}
           />
@@ -315,8 +332,9 @@ export function WorkoutComplete() {
             </Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
-    </SafeAreaView>
+        </ScrollView>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 
