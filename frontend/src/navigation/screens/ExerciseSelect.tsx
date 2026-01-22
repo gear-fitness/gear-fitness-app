@@ -31,7 +31,8 @@ type FilterKey =
   | "BACK"
   | "CHEST"
   | "SHOULDERS"
-  | "CORE";
+  | "CORE"
+  | "GLUTES";
 
 type SelectedFilters = Record<FilterKey, boolean>;
 
@@ -98,6 +99,7 @@ export function ExerciseSelect() {
     HAMSTRINGS: false,
     TRICEPS: false,
     BICEPS: false,
+    GLUTES: false,
   });
 
   const [exercises, setExercises] = useState<any[]>([]);
