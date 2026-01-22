@@ -8,6 +8,7 @@ import {
 import { storeToken, clearAuthToken, isAuthenticated } from "../utils/auth";
 import { getCurrentUserProfile } from "../api/userService";
 import { UserProfile } from "../api/types";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type User = UserProfile;
 
@@ -114,6 +115,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       await clearAuthToken();
       setUser(null);
+
+      // Clear any in-progress workout
+      await AsyncStorage.removeItem('@workout_state');
     } catch (error) {
       console.error("Logout failed:", error);
       throw error;
