@@ -42,18 +42,20 @@ public class Exercise {
     private Set<WorkoutExercise> workoutExercises = new HashSet<>();
 
     public enum BodyPart {
-        FULL_BODY,
-        CHEST,
-        BACK,
-        SHOULDERS,
-        BICEPS,
-        TRICEPS,
-        LEGS,
-        GLUTES,
-        HAMSTRINGS,
-        QUADS,
-        CALVES,
-        CORE,
-        OTHER
-    }
+    CHEST,
+    BACK,
+    SHOULDERS,
+    BICEPS,
+    TRICEPS,
+    LEGS,
+    QUADS,
+    HAMSTRINGS,
+    GLUTES,
+    CALVES,
+    CORE,
+    TRAPS,      
+    FOREARMS,   
+    FULL_BODY,
+    OTHER
+}
 }

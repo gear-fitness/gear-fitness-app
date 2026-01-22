@@ -10,17 +10,25 @@ import React, { useState, useEffect } from "react";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { getWorkoutDetails } from "../../api/workoutService";
 import { WorkoutDetail } from "../../api/types";
+import { parseLocalDate } from "../../utils/date";
+import { useTrackTab } from "../../hooks/useTrackTab";
 
 type RootStackParamList = {
-  DetailedHistory: { workoutId: string };
+  DetailedHistory: {
+    workoutId: string;
+    caption?: string;
+    workoutName?: string;
+  };
 };
 
 type Props = NativeStackScreenProps<RootStackParamList, "DetailedHistory">;
 
 export function DetailedHistory({ route }: Props) {
+  useTrackTab("DetailedHistory");
+
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
-  const { workoutId } = route.params;
+  const { workoutId, caption, workoutName } = route.params;
 
   const [workout, setWorkout] = useState<WorkoutDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -28,11 +36,8 @@ export function DetailedHistory({ route }: Props) {
 
   useEffect(() => {
     const fetchWorkout = async () => {
-      console.log("Fetching workout details for ID:", workoutId);
-
       try {
         const data = await getWorkoutDetails(workoutId);
-        console.log("Workout data received:", data);
         setWorkout(data);
         setLoading(false);
       } catch (err: any) {
@@ -112,8 +117,12 @@ export function DetailedHistory({ route }: Props) {
           {workout.name}
         </Text>
         <Text style={[styles.workoutDate, { color: isDark ? "#aaa" : "#666" }]}>
-          {workout.datePerformed}
-          {workout.durationMin && ` • ${workout.durationMin} min`}
+          {parseLocalDate(workout.datePerformed).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })}
+          {workout.durationMin != null && workout.durationMin > 0 && ` • ${workout.durationMin} min`}
         </Text>
         {workout.bodyTag && (
           <Text
@@ -123,6 +132,23 @@ export function DetailedHistory({ route }: Props) {
           </Text>
         )}
       </View>
+
+      {/* Caption */}
+      {caption && (
+        <View
+          style={[
+            styles.captionContainer,
+            {
+              backgroundColor: isDark ? "#1e1e1e" : "#f9f9f9",
+              borderTopColor: isDark ? "#333" : "#e0e0e0",
+            },
+          ]}
+        >
+          <Text style={[styles.captionText, { color: isDark ? "#fff" : "#000" }]}>
+            {caption}
+          </Text>
+        </View>
+      )}
 
       {/* Exercises */}
       {workout.exercises && workout.exercises.length > 0 ? (
@@ -244,6 +270,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     marginTop: 4,
+  },
+  captionContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    marginTop: 8,
+    borderTopWidth: 1,
+  },
+  captionText: {
+    fontSize: 15,
+    lineHeight: 20,
   },
   exerciseCard: {
     margin: 15,

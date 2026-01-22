@@ -5,6 +5,7 @@
 
 import { getAuthHeader } from "../utils/auth";
 import {
+  DailyVolumeData,
   WeeklyVolumeData,
   Workout,
   WorkoutDetail,
@@ -16,6 +17,7 @@ const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 export interface WorkoutSubmission {
   name: string;
   durationMin: number;
+  datePerformed?: string; // Optional - date in YYYY-MM-DD format
   bodyTags: string[];
   exercises: ExerciseSubmission[];
   createPost?: boolean;
@@ -106,6 +108,35 @@ export async function getWeeklyVolume(
 }
 
 /**
+ * Get daily volume data for a user
+ */
+export async function getDailyVolume(
+  userId: string,
+  weeks: number = 2,
+  weekStartDay: string = 'SUNDAY'
+): Promise<DailyVolumeData[]> {
+  const authHeader = await getAuthHeader();
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/workouts/user/${userId}/daily-volume?weeks=${weeks}&weekStartDay=${weekStartDay}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeader,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to fetch daily volume: ${errorText}`);
+  }
+
+  return response.json();
+}
+
+/**
  * Get all workouts for a user
  */
 export async function getUserWorkouts(userId: string): Promise<Workout[]> {
@@ -176,4 +207,27 @@ export async function getUserPersonalRecords(
   }
 
   return response.json();
+}
+
+/**
+ * Delete a workout by ID
+ */
+export async function deleteWorkout(workoutId: string): Promise<void> {
+  const authHeader = await getAuthHeader();
+
+  const response = await fetch(`${API_BASE_URL}/api/workouts/${workoutId}`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeader,
+    },
+  });
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error("Workout not found or you don't have permission to delete it");
+    }
+    const errorText = await response.text();
+    throw new Error(`Failed to delete workout: ${errorText}`);
+  }
 }

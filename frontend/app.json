@@ -3,16 +3,23 @@
     "name": "gear-fitness",
     "slug": "gear-fitness",
     "version": "1.0.0",
-    "orientation": "default",
+    "orientation": "portrait",
     "icon": "./assets/GearLogo.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "scheme": "gearfitness",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.gearfitness.app",
+      "bundleIdentifier": "com.gearfitness",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSAppTransportSecurity": {
+          "NSExceptionDomains": {
+            "gear-fitness.us-west-2.elasticbeanstalk.com": {
+              "NSExceptionAllowsInsecureHTTPLoads": true
+            }
+          }
+        }
       }
     },
     "android": {
@@ -20,7 +27,8 @@
         "foregroundImage": "./assets/GearLogo.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.gearfitness"
+      "package": "com.gearfitness",
+      "usesCleartextTraffic": true
     },
     "web": {
       "favicon": "./assets/GearLogo.png"
@@ -31,13 +39,17 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#ffffff",
-          "image": "./assets/GearLogo.png"
+          "image": "./assets/GearLogoInverse.png",
+          "dark": {
+            "backgroundColor": "#000000",
+            "image": "./assets/GearLogo.png"
+          }
         }
       ],
       [
         "@react-native-google-signin/google-signin",
         {
-          "iosUrlScheme": "com.googleusercontent.apps.637676049223-kg32deotit3muuhi3j1q253vfhotnoai"
+          "iosUrlScheme": "com.googleusercontent.apps.637676049223-rfl13bv4l2lqs2ncdjvah95g0d01f076"
         }
       ],
       "expo-secure-store"

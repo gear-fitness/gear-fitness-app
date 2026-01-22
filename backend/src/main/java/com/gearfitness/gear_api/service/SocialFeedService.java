@@ -42,6 +42,19 @@ public class SocialFeedService {
         return posts.map(post -> mapToDTO(post, likeCounts, commentCounts, likedPostIds));
     }
 
+    public Page<FeedPostDTO> getUserPosts(UUID targetUserId, UUID viewingUserId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Post> posts = postRepository.findPostsByUser(targetUserId, pageable);
+
+        List<UUID> postIds = posts.getContent().stream().map(Post::getPostId)
+                .collect(Collectors.toList());
+        Map<UUID, Long> likeCounts = postLikeRepository.countByPostIds(postIds);
+        Map<UUID, Long> commentCounts = postCommentRepository.countByPostIds(postIds);
+        Set<UUID> likedPostIds = postLikeRepository.findPostIdsLikedByUser(viewingUserId, postIds);
+
+        return posts.map(post -> mapToDTO(post, likeCounts, commentCounts, likedPostIds));
+    }
+
     private FeedPostDTO mapToDTO(
             Post post,
             Map<UUID, Long> likeCounts,
@@ -63,6 +76,10 @@ public class SocialFeedService {
                                 .map(Enum::name)
                                 .collect(Collectors.toList())
                         : null)
+                .exerciseCount((long) post.getWorkout().getWorkoutExercises().size())
+                .setCount(post.getWorkout().getWorkoutExercises().stream()
+                        .mapToLong(exercise -> exercise.getWorkoutSets().size())
+                        .sum())
                 .likeCount(likeCounts.getOrDefault(post.getPostId(), 0L))
                 .commentCount(commentCounts.getOrDefault(post.getPostId(), 0L))
                 .likedByCurrentUser(likedPostIds.contains(post.getPostId()))

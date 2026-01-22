@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Keyboard,
 } from "react-native";
 import { Text } from "@react-navigation/elements";
 import { Ionicons } from "@expo/vector-icons";
@@ -88,6 +89,8 @@ export function FollowModal({ visible, onClose, onSuccess }: Props) {
               autoCapitalize="none"
               autoCorrect={false}
               autoFocus
+              returnKeyType="done"
+              onSubmitEditing={() => Keyboard.dismiss()}
             />
           </View>
 

@@ -33,6 +33,8 @@ import { WorkoutComplete } from "./screens/WorkoutComplete";
 import { LoginScreen } from "./screens/Login";
 import { SignUpProfileScreen } from "./screens/SignUpProfile";
 import { ExerciseChat } from "./screens/ExerciseChat";
+import { AuthLoadingScreen } from "./screens/AuthLoading";
+import { CommentsScreen } from "../components/CommentsScreen";
 
 /* ---------------------- TABS ---------------------- */
 
@@ -116,9 +118,13 @@ const HomeTabs = createBottomTabNavigator({
 /* ---------------------- STACK (MODALS) ---------------------- */
 
 const RootStack = createNativeStackNavigator({
-  initialRouteName: "Login",
+  initialRouteName: "AuthLoading",
 
   screens: {
+    AuthLoading: {
+      screen: AuthLoadingScreen,
+      options: { headerShown: false },
+    },
     Login: {
       screen: LoginScreen,
       options: { headerShown: false },
@@ -136,8 +142,15 @@ const RootStack = createNativeStackNavigator({
       options: { headerShown: false },
     },
 
-    Settings: { screen: Settings },
-    Profile: { screen: Profile },
+    Settings: { screen: Settings, options: { headerBackTitle: "Profile" } },
+
+    UserProfile: {
+      screen: Profile,
+      options: {
+        headerShown: false,
+        gestureEnabled: true,
+      },
+    },
 
     PR: {
       screen: PR,
@@ -151,9 +164,9 @@ const RootStack = createNativeStackNavigator({
     DetailedHistory: {
       screen: DetailedHistory,
       options: {
-        title: "Detailed Workout History",
+        title: "Workout",
         headerShown: true,
-        headerBackTitle: "History",
+        headerBackTitle: "Back",
       },
     },
 
@@ -197,6 +210,7 @@ const RootStack = createNativeStackNavigator({
       options: { title: "404" },
       linking: { path: "*" },
     },
+
     /* MODAL 4 — WORKOUT COMPLETE */
     WorkoutComplete: {
       screen: WorkoutComplete,
@@ -206,11 +220,20 @@ const RootStack = createNativeStackNavigator({
         headerShown: true,
       },
     },
+
     /* MODAL 5 — EXERCISE CHAT */
     ExerciseChat: {
       screen: ExerciseChat,
       options: {
         title: "Exercise Chat",
+        presentation: "modal",
+        headerShown: true,
+      },
+    },
+    Comments: {
+      screen: CommentsScreen,
+      options: {
+        title: "Comments",
         presentation: "modal",
         headerShown: true,
       },
@@ -226,11 +249,13 @@ export type RootStackParamList = StaticParamList<typeof RootStack>;
 declare global {
   namespace ReactNavigation {
     interface RootParamList {
+      AuthLoading: undefined;
       Login: undefined;
       HomeTabs: undefined;
       History: undefined;
       Settings: undefined;
       Profile: undefined;
+      UserProfile: { username: string };
       WorkoutSummary: undefined;
       WorkoutComplete: undefined;
       ExerciseSelect: undefined;
@@ -251,6 +276,10 @@ declare global {
           description: string;
         };
         greetingText: string;
+      };
+
+      Comments: {
+        postId: string;
       };
     }
   }

@@ -1,24 +1,44 @@
+import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
-  TouchableOpacity,
   View,
+  FlatList,
+  TouchableOpacity,
   ActivityIndicator,
   Alert,
+  RefreshControl,
 } from "react-native";
+import { Text, Button } from "@react-navigation/elements";
+import {
+  useNavigation,
+  useRoute,
+  useTheme,
+} from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Button, Text } from "@react-navigation/elements";
-import setting from "../../assets/setting.png";
-import avatar from "../../assets/avatar.png";
-import { Image, ScrollView } from "react-native";
-import { useNavigation } from "@react-navigation/native";
-import React, { useState, useEffect } from "react";
-import { getCurrentUserProfile, getUserFollowers } from "../../api/userService";
-import { UserProfile, FollowerUser } from "../../api/types";
 import { Ionicons } from "@expo/vector-icons";
 
+import {
+  getCurrentUserProfile,
+  getUserProfile,
+  getUserFollowers,
+  followUser,
+  unfollowUser,
+} from "../../api/userService";
+import { UserProfile, FollowerUser } from "../../api/types";
+import { useTrackTab } from "../../hooks/useTrackTab";
+import { socialFeedApi, FeedPost } from "../../api/socialFeedApi";
+import { FeedPostCard } from "../../components/FeedPostCard";
+
 export function Profile() {
+  useTrackTab("Profile");
+
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const { colors } = useTheme();
+
+  const usernameParam: string | undefined = route.params?.username;
+  const isOtherUser = !!usernameParam;
 
   // State management
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -26,184 +46,255 @@ export function Profile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch profile data on mount
-  useEffect(() => {
-    loadProfileData();
-  }, []);
+  // Posts state management
+  const [posts, setPosts] = useState<FeedPost[]>([]);
+  const [postsLoading, setPostsLoading] = useState(false);
+  const [loadingMorePosts, setLoadingMorePosts] = useState(false);
+  const [currentPostsPage, setCurrentPostsPage] = useState(0);
+  const [hasMorePosts, setHasMorePosts] = useState(true);
 
-  const loadProfileData = async () => {
+  // Load profile data when screen is focused
+  const loadProfile = async () => {
     try {
       setLoading(true);
       setError(null);
 
       // Fetch profile data
-      const profileData = await getCurrentUserProfile();
+      const profileData = usernameParam
+        ? await getUserProfile(usernameParam)
+        : await getCurrentUserProfile();
+
       setProfile(profileData);
 
       // Fetch followers
       const followersData = await getUserFollowers(profileData.userId);
       setFollowers(followersData);
-    } catch (err) {
-      console.error("Error loading profile:", err);
-      setError(err instanceof Error ? err.message : "Failed to load profile");
-      Alert.alert("Error", "Failed to load profile data. Please try again.");
+
+      // Return profile data so it can be used immediately
+      return profileData;
+    } catch {
+      setError("Failed to load profile");
+      Alert.alert("Error", "Failed to load profile");
+      return null;
     } finally {
       setLoading(false);
     }
   };
 
-  // Format height from inches to feet and inches
-  const formatHeight = (heightInches: number | null): string => {
-    if (!heightInches) return "N/A";
-    const feet = Math.floor(heightInches / 12);
-    const inches = heightInches % 12;
-    return `${feet}' ${inches}"`;
+  useEffect(() => {
+    loadProfile().then((profileData) => {
+      if (profileData) {
+        loadUserPosts(profileData);
+      }
+    });
+  }, [usernameParam]);
+
+  // Follow or unfollow user
+  const handleFollowToggle = async () => {
+    if (!profile) return;
+
+    // Confirm before unfollowing
+    if (profile.isFollowing) {
+      Alert.alert(
+        `Unfollow @${profile.username}?`,
+        "Are you sure you want to unfollow this user?",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Unfollow",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                await unfollowUser(profile.userId);
+                loadProfile();
+              } catch {
+                Alert.alert("Error", "Failed to update follow status");
+              }
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    // Follow user
+    try {
+      await followUser(profile.userId);
+      loadProfile();
+    } catch {
+      Alert.alert("Error", "Failed to update follow status");
+    }
   };
 
-  const styles = StyleSheet.create({
-    scrollContainer: {
-      flex: 1,
-      paddingTop: insets.top + 20,
-      paddingBottom: insets.bottom,
-      paddingLeft: insets.left,
-      paddingRight: insets.right,
-    },
-    container: {
-      flex: 1,
-      gap: 10,
-      paddingHorizontal: 16,
-    },
-    upperSection: {
-      display: "flex",
-      flexDirection: "row",
-      justifyContent: "space-between",
-    },
-    profilePicture: {
-      width: 100,
-      height: 100,
-      borderRadius: 50,
-      backgroundColor: "#ccc",
-    },
-    badges: {
-      flexDirection: "row",
-      gap: 8,
-      marginTop: 10,
-    },
-    badge: {
-      width: 50,
-      height: 50,
-      backgroundColor: "#333",
-      borderRadius: 4,
-    },
-    profileCard: {
-      borderRadius: 8,
-      padding: 16,
-      marginTop: 10,
-    },
-    username: {
-      fontSize: 24,
-      fontWeight: "bold",
-    },
-    handle: {
-      fontSize: 14,
-      color: "#999",
-      marginBottom: 10,
-    },
-    bio: {
-      fontSize: 14,
-      marginBottom: 16,
-    },
-    statsRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      marginBottom: 16,
-    },
-    statItem: {
-      flex: 1,
-    },
-    statLabel: {
-      fontSize: 12,
-      fontWeight: "bold",
-      marginBottom: 4,
-    },
-    statValue: {
-      fontSize: 14,
-      color: "#999",
-    },
-    friendsSection: {
-      marginTop: 16,
-    },
-    friendsTitle: {
-      fontSize: 14,
-      fontWeight: "bold",
-      marginBottom: 8,
-    },
-    friendsRow: {
-      flexDirection: "row",
-      gap: 16,
-    },
-    friend: {
-      width: 50,
-      height: 50,
-      borderRadius: 25,
-      backgroundColor: "#ccc",
-    },
-    weekRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      marginTop: 16,
-      marginBottom: 16,
-    },
-    dayItem: {
-      alignItems: "center",
-      flex: 1,
-    },
-    dayLabel: {
-      fontSize: 12,
-      marginBottom: 4,
-    },
-    dayCircle: {
-      width: 30,
-      height: 30,
-      borderRadius: 15,
-      backgroundColor: "#eee",
-    },
-    dayActive: {
-      backgroundColor: "#ffc107",
-    },
-    progressSection: {
-      marginTop: 16,
-    },
-    progressTitle: {
-      fontSize: 14,
-      fontWeight: "bold",
-      marginBottom: 8,
-    },
-    chartArea: {
-      height: 150,
-      flexDirection: "row",
-      alignItems: "flex-end",
-      justifyContent: "space-between",
-      gap: 4,
-    },
-    bar: {
-      flex: 1,
-      backgroundColor: "#0066cc",
-      borderRadius: 4,
-    },
-  });
+  // Load user posts
+  const loadUserPosts = async (profileData?: UserProfile) => {
+    const targetProfile = profileData || profile;
+    if (!targetProfile) return;
+    try {
+      setPostsLoading(true);
+      const response = await socialFeedApi.getUserPosts(targetProfile.userId, 0, 5);
+      setPosts(response.content);
+      setCurrentPostsPage(0);
+      setHasMorePosts(!response.last);
+    } catch (error) {
+      console.error("Error loading user posts:", error);
+    } finally {
+      setPostsLoading(false);
+    }
+  };
+
+  // Load more posts when scrolling
+  const loadMorePosts = async () => {
+    if (!hasMorePosts || loadingMorePosts || postsLoading || !profile) return;
+    try {
+      setLoadingMorePosts(true);
+      const nextPage = currentPostsPage + 1;
+      const response = await socialFeedApi.getUserPosts(profile.userId, nextPage, 5);
+      setPosts((prev) => [...prev, ...response.content]);
+      setCurrentPostsPage(nextPage);
+      setHasMorePosts(!response.last);
+    } catch (error) {
+      console.error("Error loading more posts:", error);
+    } finally {
+      setLoadingMorePosts(false);
+    }
+  };
+
+  // Handle opening comments modal
+  const handleOpenComments = (postId: string) => {
+    navigation.navigate("Comments", { postId });
+  };
+
+  // Format height from inches to feet and inches
+  const formatHeight = (h: number | null) =>
+    h ? `${Math.floor(h / 12)}' ${h % 12}"` : "N/A";
+
+  // Profile Header Component
+  const ProfileHeader = () => {
+    if (!profile) return null;
+
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <View style={styles.avatarWrapper}>
+              <Text style={styles.avatarLetter}>
+                {profile.username.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+
+            <View>
+              <Text style={styles.username}>{profile.username}</Text>
+              <Text style={styles.handle}>@{profile.username}</Text>
+
+              {isOtherUser && (
+                <TouchableOpacity
+                  style={[
+                    styles.followButton,
+                    profile.isFollowing
+                      ? styles.unfollowButton
+                      : { backgroundColor: "#007AFF" },
+                  ]}
+                  onPress={handleFollowToggle}
+                >
+                  <Text
+                    style={{
+                      color: profile.isFollowing ? "#FF3B30" : "#fff",
+                      fontWeight: "600",
+                    }}
+                  >
+                    {profile.isFollowing ? "Unfollow" : "Follow"}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
+          {!isOtherUser && (
+            <TouchableOpacity onPress={() => navigation.navigate("Settings")}>
+              <Ionicons
+                name="settings-outline"
+                size={40}
+                color="#666"
+                style={{ marginRight: 10, marginTop: -16 }}
+              />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <View style={styles.statsSection}>
+          <View style={styles.statsRow}>
+            <Stat
+              label="Weight"
+              value={profile.weightLbs ? `${profile.weightLbs}lbs` : "N/A"}
+            />
+            <Stat label="Height" value={formatHeight(profile.heightInches)} />
+            <Stat label="Age" value={profile.age ?? "N/A"} />
+          </View>
+
+          <View style={styles.statsRow}>
+            <Stat
+              label="Workouts"
+              value={profile.workoutStats.totalWorkouts}
+            />
+            <Stat label="Followers" value={profile.followersCount} />
+            <Stat label="Following" value={profile.followingCount} />
+          </View>
+        </View>
+
+        <View style={styles.friendsSection}>
+          <Text style={styles.sectionTitle}>Friends</Text>
+
+          {followers.length === 0 ? (
+            <Text style={styles.muted}>No followers yet</Text>
+          ) : (
+            <View style={styles.friendsRow}>
+              {followers.slice(0, 5).map((f) => (
+                <View key={f.userId} style={styles.friend}>
+                  <Text style={styles.friendLetter}>
+                    {f.username.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+
+        <View style={styles.weekRow}>
+          {(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const).map(
+            (day) => (
+              <View key={day} style={styles.dayItem}>
+                <Text style={styles.dayLabel}>{day}</Text>
+                <View
+                  style={[
+                    styles.dayCircle,
+                    profile.workoutStats.weeklySplit[day] > 0
+                      ? styles.dayActive
+                      : styles.dayInactive,
+                  ]}
+                >
+                  {profile.workoutStats.weeklySplit[day] > 0 && (
+                    <Ionicons name="checkmark" size={20} color="#fff" />
+                  )}
+                </View>
+              </View>
+            )
+          )}
+        </View>
+
+        <View style={styles.postsSection}>
+          <Text style={styles.sectionTitle}>Posts</Text>
+        </View>
+      </View>
+    );
+  };
 
   // Show loading state
   if (loading) {
     return (
-      <View
-        style={[
-          styles.scrollContainer,
-          { justifyContent: "center", alignItems: "center" },
-        ]}
-      >
-        <ActivityIndicator size="large" color="#0066cc" />
-        <Text style={{ marginTop: 10 }}>Loading profile...</Text>
+      <View style={styles.center}>
+        <ActivityIndicator size="large" />
+        <Text>Loading profile...</Text>
       </View>
     );
   }
@@ -211,166 +302,238 @@ export function Profile() {
   // Show error state
   if (error || !profile) {
     return (
-      <View
-        style={[
-          styles.scrollContainer,
-          { justifyContent: "center", alignItems: "center", padding: 20 },
-        ]}
-      >
-        <Text style={{ fontSize: 18, marginBottom: 10 }}>
-          Failed to load profile
-        </Text>
-        <Button onPress={loadProfileData}>Retry</Button>
+      <View style={styles.center}>
+        <Text>Failed to load profile</Text>
+        <Button onPress={loadProfile}>Retry</Button>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.scrollContainer}>
-      <View style={styles.container}>
-        <View style={styles.upperSection}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 20 }}>
-            <View>
-              <Image source={avatar} style={styles.profilePicture} />
-            </View>
-            <View>
-              <Text style={styles.username}>{profile.username}</Text>
-              <Text style={styles.handle}>@{profile.username}</Text>
-            </View>
-          </View>
-
-          <TouchableOpacity
-            onPress={() => {
-              navigation.navigate("Settings");
-            }}
-          >
-            <Ionicons
-              name="settings-outline"
-              size={40}
-              color="#666"
-              style={{ marginRight: 10, marginTop: 10 }}
-            />
+    <View style={{ flex: 1 }}>
+      {/* Back button for other users */}
+      {isOtherUser && (
+        <View style={[styles.backButton, { top: insets.top - 6 }]}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Ionicons name="chevron-back" size={30} color={colors.text} />
           </TouchableOpacity>
         </View>
+      )}
 
-        <View style={styles.profileCard}>
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Weight</Text>
-              <Text style={styles.statValue}>
-                {profile.weightLbs ? `${profile.weightLbs}lbs` : "N/A"}
-              </Text>
+      <FlatList
+        data={posts}
+        renderItem={({ item }) => (
+          <FeedPostCard post={item} onOpenComments={handleOpenComments} />
+        )}
+        keyExtractor={(item) => String(item.postId)}
+        ListHeaderComponent={<ProfileHeader />}
+        ListEmptyComponent={
+          postsLoading ? (
+            <ActivityIndicator style={styles.loader} />
+          ) : (
+            <View style={styles.emptyPosts}>
+              <Text style={styles.emptyText}>No posts yet</Text>
             </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Height</Text>
-              <Text style={styles.statValue}>
-                {formatHeight(profile.heightInches)}
-              </Text>
+          )
+        }
+        ListFooterComponent={
+          loadingMorePosts ? (
+            <View style={styles.footer}>
+              <ActivityIndicator />
+              <Text style={styles.footerText}>Loading more...</Text>
             </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Age</Text>
-              <Text style={styles.statValue}>{profile.age || "N/A"}</Text>
-            </View>
-          </View>
-
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Completed Workouts</Text>
-              <Text style={styles.statValue}>
-                {profile.workoutStats.totalWorkouts}
-              </Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Followers</Text>
-              <Text style={styles.statValue}>{profile.followersCount}</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Following</Text>
-              <Text style={styles.statValue}>{profile.followingCount}</Text>
-            </View>
-          </View>
-
-          <View style={styles.friendsSection}>
-            <Text style={styles.friendsTitle}>
-              Friends ({followers.length})
-            </Text>
-            <View style={styles.friendsRow}>
-              {followers.slice(0, 5).map((follower) => (
-                <View key={follower.userId} style={styles.friend}></View>
-              ))}
-              {followers.length === 0 && (
-                <Text style={styles.statValue}>No followers yet</Text>
-              )}
-            </View>
-          </View>
-
-          <View style={styles.weekRow}>
-            <View style={styles.dayItem}>
-              <Text style={styles.dayLabel}>Mon</Text>
-              <View
-                style={[
-                  styles.dayCircle,
-                  profile.workoutStats.weeklySplit.Mon > 0 && styles.dayActive,
-                ]}
-              ></View>
-            </View>
-            <View style={styles.dayItem}>
-              <Text style={styles.dayLabel}>Tue</Text>
-              <View
-                style={[
-                  styles.dayCircle,
-                  profile.workoutStats.weeklySplit.Tue > 0 && styles.dayActive,
-                ]}
-              ></View>
-            </View>
-            <View style={styles.dayItem}>
-              <Text style={styles.dayLabel}>Wed</Text>
-              <View
-                style={[
-                  styles.dayCircle,
-                  profile.workoutStats.weeklySplit.Wed > 0 && styles.dayActive,
-                ]}
-              ></View>
-            </View>
-            <View style={styles.dayItem}>
-              <Text style={styles.dayLabel}>Thu</Text>
-              <View
-                style={[
-                  styles.dayCircle,
-                  profile.workoutStats.weeklySplit.Thu > 0 && styles.dayActive,
-                ]}
-              ></View>
-            </View>
-            <View style={styles.dayItem}>
-              <Text style={styles.dayLabel}>Fri</Text>
-              <View
-                style={[
-                  styles.dayCircle,
-                  profile.workoutStats.weeklySplit.Fri > 0 && styles.dayActive,
-                ]}
-              ></View>
-            </View>
-            <View style={styles.dayItem}>
-              <Text style={styles.dayLabel}>Sat</Text>
-              <View
-                style={[
-                  styles.dayCircle,
-                  profile.workoutStats.weeklySplit.Sat > 0 && styles.dayActive,
-                ]}
-              ></View>
-            </View>
-            <View style={styles.dayItem}>
-              <Text style={styles.dayLabel}>Sun</Text>
-              <View
-                style={[
-                  styles.dayCircle,
-                  profile.workoutStats.weeklySplit.Sun > 0 && styles.dayActive,
-                ]}
-              ></View>
-            </View>
-          </View>
-        </View>
-      </View>
-    </ScrollView>
+          ) : null
+        }
+        contentContainerStyle={{
+          paddingTop: insets.top + (isOtherUser ? 28 : 0),
+          paddingBottom: 40,
+        }}
+        onEndReached={loadMorePosts}
+        onEndReachedThreshold={0.5}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={() => loadProfile().then((profileData) => {
+              if (profileData) {
+                loadUserPosts(profileData);
+              }
+            })}
+          />
+        }
+      />
+    </View>
   );
 }
+
+// Small stat component
+function Stat({ label, value }: { label: string; value: any }) {
+  return (
+    <View style={{ flex: 1 }}>
+      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={styles.statValue}>{value}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  scroll: { flex: 1 },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+
+  container: { padding: 16 },
+
+  backButton: {
+    position: "absolute",
+    left: 16,
+    zIndex: 10,
+  },
+
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+
+  avatarWrapper: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: "#e5e5e5",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  avatarLetter: {
+    fontSize: 48,
+    fontWeight: "bold",
+    color: "#666",
+  },
+
+  username: { fontSize: 24, fontWeight: "bold" },
+  handle: { color: "#888", marginBottom: 6 },
+
+  followButton: {
+    marginTop: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 18,
+    borderRadius: 6,
+    alignSelf: "flex-start",
+  },
+
+  // iOS-style unfollow button
+  unfollowButton: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: "#FF3B30",
+  },
+
+  statsSection: { marginTop: 24 },
+
+  statsRow: {
+    flexDirection: "row",
+    marginBottom: 16,
+  },
+
+  statLabel: { fontSize: 12, fontWeight: "600" },
+  statValue: { color: "#777" },
+
+  friendsSection: { marginTop: 24 },
+
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+
+  friendsRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+
+  friend: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#ccc",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  friendLetter: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#666",
+    includeFontPadding: false,
+  },
+
+  weekRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 24,
+  },
+
+  dayItem: {
+    alignItems: "center",
+    flex: 1,
+  },
+
+  dayLabel: {
+    fontSize: 12,
+    marginBottom: 4,
+  },
+
+  dayCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  dayActive: {
+    backgroundColor: "#007AFF",
+  },
+
+  dayInactive: {
+    backgroundColor: "#eee",
+  },
+
+  muted: { color: "#777" },
+
+  postsSection: {
+    marginTop: 32,
+    borderTopWidth: 1,
+    borderTopColor: "#e5e5e5",
+    paddingTop: 16,
+  },
+
+  emptyPosts: {
+    padding: 32,
+    alignItems: "center",
+  },
+
+  emptyText: {
+    color: "#777",
+    fontSize: 16,
+  },
+
+  loader: {
+    padding: 32,
+  },
+
+  footer: {
+    paddingVertical: 20,
+    alignItems: "center",
+  },
+
+  footerText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: "#777",
+  },
+});

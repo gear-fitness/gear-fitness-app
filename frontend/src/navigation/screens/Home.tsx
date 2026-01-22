@@ -1,5 +1,10 @@
-import { Button, Text } from "@react-navigation/elements";
-import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { Text } from "@react-navigation/elements";
+import {
+  useNavigation,
+  useFocusEffect,
+  useTheme,
+} from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import {
   StyleSheet,
   View,
@@ -7,24 +12,46 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  useColorScheme,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { LineChart } from "react-native-chart-kit";
+import { BarChart } from "react-native-gifted-charts";
 import { useEffect, useState } from "react";
 import React from "react";
 import { useAuth } from "../../context/AuthContext";
-import { getWeeklyVolume, getUserWorkouts } from "../../api/workoutService";
-import { WeeklyVolumeData, Workout } from "../../api/types";
+import { getDailyVolume, getUserWorkouts } from "../../api/workoutService";
+import { DailyVolumeData, Workout } from "../../api/types";
+import { parseLocalDate } from "../../utils/date";
+import { useTrackTab } from "../../hooks/useTrackTab";
 
 const { width, height } = Dimensions.get("window");
 
+type RootStackParamList = {
+  History: undefined;
+  DetailedHistory: {
+    workoutId: string;
+    caption?: string;
+    workoutName?: string;
+  };
+};
+
 export function Home() {
+  // Add the tab tracking hook at the beginning
+  useTrackTab("Home");
+
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
-  const [weeklyData, setWeeklyData] = useState<WeeklyVolumeData[]>([]);
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { colors } = useTheme();
+  const colorScheme = useColorScheme();
+  const isDarkMode = colorScheme === "dark";
+  const [dailyData, setDailyData] = useState<DailyVolumeData[]>([]);
+  const [allDailyData, setAllDailyData] = useState<DailyVolumeData[]>([]);
+  const [prevWeekAvg, setPrevWeekAvg] = useState<number>(0);
   const [recentWorkouts, setRecentWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
+  const [weekOffset, setWeekOffset] = useState<number>(0); // 0 = current week, -1 = previous week, etc.
+  const [weekDateRange, setWeekDateRange] = useState<string>("");
 
   // Fetch data on initial mount
   useEffect(() => {
@@ -41,7 +68,7 @@ export function Home() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      await Promise.all([fetchWeeklyVolume(), fetchRecentWorkouts()]);
+      await Promise.all([fetchDailyVolume(), fetchRecentWorkouts()]);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -49,14 +76,19 @@ export function Home() {
     }
   };
 
-  const fetchWeeklyVolume = async () => {
+  const fetchDailyVolume = async () => {
     if (!user?.userId) return;
 
     try {
-      const data = await getWeeklyVolume(user.userId, 8);
-      setWeeklyData(data);
+      // Fetch all workout data (weeks = 0 means fetch all from first workout)
+      const data = await getDailyVolume(user.userId, 0, "SUNDAY");
+      setAllDailyData(data);
+
+      // Initialize with current week (offset 0)
+      updateWeekData(data, 0);
+      setWeekOffset(0);
     } catch (error) {
-      console.error("Error fetching weekly volume:", error);
+      console.error("Error fetching daily volume:", error);
     }
   };
 
@@ -65,7 +97,7 @@ export function Home() {
 
     try {
       const workouts = await getUserWorkouts(user.userId);
-      // Get the 3 most recent workouts
+      // Backend already sorts by date (desc) and createdAt (desc), so just take the first 3
       const recent = workouts.slice(0, 3);
       setRecentWorkouts(recent);
     } catch (error) {
@@ -73,9 +105,68 @@ export function Home() {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return `${date.getMonth() + 1}/${date.getDate()}`;
+  const getVisibleWeek = (allData: DailyVolumeData[], offset: number) => {
+    const totalDays = allData.length;
+    const weeksAvailable = Math.floor(totalDays / 7);
+    const clampedOffset = Math.max(-(weeksAvailable - 1), Math.min(0, offset));
+    const endIndex = totalDays + clampedOffset * 7;
+    const startIndex = endIndex - 7;
+    return allData.slice(startIndex, endIndex);
+  };
+
+  const getPreviousWeekAverage = (
+    allData: DailyVolumeData[],
+    offset: number
+  ) => {
+    const totalDays = allData.length;
+    const prevWeekEndIndex = totalDays + offset * 7 - 7;
+    const prevWeekStartIndex = prevWeekEndIndex - 7;
+    if (prevWeekStartIndex < 0) return 0;
+    const prevWeek = allData.slice(prevWeekStartIndex, prevWeekEndIndex);
+    const sum = prevWeek.reduce((acc, day) => acc + day.totalVolumeLbs, 0);
+    return sum / 7;
+  };
+
+  const getWeekDateRange = (weekData: DailyVolumeData[]) => {
+    if (weekData.length === 0) return "";
+    // Parse dates as local dates to avoid timezone issues
+    const [startYear, startMonth, startDay] = weekData[0].date
+      .split("-")
+      .map(Number);
+    const [endYear, endMonth, endDay] = weekData[weekData.length - 1].date
+      .split("-")
+      .map(Number);
+    const startDate = new Date(startYear, startMonth - 1, startDay);
+    const endDate = new Date(endYear, endMonth - 1, endDay);
+    return `${startDate.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    })} - ${endDate.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })}`;
+  };
+
+  const updateWeekData = (data: DailyVolumeData[], offset: number) => {
+    const visible = getVisibleWeek(data, offset);
+    const avg = getPreviousWeekAverage(data, offset);
+    const range = getWeekDateRange(visible);
+    setDailyData(visible);
+    setPrevWeekAvg(avg);
+    setWeekDateRange(range);
+  };
+
+  const goToPreviousWeek = () => {
+    const newOffset = weekOffset - 1;
+    setWeekOffset(newOffset);
+    updateWeekData(allDailyData, newOffset);
+  };
+
+  const goToNextWeek = () => {
+    const newOffset = weekOffset + 1;
+    setWeekOffset(newOffset);
+    updateWeekData(allDailyData, newOffset);
   };
 
   const formatVolume = (volume: number) => {
@@ -87,53 +178,15 @@ export function Home() {
     return volume.toFixed(0);
   };
 
-  const getChartData = () => {
-    if (weeklyData.length === 0) {
-      return {
-        labels: ["No Data"],
-        datasets: [
-          {
-            data: [0],
-          },
-        ],
-      };
-    }
+  const getBarChartData = () => {
+    if (dailyData.length === 0) return [];
 
-    // Show up to 8 weeks of data
-    const recentData = weeklyData.slice(-8);
-
-    return {
-      labels: recentData.map((item) => formatDate(item.weekStartDate)),
-      datasets: [
-        {
-          data: recentData.map((item) => item.totalVolumeLbs),
-          color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-          strokeWidth: 2,
-        },
-      ],
-    };
-  };
-
-  const chartConfig = {
-    backgroundColor: "#ffffff",
-    backgroundGradientFrom: "#e3f2fd",
-    backgroundGradientTo: "#bbdefb",
-    decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(25, 118, 210, ${opacity})`,
-    labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-    style: {
-      borderRadius: 16,
-    },
-    propsForDots: {
-      r: "5",
-      strokeWidth: "2",
-      stroke: "#1976d2",
-    },
-    propsForBackgroundLines: {
-      strokeDasharray: "",
-      stroke: "#e0e0e0",
-      strokeWidth: 1,
-    },
+    return dailyData.map((item, index) => ({
+      value: item.totalVolumeLbs,
+      label: ["S", "M", "T", "W", "T", "F", "S"][index],
+      frontColor: "#007AFF",
+      gradientColor: "#5AC8FA",
+    }));
   };
 
   const styles = StyleSheet.create({
@@ -147,110 +200,277 @@ export function Home() {
     container: {
       flex: 1,
       paddingHorizontal: 16,
-      gap: 16,
+      gap: 12,
     },
     title: {
-      fontSize: 28,
-      fontWeight: "bold",
+      fontSize: 26,
+      fontWeight: "700",
       alignSelf: "center",
+      letterSpacing: -0.5,
+      color: isDarkMode ? "#FFF" : "#1a1a1a",
     },
     sectionTitle: {
-      fontSize: 20,
-      fontWeight: "600",
-      marginTop: 8,
+      fontSize: 18,
+      fontWeight: "700",
+      marginTop: 4,
+      color: isDarkMode ? "#FFF" : "#333",
+      letterSpacing: -0.3,
     },
     chart: {
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: "#e3f2fd",
+      backgroundColor: isDarkMode ? colors.card : "white",
       width: "100%",
-      borderRadius: 12,
+      borderRadius: 16,
       marginVertical: 8,
-      overflow: "hidden",
+      paddingVertical: 12,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 3,
     },
     chartTitle: {
       fontSize: 16,
-      fontWeight: "600",
-      color: "#1976d2",
-      marginTop: 12,
-      marginBottom: 8,
+      fontWeight: "700",
+      color: isDarkMode ? "#FFF" : "#333",
+      marginBottom: 2,
       alignSelf: "center",
+      letterSpacing: 0.3,
     },
     loadingContainer: {
-      height: height * 0.25,
+      height: 220,
       justifyContent: "center",
       alignItems: "center",
     },
     activityCards: {
-      gap: 12,
+      gap: 10,
       paddingBottom: 20,
     },
     activityCard: {
-      backgroundColor: "white",
-      padding: 16,
+      backgroundColor: isDarkMode ? colors.card : "white",
+      padding: 14,
       borderRadius: 12,
       shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.06,
+      shadowRadius: 6,
+      elevation: 2,
     },
     cardTitle: {
-      fontSize: 16,
+      fontSize: 15,
       fontWeight: "600",
-      marginBottom: 4,
+      marginBottom: 3,
+      color: isDarkMode ? "#FFF" : "#1a1a1a",
     },
     cardSubtitle: {
-      fontSize: 14,
-      color: "#666",
+      fontSize: 13,
+      color: isDarkMode ? "#AAA" : "#777",
+      fontWeight: "400",
+    },
+    cardContent: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    cardLeft: {
+      flexDirection: "row",
+      alignItems: "center",
+      flex: 1,
+    },
+    cardIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 10,
+      backgroundColor: isDarkMode ? "#1C3A5C" : "#F0F4FF",
+      justifyContent: "center",
+      alignItems: "center",
+      marginRight: 12,
+    },
+    cardIconText: {
+      fontSize: 20,
+    },
+    cardInfo: {
+      flex: 1,
+    },
+    cardChevron: {
+      fontSize: 24,
+      color: "#C7C7CC",
+      fontWeight: "300",
+      marginLeft: 8,
     },
     activityCardsTitle: {
       flexDirection: "row",
       justifyContent: "space-between",
+      alignItems: "center",
+    },
+    seeAllButton: {
+      paddingVertical: 4,
+      paddingHorizontal: 8,
+    },
+    seeAllText: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: "#007AFF",
+    },
+    weekNavigation: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingHorizontal: 20,
+      marginTop: 6,
+      marginBottom: 12,
+    },
+    navButton: {
+      width: 32,
+      height: 32,
+      borderRadius: 8,
+      backgroundColor: isDarkMode ? "#333" : "#f5f5f5",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    navButtonDisabled: {
+      backgroundColor: isDarkMode ? "#222" : "#fafafa",
+      opacity: 0.4,
+    },
+    navButtonText: {
+      color: isDarkMode ? "#FFF" : "#333",
+      fontSize: 18,
+      fontWeight: "600",
+    },
+    weekRangeText: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: isDarkMode ? "#FFF" : "#666",
+      flex: 1,
+      textAlign: "center",
+      marginHorizontal: 12,
+      letterSpacing: 0.2,
+    },
+    prevWeekAvgContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      marginTop: 8,
+      marginBottom: 4,
+    },
+    refLineIndicator: {
+      width: 20,
+      height: 2,
+      backgroundColor: "#FF6B6B",
+      marginRight: 8,
+    },
+    prevWeekAvgText: {
+      fontSize: 12,
+      color: isDarkMode ? "#FFF" : "#888",
+      fontWeight: "400",
+      letterSpacing: 0.1,
     },
   });
 
   return (
-    <ScrollView style={styles.scrollContainer}>
+    <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
       <View style={styles.container}>
         <Text style={styles.title}>Activity</Text>
 
         <View style={styles.chart}>
-          <Text style={styles.chartTitle}>Weekly Volume (lbs)</Text>
+          <Text style={styles.chartTitle}>Daily Volume (lbs)</Text>
+          <View style={styles.weekNavigation}>
+            <TouchableOpacity
+              onPress={goToPreviousWeek}
+              disabled={
+                weekOffset <= -(Math.floor(allDailyData.length / 7) - 1)
+              }
+              style={[
+                styles.navButton,
+                weekOffset <= -(Math.floor(allDailyData.length / 7) - 1) &&
+                  styles.navButtonDisabled,
+              ]}
+            >
+              <Text style={styles.navButtonText}>←</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.weekRangeText}>{weekDateRange}</Text>
+
+            <TouchableOpacity
+              onPress={goToNextWeek}
+              disabled={weekOffset >= 0}
+              style={[
+                styles.navButton,
+                weekOffset >= 0 && styles.navButtonDisabled,
+              ]}
+            >
+              <Text style={styles.navButtonText}>→</Text>
+            </TouchableOpacity>
+          </View>
           {loading ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#1976d2" />
+              <ActivityIndicator size="large" color="#007AFF" />
+            </View>
+          ) : dailyData.length === 0 ? (
+            <View style={styles.loadingContainer}>
+              <Text style={{ color: "#666" }}>No workout data available</Text>
             </View>
           ) : (
-            <LineChart
-              data={getChartData()}
-              width={width - 32}
+            <BarChart
+              key={`chart-${weekOffset}-${dailyData[0]?.date}`}
+              data={getBarChartData()}
+              width={width - 80}
               height={220}
-              chartConfig={chartConfig}
-              bezier
-              style={{
-                marginVertical: 8,
-                borderRadius: 16,
+              barWidth={34}
+              spacing={6}
+              initialSpacing={12}
+              endSpacing={12}
+              disableScroll={true}
+              noOfSections={3}
+              barBorderRadius={8}
+              frontColor="#007AFF"
+              isAnimated
+              animationDuration={400}
+              yAxisThickness={0}
+              xAxisThickness={0}
+              hideRules={true}
+              yAxisTextStyle={{
+                color: isDarkMode ? "#FFF" : "#999",
+                fontSize: 10,
               }}
-              formatYLabel={(value) => formatVolume(Number(value))}
-              withInnerLines={true}
-              withOuterLines={true}
-              withVerticalLines={false}
-              withHorizontalLines={true}
-              withDots={true}
-              withShadow={false}
+              xAxisLabelTextStyle={{
+                color: isDarkMode ? "#FFF" : "#666",
+                fontSize: 11,
+                fontWeight: "500",
+              }}
+              formatYLabel={(value: string) => formatVolume(Number(value))}
+              showReferenceLine1={prevWeekAvg > 0}
+              referenceLine1Position={prevWeekAvg}
+              referenceLine1Config={{
+                color: "#FF6B6B",
+                thickness: 1.5,
+                dashWidth: 5,
+                dashGap: 5,
+                labelText: "",
+                labelTextStyle: { fontSize: 0 },
+              }}
             />
+          )}
+          {prevWeekAvg > 0 && (
+            <View style={styles.prevWeekAvgContainer}>
+              <View style={styles.refLineIndicator} />
+              <Text style={styles.prevWeekAvgText}>
+                Previous Week Avg: {formatVolume(prevWeekAvg)} lbs/day
+              </Text>
+            </View>
           )}
         </View>
 
         <View style={styles.activityCardsTitle}>
           <Text style={styles.sectionTitle}>Recent Activity</Text>
           <TouchableOpacity
+            style={styles.seeAllButton}
             onPress={() => {
               navigation.navigate("History");
             }}
           >
-            <Text>See All</Text>
+            <Text style={styles.seeAllText}>See All</Text>
           </TouchableOpacity>
         </View>
 
@@ -260,18 +480,33 @@ export function Home() {
               <TouchableOpacity
                 key={workout.workoutId}
                 style={styles.activityCard}
+                activeOpacity={0.7}
                 onPress={() => {
                   navigation.getParent()?.navigate("DetailedHistory", {
                     workoutId: workout.workoutId,
                   });
                 }}
               >
-                <Text style={styles.cardTitle}>{workout.name}</Text>
-                <Text style={styles.cardSubtitle}>
-                  {workout.datePerformed}
-                  {workout.durationMin && ` • ${workout.durationMin} min`}
-                  {workout.bodyTag && ` • ${workout.bodyTag}`}
-                </Text>
+                <View style={styles.cardContent}>
+                  <View style={styles.cardLeft}>
+                    <View style={styles.cardIcon}>
+                      <Text style={styles.cardIconText}>🏋️</Text>
+                    </View>
+                    <View style={styles.cardInfo}>
+                      <Text style={styles.cardTitle}>{workout.name}</Text>
+                      <Text style={styles.cardSubtitle}>
+                        {parseLocalDate(
+                          workout.datePerformed
+                        ).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.cardChevron}>›</Text>
+                </View>
               </TouchableOpacity>
             ))
           ) : (

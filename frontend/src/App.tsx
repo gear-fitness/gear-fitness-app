@@ -1,5 +1,9 @@
 import { Assets as NavigationAssets } from "@react-navigation/elements";
-import { DarkTheme, DefaultTheme, NavigationContainerRefWithCurrent } from "@react-navigation/native";
+import {
+  DarkTheme,
+  DefaultTheme,
+  NavigationContainerRefWithCurrent,
+} from "@react-navigation/native";
 import { Asset } from "expo-asset";
 import { createURL } from "expo-linking";
 import * as SplashScreen from "expo-splash-screen";
@@ -9,13 +13,14 @@ import { Navigation } from "./navigation";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { useEffect } from "react";
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { WorkoutTimerProvider } from "./context/WorkoutContext";
 import { WorkoutPlayer } from "./components/WorkoutPlayer";
 
 // Create navigation ref for use outside NavigationContainer
-export const navigationRef = React.createRef<NavigationContainerRefWithCurrent<any>>();
+export const navigationRef =
+  React.createRef<NavigationContainerRefWithCurrent<any>>();
 
 Asset.loadAsync([
   ...NavigationAssets,
@@ -44,24 +49,42 @@ export function App() {
 
   return (
     <AuthProvider>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <SafeAreaProvider>
-          <WorkoutTimerProvider>
-            <Navigation
-              ref={navigationRef}
-              theme={theme}
-              linking={{
-                enabled: "auto",
-                prefixes: [prefix],
-              }}
-              onReady={() => {
-                SplashScreen.hideAsync();
-              }}
-            />
-            <WorkoutPlayer />
-          </WorkoutTimerProvider>
-        </SafeAreaProvider>
-      </GestureHandlerRootView>
+      <AppContent theme={theme} />
     </AuthProvider>
+  );
+}
+
+function AppContent({
+  theme,
+}: {
+  theme: typeof DarkTheme | typeof DefaultTheme;
+}) {
+  const [isNavigationReady, setIsNavigationReady] = React.useState(false);
+  const { isLoading } = useAuth();
+
+  useEffect(() => {
+    // Hide splash screen only when both navigation AND auth are ready
+    if (isNavigationReady && !isLoading) {
+      SplashScreen.hideAsync();
+    }
+  }, [isNavigationReady, isLoading]);
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <WorkoutTimerProvider>
+          <Navigation
+            ref={navigationRef}
+            theme={theme}
+            linking={{
+              enabled: "auto",
+              prefixes: [prefix],
+            }}
+            onReady={() => setIsNavigationReady(true)}
+          />
+          <WorkoutPlayer />
+        </WorkoutTimerProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

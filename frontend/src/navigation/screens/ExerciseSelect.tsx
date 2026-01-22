@@ -7,6 +7,7 @@ import {
   ScrollView,
   Modal,
   Image,
+  Keyboard,
 } from "react-native";
 import React, { useState, useEffect } from "react";
 import { LinearGradient } from "expo-linear-gradient";
@@ -19,6 +20,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
 import { getAllExercises } from "../../api/exerciseService";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
+import { useTrackTab } from "../../hooks/useTrackTab";
 
 type FilterKey =
   | "CALVES"
@@ -33,7 +35,40 @@ type FilterKey =
 
 type SelectedFilters = Record<FilterKey, boolean>;
 
+// Map user-friendly search terms to BodyPart enum values
+const bodyPartMapping: Record<string, string> = {
+  // Singular forms
+  'bicep': 'BICEPS',
+  'tricep': 'TRICEPS',
+  'leg': 'LEGS',
+  'quad': 'QUADS',
+  'hamstring': 'HAMSTRINGS',
+  'glute': 'GLUTES',
+  'calf': 'CALVES',
+  'trap': 'TRAPS',
+  'forearm': 'FOREARMS',
+  // Plural forms
+  'biceps': 'BICEPS',
+  'triceps': 'TRICEPS',
+  'legs': 'LEGS',
+  'quads': 'QUADS',
+  'hamstrings': 'HAMSTRINGS',
+  'glutes': 'GLUTES',
+  'calves': 'CALVES',
+  'traps': 'TRAPS',
+  'forearms': 'FOREARMS',
+  // Common terms
+  'chest': 'CHEST',
+  'back': 'BACK',
+  'shoulder': 'SHOULDERS',
+  'shoulders': 'SHOULDERS',
+  'core': 'CORE',
+  'abs': 'CORE',
+};
+
 export function ExerciseSelect() {
+  useTrackTab("ExerciseSelect");
+
   const navigation = useNavigation<any>();
   const { showPlayer, start } = useWorkoutTimer();
 
@@ -71,17 +106,63 @@ export function ExerciseSelect() {
     .filter(([_, value]) => value)
     .map(([key]) => key);
 
-  const filteredExercises = exercises.filter((ex) => {
-    const searchMatch =
-      ex.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ex.bodyPart.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredExercises = exercises
+    .filter((ex) => {
+      const query = searchQuery.toLowerCase().trim();
 
-    const filterMatch =
-      activeFilters.length === 0 ||
-      activeFilters.includes(ex.bodyPart.toUpperCase());
+      if (!query) {
+        // No search query - just apply body part filters
+        const filterMatch =
+          activeFilters.length === 0 ||
+          activeFilters.includes(ex.bodyPart.toUpperCase());
+        return filterMatch;
+      }
 
-    return searchMatch && filterMatch;
-  });
+      // Parse search query into words
+      const searchWords = query.split(/\s+/);
+
+      // Check if any word matches a body part
+      let detectedBodyPart: string | null = null;
+      let remainingWords: string[] = [];
+
+      for (const word of searchWords) {
+        const mappedBodyPart = bodyPartMapping[word];
+        if (mappedBodyPart) {
+          detectedBodyPart = mappedBodyPart;
+        } else {
+          remainingWords.push(word);
+        }
+      }
+
+      // Apply body part filters from filter modal
+      const filterMatch =
+        activeFilters.length === 0 ||
+        activeFilters.includes(ex.bodyPart.toUpperCase());
+
+      if (!filterMatch) return false;
+
+      // Smart matching based on detected body part
+      if (detectedBodyPart && remainingWords.length > 0) {
+        // Body part detected: match bodyPart AND search remaining words in name
+        const bodyPartMatch = ex.bodyPart.toUpperCase() === detectedBodyPart;
+        const nameMatch = remainingWords.every((word) =>
+          ex.name.toLowerCase().includes(word)
+        );
+        return bodyPartMatch && nameMatch;
+      } else if (detectedBodyPart && remainingWords.length === 0) {
+        // Only body part search (e.g., just "bicep")
+        return ex.bodyPart.toUpperCase() === detectedBodyPart;
+      } else {
+        // No body part detected - search all words in name or bodyPart
+        const searchMatch = searchWords.every(
+          (word) =>
+            ex.name.toLowerCase().includes(word) ||
+            ex.bodyPart.toLowerCase().includes(word)
+        );
+        return searchMatch;
+      }
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   useEffect(() => {
     const loadExercises = async () => {
@@ -117,6 +198,8 @@ export function ExerciseSelect() {
             value={searchQuery}
             onChangeText={setSearchQuery}
             style={[styles.searchInput, { color: colors.text }]}
+            returnKeyType="done"
+            onSubmitEditing={() => Keyboard.dismiss()}
           />
 
           {searchQuery.length > 0 && (

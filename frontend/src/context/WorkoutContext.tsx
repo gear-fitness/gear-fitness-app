@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { AppState, AppStateStatus } from "react-native";
 
 export interface WorkoutSet {
   reps: string;
@@ -30,6 +31,10 @@ interface WorkoutContextValue {
   showPlayer: (exerciseId: string) => void;
   hidePlayer: () => void;
   setCurrentExercise: (id: string) => void;
+
+  // Tab tracking
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
 }
 
 const WorkoutTimerContext = createContext<WorkoutContextValue | null>(null);
@@ -42,29 +47,70 @@ export function WorkoutTimerProvider({
   const [seconds, setSeconds] = useState(0);
   const [running, setRunning] = useState(false);
 
+  // Timestamp-based tracking for background persistence
+  const [startTimestamp, setStartTimestamp] = useState<number | null>(null);
+  const [totalElapsedSeconds, setTotalElapsedSeconds] = useState(0);
+
   const [exercises, setExercises] = useState<WorkoutExercise[]>([]);
 
   // Player state
   const [playerVisible, setPlayerVisible] = useState(false);
-  const [currentExerciseId, setCurrentExerciseId] = useState<string | null>(null);
+  const [currentExerciseId, setCurrentExerciseId] = useState<string | null>(
+    null
+  );
+
+  // Tab tracking
+  const [activeTab, setActiveTab] = useState("Home"); // Default to Home tab
 
   // ---------------- TIMER LOOP ----------------
+  // Update seconds based on timestamp calculation
   useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-
-    if (running) {
-      interval = setInterval(() => {
-        setSeconds((s) => s + 1);
-      }, 1000);
+    if (!running || startTimestamp === null) {
+      return;
     }
 
+    // Update every 100ms for smoother UI
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const currentElapsed = Math.floor((now - startTimestamp) / 1000);
+      setSeconds(totalElapsedSeconds + currentElapsed);
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [running, startTimestamp, totalElapsedSeconds]);
+
+  // Handle app going to background/foreground
+  useEffect(() => {
+    const subscription = AppState.addEventListener(
+      "change",
+      (nextAppState: AppStateStatus) => {
+        if (nextAppState === "active" && running && startTimestamp !== null) {
+          // App came to foreground while timer was running
+          // Force immediate recalculation of elapsed time
+          const now = Date.now();
+          const currentElapsed = Math.floor((now - startTimestamp) / 1000);
+          setSeconds(totalElapsedSeconds + currentElapsed);
+          console.log(
+            "App returned to foreground, timer synced to:",
+            totalElapsedSeconds + currentElapsed
+          );
+        } else if (
+          nextAppState.match(/inactive|background/) &&
+          running &&
+          startTimestamp !== null
+        ) {
+          // App going to background while timer is running
+          console.log("App going to background, timer will persist...");
+        }
+      }
+    );
+
     return () => {
-      if (interval) clearInterval(interval);
+      subscription.remove();
     };
-  }, [running]);
+  }, [running, startTimestamp, totalElapsedSeconds]);
 
   // ---------------- EXERCISES LIST ----------------
-
   const addExercise = (exercise: WorkoutExercise) => {
     setExercises((prev) => {
       const exists = prev.find(
@@ -98,12 +144,31 @@ export function WorkoutTimerProvider({
     );
   };
 
-  const start = () => setRunning(true);
-  const pause = () => setRunning(false);
+  const start = () => {
+    setRunning(true);
+    // Only set timestamp if not already set (prevents resetting timer when adding exercises)
+    if (startTimestamp === null) {
+      setStartTimestamp(Date.now());
+    }
+  };
+
+  const pause = () => {
+    if (startTimestamp !== null) {
+      // Save accumulated time before pausing
+      const now = Date.now();
+      const currentElapsed = Math.floor((now - startTimestamp) / 1000);
+      setTotalElapsedSeconds((prev) => prev + currentElapsed);
+    }
+
+    setRunning(false);
+    setStartTimestamp(null);
+  };
 
   const reset = () => {
     setRunning(false);
     setSeconds(0);
+    setStartTimestamp(null);
+    setTotalElapsedSeconds(0);
     setExercises([]);
     hidePlayer();
   };
@@ -136,6 +201,9 @@ export function WorkoutTimerProvider({
         showPlayer,
         hidePlayer,
         setCurrentExercise: setCurrentExerciseId,
+        // Tab tracking
+        activeTab,
+        setActiveTab,
       }}
     >
       {children}

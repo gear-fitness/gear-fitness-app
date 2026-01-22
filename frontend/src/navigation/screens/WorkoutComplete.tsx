@@ -10,13 +10,20 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { submitWorkout, WorkoutSubmission } from "../../api/workoutService";
+import { getCurrentLocalDateString } from "../../utils/date";
+import { useTrackTab } from "../../hooks/useTrackTab";
 
 export function WorkoutComplete() {
+  useTrackTab("WorkoutComplete");
+
   const isDark = useColorScheme() === "dark";
   const navigation = useNavigation<any>();
   const { exercises, seconds, reset } = useWorkoutTimer();
@@ -25,6 +32,7 @@ export function WorkoutComplete() {
   const [bodyTag, setBodyTag] = useState<string[]>(["FULL_BODY"]);
   const [caption, setCaption] = useState("");
   const [loading, setLoading] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const colors = {
     bg: isDark ? "#000" : "#fff",
@@ -79,6 +87,7 @@ export function WorkoutComplete() {
       const submission: WorkoutSubmission = {
         name: workoutName,
         durationMin: Math.floor(seconds / 60),
+        datePerformed: getCurrentLocalDateString(),
         bodyTags: bodyTag, // Send all selected tags to backend
         exercises: exercises.map((ex) => ({
           exerciseId: ex.exerciseId,
@@ -129,9 +138,50 @@ export function WorkoutComplete() {
     }
   };
 
+  const handleDiscardWorkout = () => {
+    Alert.alert(
+      "Discard Workout",
+      "Are you sure you want to discard this workout? All progress will be lost.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Discard",
+          style: "destructive",
+          onPress: () => {
+            reset();
+
+            const state = navigation.getState();
+            const modalCount = state.routes.filter((r: any) =>
+              [
+                "WorkoutComplete",
+                "WorkoutSummary",
+                "ExerciseDetail",
+                "ExerciseSelect",
+              ].includes(r.name)
+            ).length;
+
+            navigation.pop(modalCount);
+          },
+        },
+      ]
+    );
+  };
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: colors.bg }]}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
+    >
+      <SafeAreaView style={{ flex: 1 }}>
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
         <Text style={[styles.title, { color: colors.text }]}>
           Workout Complete! 🎉
         </Text>
@@ -154,6 +204,8 @@ export function WorkoutComplete() {
             placeholderTextColor={colors.subtle}
             value={workoutName}
             onChangeText={setWorkoutName}
+            returnKeyType="done"
+            onSubmitEditing={() => Keyboard.dismiss()}
           />
         </View>
 
@@ -230,7 +282,13 @@ export function WorkoutComplete() {
             placeholderTextColor={colors.subtle}
             value={caption}
             onChangeText={setCaption}
+            onFocus={() => {
+              setTimeout(() => {
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+              }, 100);
+            }}
             multiline
+            blurOnSubmit={true}
           />
         </View>
 
@@ -263,9 +321,20 @@ export function WorkoutComplete() {
               </Text>
             )}
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.button, styles.discardButton]}
+            onPress={handleDiscardWorkout}
+            disabled={loading}
+          >
+            <Text style={[styles.buttonText, { color: "#FF3B30" }]}>
+              Discard Workout
+            </Text>
+          </TouchableOpacity>
         </View>
-      </ScrollView>
-    </SafeAreaView>
+        </ScrollView>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -341,5 +410,10 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 16,
     fontWeight: "700",
+  },
+  discardButton: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: "#FF3B30",
   },
 });

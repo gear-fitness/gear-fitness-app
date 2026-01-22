@@ -1,53 +1,25 @@
 import { Text } from "@react-navigation/elements";
-import {
-  StyleSheet,
-  View,
-  TouchableOpacity,
-  Animated,
-  Image,
-} from "react-native";
-import { useRef, useCallback } from "react";
+import { StyleSheet, View, TouchableOpacity, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { useNavigation, useTheme } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
 
 import stopwatch from "../../assets/stopwatch.png";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
+import { useTrackTab } from "../../hooks/useTrackTab";
 
 export function Workout() {
+  useTrackTab("Workouts");
+
   const navigation = useNavigation();
+  const { colors } = useTheme();
   const scheme = useColorScheme();
   const isDark = scheme === "dark";
 
   const { playerVisible, seconds, running, exercises } = useWorkoutTimer();
 
-  // Animation values
-  const fadeAnim = useRef(new Animated.Value(1)).current;
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-
-  // Reset animations when screen comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      fadeAnim.setValue(1);
-      scaleAnim.setValue(1);
-    }, [fadeAnim, scaleAnim])
-  );
-
   const handleStartPress = () => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-      Animated.timing(scaleAnim, {
-        toValue: 1.15,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      navigation.navigate("ExerciseSelect");
-    });
+    navigation.navigate("ExerciseSelect");
   };
 
   const formatTime = (t: number) =>
@@ -61,11 +33,38 @@ export function Workout() {
     return (
       <SafeAreaView
         style={[
-          styles.container,
+          styles.newContainer,
           { backgroundColor: isDark ? "black" : "white" },
         ]}
       >
-        <View style={styles.workoutInProgressContainer}>
+        {/* Header Section - Streak Counter */}
+        <View style={styles.headerContainer}>
+          <View style={styles.streakContainer}>
+            <View style={styles.streakRow}>
+              <View style={styles.streakShadowLayer1}>
+                <View style={styles.streakShadowLayer2}>
+                  <Text style={styles.fireIcon}>🔥</Text>
+                </View>
+              </View>
+              <Text
+                style={[
+                  styles.streakNumber,
+                  { color: isDark ? "#fff" : "#000" },
+                ]}
+              >
+                N/A
+              </Text>
+            </View>
+            <Text
+              style={[styles.streakLabel, { color: isDark ? "#999" : "#666" }]}
+            >
+              DAY STREAK
+            </Text>
+          </View>
+        </View>
+
+        {/* Main Content - Workout Stats */}
+        <View style={styles.workoutInProgressContent}>
           <Text
             style={[
               styles.workoutInProgressTitle,
@@ -131,12 +130,27 @@ export function Workout() {
             {running ? "Tap the mini player below to continue" : "Timer paused"}
           </Text>
 
-          <TouchableOpacity
-            style={[styles.expandButton, { backgroundColor: "#007AFF" }]}
-            onPress={() => navigation.navigate("WorkoutSummary")}
-          >
-            <Text style={styles.expandButtonText}>Continue Workout</Text>
-          </TouchableOpacity>
+          <View style={styles.shadowLayer1}>
+            <View style={styles.shadowLayer2}>
+              <TouchableOpacity
+                style={[
+                  styles.continueButton,
+                  { backgroundColor: isDark ? colors.card : "white" },
+                ]}
+                onPress={() => navigation.navigate("WorkoutSummary")}
+              >
+                <Text style={styles.playIcon}>▶</Text>
+                <Text
+                  style={[
+                    styles.continueButtonText,
+                    { color: isDark ? "#fff" : "#000" },
+                  ]}
+                >
+                  Continue Workout
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -146,20 +160,94 @@ export function Workout() {
   return (
     <SafeAreaView
       style={[
-        styles.container,
+        styles.newContainer,
         { backgroundColor: isDark ? "black" : "white" },
       ]}
     >
-      <Animated.View
-        style={{
-          opacity: fadeAnim,
-          transform: [{ scale: scaleAnim }],
-        }}
-      >
-        <TouchableOpacity style={styles.startButton} onPress={handleStartPress}>
-          <Text style={styles.startText}>START</Text>
-        </TouchableOpacity>
-      </Animated.View>
+      {/* Header Section */}
+      <View style={styles.headerContainer}>
+        {/* Left: Streak Counter */}
+        <View style={styles.streakContainer}>
+          <View style={styles.streakRow}>
+            <View style={styles.streakShadowLayer1}>
+              <View style={styles.streakShadowLayer2}>
+                <Text style={styles.fireIcon}>🔥</Text>
+              </View>
+            </View>
+            <Text
+              style={[styles.streakNumber, { color: isDark ? "#fff" : "#000" }]}
+            >
+              N/A
+            </Text>
+          </View>
+          <Text
+            style={[styles.streakLabel, { color: isDark ? "#999" : "#666" }]}
+          >
+            DAY STREAK
+          </Text>
+        </View>
+
+        {/* Right: Routines Button */}
+        <View style={styles.routinesContainer}>
+          <TouchableOpacity
+            style={[
+              styles.routinesButton,
+              { backgroundColor: isDark ? colors.card : "white" },
+            ]}
+            onPress={() => {}}
+          >
+            <Text style={[styles.checkIcon, { color: "#007AFF" }]}>✓</Text>
+          </TouchableOpacity>
+          <Text
+            style={[styles.routinesLabel, { color: isDark ? "#999" : "#666" }]}
+          >
+            Routines
+          </Text>
+        </View>
+      </View>
+
+      {/* Center Section */}
+      <View style={styles.centerSection}>
+        <Text
+          style={[
+            styles.motivationalHeading,
+            { color: isDark ? "#fff" : "#000" },
+          ]}
+        >
+          Ready to sweat?
+        </Text>
+        <Text
+          style={[
+            styles.motivationalSubtext,
+            { color: isDark ? "#999" : "#666" },
+          ]}
+        >
+          You're on a roll! Keep the momentum going.
+        </Text>
+
+        {/* Start Button */}
+        <View style={styles.shadowLayer1}>
+          <View style={styles.shadowLayer2}>
+            <TouchableOpacity
+              style={[
+                styles.startButton,
+                { backgroundColor: isDark ? colors.card : "white" },
+              ]}
+              onPress={handleStartPress}
+            >
+              <Text style={styles.playIcon}>▶</Text>
+              <Text
+                style={[
+                  styles.startButtonText,
+                  { color: isDark ? "#fff" : "#000" },
+                ]}
+              >
+                Start Workout
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
     </SafeAreaView>
   );
 }
@@ -171,28 +259,198 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  // Blue circle
-  startButton: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: "#007AFF", // Blue
-    justifyContent: "center",
-    alignItems: "center",
+  // New container for redesigned layout
+  newContainer: {
+    flex: 1,
+    paddingTop: 30,
+    paddingHorizontal: 24,
   },
 
-  startText: {
-    color: "white",
+  // Header Section
+  headerContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 20,
+  },
+
+  // Streak Counter (Left)
+  streakContainer: {
+    alignItems: "flex-start",
+  },
+
+  // Shadow layers for streak glow effect
+  streakShadowLayer1: {
+    borderRadius: 20,
+    alignItems: "flex-start",
+    shadowColor: "#FF6B35",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+
+  streakShadowLayer2: {
+    borderRadius: 20,
+    alignItems: "flex-start",
+    shadowColor: "#FF6B35",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+
+  streakRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+
+  fireIcon: {
     fontSize: 32,
+    marginRight: 4,
+  },
+
+  streakNumber: {
+    fontSize: 30,
     fontWeight: "800",
   },
 
-  // Workout in progress styles
-  workoutInProgressContainer: {
+  streakLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+
+  // Routines Button (Right)
+  routinesContainer: {
+    alignItems: "center",
+  },
+
+  routinesButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+
+  checkIcon: {
+    fontSize: 24,
+    fontWeight: "700",
+  },
+
+  routinesLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    marginTop: 8,
+  },
+
+  // Center Section
+  centerSection: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 40,
+    paddingHorizontal: 20,
+    marginTop: -80,
+  },
+
+  motivationalHeading: {
+    fontSize: 34,
+    fontWeight: "700",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+
+  motivationalSubtext: {
+    fontSize: 16,
+    textAlign: "center",
+    marginBottom: 48,
+    lineHeight: 22,
+  },
+
+  // Shadow layers for glow effect
+  shadowLayer1: {
+    borderRadius: 999,
+    alignItems: "center",
+    shadowColor: "#007AFF",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 30,
+    elevation: 10,
+  },
+
+  shadowLayer2: {
+    borderRadius: 999,
+    alignItems: "center",
+    shadowColor: "#007AFF",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+
+  // New Start Button (White Pill)
+  startButton: {
+    width: 280,
+    maxWidth: "90%",
+    height: 64,
+    borderRadius: 999,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#007AFF",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+
+  playIcon: {
+    fontSize: 30,
+    color: "#007AFF",
+    marginRight: 12,
+  },
+
+  startButtonText: {
+    fontSize: 20,
+    fontWeight: "700",
+  },
+
+  // Continue Button (matches Start Button)
+  continueButton: {
+    width: 280,
+    maxWidth: "90%",
+    height: 64,
+    borderRadius: 999,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#007AFF",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+
+  continueButtonText: {
+    fontSize: 20,
+    fontWeight: "700",
+  },
+
+  // Workout in progress styles
+  workoutInProgressContent: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    marginTop: -80,
   },
 
   workoutInProgressTitle: {

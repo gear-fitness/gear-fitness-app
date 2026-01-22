@@ -206,9 +206,9 @@ export async function checkFollowStatus(userId: string): Promise<boolean> {
  * Update the current user's profile with physical stats
  */
 export async function updateUserProfile(
-  heightInches: number,
-  weightLbs: number,
-  age: number
+  heightInches?: number | null,
+  weightLbs?: number | null,
+  age?: number | null
 ): Promise<any> {
   const authHeader = await getAuthHeader();
 
@@ -224,6 +224,31 @@ export async function updateUserProfile(
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(`Failed to update profile: ${errorText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Search users by username (partial match)
+ */
+export async function searchUsers(query: string) {
+  const authHeader = await getAuthHeader();
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/users/search?q=${encodeURIComponent(query)}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeader,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to search users: ${errorText}`);
   }
 
   return response.json();

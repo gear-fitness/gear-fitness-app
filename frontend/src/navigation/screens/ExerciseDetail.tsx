@@ -1,4 +1,5 @@
 import { SafeAreaView } from "react-native-safe-area-context";
+import { KeyboardAvoidingView } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useEffect, useRef } from "react";
 
@@ -7,8 +8,11 @@ import {
   ExerciseDetailContent,
   ExerciseDetailContentRef,
 } from "../../components/ExerciseDetailContent";
+import { useTrackTab } from "../../hooks/useTrackTab";
 
 export function ExerciseDetail() {
+  useTrackTab("ExerciseDetail");
+
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const exercise = route.params.exercise;
@@ -29,13 +33,18 @@ export function ExerciseDetail() {
   }, [navigation]);
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <ExerciseDetailContent
-        ref={contentRef}
-        exercise={exercise}
-        onSummary={() => navigation.replace("WorkoutSummary")}
-        onAddExercise={() => navigation.replace("ExerciseSelect")}
-      />
+    <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior="padding"
+      >
+        <ExerciseDetailContent
+          ref={contentRef}
+          exercise={exercise}
+          onSummary={() => navigation.replace("WorkoutSummary")}
+          onAddExercise={() => navigation.replace("ExerciseSelect")}
+        />
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

@@ -1,10 +1,10 @@
 package com.gearfitness.gear_api.controller;
 
+import com.gearfitness.gear_api.dto.DailyVolumeDTO;
 import com.gearfitness.gear_api.dto.WeeklyVolumeDTO;
 import com.gearfitness.gear_api.dto.WorkoutDTO;
 import com.gearfitness.gear_api.dto.WorkoutDetailDTO;
 import com.gearfitness.gear_api.dto.WorkoutSubmissionDTO;
-import com.gearfitness.gear_api.entity.AppUser;
 import com.gearfitness.gear_api.entity.Workout;
 import com.gearfitness.gear_api.security.JwtService;
 import com.gearfitness.gear_api.service.WorkoutService;
@@ -12,9 +12,9 @@ import com.gearfitness.gear_api.service.WorkoutService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.DayOfWeek;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -22,7 +22,6 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/workouts")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class WorkoutController {
 
     private final WorkoutService workoutService;
@@ -36,7 +35,8 @@ public class WorkoutController {
                     .map(w -> new WorkoutDTO(
                             w.getWorkoutId(),
                             w.getName(),
-                            w.getDatePerformed()))
+                            w.getDatePerformed(),
+                            w.getCreatedAt()))
                     .collect(Collectors.toList());
             return ResponseEntity.ok(workouts);
         } catch (Exception e) {
@@ -69,7 +69,8 @@ public class WorkoutController {
             return ResponseEntity.ok(new WorkoutDTO(
                     saved.getWorkoutId(),
                     saved.getName(),
-                    saved.getDatePerformed()));
+                    saved.getDatePerformed(),
+                    saved.getCreatedAt()));
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
@@ -102,6 +103,42 @@ public class WorkoutController {
         try {
             List<WeeklyVolumeDTO> weeklyVolume = workoutService.getWeeklyVolume(userId, weeks);
             return ResponseEntity.ok(weeklyVolume);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // Daily volume statistics
+    @GetMapping("/user/{userId}/daily-volume")
+    public ResponseEntity<List<DailyVolumeDTO>> getDailyVolume(
+            @PathVariable UUID userId,
+            @RequestParam(defaultValue = "2") int weeks,
+            @RequestParam(defaultValue = "SUNDAY") String weekStartDay) {
+        try {
+            DayOfWeek startDay = DayOfWeek.valueOf(weekStartDay.toUpperCase());
+            List<DailyVolumeDTO> dailyVolume = workoutService.getDailyVolume(userId, weeks, startDay);
+            return ResponseEntity.ok(dailyVolume);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @DeleteMapping("/{workoutId}")
+    public ResponseEntity<Void> deleteWorkout(
+            @PathVariable UUID workoutId,
+            @RequestHeader("Authorization") String authHeader) {
+        try {
+            String token = authHeader.substring(7); // Remove "Bearer "
+            UUID userId = jwtService.extractUserId(token);
+
+            workoutService.deleteWorkout(workoutId, userId);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();

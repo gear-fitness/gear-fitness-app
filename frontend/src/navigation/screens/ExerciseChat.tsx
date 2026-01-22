@@ -7,12 +7,14 @@ import {
   Text,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { useState } from "react";
 import { useColorScheme } from "react-native";
 import { sendExerciseChat } from "../../api/exerciseChatService";
+import { useTrackTab } from "../../hooks/useTrackTab";
 
 type ChatMessageState = {
   id: string;
@@ -22,6 +24,8 @@ type ChatMessageState = {
 };
 
 export function ExerciseChat() {
+  useTrackTab("ExerciseChat");
+
   const route = useRoute<any>();
   const navigation = useNavigation();
   const isDark = useColorScheme() === "dark";
@@ -176,6 +180,7 @@ export function ExerciseChat() {
             value={inputText}
             onChangeText={setInputText}
             multiline
+            blurOnSubmit={true}
           />
           <TouchableOpacity
             onPress={() => sendMessage(inputText)}

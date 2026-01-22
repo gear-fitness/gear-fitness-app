@@ -9,7 +9,13 @@ import {
   Keyboard,
 } from "react-native";
 import { useColorScheme } from "react-native";
-import { useState, useEffect, forwardRef, useImperativeHandle } from "react";
+import {
+  useState,
+  useEffect,
+  forwardRef,
+  useImperativeHandle,
+  useRef,
+} from "react";
 import { Swipeable } from "react-native-gesture-handler";
 
 import stopwatch from "../assets/stopwatch.png";
@@ -36,12 +42,7 @@ export interface ExerciseDetailContentRef {
 export const ExerciseDetailContent = forwardRef<
   ExerciseDetailContentRef,
   ExerciseDetailContentProps
->(({
-  exercise,
-  onSummary,
-  onAddExercise,
-  isInPlayer = false,
-}, ref) => {
+>(({ exercise, onSummary, onAddExercise, isInPlayer = false }, ref) => {
   const { seconds, addExercise } = useWorkoutTimer();
   const isDark = useColorScheme() === "dark";
 
@@ -67,14 +68,26 @@ export const ExerciseDetailContent = forwardRef<
       : [{ id: "1", reps: "", weight: "" }]
   );
 
-  // Auto-add empty set when last one is filled
+  // Track which sets we've already auto-added for to prevent duplicate additions
+  const autoAddedFor = useRef(new Set<string>());
+  const flatListRef = useRef<FlatList>(null);
+
+  // Auto-add empty set when last one is filled (without causing keyboard dismissal)
   useEffect(() => {
     const last = sets[sets.length - 1];
-    if (last.reps && last.weight) {
-      setSets((p) => [
-        ...p,
-        { id: Date.now().toString(), reps: "", weight: "" },
-      ]);
+    if (last.reps && last.weight && !autoAddedFor.current.has(last.id)) {
+      autoAddedFor.current.add(last.id);
+      // Defer to next tick to prevent keyboard dismissal
+      setTimeout(() => {
+        setSets((p) => [
+          ...p,
+          { id: Date.now().toString(), reps: "", weight: "" },
+        ]);
+        // Scroll to the new set after a short delay to ensure it's rendered
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }, 0);
     }
   }, [sets]);
 
@@ -114,7 +127,7 @@ export const ExerciseDetailContent = forwardRef<
   // Auto-save on keyboard dismiss
   useEffect(() => {
     const keyboardDidHideListener = Keyboard.addListener(
-      'keyboardDidHide',
+      "keyboardDidHide",
       () => {
         // Save current sets without navigating away
         saveExercise();
@@ -162,9 +175,11 @@ export const ExerciseDetailContent = forwardRef<
 
       {/* SET LIST */}
       <FlatList
+        ref={flatListRef}
         data={sets}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingBottom: 30 }}
+        contentContainerStyle={{ paddingBottom: 10 }}
+        keyboardShouldPersistTaps="handled"
         renderItem={({ item, index }) => {
           const setContent = (
             <View
@@ -177,51 +192,60 @@ export const ExerciseDetailContent = forwardRef<
                 {index + 1}
               </Text>
 
-              <TextInput
-                placeholder="Reps"
-                placeholderTextColor={colors.subtle}
-                value={item.reps}
-                keyboardType="numeric"
-                onChangeText={(t) =>
-                  setSets((prev) =>
-                    prev.map((s) => (s.id === item.id ? { ...s, reps: t } : s))
-                  )
-                }
-                style={[
-                  styles.input,
-                  { backgroundColor: colors.inputBg, color: colors.text },
-                ]}
-              />
-
-              <TextInput
-                placeholder="Weight"
-                placeholderTextColor={colors.subtle}
-                value={item.weight}
-                keyboardType="numeric"
-                onChangeText={(t) =>
-                  setSets((prev) =>
-                    prev.map((s) =>
-                      s.id === item.id ? { ...s, weight: t } : s
+              <View style={styles.inputContainer}>
+                <TextInput
+                  placeholder="Reps"
+                  placeholderTextColor={colors.subtle}
+                  value={item.reps}
+                  keyboardType="numeric"
+                  onChangeText={(t) =>
+                    setSets((prev) =>
+                      prev.map((s) =>
+                        s.id === item.id ? { ...s, reps: t } : s
+                      )
                     )
-                  )
-                }
-                style={[
-                  styles.input,
-                  { backgroundColor: colors.inputBg, color: colors.text },
-                ]}
-              />
+                  }
+                  style={[
+                    styles.input,
+                    { backgroundColor: colors.inputBg, color: colors.text },
+                  ]}
+                  returnKeyType="done"
+                  onSubmitEditing={() => Keyboard.dismiss()}
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <TextInput
+                  placeholder="Weight"
+                  placeholderTextColor={colors.subtle}
+                  value={item.weight}
+                  keyboardType="numeric"
+                  onChangeText={(t) =>
+                    setSets((prev) =>
+                      prev.map((s) =>
+                        s.id === item.id ? { ...s, weight: t } : s
+                      )
+                    )
+                  }
+                  style={[
+                    styles.input,
+                    { backgroundColor: colors.inputBg, color: colors.text },
+                  ]}
+                  returnKeyType="done"
+                  onSubmitEditing={() => Keyboard.dismiss()}
+                />
+              </View>
             </View>
           );
 
           return (
             <View style={styles.rowWrapper}>
-              {sets.length > 1 ? (
-                <Swipeable {...getSwipeableProps(item.id)}>
-                  {setContent}
-                </Swipeable>
-              ) : (
-                setContent
-              )}
+              <Swipeable
+                {...(sets.length > 1 ? getSwipeableProps(item.id) : {})}
+                enabled={sets.length > 1}
+              >
+                {setContent}
+              </Swipeable>
             </View>
           );
         }}
@@ -240,7 +264,7 @@ export const ExerciseDetailContent = forwardRef<
           style={styles.footerButton}
           onPress={() => handleSave(onAddExercise)}
         >
-          <Text style={styles.footerButtonText}>+ Add Exercise</Text>
+          <Text style={styles.footerButtonText}>Select Exercise</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -249,7 +273,12 @@ export const ExerciseDetailContent = forwardRef<
 
 /* ---------------- STYLES ---------------- */
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20 },
+  container: {
+    flex: 1,
+    paddingTop: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 0,
+  },
 
   title: {
     fontSize: 28,
@@ -302,8 +331,12 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  input: {
+  inputContainer: {
     flex: 1,
+  },
+
+  input: {
+    maxWidth: 130,
     fontSize: 16,
     paddingVertical: 8,
     paddingHorizontal: 10,
@@ -313,14 +346,16 @@ const styles = StyleSheet.create({
   footerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 24,
+    marginTop: 12,
+    marginBottom: 12,
     borderTopWidth: 1,
     paddingTop: 12,
+    paddingBottom: 20,
   },
 
   footerButton: {
     flex: 1,
-    padding: 14,
+    padding: 16,
     marginHorizontal: 6,
     backgroundColor: "#007AFF",
     borderRadius: 12,
