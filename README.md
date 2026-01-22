@@ -1,5 +1,6 @@
-# Gear Fitness
+<img width="1916" height="818" alt="image" src="https://github.com/user-attachments/assets/13036473-e0c7-4126-8bd4-68a00067088d" />
 
+---
 A comprehensive full-stack fitness tracking solution designed to help gym-goers maintain consistency, track progress, and optimize their workout routines.
 
 ## About
