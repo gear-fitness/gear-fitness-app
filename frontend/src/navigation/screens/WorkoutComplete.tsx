@@ -24,7 +24,7 @@ export function WorkoutComplete() {
 
   const isDark = useColorScheme() === "dark";
   const navigation = useNavigation<any>();
-  const { exercises, seconds, reset } = useWorkoutTimer();
+  const { exercises, seconds, reset, triggerPostWorkoutRefresh } = useWorkoutTimer();
 
   const [workoutName, setWorkoutName] = useState("");
   const [bodyTag, setBodyTag] = useState<string[]>(["FULL_BODY"]);
@@ -110,6 +110,7 @@ export function WorkoutComplete() {
           {
             text: "OK",
             onPress: () => {
+              triggerPostWorkoutRefresh();
               reset();
 
               const state = navigation.getState();

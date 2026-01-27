@@ -35,6 +35,18 @@ interface WorkoutContextValue {
   // Tab tracking
   activeTab: string;
   setActiveTab: (tab: string) => void;
+
+  // Refresh triggers
+  shouldRefreshHome: boolean;
+  shouldRefreshHistory: boolean;
+  shouldRefreshProfile: boolean;
+  triggerHomeRefresh: () => void;
+  clearHomeRefresh: () => void;
+  triggerHistoryRefresh: () => void;
+  clearHistoryRefresh: () => void;
+  triggerProfileRefresh: () => void;
+  clearProfileRefresh: () => void;
+  triggerPostWorkoutRefresh: () => void;
 }
 
 const WorkoutTimerContext = createContext<WorkoutContextValue | null>(null);
@@ -61,6 +73,11 @@ export function WorkoutTimerProvider({
 
   // Tab tracking
   const [activeTab, setActiveTab] = useState("Home"); // Default to Home tab
+
+  // Refresh triggers
+  const [shouldRefreshHome, setShouldRefreshHome] = useState(false);
+  const [shouldRefreshHistory, setShouldRefreshHistory] = useState(false);
+  const [shouldRefreshProfile, setShouldRefreshProfile] = useState(false);
 
   // ---------------- TIMER LOOP ----------------
   // Update seconds based on timestamp calculation
@@ -184,6 +201,22 @@ export function WorkoutTimerProvider({
     setCurrentExerciseId(null);
   };
 
+  // Refresh trigger methods
+  const triggerHomeRefresh = () => setShouldRefreshHome(true);
+  const clearHomeRefresh = () => setShouldRefreshHome(false);
+
+  const triggerHistoryRefresh = () => setShouldRefreshHistory(true);
+  const clearHistoryRefresh = () => setShouldRefreshHistory(false);
+
+  const triggerProfileRefresh = () => setShouldRefreshProfile(true);
+  const clearProfileRefresh = () => setShouldRefreshProfile(false);
+
+  const triggerPostWorkoutRefresh = () => {
+    setShouldRefreshHome(true);
+    setShouldRefreshHistory(true);
+    setShouldRefreshProfile(true);
+  };
+
   return (
     <WorkoutTimerContext.Provider
       value={{
@@ -204,6 +237,17 @@ export function WorkoutTimerProvider({
         // Tab tracking
         activeTab,
         setActiveTab,
+        // Refresh triggers
+        shouldRefreshHome,
+        shouldRefreshHistory,
+        shouldRefreshProfile,
+        triggerHomeRefresh,
+        clearHomeRefresh,
+        triggerHistoryRefresh,
+        clearHistoryRefresh,
+        triggerProfileRefresh,
+        clearProfileRefresh,
+        triggerPostWorkoutRefresh,
       }}
     >
       {children}

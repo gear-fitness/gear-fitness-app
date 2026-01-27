@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   FlatList,
@@ -46,6 +46,7 @@ export function Social() {
   const [searchQuery, setSearchQuery] = useState("");
   const [userResults, setUserResults] = useState<any[]>([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
+  const hasLoadedOnce = useRef(false);
 
   // Activity modal state
   const [showActivity, setShowActivity] = useState(false);
@@ -54,6 +55,16 @@ export function Social() {
   useEffect(() => {
     loadFeed();
   }, []);
+
+  // Only auto-refresh on first visit per session
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasLoadedOnce.current) {
+        loadFeed();
+        hasLoadedOnce.current = true;
+      }
+    }, [])
+  );
 
   // Load initial feed
   const loadFeed = async () => {

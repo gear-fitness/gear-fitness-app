@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   StyleSheet,
   View,
@@ -13,6 +13,7 @@ import {
   useNavigation,
   useRoute,
   useTheme,
+  useFocusEffect,
 } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -28,6 +29,7 @@ import { UserProfile, FollowerUser } from "../../api/types";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { socialFeedApi, FeedPost } from "../../api/socialFeedApi";
 import { FeedPostCard } from "../../components/FeedPostCard";
+import { useWorkoutTimer } from "../../context/WorkoutContext";
 
 export function Profile() {
   useTrackTab("Profile");
@@ -36,6 +38,7 @@ export function Profile() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { colors } = useTheme();
+  const { shouldRefreshProfile, clearProfileRefresh } = useWorkoutTimer();
 
   const usernameParam: string | undefined = route.params?.username;
   const isOtherUser = !!usernameParam;
@@ -45,6 +48,7 @@ export function Profile() {
   const [followers, setFollowers] = useState<FollowerUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const hasLoadedOnce = useRef(false);
 
   // Posts state management
   const [posts, setPosts] = useState<FeedPost[]>([]);
@@ -88,6 +92,32 @@ export function Profile() {
       }
     });
   }, [usernameParam]);
+
+  // Only auto-refresh on first visit per session
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!hasLoadedOnce.current) {
+        loadProfile().then((profileData) => {
+          if (profileData) {
+            loadUserPosts(profileData);
+          }
+        });
+        hasLoadedOnce.current = true;
+      }
+    }, [])
+  );
+
+  // Refresh when triggered by workout completion
+  useEffect(() => {
+    if (shouldRefreshProfile) {
+      loadProfile().then((profileData) => {
+        if (profileData) {
+          loadUserPosts(profileData);
+        }
+      });
+      clearProfileRefresh();
+    }
+  }, [shouldRefreshProfile, clearProfileRefresh]);
 
   // Follow or unfollow user
   const handleFollowToggle = async () => {

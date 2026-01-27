@@ -10,9 +10,10 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
+  RefreshControl,
 } from "react-native";
 import { Calendar } from "react-native-calendars";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useTheme } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
@@ -24,6 +25,7 @@ import { Workout } from "../../api/types";
 import { parseLocalDate } from "../../utils/date";
 import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
 import { useTrackTab } from "../../hooks/useTrackTab";
+import { useWorkoutTimer } from "../../context/WorkoutContext";
 
 type RootStackParamList = {
   HomeTabs: undefined;
@@ -47,12 +49,15 @@ export function History() {
   const { colors } = useTheme();
   const navigation = useNavigation<NavigationProp>();
   const { user } = useAuth();
+  const { shouldRefreshHistory, clearHistoryRefresh } = useWorkoutTimer();
   const colorScheme = useColorScheme();
   const isDarkMode = colorScheme === "dark";
 
   const [markedDates, setMarkedDates] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
   const [data, setData] = useState<Workout[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const hasLoadedOnce = useRef(false);
 
   // Function to fetch workouts
   const fetchWorkouts = async () => {
@@ -84,12 +89,23 @@ export function History() {
     fetchWorkouts();
   }, []);
 
-  // Refetch workouts every time the screen comes into focus
+  // Only auto-refresh on first visit per session
   useFocusEffect(
     React.useCallback(() => {
-      fetchWorkouts();
+      if (!hasLoadedOnce.current) {
+        fetchWorkouts();
+        hasLoadedOnce.current = true;
+      }
     }, [])
   );
+
+  // Refresh when triggered by workout completion
+  useEffect(() => {
+    if (shouldRefreshHistory) {
+      fetchWorkouts();
+      clearHistoryRefresh();
+    }
+  }, [shouldRefreshHistory, clearHistoryRefresh]);
 
   const handleDeleteWorkout = async (workoutId: string) => {
     try {
@@ -123,6 +139,12 @@ export function History() {
     deleteMessage:
       "Are you sure you want to delete this workout? This action cannot be undone.",
   });
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchWorkouts();
+    setRefreshing(false);
+  }, []);
 
   const today = new Date();
   const formattedToday =
@@ -261,6 +283,9 @@ export function History() {
           keyExtractor={(item) => item.workoutId}
           renderItem={renderItem}
           keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
         />
       </View>
     </KeyboardAvoidingView>

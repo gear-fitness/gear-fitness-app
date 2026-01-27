@@ -13,16 +13,18 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   useColorScheme,
+  RefreshControl,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BarChart } from "react-native-gifted-charts";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import React from "react";
 import { useAuth } from "../../context/AuthContext";
 import { getDailyVolume, getUserWorkouts } from "../../api/workoutService";
 import { DailyVolumeData, Workout } from "../../api/types";
 import { parseLocalDate } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
+import { useWorkoutTimer } from "../../context/WorkoutContext";
 
 const { width, height } = Dimensions.get("window");
 
@@ -40,6 +42,7 @@ export function Home() {
   useTrackTab("Home");
 
   const { user } = useAuth();
+  const { shouldRefreshHome, clearHomeRefresh } = useWorkoutTimer();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors } = useTheme();
@@ -50,20 +53,33 @@ export function Home() {
   const [prevWeekAvg, setPrevWeekAvg] = useState<number>(0);
   const [recentWorkouts, setRecentWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [weekOffset, setWeekOffset] = useState<number>(0); // 0 = current week, -1 = previous week, etc.
   const [weekDateRange, setWeekDateRange] = useState<string>("");
+  const hasLoadedOnce = useRef(false);
 
   // Fetch data on initial mount
   useEffect(() => {
     fetchData();
   }, []);
 
-  // Refetch data every time the screen comes into focus
+  // Only auto-refresh on first visit per session
   useFocusEffect(
     React.useCallback(() => {
-      fetchData();
+      if (!hasLoadedOnce.current) {
+        fetchData();
+        hasLoadedOnce.current = true;
+      }
     }, [])
   );
+
+  // Refresh when triggered by workout completion
+  useEffect(() => {
+    if (shouldRefreshHome) {
+      fetchData();
+      clearHomeRefresh();
+    }
+  }, [shouldRefreshHome, clearHomeRefresh]);
 
   const fetchData = async () => {
     try {
@@ -104,6 +120,12 @@ export function Home() {
       console.error("Error fetching recent workouts:", error);
     }
   };
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchData();
+    setRefreshing(false);
+  }, []);
 
   const getVisibleWeek = (allData: DailyVolumeData[], offset: number) => {
     const totalDays = allData.length;
@@ -369,7 +391,13 @@ export function Home() {
   });
 
   return (
-    <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={styles.scrollContainer}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
       <View style={styles.container}>
         <Text style={styles.title}>Activity</Text>
 
