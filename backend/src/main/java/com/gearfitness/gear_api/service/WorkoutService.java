@@ -14,6 +14,8 @@ import com.gearfitness.gear_api.entity.WorkoutExercise;
 import com.gearfitness.gear_api.entity.WorkoutSet;
 import com.gearfitness.gear_api.repository.AppUserRepository;
 import com.gearfitness.gear_api.repository.ExerciseRepository;
+import com.gearfitness.gear_api.repository.PostCommentRepository;
+import com.gearfitness.gear_api.repository.PostLikeRepository;
 import com.gearfitness.gear_api.repository.PostRepository;
 import com.gearfitness.gear_api.repository.WorkoutRepository;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +37,8 @@ public class WorkoutService {
     private final ExerciseRepository exerciseRepository;
     private final PostRepository postRepository;
     private final AppUserRepository appUserRepository;
+    private final PostLikeRepository postLikeRepository;
+    private final PostCommentRepository postCommentRepository;
 
     @Transactional(readOnly = true)
     public List<Workout> getWorkoutsByUser(UUID userId) {
@@ -321,7 +325,17 @@ public class WorkoutService {
             throw new IllegalArgumentException("User does not have permission to delete this workout");
         }
 
-        // Delete the workout - cascade will handle related entities
+        // If workout has a post, delete its likes and comments first to avoid FK constraint violations
+        Post post = workout.getPost();
+        if (post != null) {
+            UUID postId = post.getPostId();
+            // Delete all likes for this post
+            postLikeRepository.deleteByPost_PostId(postId);
+            // Delete all comments for this post
+            postCommentRepository.deleteByPost_PostId(postId);
+        }
+
+        // Delete the workout - cascade will handle related entities including the post
         workoutRepository.delete(workout);
     }
 }

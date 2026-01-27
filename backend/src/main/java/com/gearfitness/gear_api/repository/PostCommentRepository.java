@@ -37,4 +37,6 @@ public interface PostCommentRepository extends JpaRepository<PostComment, UUID> 
                         row -> (UUID) row[0],
                         row -> (Long) row[1]));
     }
+
+    void deleteByPost_PostId(UUID postId);
 }
