@@ -53,6 +53,7 @@ export function History() {
   const [markedDates, setMarkedDates] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
   const [data, setData] = useState<Workout[]>([]);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   // Function to fetch workouts
   const fetchWorkouts = async () => {
@@ -88,7 +89,7 @@ export function History() {
   useFocusEffect(
     React.useCallback(() => {
       fetchWorkouts();
-    }, [])
+    }, []),
   );
 
   const handleDeleteWorkout = async (workoutId: string) => {
@@ -138,9 +139,15 @@ export function History() {
     navigation.getParent()?.navigate("PR", { userId: user.userId });
   };
 
-  const filteredData = data.filter((item) =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredData = data.filter((item) => {
+    const matchesSearch = item.name
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase());
+    const matchesDate = selectedDate
+      ? item.datePerformed === selectedDate
+      : true;
+    return matchesSearch && matchesDate;
+  });
 
   const renderItem = ({ item }: { item: Workout }) => (
     <View style={styles.rowWrapper}>
@@ -179,7 +186,7 @@ export function History() {
                     month: "short",
                     day: "numeric",
                     year: "numeric",
-                  }
+                  },
                 )}
               </Text>
             </View>
@@ -200,7 +207,38 @@ export function History() {
           key={colors.background}
           style={styles.calendar}
           current={formattedToday}
-          markedDates={markedDates}
+          markedDates={{
+            ...markedDates,
+            [formattedToday]: {
+              ...(markedDates as any)[formattedToday],
+              customStyles: {
+                text: { color: "#1877F2", fontWeight: "700" },
+              },
+            },
+            ...(selectedDate && selectedDate !== formattedToday
+              ? {
+                  [selectedDate]: {
+                    ...(markedDates as any)[selectedDate],
+                    selected: true,
+                    selectedColor: "#34C759",
+                  },
+                }
+              : {}),
+            ...(selectedDate && selectedDate === formattedToday
+              ? {
+                  [formattedToday]: {
+                    ...(markedDates as any)[formattedToday],
+                    selected: true,
+                    selectedColor: "#34C759",
+                  },
+                }
+              : {}),
+          }}
+          onDayPress={(day: { dateString: string }) => {
+            setSelectedDate((prev) =>
+              prev === day.dateString ? null : day.dateString,
+            );
+          }}
           theme={{
             backgroundColor: colors.card,
             calendarBackground: colors.card,
