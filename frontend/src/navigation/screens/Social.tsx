@@ -26,6 +26,7 @@ import { UserSearchCard } from "../../components/UserSearchCard";
 import { useAuth } from "../../context/AuthContext";
 import { ActivityModal } from "../../components/ActivityModal";
 import { useTrackTab } from "../../hooks/useTrackTab";
+import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
 
 export function Social() {
   useTrackTab("Social");
@@ -130,7 +131,7 @@ export function Social() {
       };
 
       fetchUsers();
-    }, [searchQuery, user])
+    }, [searchQuery, user]),
   );
 
   const handleOpenComments = (postId: string) => {
@@ -316,7 +317,9 @@ export function Social() {
           )}
           keyExtractor={(item) => String(item.postId)}
           contentContainerStyle={
-            posts.length === 0 ? styles.emptyContainer : styles.feedList
+            posts.length === 0
+              ? { ...styles.emptyContainer }
+              : { ...styles.feedList, paddingBottom: MINI_PLAYER_HEIGHT + 30 }
           }
           ListEmptyComponent={renderEmpty}
           ListFooterComponent={renderFooter}
