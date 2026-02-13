@@ -2,6 +2,7 @@ package com.gearfitness.gear_api.controller;
 
 import com.gearfitness.gear_api.dto.AuthResponse;
 import com.gearfitness.gear_api.dto.GoogleLoginRequest;
+import com.gearfitness.gear_api.dto.RefreshTokenRequest;
 import com.gearfitness.gear_api.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -23,9 +24,27 @@ public class AuthController {
             return ResponseEntity.badRequest().body(
                     AuthResponse.builder()
                             .error("Authentication failed: " + e.getMessage())
-                            .build()
-            );
+                            .build());
         }
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<AuthResponse> refreshToken(@RequestBody RefreshTokenRequest request) {
+        try {
+            AuthResponse response = authService.refreshAccessToken(request.getRefreshToken());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(401).body(
+                    AuthResponse.builder()
+                            .error("Token refresh failed: " + e.getMessage())
+                            .build());
+        }
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@RequestBody RefreshTokenRequest request) {
+        authService.logout(request.getRefreshToken());
+        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/me")

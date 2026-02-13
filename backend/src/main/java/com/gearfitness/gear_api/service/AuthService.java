@@ -3,16 +3,21 @@ package com.gearfitness.gear_api.service;
 import com.gearfitness.gear_api.dto.AuthResponse;
 import com.gearfitness.gear_api.dto.UserDTO;
 import com.gearfitness.gear_api.entity.AppUser;
+import com.gearfitness.gear_api.entity.RefreshToken;
 import com.gearfitness.gear_api.repository.AppUserRepository;
+import com.gearfitness.gear_api.repository.RefreshTokenRepository;
 import com.gearfitness.gear_api.security.GoogleTokenVerifier;
 import com.gearfitness.gear_api.security.JwtService;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.time.Instant;
 import java.util.UUID;
 
 @Service
@@ -22,6 +27,10 @@ public class AuthService {
     private final AppUserRepository userRepository;
     private final GoogleTokenVerifier googleTokenVerifier;
     private final JwtService jwtService;
+    private final RefreshTokenRepository refreshTokenRepository;
+
+    @Value("${jwt.refresh-expiration}")
+    private Long refreshExpiration;
 
     @Transactional
     public AuthResponse authenticateWithGoogle(String idToken) throws GeneralSecurityException, IOException {
@@ -41,11 +50,62 @@ public class AuthService {
         // Generate JWT token
         String jwtToken = jwtService.generateToken(user.getUserId(), user.getEmail());
 
+        // Generate new refresh token
+        String refreshToken = createRefreshToken(user);
+
         return AuthResponse.builder()
                 .token(jwtToken)
+                .refreshToken(refreshToken)
                 .user(convertToDTO(user))
                 .newUser(isNewUser)
                 .build();
+    }
+
+    @Transactional
+    public AuthResponse refreshAccessToken(String refreshTokenStr) {
+        // find the refresh token
+        RefreshToken refreshToken = refreshTokenRepository.findByTokenAndRevokedFalse(refreshTokenStr)
+                .orElseThrow(() -> new RuntimeException("Invalid refresh token"));
+        if (refreshToken.getExpiryDate().isBefore(Instant.now())) {
+            refreshToken.setRevoked(true);
+            refreshTokenRepository.save(refreshToken);
+            throw new RuntimeException("Refresh token expired");
+        }
+        AppUser user = refreshToken.getUser();
+
+        // Revoke the old refresh token (rotation)
+        refreshToken.setRevoked(true);
+        refreshTokenRepository.save(refreshToken);
+
+        // generate new tokens
+        String newAccessToken = jwtService.generateToken(user.getUserId(), user.getEmail());
+        String newRefreshToken = createRefreshToken(user);
+
+        return AuthResponse.builder()
+                .token(newAccessToken)
+                .refreshToken(newRefreshToken)
+                .build();
+    }
+
+    @Transactional
+    public void logout(String refreshTokenStr) {
+        refreshTokenRepository.findByTokenAndRevokedFalse(refreshTokenStr)
+                .ifPresent(token -> {
+                    token.setRevoked(true);
+                    refreshTokenRepository.save(token);
+                });
+    }
+
+    private String createRefreshToken(AppUser user) {
+        RefreshToken refreshToken = RefreshToken.builder()
+                .token(UUID.randomUUID().toString())
+                .user(user)
+                .expiryDate(Instant.now().plusMillis(refreshExpiration))
+                .revoked(false)
+                .build();
+
+        refreshTokenRepository.save(refreshToken);
+        return refreshToken.getToken();
     }
 
     private AppUser createNewUser(String email, String name) {
@@ -67,14 +127,14 @@ public class AuthService {
 
     private String generateUniqueUsername(String baseName) {
         String username = baseName.replaceAll("[^a-zA-Z0-9]", "").toLowerCase();
-        
+
         if (username.length() < 3) {
             username = "user" + username;
         }
 
         String finalUsername = username;
         int counter = 1;
-        
+
         while (userRepository.existsByUsername(finalUsername)) {
             finalUsername = username + counter;
             counter++;
@@ -86,10 +146,8 @@ public class AuthService {
     public UserDTO getCurrentUser(String authHeader) {
         String token = authHeader.substring(7);
         String email = jwtService.extractEmail(token);
-        
         AppUser user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        
         return convertToDTO(user);
     }
 
