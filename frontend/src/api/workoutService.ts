@@ -4,6 +4,7 @@
  */
 
 import { getAuthHeader } from "../utils/auth";
+import apiClient from "./apiClient";
 import {
   DailyVolumeData,
   WeeklyVolumeData,
@@ -59,24 +60,10 @@ export interface WorkoutDetailResponse {
 }
 
 export async function submitWorkout(
-  submission: WorkoutSubmission
+  submission: WorkoutSubmission,
 ): Promise<WorkoutDetailResponse> {
-  const authHeader = await getAuthHeader();
-
-  const response = await fetch(`${API_BASE_URL}/api/workouts/submit`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...authHeader,
-    },
-    body: JSON.stringify(submission),
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to submit workout");
-  }
-
-  return response.json();
+  const { data } = await apiClient.post("/workouts/submit", submission);
+  return data;
 }
 
 /**
@@ -84,27 +71,15 @@ export async function submitWorkout(
  */
 export async function getWeeklyVolume(
   userId: string,
-  weeks: number = 8
+  weeks: number = 8,
 ): Promise<WeeklyVolumeData[]> {
-  const authHeader = await getAuthHeader();
-
-  const response = await fetch(
-    `${API_BASE_URL}/api/workouts/user/${userId}/weekly-volume?weeks=${weeks}`,
+  const { data } = await apiClient.get(
+    `/workouts/user/${userId}/weekly-volume`,
     {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        ...authHeader,
-      },
-    }
+      params: { weeks },
+    },
   );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to fetch weekly volume: ${errorText}`);
-  }
-
-  return response.json();
+  return data;
 }
 
 /**
@@ -113,121 +88,48 @@ export async function getWeeklyVolume(
 export async function getDailyVolume(
   userId: string,
   weeks: number = 2,
-  weekStartDay: string = 'SUNDAY'
+  weekStartDay: string = "SUNDAY",
 ): Promise<DailyVolumeData[]> {
-  const authHeader = await getAuthHeader();
-
-  const response = await fetch(
-    `${API_BASE_URL}/api/workouts/user/${userId}/daily-volume?weeks=${weeks}&weekStartDay=${weekStartDay}`,
+  const { data } = await apiClient.get(
+    `/workouts/user/${userId}/daily-volume`,
     {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        ...authHeader,
-      },
-    }
+      params: { weeks, weekStartDay },
+    },
   );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to fetch daily volume: ${errorText}`);
-  }
-
-  return response.json();
+  return data;
 }
 
 /**
  * Get all workouts for a user
  */
 export async function getUserWorkouts(userId: string): Promise<Workout[]> {
-  const authHeader = await getAuthHeader();
-
-  const response = await fetch(`${API_BASE_URL}/api/workouts/user/${userId}`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      ...authHeader,
-    },
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to fetch workouts: ${errorText}`);
-  }
-
-  return response.json();
+  const { data } = await apiClient.get(`/workouts/user/${userId}`);
+  return data;
 }
 
 /**
  * Get detailed workout by ID
  */
 export async function getWorkoutDetails(
-  workoutId: string
+  workoutId: string,
 ): Promise<WorkoutDetail> {
-  const authHeader = await getAuthHeader();
-
-  const response = await fetch(`${API_BASE_URL}/api/workouts/${workoutId}`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      ...authHeader,
-    },
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to fetch workout details: ${errorText}`);
-  }
-
-  return response.json();
+  const { data } = await apiClient.get(`/workouts/${workoutId}`);
+  return data;
 }
 
 /**
  * Get personal records for a user
  */
 export async function getUserPersonalRecords(
-  userId: string
+  userId: string,
 ): Promise<PersonalRecord[]> {
-  const authHeader = await getAuthHeader();
-
-  const response = await fetch(
-    `${API_BASE_URL}/api/personal-records/user/${userId}`,
-    {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        ...authHeader,
-      },
-    }
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to fetch personal records: ${errorText}`);
-  }
-
-  return response.json();
+  const { data } = await apiClient.get(`/personal-records/user/${userId}`);
+  return data;
 }
 
 /**
  * Delete a workout by ID
  */
 export async function deleteWorkout(workoutId: string): Promise<void> {
-  const authHeader = await getAuthHeader();
-
-  const response = await fetch(`${API_BASE_URL}/api/workouts/${workoutId}`, {
-    method: "DELETE",
-    headers: {
-      "Content-Type": "application/json",
-      ...authHeader,
-    },
-  });
-
-  if (!response.ok) {
-    if (response.status === 404) {
-      throw new Error("Workout not found or you don't have permission to delete it");
-    }
-    const errorText = await response.text();
-    throw new Error(`Failed to delete workout: ${errorText}`);
-  }
+  await apiClient.delete(`/workouts/${workoutId}`);
 }
