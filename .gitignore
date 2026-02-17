@@ -1,5 +1,4 @@
 .DS_Store
-.vscode/settings.json
 *.code-workspace
 
 # Documentation files (keep README.md files visible)
