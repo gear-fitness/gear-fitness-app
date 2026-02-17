@@ -9,11 +9,7 @@ import {
   RefreshControl,
 } from "react-native";
 import { Text, Button } from "@react-navigation/elements";
-import {
-  useNavigation,
-  useRoute,
-  useTheme,
-} from "@react-navigation/native";
+import { useNavigation, useRoute, useTheme } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -28,6 +24,7 @@ import { UserProfile, FollowerUser } from "../../api/types";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { socialFeedApi, FeedPost } from "../../api/socialFeedApi";
 import { FeedPostCard } from "../../components/FeedPostCard";
+import { feedRefresh } from "../../utils/feedRefreshFlag";
 
 export function Profile() {
   useTrackTab("Profile");
@@ -52,6 +49,7 @@ export function Profile() {
   const [loadingMorePosts, setLoadingMorePosts] = useState(false);
   const [currentPostsPage, setCurrentPostsPage] = useState(0);
   const [hasMorePosts, setHasMorePosts] = useState(true);
+  const [didChangeFollow, setDidChangeFollow] = useState(false);
 
   // Load profile data when screen is focused
   const loadProfile = async () => {
@@ -106,13 +104,14 @@ export function Profile() {
             onPress: async () => {
               try {
                 await unfollowUser(profile.userId);
+                feedRefresh.needed = true;
                 loadProfile();
               } catch {
                 Alert.alert("Error", "Failed to update follow status");
               }
             },
           },
-        ]
+        ],
       );
       return;
     }
@@ -120,6 +119,7 @@ export function Profile() {
     // Follow user
     try {
       await followUser(profile.userId);
+      feedRefresh.needed = true;
       loadProfile();
     } catch {
       Alert.alert("Error", "Failed to update follow status");
@@ -132,7 +132,11 @@ export function Profile() {
     if (!targetProfile) return;
     try {
       setPostsLoading(true);
-      const response = await socialFeedApi.getUserPosts(targetProfile.userId, 0, 5);
+      const response = await socialFeedApi.getUserPosts(
+        targetProfile.userId,
+        0,
+        5,
+      );
       setPosts(response.content);
       setCurrentPostsPage(0);
       setHasMorePosts(!response.last);
@@ -149,7 +153,11 @@ export function Profile() {
     try {
       setLoadingMorePosts(true);
       const nextPage = currentPostsPage + 1;
-      const response = await socialFeedApi.getUserPosts(profile.userId, nextPage, 5);
+      const response = await socialFeedApi.getUserPosts(
+        profile.userId,
+        nextPage,
+        5,
+      );
       setPosts((prev) => [...prev, ...response.content]);
       setCurrentPostsPage(nextPage);
       setHasMorePosts(!response.last);
@@ -233,10 +241,7 @@ export function Profile() {
           </View>
 
           <View style={styles.statsRow}>
-            <Stat
-              label="Workouts"
-              value={profile.workoutStats.totalWorkouts}
-            />
+            <Stat label="Workouts" value={profile.workoutStats.totalWorkouts} />
             <Stat label="Followers" value={profile.followersCount} />
             <Stat label="Following" value={profile.followingCount} />
           </View>
@@ -278,7 +283,7 @@ export function Profile() {
                   )}
                 </View>
               </View>
-            )
+            ),
           )}
         </View>
 
@@ -353,11 +358,13 @@ export function Profile() {
         refreshControl={
           <RefreshControl
             refreshing={loading}
-            onRefresh={() => loadProfile().then((profileData) => {
-              if (profileData) {
-                loadUserPosts(profileData);
-              }
-            })}
+            onRefresh={() =>
+              loadProfile().then((profileData) => {
+                if (profileData) {
+                  loadUserPosts(profileData);
+                }
+              })
+            }
           />
         }
       />
