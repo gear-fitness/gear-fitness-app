@@ -4,6 +4,6 @@ import lombok.Data;
 
 @Data
 public class ChatMessageDTO {
-    private String text;
-    private boolean isUser;
+  private String text;
+  private boolean isUser;
 }

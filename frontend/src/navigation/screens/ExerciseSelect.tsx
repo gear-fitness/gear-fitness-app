@@ -39,32 +39,32 @@ type SelectedFilters = Record<FilterKey, boolean>;
 // Map user-friendly search terms to BodyPart enum values
 const bodyPartMapping: Record<string, string> = {
   // Singular forms
-  'bicep': 'BICEPS',
-  'tricep': 'TRICEPS',
-  'leg': 'LEGS',
-  'quad': 'QUADS',
-  'hamstring': 'HAMSTRINGS',
-  'glute': 'GLUTES',
-  'calf': 'CALVES',
-  'trap': 'TRAPS',
-  'forearm': 'FOREARMS',
+  bicep: "BICEPS",
+  tricep: "TRICEPS",
+  leg: "LEGS",
+  quad: "QUADS",
+  hamstring: "HAMSTRINGS",
+  glute: "GLUTES",
+  calf: "CALVES",
+  trap: "TRAPS",
+  forearm: "FOREARMS",
   // Plural forms
-  'biceps': 'BICEPS',
-  'triceps': 'TRICEPS',
-  'legs': 'LEGS',
-  'quads': 'QUADS',
-  'hamstrings': 'HAMSTRINGS',
-  'glutes': 'GLUTES',
-  'calves': 'CALVES',
-  'traps': 'TRAPS',
-  'forearms': 'FOREARMS',
+  biceps: "BICEPS",
+  triceps: "TRICEPS",
+  legs: "LEGS",
+  quads: "QUADS",
+  hamstrings: "HAMSTRINGS",
+  glutes: "GLUTES",
+  calves: "CALVES",
+  traps: "TRAPS",
+  forearms: "FOREARMS",
   // Common terms
-  'chest': 'CHEST',
-  'back': 'BACK',
-  'shoulder': 'SHOULDERS',
-  'shoulders': 'SHOULDERS',
-  'core': 'CORE',
-  'abs': 'CORE',
+  chest: "CHEST",
+  back: "BACK",
+  shoulder: "SHOULDERS",
+  shoulders: "SHOULDERS",
+  core: "CORE",
+  abs: "CORE",
 };
 
 export function ExerciseSelect() {
@@ -148,7 +148,7 @@ export function ExerciseSelect() {
         // Body part detected: match bodyPart AND search remaining words in name
         const bodyPartMatch = ex.bodyPart.toUpperCase() === detectedBodyPart;
         const nameMatch = remainingWords.every((word) =>
-          ex.name.toLowerCase().includes(word)
+          ex.name.toLowerCase().includes(word),
         );
         return bodyPartMatch && nameMatch;
       } else if (detectedBodyPart && remainingWords.length === 0) {
@@ -159,7 +159,7 @@ export function ExerciseSelect() {
         const searchMatch = searchWords.every(
           (word) =>
             ex.name.toLowerCase().includes(word) ||
-            ex.bodyPart.toLowerCase().includes(word)
+            ex.bodyPart.toLowerCase().includes(word),
         );
         return searchMatch;
       }

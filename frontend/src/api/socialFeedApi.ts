@@ -50,7 +50,7 @@ export const socialFeedApi = {
           "Content-Type": "application/json",
           ...authHeader,
         },
-      }
+      },
     );
 
     console.log("Response status:", response.status);
@@ -63,7 +63,11 @@ export const socialFeedApi = {
     return response.json();
   },
 
-  getUserPosts: async (userId: string, page: number, size: number = 20): Promise<Page<FeedPost>> => {
+  getUserPosts: async (
+    userId: string,
+    page: number,
+    size: number = 20,
+  ): Promise<Page<FeedPost>> => {
     const authHeader = await getAuthHeader();
     const response = await fetch(
       `${process.env.EXPO_PUBLIC_API_URL}/api/feed/user/${userId}?page=${page}&size=${size}`,
@@ -73,7 +77,7 @@ export const socialFeedApi = {
           "Content-Type": "application/json",
           ...authHeader,
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -92,7 +96,7 @@ export const socialFeedApi = {
           "Content-Type": "application/json",
           ...authHeader,
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -105,7 +109,7 @@ export const socialFeedApi = {
   getComments: async (
     postId: string,
     page: number = 0,
-    size: number = 20
+    size: number = 20,
   ): Promise<Page<Comment>> => {
     const authHeader = await getAuthHeader();
     const response = await fetch(
@@ -116,7 +120,7 @@ export const socialFeedApi = {
           "Content-Type": "application/json",
           ...authHeader,
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -137,7 +141,7 @@ export const socialFeedApi = {
           ...authHeader,
         },
         body: JSON.stringify({ body }),
-      }
+      },
     );
 
     if (!response.ok) {

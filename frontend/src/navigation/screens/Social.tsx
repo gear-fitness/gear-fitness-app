@@ -130,7 +130,7 @@ export function Social() {
       };
 
       fetchUsers();
-    }, [searchQuery, user])
+    }, [searchQuery, user]),
   );
 
   const handleOpenComments = (postId: string) => {

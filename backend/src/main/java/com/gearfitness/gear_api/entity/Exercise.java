@@ -1,16 +1,14 @@
 package com.gearfitness.gear_api.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.util.HashSet;
-import java.util.Set;
-import java.util.UUID;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
 @Table(name = "exercise")
@@ -20,28 +18,28 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 @Builder
 public class Exercise {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "exercise_id")
-    private UUID exerciseId;
+  @Id
+  @GeneratedValue(strategy = GenerationType.UUID)
+  @Column(name = "exercise_id")
+  private UUID exerciseId;
 
-    @Column(nullable = false)
-    private String name;
+  @Column(nullable = false)
+  private String name;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "body_part", nullable = false)
-    private BodyPart bodyPart;
+  @Enumerated(EnumType.STRING)
+  @Column(name = "body_part", nullable = false)
+  private BodyPart bodyPart;
 
-    @Column(columnDefinition = "TEXT")
-    private String description;
+  @Column(columnDefinition = "TEXT")
+  private String description;
 
-    // Relationships
-    @OneToMany(mappedBy = "exercise", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonIgnore
-    @Builder.Default
-    private Set<WorkoutExercise> workoutExercises = new HashSet<>();
+  // Relationships
+  @OneToMany(mappedBy = "exercise", cascade = CascadeType.ALL, orphanRemoval = true)
+  @JsonIgnore
+  @Builder.Default
+  private Set<WorkoutExercise> workoutExercises = new HashSet<>();
 
-    public enum BodyPart {
+  public enum BodyPart {
     CHEST,
     BACK,
     SHOULDERS,
@@ -53,9 +51,9 @@ public class Exercise {
     GLUTES,
     CALVES,
     CORE,
-    TRAPS,      
-    FOREARMS,   
+    TRAPS,
+    FOREARMS,
     FULL_BODY,
     OTHER
-}
+  }
 }

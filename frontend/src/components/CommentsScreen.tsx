@@ -50,7 +50,7 @@ export function CommentsScreen() {
       setCommenting(true);
       const newComment = await socialFeedApi.addComment(
         postId,
-        commentText.trim()
+        commentText.trim(),
       );
       setComments((prev) => [newComment, ...prev]);
       setCommentText("");

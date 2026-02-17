@@ -36,7 +36,7 @@ export function WorkoutSummary() {
 
   // Track touch position for movement-based tap detection
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(
-    null
+    null,
   );
 
   // Swipeable delete hook
@@ -49,7 +49,7 @@ export function WorkoutSummary() {
   const formatTime = (t: number) =>
     `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(
       2,
-      "0"
+      "0",
     )}`;
 
   const today = new Date().toLocaleDateString("en-US", {
@@ -168,7 +168,9 @@ export function WorkoutSummary() {
       <View style={styles.bottomButtons}>
         {running ? (
           <>
-            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+            <View
+              style={{ flexDirection: "row", justifyContent: "space-between" }}
+            >
               <TouchableOpacity
                 style={[
                   styles.pauseBtn,

@@ -10,7 +10,7 @@ interface GoogleLoginResponse {
 }
 
 export async function loginWithGoogle(
-  idToken: string
+  idToken: string,
 ): Promise<GoogleLoginResponse> {
   const apiUrl = process.env.EXPO_PUBLIC_API_URL;
   const endpoint = `${apiUrl}/api/auth/google`;

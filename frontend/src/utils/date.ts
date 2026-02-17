@@ -31,7 +31,12 @@ export function parseLocalDate(dateString: string): Date {
   }
 
   if (month < 1 || month > 12 || day < 1 || day > 31) {
-    console.error("Date components out of range:", { year, month, day, dateString });
+    console.error("Date components out of range:", {
+      year,
+      month,
+      day,
+      dateString,
+    });
     return new Date();
   }
 

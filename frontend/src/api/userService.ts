@@ -61,7 +61,7 @@ export async function getUserProfile(username: string): Promise<UserProfile> {
  * Get the list of followers for a user
  */
 export async function getUserFollowers(
-  userId: string
+  userId: string,
 ): Promise<FollowerUser[]> {
   const authHeader = await getAuthHeader();
 
@@ -73,7 +73,7 @@ export async function getUserFollowers(
         "Content-Type": "application/json",
         ...authHeader,
       },
-    }
+    },
   );
 
   if (!response.ok) {
@@ -88,7 +88,7 @@ export async function getUserFollowers(
  * Get the list of users that a user is following
  */
 export async function getUserFollowing(
-  userId: string
+  userId: string,
 ): Promise<FollowerUser[]> {
   const authHeader = await getAuthHeader();
 
@@ -100,7 +100,7 @@ export async function getUserFollowing(
         "Content-Type": "application/json",
         ...authHeader,
       },
-    }
+    },
   );
 
   if (!response.ok) {
@@ -137,7 +137,7 @@ export async function followUser(userId: string): Promise<FollowResponse> {
  * Follow a user by username
  */
 export async function followUserByUsername(
-  username: string
+  username: string,
 ): Promise<FollowResponse> {
   const authHeader = await getAuthHeader();
 
@@ -149,7 +149,7 @@ export async function followUserByUsername(
         "Content-Type": "application/json",
         ...authHeader,
       },
-    }
+    },
   );
 
   if (!response.ok) {
@@ -208,7 +208,7 @@ export async function checkFollowStatus(userId: string): Promise<boolean> {
 export async function updateUserProfile(
   heightInches?: number | null,
   weightLbs?: number | null,
-  age?: number | null
+  age?: number | null,
 ): Promise<any> {
   const authHeader = await getAuthHeader();
 
@@ -243,7 +243,7 @@ export async function searchUsers(query: string) {
         "Content-Type": "application/json",
         ...authHeader,
       },
-    }
+    },
   );
 
   if (!response.ok) {

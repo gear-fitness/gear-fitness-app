@@ -88,7 +88,7 @@ export function History() {
   useFocusEffect(
     React.useCallback(() => {
       fetchWorkouts();
-    }, [])
+    }, []),
   );
 
   const handleDeleteWorkout = async (workoutId: string) => {
@@ -139,7 +139,7 @@ export function History() {
   };
 
   const filteredData = data.filter((item) =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase())
+    item.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const renderItem = ({ item }: { item: Workout }) => (
@@ -179,7 +179,7 @@ export function History() {
                     month: "short",
                     day: "numeric",
                     year: "numeric",
-                  }
+                  },
                 )}
               </Text>
             </View>

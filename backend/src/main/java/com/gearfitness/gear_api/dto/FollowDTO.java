@@ -1,5 +1,3 @@
 package com.gearfitness.gear_api.dto;
 
-public class FollowDTO {
-    
-}
+public class FollowDTO {}

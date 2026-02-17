@@ -54,7 +54,7 @@ export function ExerciseChat() {
             timestamp: new Date(),
           },
         ]
-      : []
+      : [],
   );
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -83,7 +83,7 @@ export function ExerciseChat() {
         updatedMessages.map((m) => ({
           text: m.text,
           isUser: m.isUser,
-        }))
+        })),
       );
 
       if (!data.response) {

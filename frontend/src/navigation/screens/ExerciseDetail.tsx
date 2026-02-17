@@ -26,18 +26,15 @@ export function ExerciseDetail() {
 
   // Save before leaving screen
   useEffect(() => {
-    const unsubscribe = navigation.addListener('beforeRemove', () => {
+    const unsubscribe = navigation.addListener("beforeRemove", () => {
       contentRef.current?.save();
     });
     return unsubscribe;
   }, [navigation]);
 
   return (
-    <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior="padding"
-      >
+    <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <ExerciseDetailContent
           ref={contentRef}
           exercise={exercise}

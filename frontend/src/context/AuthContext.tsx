@@ -8,7 +8,7 @@ import {
 import { storeToken, clearAuthToken, isAuthenticated } from "../utils/auth";
 import { getCurrentUserProfile } from "../api/userService";
 import { UserProfile } from "../api/types";
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export type User = UserProfile;
 
@@ -68,7 +68,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           } else {
             // Network error - keep token but show error
             setAuthError(
-              "Unable to load profile. Please check your connection."
+              "Unable to load profile. Please check your connection.",
             );
             // Don't clear user or token - allow retry
           }
@@ -117,7 +117,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setUser(null);
 
       // Clear any in-progress workout
-      await AsyncStorage.removeItem('@workout_state');
+      await AsyncStorage.removeItem("@workout_state");
     } catch (error) {
       console.error("Logout failed:", error);
       throw error;

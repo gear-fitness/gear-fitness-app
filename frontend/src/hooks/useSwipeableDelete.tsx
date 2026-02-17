@@ -1,5 +1,11 @@
 import { useRef } from "react";
-import { Alert, Animated, TouchableOpacity, Image, StyleSheet } from "react-native";
+import {
+  Alert,
+  Animated,
+  TouchableOpacity,
+  Image,
+  StyleSheet,
+} from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 import trashIcon from "../assets/trash.png";
 
@@ -41,7 +47,7 @@ export function useSwipeableDelete({
   const renderRightActions = (
     progress: Animated.AnimatedInterpolation<number>,
     dragX: Animated.AnimatedInterpolation<number>,
-    id: string
+    id: string,
   ) => {
     const translateX = progress.interpolate({
       inputRange: [0, 1],
@@ -80,7 +86,7 @@ export function useSwipeableDelete({
     onSwipeableWillOpen: () => confirmDelete(id),
     renderRightActions: (
       prog: Animated.AnimatedInterpolation<number>,
-      drag: Animated.AnimatedInterpolation<number>
+      drag: Animated.AnimatedInterpolation<number>,
     ) => renderRightActions(prog, drag, id),
   });
 

@@ -25,7 +25,7 @@ export function Workout() {
   const formatTime = (t: number) =>
     `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(
       2,
-      "0"
+      "0",
     )}`;
 
   // If workout is in progress, show workout status
@@ -110,7 +110,7 @@ export function Workout() {
                 {exercises.reduce(
                   (sum, ex) =>
                     sum + ex.sets.filter((s) => s.reps && s.weight).length,
-                  0
+                  0,
                 )}
               </Text>
               <Text

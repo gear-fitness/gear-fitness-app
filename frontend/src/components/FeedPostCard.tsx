@@ -101,7 +101,9 @@ export function FeedPostCard({ post, onOpenComments }: Props) {
             }
           >
             <View style={styles.userInfo}>
-              <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+              <View
+                style={[styles.avatar, { backgroundColor: colors.primary }]}
+              >
                 <Text style={styles.avatarText}>
                   {post.username.charAt(0).toUpperCase()}
                 </Text>
@@ -111,7 +113,10 @@ export function FeedPostCard({ post, onOpenComments }: Props) {
                   {post.username}
                 </Text>
                 <Text
-                  style={[styles.timestamp, { color: colors.text, opacity: 0.6 }]}
+                  style={[
+                    styles.timestamp,
+                    { color: colors.text, opacity: 0.6 },
+                  ]}
                 >
                   {formatTimeAgo(post.createdAt)}
                 </Text>
@@ -150,7 +155,10 @@ export function FeedPostCard({ post, onOpenComments }: Props) {
               <View style={styles.metaItem}>
                 <Ionicons name="time-outline" size={16} color={colors.text} />
                 <Text
-                  style={[styles.metaText, { color: colors.text, opacity: 0.6 }]}
+                  style={[
+                    styles.metaText,
+                    { color: colors.text, opacity: 0.6 },
+                  ]}
                 >
                   {post.durationMin} min
                 </Text>
@@ -158,9 +166,16 @@ export function FeedPostCard({ post, onOpenComments }: Props) {
             )}
             {post.bodyTags?.length > 0 && (
               <View style={styles.metaItem}>
-                <Ionicons name="fitness-outline" size={16} color={colors.text} />
+                <Ionicons
+                  name="fitness-outline"
+                  size={16}
+                  color={colors.text}
+                />
                 <Text
-                  style={[styles.metaText, { color: colors.text, opacity: 0.6 }]}
+                  style={[
+                    styles.metaText,
+                    { color: colors.text, opacity: 0.6 },
+                  ]}
                 >
                   {post.bodyTags.map(formatBodyTag).join(", ")}
                 </Text>
@@ -170,17 +185,28 @@ export function FeedPostCard({ post, onOpenComments }: Props) {
               <View style={styles.metaItem}>
                 <Ionicons name="list-outline" size={16} color={colors.text} />
                 <Text
-                  style={[styles.metaText, { color: colors.text, opacity: 0.6 }]}
+                  style={[
+                    styles.metaText,
+                    { color: colors.text, opacity: 0.6 },
+                  ]}
                 >
-                  {post.exerciseCount} {post.exerciseCount === 1 ? 'exercise' : 'exercises'}
+                  {post.exerciseCount}{" "}
+                  {post.exerciseCount === 1 ? "exercise" : "exercises"}
                 </Text>
               </View>
               <View style={styles.metaItem}>
-                <Ionicons name="stats-chart-outline" size={16} color={colors.text} />
+                <Ionicons
+                  name="stats-chart-outline"
+                  size={16}
+                  color={colors.text}
+                />
                 <Text
-                  style={[styles.metaText, { color: colors.text, opacity: 0.6 }]}
+                  style={[
+                    styles.metaText,
+                    { color: colors.text, opacity: 0.6 },
+                  ]}
                 >
-                  {post.setCount} {post.setCount === 1 ? 'set' : 'sets'}
+                  {post.setCount} {post.setCount === 1 ? "set" : "sets"}
                 </Text>
               </View>
             </View>

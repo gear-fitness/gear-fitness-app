@@ -2,44 +2,35 @@ package com.gearfitness.gear_api.controller;
 
 import com.gearfitness.gear_api.dto.ExerciseDTO;
 import com.gearfitness.gear_api.entity.Exercise;
-import lombok.RequiredArgsConstructor;
 import com.gearfitness.gear_api.repository.ExerciseRepository;
-import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/exercises")
 @RequiredArgsConstructor
 public class ExerciseController {
 
-    private final ExerciseRepository exerciseRepo;
+  private final ExerciseRepository exerciseRepo;
 
-
-@GetMapping
-public List<ExerciseDTO> getAllExercises() {
+  @GetMapping
+  public List<ExerciseDTO> getAllExercises() {
     return exerciseRepo.findAll().stream()
-        .map(ex -> new ExerciseDTO(
-            ex.getExerciseId(),
-            ex.getName(),
-            ex.getBodyPart(),     
-            ex.getDescription()
-        ))
+        .map(
+            ex ->
+                new ExerciseDTO(
+                    ex.getExerciseId(), ex.getName(), ex.getBodyPart(), ex.getDescription()))
         .toList();
-}
+  }
 
-
-@GetMapping("/filter")
-public List<ExerciseDTO> getByBodyPart(@RequestParam Exercise.BodyPart bodyPart) {
+  @GetMapping("/filter")
+  public List<ExerciseDTO> getByBodyPart(@RequestParam Exercise.BodyPart bodyPart) {
     return exerciseRepo.findByBodyPart(bodyPart).stream()
-            .map(ex -> new ExerciseDTO(
-                    ex.getExerciseId(),
-                    ex.getName(),
-                    ex.getBodyPart(),
-                    ex.getDescription()
-            ))
-            .toList();
+        .map(
+            ex ->
+                new ExerciseDTO(
+                    ex.getExerciseId(), ex.getName(), ex.getBodyPart(), ex.getDescription()))
+        .toList();
+  }
 }
-
-}
-    
-

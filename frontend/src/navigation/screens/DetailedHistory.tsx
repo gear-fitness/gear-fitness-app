@@ -122,7 +122,9 @@ export function DetailedHistory({ route }: Props) {
             day: "numeric",
             year: "numeric",
           })}
-          {workout.durationMin != null && workout.durationMin > 0 && ` • ${workout.durationMin} min`}
+          {workout.durationMin != null &&
+            workout.durationMin > 0 &&
+            ` • ${workout.durationMin} min`}
         </Text>
         {workout.bodyTag && (
           <Text
@@ -144,7 +146,9 @@ export function DetailedHistory({ route }: Props) {
             },
           ]}
         >
-          <Text style={[styles.captionText, { color: isDark ? "#fff" : "#000" }]}>
+          <Text
+            style={[styles.captionText, { color: isDark ? "#fff" : "#000" }]}
+          >
             {caption}
           </Text>
         </View>

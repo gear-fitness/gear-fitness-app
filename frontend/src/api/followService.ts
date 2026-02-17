@@ -52,7 +52,7 @@ export async function acceptFollowRequest(followerId: string): Promise<void> {
         "Content-Type": "application/json",
         ...authHeader,
       },
-    }
+    },
   );
 
   if (!response.ok) {
@@ -75,7 +75,7 @@ export async function declineFollowRequest(followerId: string): Promise<void> {
         "Content-Type": "application/json",
         ...authHeader,
       },
-    }
+    },
   );
 
   if (!response.ok) {

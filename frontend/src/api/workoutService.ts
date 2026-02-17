@@ -59,7 +59,7 @@ export interface WorkoutDetailResponse {
 }
 
 export async function submitWorkout(
-  submission: WorkoutSubmission
+  submission: WorkoutSubmission,
 ): Promise<WorkoutDetailResponse> {
   const authHeader = await getAuthHeader();
 
@@ -84,7 +84,7 @@ export async function submitWorkout(
  */
 export async function getWeeklyVolume(
   userId: string,
-  weeks: number = 8
+  weeks: number = 8,
 ): Promise<WeeklyVolumeData[]> {
   const authHeader = await getAuthHeader();
 
@@ -96,7 +96,7 @@ export async function getWeeklyVolume(
         "Content-Type": "application/json",
         ...authHeader,
       },
-    }
+    },
   );
 
   if (!response.ok) {
@@ -113,7 +113,7 @@ export async function getWeeklyVolume(
 export async function getDailyVolume(
   userId: string,
   weeks: number = 2,
-  weekStartDay: string = 'SUNDAY'
+  weekStartDay: string = "SUNDAY",
 ): Promise<DailyVolumeData[]> {
   const authHeader = await getAuthHeader();
 
@@ -125,7 +125,7 @@ export async function getDailyVolume(
         "Content-Type": "application/json",
         ...authHeader,
       },
-    }
+    },
   );
 
   if (!response.ok) {
@@ -162,7 +162,7 @@ export async function getUserWorkouts(userId: string): Promise<Workout[]> {
  * Get detailed workout by ID
  */
 export async function getWorkoutDetails(
-  workoutId: string
+  workoutId: string,
 ): Promise<WorkoutDetail> {
   const authHeader = await getAuthHeader();
 
@@ -186,7 +186,7 @@ export async function getWorkoutDetails(
  * Get personal records for a user
  */
 export async function getUserPersonalRecords(
-  userId: string
+  userId: string,
 ): Promise<PersonalRecord[]> {
   const authHeader = await getAuthHeader();
 
@@ -198,7 +198,7 @@ export async function getUserPersonalRecords(
         "Content-Type": "application/json",
         ...authHeader,
       },
-    }
+    },
   );
 
   if (!response.ok) {
@@ -225,7 +225,9 @@ export async function deleteWorkout(workoutId: string): Promise<void> {
 
   if (!response.ok) {
     if (response.status === 404) {
-      throw new Error("Workout not found or you don't have permission to delete it");
+      throw new Error(
+        "Workout not found or you don't have permission to delete it",
+      );
     }
     const errorText = await response.text();
     throw new Error(`Failed to delete workout: ${errorText}`);

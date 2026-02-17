@@ -25,7 +25,7 @@ export interface ChatResponse {
  */
 export async function sendExerciseChat(
   exerciseId: string,
-  messages: ChatMessage[]
+  messages: ChatMessage[],
 ): Promise<ChatResponse> {
   const authHeader = await getAuthHeader();
 
@@ -38,7 +38,7 @@ export async function sendExerciseChat(
         ...authHeader,
       },
       body: JSON.stringify({ messages }),
-    }
+    },
   );
 
   if (!response.ok) {

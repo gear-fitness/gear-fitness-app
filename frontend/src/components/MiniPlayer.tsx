@@ -22,19 +22,18 @@ export function MiniPlayer({ onTap, isVisible }: MiniPlayerProps) {
 
   // Find current exercise
   const currentExercise = exercises.find(
-    (ex) => ex.workoutExerciseId === currentExerciseId
+    (ex) => ex.workoutExerciseId === currentExerciseId,
   );
 
   const formatTime = (t: number) =>
     `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(
       2,
-      "0"
+      "0",
     )}`;
 
   // Get last valid set info if we have an exercise
-  const validSets = currentExercise?.sets.filter(
-    (s) => s.reps && s.weight
-  ) || [];
+  const validSets =
+    currentExercise?.sets.filter((s) => s.reps && s.weight) || [];
   const lastSet = validSets[validSets.length - 1];
 
   return (
@@ -65,7 +64,8 @@ export function MiniPlayer({ onTap, isVisible }: MiniPlayerProps) {
             </Text>
             {lastSet ? (
               <Text style={[styles.setInfo, { color: colors.subtle }]}>
-                Set {validSets.length}: {lastSet.reps} reps × {lastSet.weight} lb
+                Set {validSets.length}: {lastSet.reps} reps × {lastSet.weight}{" "}
+                lb
               </Text>
             ) : (
               <Text style={[styles.setInfo, { color: colors.subtle }]}>

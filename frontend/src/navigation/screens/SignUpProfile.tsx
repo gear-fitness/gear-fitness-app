@@ -37,7 +37,7 @@ export function SignUpProfileScreen() {
       if (isNaN(height) || height < 24 || height > 96) {
         Alert.alert(
           "Invalid Height",
-          "Please enter a valid height between 24 and 96 inches (2-8 feet)"
+          "Please enter a valid height between 24 and 96 inches (2-8 feet)",
         );
         return false;
       }
@@ -46,7 +46,7 @@ export function SignUpProfileScreen() {
       if (isNaN(weight) || weight < 50 || weight > 500) {
         Alert.alert(
           "Invalid Weight",
-          "Please enter a valid weight between 50 and 500 lbs"
+          "Please enter a valid weight between 50 and 500 lbs",
         );
         return false;
       }
@@ -55,7 +55,7 @@ export function SignUpProfileScreen() {
       if (isNaN(userAge) || userAge < 13 || userAge > 120) {
         Alert.alert(
           "Invalid Age",
-          "Please enter a valid age between 13 and 120"
+          "Please enter a valid age between 13 and 120",
         );
         return false;
       }
@@ -75,7 +75,7 @@ export function SignUpProfileScreen() {
       const userData = await updateUserProfile(
         heightInches ? parseInt(heightInches) : undefined,
         weightLbs ? parseInt(weightLbs) : undefined,
-        age ? parseInt(age) : undefined
+        age ? parseInt(age) : undefined,
       );
 
       console.log("Profile updated successfully:", userData);
