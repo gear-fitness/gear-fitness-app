@@ -55,35 +55,30 @@ export function History() {
   const [data, setData] = useState<Workout[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
+  // Fetch workouts on initial mount
+  useEffect(() => {
+    fetchWorkouts();
+  }, []);
+
   // Function to fetch workouts
   const fetchWorkouts = async () => {
     if (!user?.userId) return;
-
-    console.log("Fetching workouts for user:", user.userId);
     try {
       const workouts = await getUserWorkouts(user.userId);
-      console.log("Workouts fetched:", workouts.length);
       setData(workouts);
-
-      const marks: any = {};
-      workouts.forEach((w) => {
-        marks[w.datePerformed] = {
-          marked: true,
-          selected: true,
-          dotColor: "#1877F2",
-          selectedColor: "#1877F2",
-        };
-      });
-      setMarkedDates(marks);
+      setMarkedDates(buildMarkedDates(workouts));
     } catch (err) {
       console.error("Error loading workouts:", err);
     }
   };
 
-  // Fetch workouts on initial mount
-  useEffect(() => {
-    fetchWorkouts();
-  }, []);
+  const buildMarkedDates = (workouts: Workout[]) => {
+    const marks: Record<string, boolean> = {};
+    workouts.forEach((w) => {
+      marks[w.datePerformed] = true;
+    });
+    return marks;
+  };
 
   // Refetch workouts every time the screen comes into focus
   useFocusEffect(
@@ -95,25 +90,13 @@ export function History() {
   const handleDeleteWorkout = async (workoutId: string) => {
     try {
       await deleteWorkout(workoutId);
-
-      // Optimistically update local state
-      setData((prevData) => prevData.filter((w) => w.workoutId !== workoutId));
-
-      // Update calendar marks
-      const updatedWorkouts = data.filter((w) => w.workoutId !== workoutId);
-      const marks: any = {};
-      updatedWorkouts.forEach((w) => {
-        marks[w.datePerformed] = {
-          marked: true,
-          selected: true,
-          dotColor: "#1877F2",
-          selectedColor: "#1877F2",
-        };
+      setData((prevData) => {
+        const updated = prevData.filter((w) => w.workoutId !== workoutId);
+        setMarkedDates(buildMarkedDates(updated));
+        return updated;
       });
-      setMarkedDates(marks);
     } catch (error) {
       console.error("Error deleting workout:", error);
-      // Re-fetch to restore state if deletion failed
       fetchWorkouts();
     }
   };
@@ -204,36 +187,59 @@ export function History() {
     >
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <Calendar
+          maxDate={formattedToday}
           key={colors.background}
           style={styles.calendar}
           current={formattedToday}
           markedDates={{
-            ...markedDates,
+            // Base workout day marks - light blue background
+            ...Object.keys(markedDates).reduce((acc: any, date: string) => {
+              acc[date] = {
+                customStyles: {
+                  container: {
+                    backgroundColor: "rgba(24, 119, 242, 0.15)",
+                    borderRadius: 16,
+                  },
+                  text: { color: colors.text },
+                },
+              };
+              return acc;
+            }, {}),
+
+            // Today - always blue filled circle (with border when selected)
             [formattedToday]: {
-              ...(markedDates as any)[formattedToday],
               customStyles: {
-                text: { color: "#1877F2", fontWeight: "700" },
+                container: {
+                  backgroundColor: "#1877F2",
+                  borderRadius: 16,
+                  ...(selectedDate === formattedToday && {
+                    borderWidth: 1,
+                    borderColor: isDarkMode ? "#FFFFFF" : "#1a1a1a",
+                  }),
+                },
+                text: { color: "#FFFFFF", fontWeight: "700" },
               },
             },
+
+            // Selected day (not today) - inverted circle
             ...(selectedDate && selectedDate !== formattedToday
               ? {
                   [selectedDate]: {
-                    ...(markedDates as any)[selectedDate],
-                    selected: true,
-                    selectedColor: "#34C759",
-                  },
-                }
-              : {}),
-            ...(selectedDate && selectedDate === formattedToday
-              ? {
-                  [formattedToday]: {
-                    ...(markedDates as any)[formattedToday],
-                    selected: true,
-                    selectedColor: "#34C759",
+                    customStyles: {
+                      container: {
+                        backgroundColor: isDarkMode ? "#FFFFFF" : "#1a1a1a",
+                        borderRadius: 16,
+                      },
+                      text: {
+                        color: isDarkMode ? "#1a1a1a" : "#FFFFFF",
+                        fontWeight: "600",
+                      },
+                    },
                   },
                 }
               : {}),
           }}
+          markingType="custom"
           onDayPress={(day: { dateString: string }) => {
             setSelectedDate((prev) =>
               prev === day.dateString ? null : day.dateString,
@@ -256,18 +262,11 @@ export function History() {
             textDayFontSize: 15,
             textMonthFontSize: 18,
             textDayHeaderFontSize: 13,
-            selectedDayBackgroundColor: "#1877F2",
-            selectedDayTextColor: "#ffffff",
-            dotColor: "#1877F2",
-            selectedDotColor: "#ffffff",
-            todayBackgroundColor: isDarkMode
-              ? "rgba(24, 119, 242, 0.15)"
-              : "rgba(24, 119, 242, 0.1)",
+            textDisabledColor: isDarkMode ? "#555" : "#ccc",
           }}
           hideExtraDays={true}
           enableSwipeMonths={true}
         />
-
         {/* Search Bar + PR Button */}
         <View style={styles.searchContainer}>
           <TextInput
@@ -293,7 +292,6 @@ export function History() {
             <Image source={weightlifter} style={styles.settingsButtonIcon} />
           </TouchableOpacity>
         </View>
-
         <FlatList
           data={filteredData}
           keyExtractor={(item) => item.workoutId}
