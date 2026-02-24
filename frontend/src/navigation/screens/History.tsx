@@ -192,7 +192,6 @@ export function History() {
           style={styles.calendar}
           current={formattedToday}
           markedDates={{
-            // Base workout day marks - light blue background
             ...Object.keys(markedDates).reduce((acc: any, date: string) => {
               acc[date] = {
                 customStyles: {
@@ -206,32 +205,23 @@ export function History() {
               return acc;
             }, {}),
 
-            // Today - always blue filled circle (with border when selected)
             [formattedToday]: {
               customStyles: {
-                container: {
-                  backgroundColor: "#1877F2",
-                  borderRadius: 16,
-                  ...(selectedDate === formattedToday && {
-                    borderWidth: 1,
-                    borderColor: isDarkMode ? "#FFFFFF" : "#1a1a1a",
-                  }),
-                },
-                text: { color: "#FFFFFF", fontWeight: "700" },
+                text: { color: "#1877F2", fontWeight: "700" },
               },
             },
 
             // Selected day (not today) - inverted circle
-            ...(selectedDate && selectedDate !== formattedToday
+            ...(selectedDate
               ? {
                   [selectedDate]: {
                     customStyles: {
                       container: {
-                        backgroundColor: isDarkMode ? "#FFFFFF" : "#1a1a1a",
+                        backgroundColor: "#1877F2",
                         borderRadius: 16,
                       },
                       text: {
-                        color: isDarkMode ? "#1a1a1a" : "#FFFFFF",
+                        color: "#FFFFFF",
                         fontWeight: "600",
                       },
                     },
