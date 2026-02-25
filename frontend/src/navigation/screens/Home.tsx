@@ -1,8 +1,6 @@
-import { Text } from "@react-navigation/elements";
 import {
   useNavigation,
   useFocusEffect,
-  useTheme,
 } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import {
@@ -14,17 +12,20 @@ import {
   ActivityIndicator,
   useColorScheme,
 } from "react-native";
+import { Text } from "@react-navigation/elements";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BarChart } from "react-native-gifted-charts";
 import { useEffect, useState } from "react";
 import React from "react";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../context/AuthContext";
 import { getDailyVolume, getUserWorkouts } from "../../api/workoutService";
 import { DailyVolumeData, Workout } from "../../api/types";
 import { parseLocalDate } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
 
-const { width, height } = Dimensions.get("window");
+const { width } = Dimensions.get("window");
 
 type RootStackParamList = {
   History: undefined;
@@ -36,29 +37,52 @@ type RootStackParamList = {
 };
 
 export function Home() {
-  // Add the tab tracking hook at the beginning
   useTrackTab("Home");
 
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { colors } = useTheme();
   const colorScheme = useColorScheme();
   const isDarkMode = colorScheme === "dark";
+
   const [dailyData, setDailyData] = useState<DailyVolumeData[]>([]);
   const [allDailyData, setAllDailyData] = useState<DailyVolumeData[]>([]);
   const [prevWeekAvg, setPrevWeekAvg] = useState<number>(0);
   const [recentWorkouts, setRecentWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
-  const [weekOffset, setWeekOffset] = useState<number>(0); // 0 = current week, -1 = previous week, etc.
+  const [weekOffset, setWeekOffset] = useState<number>(0);
   const [weekDateRange, setWeekDateRange] = useState<string>("");
 
-  // Fetch data on initial mount
+  // Derived values for hero card
+  const getGreeting = () => {
+    const h = new Date().getHours();
+    if (h < 12) return "Good morning";
+    if (h < 17) return "Good afternoon";
+    return "Good evening";
+  };
+
+  const weeklyTotal = dailyData.reduce((sum, d) => sum + d.totalVolumeLbs, 0);
+
+  const thisWeekCount = (() => {
+    const now = new Date();
+    const sunday = new Date(now);
+    sunday.setDate(now.getDate() - now.getDay());
+    sunday.setHours(0, 0, 0, 0);
+    return recentWorkouts.filter(
+      (w) => parseLocalDate(w.datePerformed) >= sunday
+    ).length;
+  })();
+
+  const todayLabel = new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  });
+
   useEffect(() => {
     fetchData();
   }, []);
 
-  // Refetch data every time the screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
       fetchData();
@@ -78,13 +102,9 @@ export function Home() {
 
   const fetchDailyVolume = async () => {
     if (!user?.userId) return;
-
     try {
-      // Fetch all workout data (weeks = 0 means fetch all from first workout)
       const data = await getDailyVolume(user.userId, 0, "SUNDAY");
       setAllDailyData(data);
-
-      // Initialize with current week (offset 0)
       updateWeekData(data, 0);
       setWeekOffset(0);
     } catch (error) {
@@ -94,10 +114,8 @@ export function Home() {
 
   const fetchRecentWorkouts = async () => {
     if (!user?.userId) return;
-
     try {
       const workouts = await getUserWorkouts(user.userId);
-      // Backend already sorts by date (desc) and createdAt (desc), so just take the first 3
       const recent = workouts.slice(0, 3);
       setRecentWorkouts(recent);
     } catch (error) {
@@ -129,7 +147,6 @@ export function Home() {
 
   const getWeekDateRange = (weekData: DailyVolumeData[]) => {
     if (weekData.length === 0) return "";
-    // Parse dates as local dates to avoid timezone issues
     const [startYear, startMonth, startDay] = weekData[0].date
       .split("-")
       .map(Number);
@@ -170,17 +187,13 @@ export function Home() {
   };
 
   const formatVolume = (volume: number) => {
-    if (volume >= 1000000) {
-      return `${(volume / 1000000).toFixed(1)}M`;
-    } else if (volume >= 1000) {
-      return `${(volume / 1000).toFixed(1)}K`;
-    }
+    if (volume >= 1000000) return `${(volume / 1000000).toFixed(1)}M`;
+    if (volume >= 1000) return `${(volume / 1000).toFixed(1)}K`;
     return volume.toFixed(0);
   };
 
   const getBarChartData = () => {
     if (dailyData.length === 0) return [];
-
     return dailyData.map((item, index) => ({
       value: item.totalVolumeLbs,
       label: ["S", "M", "T", "W", "T", "F", "S"][index],
@@ -201,33 +214,72 @@ export function Home() {
       flex: 1,
       paddingHorizontal: 16,
       gap: 12,
+      paddingBottom: 20,
     },
-    title: {
-      fontSize: 26,
-      fontWeight: "700",
-      alignSelf: "center",
-      letterSpacing: -0.5,
-      color: isDarkMode ? "#FFF" : "#1a1a1a",
+    // ── Hero Card ──
+    heroCard: {
+      borderRadius: 20,
+      padding: 20,
+      marginBottom: 4,
+      overflow: "hidden",
     },
-    sectionTitle: {
-      fontSize: 18,
+    greeting: {
+      fontSize: 22,
       fontWeight: "700",
-      marginTop: 4,
-      color: isDarkMode ? "#FFF" : "#333",
+      color: isDarkMode ? "#FFFFFF" : "#1A3A5C",
       letterSpacing: -0.3,
     },
+    todayLabel: {
+      fontSize: 13,
+      color: isDarkMode ? "rgba(255,255,255,0.55)" : "rgba(0,48,100,0.5)",
+      marginTop: 2,
+      marginBottom: 14,
+      fontWeight: "500",
+    },
+    heroStats: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    heroStatChip: {
+      flex: 1,
+      backgroundColor: "rgba(0,122,255,0.08)",
+      borderRadius: 12,
+      padding: 10,
+      alignItems: "center",
+    },
+    heroStatChipDark: {
+      backgroundColor: "rgba(255,255,255,0.10)",
+    },
+    heroStatValue: {
+      fontSize: 18,
+      fontWeight: "800",
+      color: isDarkMode ? "#FFFFFF" : "#007AFF",
+      letterSpacing: -0.5,
+    },
+    heroStatLabel: {
+      fontSize: 9,
+      fontWeight: "600",
+      letterSpacing: 0.5,
+      color: isDarkMode ? "rgba(255,255,255,0.5)" : "rgba(0,48,100,0.5)",
+      marginTop: 2,
+      textTransform: "uppercase",
+    },
+    heroStatDivider: {
+      width: 12,
+    },
+    // ── Chart ──
     chart: {
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: isDarkMode ? colors.card : "white",
+      backgroundColor: isDarkMode ? "#1A1A1A" : "white",
       width: "100%",
-      borderRadius: 16,
-      marginVertical: 8,
-      paddingVertical: 12,
-      shadowColor: "#000",
+      borderRadius: 20,
+      marginVertical: 4,
+      paddingVertical: 16,
+      shadowColor: "#007AFF",
       shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
+      shadowOpacity: isDarkMode ? 0.14 : 0.08,
+      shadowRadius: 12,
       elevation: 3,
     },
     chartTitle: {
@@ -243,35 +295,103 @@ export function Home() {
       justifyContent: "center",
       alignItems: "center",
     },
+    weekNavigation: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingHorizontal: 20,
+      marginTop: 6,
+      marginBottom: 12,
+    },
+    navButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: isDarkMode ? "#2A2A2A" : "#f0f0f0",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    navButtonDisabled: {
+      opacity: 0.35,
+    },
+    navButtonText: {
+      color: isDarkMode ? "#FFF" : "#333",
+      fontSize: 18,
+      fontWeight: "600",
+    },
+    weekRangeText: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: isDarkMode ? "#DDD" : "#555",
+      flex: 1,
+      textAlign: "center",
+      marginHorizontal: 12,
+      letterSpacing: 0.2,
+    },
+    prevWeekAvgContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      marginTop: 8,
+      marginBottom: 4,
+    },
+    refLineIndicator: {
+      width: 20,
+      height: 2,
+      backgroundColor: "#FF6B6B",
+      marginRight: 8,
+    },
+    prevWeekAvgText: {
+      fontSize: 12,
+      color: isDarkMode ? "#AAA" : "#888",
+      fontWeight: "400",
+      letterSpacing: 0.1,
+    },
+    // ── Recent Activity ──
+    activityCardsTitle: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginTop: 4,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: isDarkMode ? "#FFF" : "#1a1a1a",
+      letterSpacing: -0.3,
+    },
+    seeAllButton: {
+      paddingVertical: 4,
+      paddingHorizontal: 8,
+    },
+    seeAllText: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: "#007AFF",
+    },
     activityCards: {
       gap: 10,
       paddingBottom: 20,
     },
     activityCard: {
-      backgroundColor: isDarkMode ? colors.card : "white",
-      padding: 14,
-      borderRadius: 12,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.06,
-      shadowRadius: 6,
-      elevation: 2,
-    },
-    cardTitle: {
-      fontSize: 15,
-      fontWeight: "600",
-      marginBottom: 3,
-      color: isDarkMode ? "#FFF" : "#1a1a1a",
-    },
-    cardSubtitle: {
-      fontSize: 13,
-      color: isDarkMode ? "#AAA" : "#777",
-      fontWeight: "400",
-    },
-    cardContent: {
+      backgroundColor: isDarkMode ? "#1A1A1A" : "white",
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "space-between",
+      borderRadius: 14,
+      shadowColor: "#007AFF",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isDarkMode ? 0.12 : 0.06,
+      shadowRadius: 8,
+      elevation: 3,
+      overflow: "hidden",
+      paddingRight: 16,
+      paddingVertical: 14,
+    },
+    cardAccentBar: {
+      width: 3,
+      alignSelf: "stretch",
+      borderRadius: 2,
+      marginRight: 12,
     },
     cardLeft: {
       flexDirection: "row",
@@ -293,88 +413,80 @@ export function Home() {
     cardInfo: {
       flex: 1,
     },
-    cardChevron: {
-      fontSize: 24,
-      color: "#C7C7CC",
-      fontWeight: "300",
-      marginLeft: 8,
+    cardTitle: {
+      fontSize: 15,
+      fontWeight: "600",
+      marginBottom: 3,
+      color: isDarkMode ? "#FFF" : "#1a1a1a",
     },
-    activityCardsTitle: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-    },
-    seeAllButton: {
-      paddingVertical: 4,
-      paddingHorizontal: 8,
-    },
-    seeAllText: {
+    cardSubtitle: {
       fontSize: 13,
-      fontWeight: "600",
-      color: "#007AFF",
-    },
-    weekNavigation: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      paddingHorizontal: 20,
-      marginTop: 6,
-      marginBottom: 12,
-    },
-    navButton: {
-      width: 32,
-      height: 32,
-      borderRadius: 8,
-      backgroundColor: isDarkMode ? "#333" : "#f5f5f5",
-      justifyContent: "center",
-      alignItems: "center",
-    },
-    navButtonDisabled: {
-      backgroundColor: isDarkMode ? "#222" : "#fafafa",
-      opacity: 0.4,
-    },
-    navButtonText: {
-      color: isDarkMode ? "#FFF" : "#333",
-      fontSize: 18,
-      fontWeight: "600",
-    },
-    weekRangeText: {
-      fontSize: 13,
-      fontWeight: "600",
-      color: isDarkMode ? "#FFF" : "#666",
-      flex: 1,
-      textAlign: "center",
-      marginHorizontal: 12,
-      letterSpacing: 0.2,
-    },
-    prevWeekAvgContainer: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      marginTop: 8,
-      marginBottom: 4,
-    },
-    refLineIndicator: {
-      width: 20,
-      height: 2,
-      backgroundColor: "#FF6B6B",
-      marginRight: 8,
-    },
-    prevWeekAvgText: {
-      fontSize: 12,
-      color: isDarkMode ? "#FFF" : "#888",
+      color: isDarkMode ? "#888" : "#777",
       fontWeight: "400",
-      letterSpacing: 0.1,
+    },
+    emptyCard: {
+      backgroundColor: isDarkMode ? "#1A1A1A" : "white",
+      padding: 14,
+      borderRadius: 14,
+    },
+    emptyCardText: {
+      fontSize: 13,
+      color: isDarkMode ? "#666" : "#999",
     },
   });
 
   return (
-    <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={styles.scrollContainer}
+      showsVerticalScrollIndicator={false}
+    >
       <View style={styles.container}>
-        <Text style={styles.title}>Activity</Text>
+        {/* ── Hero Header Card ── */}
+        <LinearGradient
+          colors={
+            isDarkMode
+              ? ["#0A2A4A", "#051828"]
+              : ["#E8F2FF", "#F5F9FF"]
+          }
+          style={styles.heroCard}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <Text style={styles.greeting}>
+            {getGreeting()}
+            {user?.username ? `, ${user.username}` : ""}
+          </Text>
+          <Text style={styles.todayLabel}>{todayLabel}</Text>
+          {!loading && (
+            <View style={styles.heroStats}>
+              <View
+                style={[
+                  styles.heroStatChip,
+                  isDarkMode && styles.heroStatChipDark,
+                ]}
+              >
+                <Text style={styles.heroStatValue}>
+                  {formatVolume(weeklyTotal)} lbs
+                </Text>
+                <Text style={styles.heroStatLabel}>VOLUME THIS WEEK</Text>
+              </View>
+              <View style={styles.heroStatDivider} />
+              <View
+                style={[
+                  styles.heroStatChip,
+                  isDarkMode && styles.heroStatChipDark,
+                ]}
+              >
+                <Text style={styles.heroStatValue}>{thisWeekCount}</Text>
+                <Text style={styles.heroStatLabel}>WORKOUTS THIS WEEK</Text>
+              </View>
+            </View>
+          )}
+        </LinearGradient>
 
+        {/* ── Volume Chart Card ── */}
         <View style={styles.chart}>
-          <Text style={styles.chartTitle}>Daily Volume (lbs)</Text>
+          <Text style={styles.chartTitle}>Volume Tracker</Text>
           <View style={styles.weekNavigation}>
             <TouchableOpacity
               onPress={goToPreviousWeek}
@@ -403,6 +515,7 @@ export function Home() {
               <Text style={styles.navButtonText}>→</Text>
             </TouchableOpacity>
           </View>
+
           {loading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#007AFF" />
@@ -452,6 +565,7 @@ export function Home() {
               }}
             />
           )}
+
           {prevWeekAvg > 0 && (
             <View style={styles.prevWeekAvgContainer}>
               <View style={styles.refLineIndicator} />
@@ -462,13 +576,12 @@ export function Home() {
           )}
         </View>
 
+        {/* ── Recent Activity ── */}
         <View style={styles.activityCardsTitle}>
           <Text style={styles.sectionTitle}>Recent Activity</Text>
           <TouchableOpacity
             style={styles.seeAllButton}
-            onPress={() => {
-              navigation.navigate("History");
-            }}
+            onPress={() => navigation.navigate("History")}
           >
             <Text style={styles.seeAllText}>See All</Text>
           </TouchableOpacity>
@@ -487,31 +600,40 @@ export function Home() {
                   });
                 }}
               >
-                <View style={styles.cardContent}>
-                  <View style={styles.cardLeft}>
-                    <View style={styles.cardIcon}>
-                      <Text style={styles.cardIconText}>🏋️</Text>
-                    </View>
-                    <View style={styles.cardInfo}>
-                      <Text style={styles.cardTitle}>{workout.name}</Text>
-                      <Text style={styles.cardSubtitle}>
-                        {parseLocalDate(
-                          workout.datePerformed
-                        ).toLocaleDateString("en-US", {
+                <View
+                  style={[
+                    styles.cardAccentBar,
+                    { backgroundColor: "#007AFF" },
+                  ]}
+                />
+                <View style={styles.cardLeft}>
+                  <View style={styles.cardIcon}>
+                    <Text style={styles.cardIconText}>🏋️</Text>
+                  </View>
+                  <View style={styles.cardInfo}>
+                    <Text style={styles.cardTitle}>{workout.name}</Text>
+                    <Text style={styles.cardSubtitle}>
+                      {parseLocalDate(workout.datePerformed).toLocaleDateString(
+                        "en-US",
+                        {
                           month: "short",
                           day: "numeric",
                           year: "numeric",
-                        })}
-                      </Text>
-                    </View>
+                        }
+                      )}
+                    </Text>
                   </View>
-                  <Text style={styles.cardChevron}>›</Text>
                 </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color={isDarkMode ? "#555" : "#C7C7CC"}
+                />
               </TouchableOpacity>
             ))
           ) : (
-            <View style={styles.activityCard}>
-              <Text style={styles.cardSubtitle}>No recent workouts</Text>
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyCardText}>No recent workouts</Text>
             </View>
           )}
         </View>

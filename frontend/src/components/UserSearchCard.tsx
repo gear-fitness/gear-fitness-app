@@ -16,21 +16,22 @@ export function UserSearchCard({ username, onPress }: Props) {
       onPress={onPress}
       activeOpacity={0.8}
     >
-      <Ionicons
-        name="person-circle-outline"
-        size={42}
-        color={colors.primary}
-        style={styles.avatar}
-      />
+      <View style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
+        <Text style={styles.avatarLetter}>
+          {username.charAt(0).toUpperCase()}
+        </Text>
+      </View>
 
-      <View>
+      <View style={styles.textBlock}>
         <Text style={[styles.username, { color: colors.text }]}>
           {username}
         </Text>
-        <Text style={[styles.subtext, { color: colors.border }]}>
+        <Text style={[styles.subtext, { color: colors.text }]}>
           View profile
         </Text>
       </View>
+
+      <Ionicons name="chevron-forward" size={18} color={colors.border} />
     </TouchableOpacity>
   );
 }
@@ -40,13 +41,30 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     padding: 14,
-    borderRadius: 12,
+    borderRadius: 14,
     marginHorizontal: 16,
     marginBottom: 10,
+    shadowColor: "#007AFF",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
     elevation: 2,
   },
-  avatar: {
+  avatarCircle: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
+  },
+  avatarLetter: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  textBlock: {
+    flex: 1,
   },
   username: {
     fontSize: 16,
@@ -55,5 +73,6 @@ const styles = StyleSheet.create({
   subtext: {
     fontSize: 12,
     marginTop: 2,
+    opacity: 0.5,
   },
 });
