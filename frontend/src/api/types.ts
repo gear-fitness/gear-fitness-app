@@ -15,6 +15,8 @@ export interface WorkoutStats {
     Sat: number;
     Sun: number;
   };
+  workoutStreak: number;
+  workoutDaysCurrentWeek: number;
 }
 
 export interface UserProfile {
