@@ -32,6 +32,10 @@ export function ActivityModal({ visible, onClose }: ActivityModalProps) {
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // used only to force re-render so timestamps update
+  const [, tick] = useState(0);
+
+  // Load activity when modal opens
   useEffect(() => {
     if (!visible) return;
 
@@ -57,14 +61,44 @@ export function ActivityModal({ visible, onClose }: ActivityModalProps) {
     loadActivity();
   }, [visible]);
 
+  //  Re-render every minute so "Just now" → "1m" → "1h" etc
+  useEffect(() => {
+    if (!visible) return;
+
+    const interval = setInterval(() => {
+      tick((t) => t + 1);
+    }, 60000); // 60 seconds
+
+    return () => clearInterval(interval);
+  }, [visible]);
+
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
     const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
 
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(seconds / 3600);
+    const days = Math.floor(seconds / 86400);
+
+    // 0–59 seconds
     if (seconds < 60) return "Just now";
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
-    return `${Math.floor(seconds / 86400)}d`;
+
+    // 1–59 minutes
+    if (minutes < 60) return `${minutes}m`;
+
+    // 1–23 hours
+    if (hours < 24) return `${hours}h`;
+
+    // 1–6 days
+    if (days < 7) return `${days}d`;
+
+    // 7+ days → show date (Instagram-style)
+    return date.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year:
+        date.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
+    });
   };
 
   const renderItem = ({ item }: { item: ActivityItem }) => (

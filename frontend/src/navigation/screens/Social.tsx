@@ -19,13 +19,18 @@ import {
   useFocusEffect,
 } from "@react-navigation/native";
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import { socialFeedApi, FeedPost } from "../../api/socialFeedApi";
 import { searchUsers } from "../../api/userService";
+import { getFollowActivity } from "../../api/followService";
 import { FeedPostCard } from "../../components/FeedPostCard";
 import { UserSearchCard } from "../../components/UserSearchCard";
 import { useAuth } from "../../context/AuthContext";
 import { ActivityModal } from "../../components/ActivityModal";
 import { useTrackTab } from "../../hooks/useTrackTab";
+
+const LAST_SEEN_KEY = "lastSeenActivityAt";
 
 export function Social() {
   useTrackTab("Social");
@@ -40,22 +45,42 @@ export function Social() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
-  const [followModalVisible, setFollowModalVisible] = useState(false);
+
   const [commentsVisible, setCommentsVisible] = useState(false);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [userResults, setUserResults] = useState<any[]>([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
 
-  // Activity modal state
+  // Activity modal + unread state
   const [showActivity, setShowActivity] = useState(false);
+  const [hasUnreadActivity, setHasUnreadActivity] = useState(false);
+  const [lastSeenActivityAt, setLastSeenActivityAt] = useState<string | null>(
+    null,
+  );
 
-  // Initial load
+  // ✅ NEW: hydration guard
+  const [activityStateLoaded, setActivityStateLoaded] = useState(false);
+
+  // 🔁 Load last-seen timestamp from storage (once)
+  useEffect(() => {
+    const loadLastSeen = async () => {
+      const saved = await AsyncStorage.getItem(LAST_SEEN_KEY);
+      if (saved) {
+        setLastSeenActivityAt(saved);
+      }
+      setActivityStateLoaded(true); // ✅ critical
+    };
+
+    loadLastSeen();
+  }, []);
+
+  // Initial feed load
   useEffect(() => {
     loadFeed();
   }, []);
 
-  // Load initial feed
   const loadFeed = async () => {
     try {
       setLoading(true);
@@ -87,7 +112,7 @@ export function Social() {
     }
   }, []);
 
-  // Load more posts (infinite scroll)
+  // Infinite scroll
   const loadMore = async () => {
     if (!hasMore || loadingMore || loading) return;
 
@@ -105,6 +130,34 @@ export function Social() {
       setLoadingMore(false);
     }
   };
+
+  // 🔔 Check for unread activity (SAFE)
+  useFocusEffect(
+    useCallback(() => {
+      if (!activityStateLoaded) return;
+
+      const checkActivity = async () => {
+        try {
+          const data = await getFollowActivity();
+          if (!data || data.length === 0) return;
+
+          const latestActivityAt = data
+            .map((a: any) => new Date(a.createdAt))
+            .sort((a, b) => b.getTime() - a.getTime())[0];
+
+          if (!lastSeenActivityAt) return;
+
+          if (latestActivityAt > new Date(lastSeenActivityAt)) {
+            setHasUnreadActivity(true);
+          }
+        } catch {
+          console.error("Failed to check activity");
+        }
+      };
+
+      checkActivity();
+    }, [lastSeenActivityAt, activityStateLoaded]),
+  );
 
   // Search users
   useFocusEffect(
@@ -130,17 +183,13 @@ export function Social() {
       };
 
       fetchUsers();
-    }, [searchQuery, user])
+    }, [searchQuery, user]),
   );
 
+  // Comments
   const handleOpenComments = (postId: string) => {
     setSelectedPostId(postId);
     setCommentsVisible(true);
-  };
-
-  const handleCloseComments = () => {
-    setCommentsVisible(false);
-    setSelectedPostId(null);
   };
 
   const renderFooter = () => {
@@ -167,73 +216,8 @@ export function Social() {
     </View>
   );
 
-  if (loading) {
-    return (
-      <SafeAreaView style={[styles.container]}>
-        {/* Search Bar */}
-        <View style={styles.searchRow}>
-          <View
-            style={[
-              styles.searchContainer,
-              { backgroundColor: colors.card, borderColor: colors.border },
-            ]}
-          >
-            <Ionicons
-              name="search"
-              size={20}
-              color={colors.text}
-              style={styles.searchIcon}
-            />
-            <TextInput
-              placeholder="Search users"
-              placeholderTextColor="#999"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              autoCorrect={false}
-              autoCapitalize="none"
-              autoComplete="off"
-              style={[styles.searchInput, { color: colors.text }]}
-              returnKeyType="done"
-              onSubmitEditing={() => Keyboard.dismiss()}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery("")}>
-                <Ionicons name="close-circle" size={20} color={colors.border} />
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* Bell icon */}
-          <TouchableOpacity
-            onPress={() => setShowActivity(true)}
-            style={[
-              styles.bellButton,
-              { backgroundColor: colors.card, borderColor: colors.border },
-            ]}
-          >
-            <Ionicons
-              name="notifications-outline"
-              size={22}
-              color={colors.text}
-            />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-
-        {/* Activity Modal */}
-        <ActivityModal
-          visible={showActivity}
-          onClose={() => setShowActivity(false)}
-        />
-      </SafeAreaView>
-    );
-  }
-
   return (
-    <SafeAreaView>
+    <SafeAreaView style={styles.container}>
       {/* Search Bar */}
       <View style={styles.searchRow}>
         <View
@@ -265,43 +249,50 @@ export function Social() {
           )}
         </View>
 
-        {/* Bell icon */}
+        {/* 🔔 Bell */}
         <TouchableOpacity
-          onPress={() => setShowActivity(true)}
+          onPress={async () => {
+            const now = new Date().toISOString();
+
+            setHasUnreadActivity(false);
+            setLastSeenActivityAt(now);
+            await AsyncStorage.setItem(LAST_SEEN_KEY, now);
+
+            setShowActivity(true);
+          }}
           style={[
             styles.bellButton,
             { backgroundColor: colors.card, borderColor: colors.border },
           ]}
         >
-          <Ionicons
-            name="notifications-outline"
-            size={22}
-            color={colors.text}
-          />
+          <View style={styles.bellWrapper}>
+            <Ionicons
+              name="notifications-outline"
+              size={22}
+              color={colors.text}
+            />
+            {hasUnreadActivity && <View style={styles.redDot} />}
+          </View>
         </TouchableOpacity>
       </View>
 
-      {/* Feed List with Infinite Scroll */}
+      {/* Feed */}
       {searchQuery.length > 0 ? (
         <FlatList
           data={userResults}
           keyExtractor={(item) => String(item.userId)}
-          renderItem={({ item }) => {
-            if (!item?.userId || !item?.username) return null;
-
-            return (
-              <UserSearchCard
-                username={item.username}
-                onPress={() => {
-                  setSearchQuery("");
-                  setUserResults([]);
-                  navigation.navigate("UserProfile", {
-                    username: item.username,
-                  });
-                }}
-              />
-            );
-          }}
+          renderItem={({ item }) => (
+            <UserSearchCard
+              username={item.username}
+              onPress={() => {
+                setSearchQuery("");
+                setUserResults([]);
+                navigation.navigate("UserProfile", {
+                  username: item.username,
+                });
+              }}
+            />
+          )}
           ListEmptyComponent={
             searchingUsers ? (
               <ActivityIndicator style={{ marginTop: 24 }} />
@@ -328,7 +319,6 @@ export function Social() {
         />
       )}
 
-      {/* Activity Modal */}
       <ActivityModal
         visible={showActivity}
         onClose={() => setShowActivity(false)}
@@ -338,9 +328,8 @@ export function Social() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
+
   searchRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -348,6 +337,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     gap: 10,
   },
+
   searchContainer: {
     flex: 1,
     flexDirection: "row",
@@ -357,13 +347,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     height: 40,
   },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-  },
+
+  searchIcon: { marginRight: 8 },
+  searchInput: { flex: 1, fontSize: 16 },
+
   bellButton: {
     width: 40,
     height: 40,
@@ -372,38 +359,50 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+
+  bellWrapper: { position: "relative" },
+
+  redDot: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "red",
   },
+
   feedList: {
     paddingHorizontal: 16,
     paddingVertical: 20,
   },
-  emptyContainer: {
-    flex: 1,
-  },
+
+  emptyContainer: { flex: 1 },
+
   emptyState: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: 32,
   },
+
   emptyText: {
     fontSize: 20,
     fontWeight: "600",
     marginTop: 16,
   },
+
   emptySubtext: {
     fontSize: 14,
     marginTop: 8,
     textAlign: "center",
   },
+
   footer: {
     paddingVertical: 20,
     alignItems: "center",
   },
+
   footerText: {
     marginTop: 8,
     fontSize: 14,
