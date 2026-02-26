@@ -7,8 +7,12 @@ import {
   Image,
   Text,
   Keyboard,
+  Platform,
+  InputAccessoryView,
+  Button,
 } from "react-native";
 import { useColorScheme } from "react-native";
+import { GlassView } from 'expo-glass-effect';
 import {
   useState,
   useEffect,
@@ -20,7 +24,7 @@ import { Swipeable } from "react-native-gesture-handler";
 
 import stopwatch from "../assets/stopwatch.png";
 
-import { useWorkoutTimer, WorkoutExercise } from "../context/WorkoutContext";
+import { useWorkoutTimer, WorkoutExercise, WorkoutSet } from "../context/WorkoutContext";
 import { useSwipeableDelete } from "../hooks/useSwipeableDelete";
 
 interface ExerciseDetailContentProps {
@@ -28,12 +32,15 @@ interface ExerciseDetailContentProps {
     exerciseId: string;
     name: string;
     workoutExerciseId?: string;
-    sets?: Array<{ reps: string; weight: string }>;
+    sets?: WorkoutSet[];
+    note?: string;
   };
   onSummary: () => void;
   onAddExercise: () => void;
   isInPlayer?: boolean;
 }
+
+const inputAccessoryViewID = "noteInput";
 
 export interface ExerciseDetailContentRef {
   save: () => void;
@@ -45,6 +52,7 @@ export const ExerciseDetailContent = forwardRef<
 >(({ exercise, onSummary, onAddExercise, isInPlayer = false }, ref) => {
   const { seconds, addExercise } = useWorkoutTimer();
   const isDark = useColorScheme() === "dark";
+  const [note, setNote] = useState(exercise.note || "");
 
   const colors = {
     bg: isDark ? "#000" : "#fff",
@@ -109,6 +117,7 @@ export const ExerciseDetailContent = forwardRef<
         exerciseId: exercise.exerciseId,
         name: exercise.name,
         sets: validSets,
+        note: note.trim(),
       });
     }
   };
@@ -140,6 +149,7 @@ export const ExerciseDetailContent = forwardRef<
   }, [sets]); // Re-subscribe when sets change
 
   return (
+    <>
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <Text style={[styles.title, { color: colors.text }]}>
         {exercise.name}
@@ -159,7 +169,18 @@ export const ExerciseDetailContent = forwardRef<
           </Text>
         </View>
       </View>
-
+      <TextInput
+        placeholder="Notes (optional)"
+        placeholderTextColor={colors.subtle}
+        value={note}
+        onChangeText={setNote}
+        style={[
+          styles.noteInput,
+          { backgroundColor: colors.inputBg, color: colors.text },
+        ]}
+         multiline
+         inputAccessoryViewID={inputAccessoryViewID}
+      />
       {/* HEADERS */}
       <View style={styles.tableHeaderRow}>
         <Text style={[styles.tableHeaderNum, { color: colors.subtle }]}>
@@ -268,6 +289,17 @@ export const ExerciseDetailContent = forwardRef<
         </TouchableOpacity>
       </View>
     </View>
+    {Platform.OS === "ios" && (
+  <InputAccessoryView nativeID={inputAccessoryViewID}>
+    <View style={styles.keyboardToolbar}>
+      <View style={{ flex: 1 }} />
+      <GlassView style={{ borderRadius: 25, padding: 8 }}>
+        <Button title="Done" onPress={() => Keyboard.dismiss()}  />
+      </GlassView>
+    </View>
+  </InputAccessoryView>
+)}
+</>
   );
 });
 
@@ -333,6 +365,20 @@ const styles = StyleSheet.create({
 
   inputContainer: {
     flex: 1,
+  },
+
+  noteInput: {
+    width: "100%",
+    fontSize: 16,
+    padding: 12,
+    borderRadius: 10,
+  },
+
+  keyboardToolbar: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
 
   input: {
