@@ -109,3 +109,17 @@ export interface PersonalRecord {
   dateAchieved: string | null;
   workoutName: string | null;
 }
+
+export interface RoutineExercise {
+  routineExerciseId: string;
+  exerciseName: string;
+  bodyPart: string;
+  position: number;
+}
+
+export interface Routine {
+  routineId: string;
+  name: string;
+  scheduledDays: string[];
+  exercises: RoutineExercise[];
+}
