@@ -12,7 +12,9 @@ export default {
     scheme: "gearfitness",
     ios: {
       supportsTablet: true,
-      bundleIdentifier: IS_DEV ? "com.gearfitness.dev" : "com.gearfitness",
+      bundleIdentifier: IS_DEV
+        ? "com.gearfitness.dev.build"
+        : "com.gearfitness",
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
         NSAppTransportSecurity: {
