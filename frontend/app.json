@@ -34,6 +34,7 @@
       "favicon": "./assets/GearLogo.png"
     },
     "plugins": [
+      "expo-notifications",
       "expo-asset",
       [
         "expo-splash-screen",
