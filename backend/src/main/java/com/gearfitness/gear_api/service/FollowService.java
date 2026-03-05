@@ -7,6 +7,8 @@ import com.gearfitness.gear_api.entity.AppUser;
 import com.gearfitness.gear_api.entity.Follow;
 import com.gearfitness.gear_api.repository.AppUserRepository;
 import com.gearfitness.gear_api.repository.FollowRepository;
+import com.gearfitness.gear_api.entity.Notification;
+import com.gearfitness.gear_api.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +25,7 @@ public class FollowService {
 
     private final FollowRepository followRepository;
     private final AppUserRepository userRepository;
+    private final NotificationRepository notificationRepository;
 
     /**
      * Follow a user
@@ -67,6 +70,14 @@ public class FollowService {
                 .build();
 
         followRepository.save(follow);
+        // Create follow notification
+        Notification notification = Notification.builder()
+        .recipient(followee)
+        .actor(follower)
+        .type(Notification.NotificationType.FOLLOW)
+        .build();
+
+        notificationRepository.save(notification);
 
         return FollowResponse.builder()
                 .followeeId(followee.getUserId())

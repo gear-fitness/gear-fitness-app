@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   Alert,
   TextInput,
-  Keyboard,
 } from "react-native";
 import { Text } from "@react-navigation/elements";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -19,18 +18,14 @@ import {
   useFocusEffect,
 } from "@react-navigation/native";
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
 import { socialFeedApi, FeedPost } from "../../api/socialFeedApi";
 import { searchUsers } from "../../api/userService";
-import { getFollowActivity } from "../../api/followService";
+import { notificationService } from "../../api/notificationService";
 import { FeedPostCard } from "../../components/FeedPostCard";
 import { UserSearchCard } from "../../components/UserSearchCard";
 import { useAuth } from "../../context/AuthContext";
 import { ActivityModal } from "../../components/ActivityModal";
 import { useTrackTab } from "../../hooks/useTrackTab";
-
-const LAST_SEEN_KEY = "lastSeenActivityAt";
 
 export function Social() {
   useTrackTab("Social");
@@ -46,35 +41,12 @@ export function Social() {
   const [currentPage, setCurrentPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
 
-  const [commentsVisible, setCommentsVisible] = useState(false);
-  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
-
   const [searchQuery, setSearchQuery] = useState("");
   const [userResults, setUserResults] = useState<any[]>([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
 
-  // Activity modal + unread state
   const [showActivity, setShowActivity] = useState(false);
   const [hasUnreadActivity, setHasUnreadActivity] = useState(false);
-  const [lastSeenActivityAt, setLastSeenActivityAt] = useState<string | null>(
-    null,
-  );
-
-  // ✅ NEW: hydration guard
-  const [activityStateLoaded, setActivityStateLoaded] = useState(false);
-
-  // 🔁 Load last-seen timestamp from storage (once)
-  useEffect(() => {
-    const loadLastSeen = async () => {
-      const saved = await AsyncStorage.getItem(LAST_SEEN_KEY);
-      if (saved) {
-        setLastSeenActivityAt(saved);
-      }
-      setActivityStateLoaded(true); // ✅ critical
-    };
-
-    loadLastSeen();
-  }, []);
 
   // Initial feed load
   useEffect(() => {
@@ -131,33 +103,9 @@ export function Social() {
     }
   };
 
-  // 🔔 Check for unread activity (SAFE)
-  useFocusEffect(
-    useCallback(() => {
-      if (!activityStateLoaded) return;
-
-      const checkActivity = async () => {
-        try {
-          const data = await getFollowActivity();
-          if (!data || data.length === 0) return;
-
-          const latestActivityAt = data
-            .map((a: any) => new Date(a.createdAt))
-            .sort((a, b) => b.getTime() - a.getTime())[0];
-
-          if (!lastSeenActivityAt) return;
-
-          if (latestActivityAt > new Date(lastSeenActivityAt)) {
-            setHasUnreadActivity(true);
-          }
-        } catch {
-          console.error("Failed to check activity");
-        }
-      };
-
-      checkActivity();
-    }, [lastSeenActivityAt, activityStateLoaded]),
-  );
+  const handleOpenComments = (postId: string) => {
+    navigation.navigate("Comments", { postId });
+  };
 
   // Search users
   useFocusEffect(
@@ -186,11 +134,21 @@ export function Social() {
     }, [searchQuery, user]),
   );
 
-  // Comments
-  const handleOpenComments = (postId: string) => {
-    setSelectedPostId(postId);
-    setCommentsVisible(true);
-  };
+  // Backend unread count
+  useFocusEffect(
+    useCallback(() => {
+      const checkUnread = async () => {
+        try {
+          const count = await notificationService.getUnreadCount();
+          setHasUnreadActivity(count > 0);
+        } catch (error) {
+          console.error("Failed to fetch unread count", error);
+        }
+      };
+
+      checkUnread();
+    }, []),
+  );
 
   const renderFooter = () => {
     if (!loadingMore) return null;
@@ -242,6 +200,7 @@ export function Social() {
             autoComplete="off"
             style={[styles.searchInput, { color: colors.text }]}
           />
+          {/* Feed */}
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery("")}>
               <Ionicons name="close-circle" size={20} color={colors.border} />
@@ -249,17 +208,8 @@ export function Social() {
           )}
         </View>
 
-        {/* 🔔 Bell */}
         <TouchableOpacity
-          onPress={async () => {
-            const now = new Date().toISOString();
-
-            setHasUnreadActivity(false);
-            setLastSeenActivityAt(now);
-            await AsyncStorage.setItem(LAST_SEEN_KEY, now);
-
-            setShowActivity(true);
-          }}
+          onPress={() => setShowActivity(true)}
           style={[
             styles.bellButton,
             { backgroundColor: colors.card, borderColor: colors.border },
@@ -276,7 +226,6 @@ export function Social() {
         </TouchableOpacity>
       </View>
 
-      {/* Feed */}
       {searchQuery.length > 0 ? (
         <FlatList
           data={userResults}

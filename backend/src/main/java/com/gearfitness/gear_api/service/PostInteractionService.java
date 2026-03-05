@@ -19,6 +19,8 @@ import com.gearfitness.gear_api.repository.AppUserRepository;
 import com.gearfitness.gear_api.repository.PostCommentRepository;
 import com.gearfitness.gear_api.repository.PostLikeRepository;
 import com.gearfitness.gear_api.repository.PostRepository;
+import com.gearfitness.gear_api.entity.Notification;
+import com.gearfitness.gear_api.repository.NotificationRepository;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +34,7 @@ public class PostInteractionService {
     private final PostLikeRepository postLikeRepository;
     private final PostCommentRepository postCommentRepository;
     private final AppUserRepository appUserRepository;
+    private final NotificationRepository notificationRepository;
 
     public LikeResponse toggleLike(UUID userId, UUID postId) {
         Post post = postRepository.findById(postId)
@@ -56,6 +59,18 @@ public class PostInteractionService {
                     .build();
             postLikeRepository.save(newLike);
             liked = true;
+
+            // Create notification if user is not liking their own post
+if (!post.getUser().getUserId().equals(userId)) {
+    Notification notification = Notification.builder()
+            .recipient(post.getUser())
+            .actor(user)
+            .type(Notification.NotificationType.LIKE)
+            .post(post)
+            .build();
+
+    notificationRepository.save(notification);
+}
         }
 
         long likeCount = postLikeRepository.countByPost_PostId(postId);
@@ -87,6 +102,19 @@ public class PostInteractionService {
                 .build();
 
         PostComment savedComment = postCommentRepository.save(comment);
+        
+        // Create notification if commenter is not the post owner
+if (!post.getUser().getUserId().equals(userId)) {
+    Notification notification = Notification.builder()
+            .recipient(post.getUser())
+            .actor(user)
+            .type(Notification.NotificationType.COMMENT)
+            .post(post)
+            .comment(savedComment)
+            .build();
+
+    notificationRepository.save(notification);
+}
 
         return mapToDTO(savedComment);
     }
