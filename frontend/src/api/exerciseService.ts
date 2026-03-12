@@ -49,3 +49,39 @@ export async function getAllExercises(): Promise<Exercise[]> {
     throw new Error("Invalid JSON response from exercises API");
   }
 }
+
+export async function createExercise(data: {
+  name: string;
+  description: string | null;
+  bodyPart: string;
+}): Promise<Exercise> {
+  const authHeader = await getAuthHeader();
+  const response = await fetch(`${API_BASE_URL}/api/exercises`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeader,
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to create exercise");
+  }
+
+  return response.json();
+}
+
+export async function deleteExercise(exerciseId: string): Promise<void> {
+  const authHeader = await getAuthHeader();
+  const response = await fetch(`${API_BASE_URL}/api/exercises/${exerciseId}`, {
+    method: "DELETE",
+    headers: {
+      ...authHeader,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to delete exercise");
+  }
+}
