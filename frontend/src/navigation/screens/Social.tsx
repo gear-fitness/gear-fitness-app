@@ -146,16 +146,6 @@ export function Social() {
     }, [searchQuery, user]),
   );
 
-  const handleOpenComments = (postId: string) => {
-    setSelectedPostId(postId);
-    setCommentsVisible(true);
-  };
-
-  const handleCloseComments = () => {
-    setCommentsVisible(false);
-    setSelectedPostId(null);
-  };
-
   // Backend unread count
   useFocusEffect(
     useCallback(() => {
