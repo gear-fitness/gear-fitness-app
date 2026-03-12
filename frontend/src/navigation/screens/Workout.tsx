@@ -1,12 +1,15 @@
+import React, { useCallback, useState } from "react";
 import { Text } from "@react-navigation/elements";
 import { StyleSheet, View, TouchableOpacity, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation, useTheme } from "@react-navigation/native";
+import { useFocusEffect, useNavigation, useTheme } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
 
 import stopwatch from "../../assets/stopwatch.png";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { useTrackTab } from "../../hooks/useTrackTab";
+import { getTodaysRoutines } from "../../api/routineService";
+import { Routine } from "../../api/types";
 
 export function Workout() {
   useTrackTab("Workouts");
@@ -16,10 +19,41 @@ export function Workout() {
   const scheme = useColorScheme();
   const isDark = scheme === "dark";
 
-  const { playerVisible, seconds, running, exercises } = useWorkoutTimer();
+  const { playerVisible, seconds, running, exercises, loadFromRoutine } =
+    useWorkoutTimer();
+  const [todaysRoutines, setTodaysRoutines] = useState<Routine[]>([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const fetchTodaysRoutines = async () => {
+        try {
+          const routines = await getTodaysRoutines();
+          setTodaysRoutines(routines.slice(0, 3));
+        } catch {
+          setTodaysRoutines([]);
+        }
+      };
+      fetchTodaysRoutines();
+    }, []),
+  );
 
   const handleStartPress = () => {
     navigation.navigate("ExerciseSelect");
+  };
+
+  const handleQuickStartRoutine = async (routine: Routine) => {
+    if (!routine.exercises.length) return;
+    try {
+      await loadFromRoutine(
+        routine.exercises.map((ex) => ({
+          exerciseId: ex.exerciseId,
+          name: ex.exerciseName,
+        })),
+      );
+      navigation.navigate("WorkoutSummary");
+    } catch {
+      // Ignore and keep user on current screen.
+    }
   };
 
   const formatTime = (t: number) =>
@@ -247,6 +281,69 @@ export function Workout() {
             </TouchableOpacity>
           </View>
         </View>
+
+        <View style={styles.todaySection}>
+          <Text
+            style={[
+              styles.todaySectionTitle,
+              { color: isDark ? "#999" : "#666" },
+            ]}
+          >
+            TODAY'S ROUTINES
+          </Text>
+          {todaysRoutines.length === 0 ? (
+            <Text
+              style={[
+                styles.emptyTodayText,
+                { color: isDark ? "#999" : "#666" },
+              ]}
+            >
+              No routines scheduled for today.
+            </Text>
+          ) : (
+            todaysRoutines.map((routine) => (
+              <View
+                key={routine.routineId}
+                style={[
+                  styles.todayCard,
+                  { backgroundColor: isDark ? colors.card : "#F2F2F7" },
+                ]}
+              >
+                <TouchableOpacity
+                  style={styles.todayCardLeft}
+                  onPress={() =>
+                    navigation.navigate("RoutineDetail", {
+                      routineId: routine.routineId,
+                    })
+                  }
+                >
+                  <Text
+                    style={[
+                      styles.todayRoutineName,
+                      { color: isDark ? "#fff" : "#000" },
+                    ]}
+                  >
+                    {routine.name}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.todayRoutineCount,
+                      { color: isDark ? "#999" : "#666" },
+                    ]}
+                  >
+                    {routine.exercises.length} exercises
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.quickStartButton}
+                  onPress={() => handleQuickStartRoutine(routine)}
+                >
+                  <Text style={styles.quickStartText}>Start</Text>
+                </TouchableOpacity>
+              </View>
+            ))
+          )}
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -373,6 +470,50 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 48,
     lineHeight: 22,
+  },
+  todaySection: {
+    width: "100%",
+    marginTop: 32,
+    gap: 10,
+  },
+  todaySectionTitle: {
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 0.8,
+  },
+  emptyTodayText: {
+    fontSize: 14,
+  },
+  todayCard: {
+    borderRadius: 14,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+  },
+  todayCardLeft: {
+    flex: 1,
+  },
+  todayRoutineName: {
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  todayRoutineCount: {
+    marginTop: 2,
+    fontSize: 12,
+  },
+  quickStartButton: {
+    backgroundColor: "#007AFF",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    marginLeft: 10,
+  },
+  quickStartText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "700",
   },
 
   // Shadow layers for glow effect

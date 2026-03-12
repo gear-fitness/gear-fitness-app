@@ -148,9 +148,23 @@ public class RoutineService {
                 }
                 if (dto.getScheduledDays() != null) {
                         List<Routine.ScheduledDay> mapped = dto.getScheduledDays().stream()
-                                        .map(d -> Routine.ScheduledDay.valueOf(d.name()))
+                                        .map(d -> Routine.ScheduledDay.valueOf(d.toUpperCase()))
                                         .collect(Collectors.toList());
                         routine.setScheduledDays(mapped);
+                }
+                if (dto.getExerciseIds() != null) {
+                        routine.getRoutineExercises().clear();
+                        for (int i = 0; i < dto.getExerciseIds().size(); i++) {
+                                UUID exerciseId = dto.getExerciseIds().get(i);
+                                Exercise exercise = exerciseRepository.findById(exerciseId)
+                                                .orElseThrow(() -> new RuntimeException("Exercise not found: " + exerciseId));
+                                RoutineExercise routineExercise = RoutineExercise.builder()
+                                                .routine(routine)
+                                                .exercise(exercise)
+                                                .position(i + 1)
+                                                .build();
+                                routine.getRoutineExercises().add(routineExercise);
+                        }
                 }
 
                 Routine saved = routineRepository.save(routine);

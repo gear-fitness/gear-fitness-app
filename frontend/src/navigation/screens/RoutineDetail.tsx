@@ -14,6 +14,7 @@ import { useNavigation } from "@react-navigation/native";
 import { getRoutineDetail, deleteRoutine } from "../../api/routineService";
 import { Routine } from "../../api/types";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
+import { EditRoutineModal } from "../../components/EditRoutineModal";
 
 type RootStackParamList = {
   RoutineDetail: { routineId: string };
@@ -55,6 +56,7 @@ export function RoutineDetail({ route }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
 
   useEffect(() => {
     const fetch = async () => {
@@ -117,6 +119,11 @@ export function RoutineDetail({ route }: Props) {
     );
   };
 
+  const handleRoutineSaved = (updatedRoutine: Routine) => {
+    setRoutine(updatedRoutine);
+    setEditModalVisible(false);
+  };
+
   if (loading) {
     return (
       <View style={[styles.container, styles.centered, { backgroundColor: colors.bg }]}>
@@ -143,9 +150,17 @@ export function RoutineDetail({ route }: Props) {
         showsVerticalScrollIndicator={false}
       >
         {/* Routine name */}
-        <Text style={[styles.routineName, { color: colors.text }]}>
-          {routine.name}
-        </Text>
+        <View style={styles.titleRow}>
+          <Text style={[styles.routineName, { color: colors.text }]}>
+            {routine.name}
+          </Text>
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() => setEditModalVisible(true)}
+          >
+            <Text style={styles.editButtonText}>Edit</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Scheduled day pills */}
         {routine.scheduledDays.length > 0 && (
@@ -268,6 +283,12 @@ export function RoutineDetail({ route }: Props) {
           </TouchableOpacity>
         </View>
       </View>
+      <EditRoutineModal
+        visible={editModalVisible}
+        routine={routine}
+        onClose={() => setEditModalVisible(false)}
+        onSaved={handleRoutineSaved}
+      />
     </View>
   );
 }
@@ -289,7 +310,25 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: "800",
     letterSpacing: -0.5,
+    marginBottom: 4,
+    flex: 1,
+  },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
     marginBottom: 12,
+  },
+  editButton: {
+    borderRadius: 999,
+    backgroundColor: "#007AFF",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  editButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "700",
   },
   daysRow: {
     flexDirection: "row",

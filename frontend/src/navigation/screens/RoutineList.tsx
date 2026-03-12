@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,23 +8,14 @@ import {
   useColorScheme,
   ActivityIndicator,
 } from "react-native";
+import { Swipeable } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
-import { getUserRoutines } from "../../api/routineService";
+import { deleteRoutine, getUserRoutines } from "../../api/routineService";
 import { Routine } from "../../api/types";
 import { CreateRoutineModal } from "../../components/CreateRoutineModal";
+import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
 
-const CARD_ICONS = ["💪", "🔥", "⚡", "🏋️", "🎯", "🦵", "🏃", "🧠"];
-const CARD_COLORS = [
-  { bg: "rgba(0, 122, 255, 0.15)", text: "#007AFF" },
-  { bg: "rgba(255, 59, 48, 0.15)", text: "#FF3B30" },
-  { bg: "rgba(175, 82, 222, 0.15)", text: "#AF52DE" },
-  { bg: "rgba(52, 199, 89, 0.15)", text: "#34C759" },
-  { bg: "rgba(255, 149, 0, 0.15)", text: "#FF9500" },
-  { bg: "rgba(90, 200, 250, 0.15)", text: "#5AC8FA" },
-  { bg: "rgba(255, 45, 85, 0.15)", text: "#FF2D55" },
-  { bg: "rgba(88, 86, 214, 0.15)", text: "#5856D6" },
-];
 
 function formatDay(day: string): string {
   const map: Record<string, string> = {
@@ -83,40 +74,45 @@ export function RoutineList() {
 
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
       fetchRoutines();
     }, [fetchRoutines])
   );
 
+  const { getSwipeableProps } = useSwipeableDelete({
+    onDelete: async (id) => {
+      try {
+        await deleteRoutine(id);
+        fetchRoutines();
+      } catch {
+        // fetchRoutines will refresh state; no-op on error keeps card visible
+      }
+    },
+    deleteTitle: "Delete Routine",
+    deleteMessage: "Are you sure you want to delete this routine?",
+  });
+
   const renderCard = ({ item, index }: { item: Routine; index: number }) => {
-    const colorPair = CARD_COLORS[index % CARD_COLORS.length];
-    const icon = CARD_ICONS[index % CARD_ICONS.length];
     const dayLabel =
       item.scheduledDays.length > 0 ? formatDay(item.scheduledDays[0]) : "";
     const bodyParts = getBodyPartsSummary(item);
 
     return (
-      <TouchableOpacity
-        style={[
-          styles.card,
-          { backgroundColor: colors.card, borderColor: colors.cardBorder },
-        ]}
-        onPress={() =>
-          navigation.navigate("RoutineDetail", { routineId: item.routineId })
-        }
-        activeOpacity={0.7}
-      >
-        <View style={styles.cardTop}>
-          <View style={[styles.iconBadge, { backgroundColor: colorPair.bg }]}>
-            <Text style={styles.iconText}>{icon}</Text>
-          </View>
+      <Swipeable {...getSwipeableProps(item.routineId)}>
+        <TouchableOpacity
+          style={[
+            styles.card,
+            { backgroundColor: colors.card, borderColor: colors.cardBorder },
+          ]}
+          onPress={() =>
+            navigation.navigate("RoutineDetail", { routineId: item.routineId })
+          }
+          activeOpacity={0.7}
+        >
           {dayLabel !== "" && (
             <Text style={[styles.dayLabel, { color: colors.secondary }]}>
               {dayLabel.toUpperCase()}
             </Text>
           )}
-        </View>
-        <View style={styles.cardBottom}>
           <Text style={[styles.cardTitle, { color: colors.text }]}>
             {item.name}
           </Text>
@@ -128,8 +124,8 @@ export function RoutineList() {
               {bodyParts.toUpperCase()}
             </Text>
           )}
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+      </Swipeable>
     );
   };
 
@@ -145,14 +141,36 @@ export function RoutineList() {
     </TouchableOpacity>
   );
 
+  const canGoBack = navigation.canGoBack();
+
+  const HeaderRow = () => (
+    <View style={styles.header}>
+      {canGoBack ? (
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          hitSlop={8}
+        >
+          <Text style={[styles.backText, { color: "#007AFF" }]}>‹ Back</Text>
+        </TouchableOpacity>
+      ) : (
+        <View style={styles.backButton} />
+      )}
+      <Text style={[styles.headerTitle, { color: colors.text }]}>Routines</Text>
+      <TouchableOpacity
+        style={[styles.headerButton, { backgroundColor: colors.headerButton }]}
+        onPress={() => setModalVisible(true)}
+        activeOpacity={0.7}
+      >
+        <Text style={[styles.headerButtonText, { color: colors.text }]}>+</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
-        <View style={styles.header}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>
-            Routines
-          </Text>
-        </View>
+        <HeaderRow />
         <View style={styles.centered}>
           <ActivityIndicator size="large" color="#007AFF" />
         </View>
@@ -163,18 +181,7 @@ export function RoutineList() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>
-          Routines
-        </Text>
-        <TouchableOpacity
-          style={[styles.headerButton, { backgroundColor: colors.headerButton }]}
-          onPress={() => setModalVisible(true)}
-          activeOpacity={0.7}
-        >
-          <Text style={[styles.headerButtonText, { color: colors.text }]}>+</Text>
-        </TouchableOpacity>
-      </View>
+      <HeaderRow />
 
       {/* Cards */}
       <FlatList
@@ -215,10 +222,19 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 8,
   },
+  backButton: {
+    width: 64,
+  },
+  backText: {
+    fontSize: 17,
+    fontWeight: "500",
+  },
   headerTitle: {
     fontSize: 34,
     fontWeight: "800",
     letterSpacing: -0.5,
+    flex: 1,
+    textAlign: "center",
   },
   headerButton: {
     width: 40,
@@ -242,31 +258,14 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 1,
     padding: 20,
-    height: 160,
-    justifyContent: "space-between",
-  },
-  cardTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-  },
-  iconBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    height: 120,
     justifyContent: "center",
-    alignItems: "center",
-  },
-  iconText: {
-    fontSize: 22,
+    gap: 6,
   },
   dayLabel: {
     fontSize: 11,
     fontWeight: "600",
     letterSpacing: 1.2,
-  },
-  cardBottom: {
-    gap: 4,
   },
   cardTitle: {
     fontSize: 22,

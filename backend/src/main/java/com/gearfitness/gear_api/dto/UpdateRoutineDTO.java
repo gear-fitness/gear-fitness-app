@@ -1,7 +1,7 @@
 package com.gearfitness.gear_api.dto;
 
 import java.util.List;
-import java.time.DayOfWeek;
+import java.util.UUID;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -12,5 +12,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class UpdateRoutineDTO {
     private String name;
-    private List<DayOfWeek> scheduledDays;
+    private List<String> scheduledDays;
+    private List<UUID> exerciseIds;
 }

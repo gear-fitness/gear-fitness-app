@@ -84,6 +84,7 @@ export async function updateRoutine(
   data: {
     name?: string;
     scheduledDays?: string[];
+    exerciseIds?: string[];
   },
 ): Promise<Routine> {
   const authHeader = await getAuthHeader();
