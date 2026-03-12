@@ -24,6 +24,7 @@ import { Workout } from "../../api/types";
 import { parseLocalDate } from "../../utils/date";
 import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
 import { useTrackTab } from "../../hooks/useTrackTab";
+import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
 
 type RootStackParamList = {
   HomeTabs: undefined;
@@ -287,6 +288,7 @@ export function History() {
           keyExtractor={(item) => item.workoutId}
           renderItem={renderItem}
           keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingBottom: MINI_PLAYER_HEIGHT + 30 }}
         />
       </View>
     </KeyboardAvoidingView>
