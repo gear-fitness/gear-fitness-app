@@ -35,6 +35,8 @@ import { SignUpProfileScreen } from "./screens/SignUpProfile";
 import { ExerciseChat } from "./screens/ExerciseChat";
 import { AuthLoadingScreen } from "./screens/AuthLoading";
 import { CommentsScreen } from "../components/CommentsScreen";
+import { RoutineList } from "./screens/RoutineList";
+import { RoutineDetail } from "./screens/RoutineDetail";
 
 /* ---------------------- TABS ---------------------- */
 
@@ -238,6 +240,22 @@ const RootStack = createNativeStackNavigator({
         headerShown: true,
       },
     },
+
+    RoutineList: {
+      screen: RoutineList,
+      options: {
+        headerShown: false,
+      },
+    },
+
+    RoutineDetail: {
+      screen: RoutineDetail,
+      options: {
+        title: "Routine",
+        headerShown: true,
+        headerBackTitle: "Routines",
+      },
+    },
   },
 });
 
@@ -280,6 +298,11 @@ declare global {
 
       Comments: {
         postId: string;
+      };
+
+      RoutineList: undefined;
+      RoutineDetail: {
+        routineId: string;
       };
     }
   }

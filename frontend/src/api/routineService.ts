@@ -104,6 +104,29 @@ export async function updateRoutine(
   return response.json();
 }
 
+export async function createRoutine(
+  name: string,
+  scheduledDays: string[],
+  exerciseIds: string[],
+): Promise<Routine> {
+  const authHeader = await getAuthHeader();
+
+  const response = await fetch(`${API_BASE_URL}/api/routines`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeader,
+    },
+    body: JSON.stringify({ name, scheduledDays, exerciseIds }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to create routine");
+  }
+
+  return response.json();
+}
+
 export async function deleteRoutine(routineId: string): Promise<void> {
   const authHeader = await getAuthHeader();
 

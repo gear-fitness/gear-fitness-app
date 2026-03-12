@@ -5,6 +5,8 @@ import {
   ScrollView,
   useColorScheme,
   ActivityIndicator,
+  TouchableOpacity,
+  Alert,
 } from "react-native";
 import React, { useState, useEffect } from "react";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -12,6 +14,7 @@ import { getWorkoutDetails } from "../../api/workoutService";
 import { WorkoutDetail } from "../../api/types";
 import { parseLocalDate } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
+import { CreateRoutineModal } from "../../components/CreateRoutineModal";
 
 type RootStackParamList = {
   DetailedHistory: {
@@ -33,6 +36,7 @@ export function DetailedHistory({ route }: Props) {
   const [workout, setWorkout] = useState<WorkoutDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [routineModalVisible, setRoutineModalVisible] = useState(false);
 
   useEffect(() => {
     const fetchWorkout = async () => {
@@ -105,6 +109,7 @@ export function DetailedHistory({ route }: Props) {
   }
 
   return (
+    <>
     <ScrollView
       style={[
         styles.container,
@@ -131,6 +136,19 @@ export function DetailedHistory({ route }: Props) {
             {workout.bodyTag}
           </Text>
         )}
+        <TouchableOpacity
+          style={[
+            styles.saveRoutineButton,
+            { borderColor: isDark ? "#333" : "#D1D1D6" },
+          ]}
+          onPress={() => setRoutineModalVisible(true)}
+        >
+          <Text
+            style={[styles.saveRoutineText, { color: isDark ? "#fff" : "#000" }]}
+          >
+            Save as Routine
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Caption */}
@@ -240,6 +258,17 @@ export function DetailedHistory({ route }: Props) {
         </View>
       )}
     </ScrollView>
+
+      <CreateRoutineModal
+        visible={routineModalVisible}
+        onClose={() => setRoutineModalVisible(false)}
+        onCreated={() => {
+          setRoutineModalVisible(false);
+          Alert.alert("Saved!", "Routine created successfully.");
+        }}
+        prefilledWorkoutId={workoutId}
+      />
+    </>
   );
 }
 
@@ -346,5 +375,17 @@ const styles = StyleSheet.create({
   noSetsText: {
     fontSize: 14,
     fontStyle: "italic",
+  },
+  saveRoutineButton: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    alignSelf: "flex-start",
+  },
+  saveRoutineText: {
+    fontSize: 14,
+    fontWeight: "600",
   },
 });

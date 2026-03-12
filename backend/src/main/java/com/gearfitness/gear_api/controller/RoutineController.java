@@ -1,5 +1,6 @@
 package com.gearfitness.gear_api.controller;
 
+import com.gearfitness.gear_api.dto.CreateRoutineDTO;
 import com.gearfitness.gear_api.dto.CreateRoutineFromWorkoutDTO;
 import com.gearfitness.gear_api.dto.RoutineDTO;
 import com.gearfitness.gear_api.dto.UpdateRoutineDTO;
@@ -20,6 +21,27 @@ public class RoutineController {
 
     private final RoutineService routineService;
     private final JwtService jwtService;
+
+    /**
+     * Create a routine from scratch with a list of exercise IDs.
+     */
+    @PostMapping
+    public ResponseEntity<RoutineDTO> createRoutine(
+            @RequestBody CreateRoutineDTO dto,
+            @RequestHeader("Authorization") String authHeader) {
+        try {
+            String token = authHeader.substring(7);
+            UUID userId = jwtService.extractUserId(token);
+
+            RoutineDTO routine = routineService.createRoutine(dto, userId);
+            return ResponseEntity.status(HttpStatus.CREATED).body(routine);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
 
     /**
      * Create a routine from an existing workout for the authenticated user.

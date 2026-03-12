@@ -194,7 +194,7 @@ export function Workout() {
               styles.routinesButton,
               { backgroundColor: isDark ? colors.card : "white" },
             ]}
-            onPress={() => {}}
+            onPress={() => navigation.navigate("RoutineList")}
           >
             <Text style={[styles.checkIcon, { color: "#007AFF" }]}>✓</Text>
           </TouchableOpacity>

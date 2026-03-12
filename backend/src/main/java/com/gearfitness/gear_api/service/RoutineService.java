@@ -1,11 +1,14 @@
 package com.gearfitness.gear_api.service;
 
 import java.util.UUID;
+import com.gearfitness.gear_api.dto.CreateRoutineDTO;
 import com.gearfitness.gear_api.dto.CreateRoutineFromWorkoutDTO;
 import com.gearfitness.gear_api.entity.AppUser;
+import com.gearfitness.gear_api.entity.Exercise;
 import com.gearfitness.gear_api.entity.Workout;
 import com.gearfitness.gear_api.entity.WorkoutExercise;
 import com.gearfitness.gear_api.entity.RoutineExercise;
+import com.gearfitness.gear_api.repository.ExerciseRepository;
 import com.gearfitness.gear_api.repository.RoutineRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
@@ -28,6 +31,7 @@ public class RoutineService {
         private final RoutineRepository routineRepository;
         private final AppUserRepository appUserRepository;
         private final WorkoutRepository workoutRepository;
+        private final ExerciseRepository exerciseRepository;
 
         @Transactional
         public RoutineDTO createFromWorkout(CreateRoutineFromWorkoutDTO dto, UUID userId) {
@@ -36,10 +40,6 @@ public class RoutineService {
 
                 Workout workout = workoutRepository.findByIdWithDetails(dto.getWorkoutId())
                                 .orElseThrow(() -> new RuntimeException("Workout not found"));
-
-                if (!workout.getUser().getUserId().equals(user.getUserId())) {
-                        throw new RuntimeException("Workout does not belong to user");
-                }
 
                 List<Routine.ScheduledDay> mappedDays = (dto.getScheduledDays()) == null
                                 || dto.getScheduledDays().isEmpty()
@@ -68,6 +68,41 @@ public class RoutineService {
                 return toRoutineDTO(saved);
         }
 
+        @Transactional
+        public RoutineDTO createRoutine(CreateRoutineDTO dto, UUID userId) {
+                AppUser user = appUserRepository.findById(userId)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
+
+                List<Routine.ScheduledDay> mappedDays = (dto.getScheduledDays() == null || dto.getScheduledDays().isEmpty())
+                                ? new ArrayList<>()
+                                : dto.getScheduledDays().stream()
+                                                .map(s -> Routine.ScheduledDay.valueOf(s.toUpperCase()))
+                                                .toList();
+
+                Routine routine = Routine.builder()
+                                .user(user)
+                                .name(dto.getName())
+                                .scheduledDays(mappedDays)
+                                .build();
+
+                if (dto.getExerciseIds() != null) {
+                        for (int i = 0; i < dto.getExerciseIds().size(); i++) {
+                                UUID exerciseId = dto.getExerciseIds().get(i);
+                                Exercise exercise = exerciseRepository.findById(exerciseId)
+                                                .orElseThrow(() -> new RuntimeException("Exercise not found: " + exerciseId));
+                                RoutineExercise routineExercise = RoutineExercise.builder()
+                                                .routine(routine)
+                                                .exercise(exercise)
+                                                .position(i + 1)
+                                                .build();
+                                routine.getRoutineExercises().add(routineExercise);
+                        }
+                }
+
+                Routine saved = routineRepository.save(routine);
+                return toRoutineDTO(saved);
+        }
+
         public List<RoutineDTO> getUserRoutines(UUID userId) {
                 return routineRepository.findByUser_UserIdOrderByCreatedAtDesc(userId)
                                 .stream()
@@ -75,6 +110,7 @@ public class RoutineService {
                                 .collect(Collectors.toList());
         }
 
+        @Transactional
         public RoutineDTO getRoutineDetail(UUID routineId, UUID userId) {
                 Routine routine = routineRepository.findByRoutineId(routineId)
                                 .orElseThrow(() -> new IllegalArgumentException("Routine not found"));
@@ -155,6 +191,7 @@ public class RoutineService {
                                                         e.setExerciseName(re.getExercise().getName());
                                                         e.setBodyPart(re.getExercise().getBodyPart().name());
                                                         e.setPosition(re.getPosition());
+                                                        e.setExerciseId(re.getExercise().getExerciseId());
                                                         return e;
                                                 })
                                                 .collect(Collectors.toList());

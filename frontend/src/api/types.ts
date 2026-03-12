@@ -115,6 +115,7 @@ export interface RoutineExercise {
   exerciseName: string;
   bodyPart: string;
   position: number;
+  exerciseId: string;
 }
 
 export interface Routine {
