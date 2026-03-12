@@ -35,6 +35,8 @@ import { SignUpProfileScreen } from "./screens/SignUpProfile";
 import { ExerciseChat } from "./screens/ExerciseChat";
 import { AuthLoadingScreen } from "./screens/AuthLoading";
 import { CommentsScreen } from "../components/CommentsScreen";
+import { ExerciseList } from "./screens/ExerciseList";
+import { ExerciseHistory } from "./screens/ExerciseHistory";
 import { CreateExerciseScreen } from "./screens/CreateExerciseScreen";
 
 /* ---------------------- TABS ---------------------- */
@@ -246,6 +248,20 @@ const RootStack = createNativeStackNavigator({
         title: "Comments",
         presentation: "modal",
         headerShown: true,
+      },
+    },
+    ExerciseList: {
+      screen: ExerciseList,
+      options: {
+        title: "Exercises",
+        headerBackTitle: "Back",
+      },
+    },
+    ExerciseHistory: {
+      screen: ExerciseHistory,
+      options: {
+        title: "Exercise History",
+        headerBackTitle: "Back",
       },
     },
   },

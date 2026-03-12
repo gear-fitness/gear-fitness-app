@@ -22,49 +22,87 @@ export function Workout() {
     navigation.navigate("ExerciseSelect");
   };
 
+  const handleExercisesPress = () => {
+    navigation.navigate("ExerciseList");
+  };
+
   const formatTime = (t: number) =>
     `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(
       2,
-      "0"
+      "0",
     )}`;
 
-  // If workout is in progress, show workout status
-  if (playerVisible) {
-    return (
-      <SafeAreaView
-        style={[
-          styles.newContainer,
-          { backgroundColor: isDark ? "black" : "white" },
-        ]}
-      >
-        {/* Header Section - Streak Counter */}
-        <View style={styles.headerContainer}>
-          <View style={styles.streakContainer}>
-            <View style={styles.streakRow}>
-              <View style={styles.streakShadowLayer1}>
-                <View style={styles.streakShadowLayer2}>
-                  <Text style={styles.fireIcon}>🔥</Text>
-                </View>
+  return (
+    <SafeAreaView
+      style={[
+        styles.newContainer,
+        { backgroundColor: isDark ? "black" : "white" },
+      ]}
+    >
+      {/* Header - Always visible */}
+      <View style={styles.headerContainer}>
+        {/* Left: Streak Counter */}
+        <View style={styles.streakContainer}>
+          <View style={styles.streakRow}>
+            <View style={styles.streakShadowLayer1}>
+              <View style={styles.streakShadowLayer2}>
+                <Text style={styles.fireIcon}>🔥</Text>
               </View>
-              <Text
-                style={[
-                  styles.streakNumber,
-                  { color: isDark ? "#fff" : "#000" },
-                ]}
-              >
-                N/A
-              </Text>
             </View>
             <Text
-              style={[styles.streakLabel, { color: isDark ? "#999" : "#666" }]}
+              style={[styles.streakNumber, { color: isDark ? "#fff" : "#000" }]}
             >
-              DAY STREAK
+              N/A
+            </Text>
+          </View>
+          <Text
+            style={[styles.streakLabel, { color: isDark ? "#999" : "#666" }]}
+          >
+            DAY STREAK
+          </Text>
+        </View>
+
+        {/* Right: Action Buttons */}
+        <View style={styles.headerActions}>
+          <View style={styles.actionItem}>
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                { backgroundColor: isDark ? colors.card : "white" },
+              ]}
+              onPress={handleExercisesPress}
+            >
+              <Text style={styles.exercisesIcon}>🏋️</Text>
+            </TouchableOpacity>
+            <Text
+              style={[styles.actionLabel, { color: isDark ? "#999" : "#666" }]}
+            >
+              Exercises
+            </Text>
+          </View>
+
+          <View style={styles.actionItem}>
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                { backgroundColor: isDark ? colors.card : "white" },
+              ]}
+              onPress={() => {}}
+            >
+              <Text style={[styles.checkIcon, { color: "#007AFF" }]}>✓</Text>
+            </TouchableOpacity>
+            <Text
+              style={[styles.actionLabel, { color: isDark ? "#999" : "#666" }]}
+            >
+              Routines
             </Text>
           </View>
         </View>
+      </View>
 
-        {/* Main Content - Workout Stats */}
-        <View style={styles.workoutInProgressContent}>
+      {/* Body - Conditional */}
+      {playerVisible ? (
+        <View style={styles.bodyCenter}>
           <Text
             style={[
               styles.workoutInProgressTitle,
@@ -110,7 +148,7 @@ export function Workout() {
                 {exercises.reduce(
                   (sum, ex) =>
                     sum + ex.sets.filter((s) => s.reps && s.weight).length,
-                  0
+                  0,
                 )}
               </Text>
               <Text
@@ -134,7 +172,7 @@ export function Workout() {
             <View style={styles.shadowLayer2}>
               <TouchableOpacity
                 style={[
-                  styles.continueButton,
+                  styles.pillButton,
                   { backgroundColor: isDark ? colors.card : "white" },
                 ]}
                 onPress={() => navigation.navigate("WorkoutSummary")}
@@ -142,7 +180,7 @@ export function Workout() {
                 <Text style={styles.playIcon}>▶</Text>
                 <Text
                   style={[
-                    styles.continueButtonText,
+                    styles.pillButtonText,
                     { color: isDark ? "#fff" : "#000" },
                   ]}
                 >
@@ -152,121 +190,60 @@ export function Workout() {
             </View>
           </View>
         </View>
-      </SafeAreaView>
-    );
-  }
-
-  // Default state: Show START button
-  return (
-    <SafeAreaView
-      style={[
-        styles.newContainer,
-        { backgroundColor: isDark ? "black" : "white" },
-      ]}
-    >
-      {/* Header Section */}
-      <View style={styles.headerContainer}>
-        {/* Left: Streak Counter */}
-        <View style={styles.streakContainer}>
-          <View style={styles.streakRow}>
-            <View style={styles.streakShadowLayer1}>
-              <View style={styles.streakShadowLayer2}>
-                <Text style={styles.fireIcon}>🔥</Text>
-              </View>
-            </View>
-            <Text
-              style={[styles.streakNumber, { color: isDark ? "#fff" : "#000" }]}
-            >
-              N/A
-            </Text>
-          </View>
+      ) : (
+        <View style={styles.bodyCenter}>
           <Text
-            style={[styles.streakLabel, { color: isDark ? "#999" : "#666" }]}
-          >
-            DAY STREAK
-          </Text>
-        </View>
-
-        {/* Right: Routines Button */}
-        <View style={styles.routinesContainer}>
-          <TouchableOpacity
             style={[
-              styles.routinesButton,
-              { backgroundColor: isDark ? colors.card : "white" },
+              styles.motivationalHeading,
+              { color: isDark ? "#fff" : "#000" },
             ]}
-            onPress={() => {}}
           >
-            <Text style={[styles.checkIcon, { color: "#007AFF" }]}>✓</Text>
-          </TouchableOpacity>
-          <Text
-            style={[styles.routinesLabel, { color: isDark ? "#999" : "#666" }]}
-          >
-            Routines
+            Ready to sweat?
           </Text>
-        </View>
-      </View>
+          <Text
+            style={[
+              styles.motivationalSubtext,
+              { color: isDark ? "#999" : "#666" },
+            ]}
+          >
+            You're on a roll! Keep the momentum going.
+          </Text>
 
-      {/* Center Section */}
-      <View style={styles.centerSection}>
-        <Text
-          style={[
-            styles.motivationalHeading,
-            { color: isDark ? "#fff" : "#000" },
-          ]}
-        >
-          Ready to sweat?
-        </Text>
-        <Text
-          style={[
-            styles.motivationalSubtext,
-            { color: isDark ? "#999" : "#666" },
-          ]}
-        >
-          You're on a roll! Keep the momentum going.
-        </Text>
-
-        {/* Start Button */}
-        <View style={styles.shadowLayer1}>
-          <View style={styles.shadowLayer2}>
-            <TouchableOpacity
-              style={[
-                styles.startButton,
-                { backgroundColor: isDark ? colors.card : "white" },
-              ]}
-              onPress={handleStartPress}
-            >
-              <Text style={styles.playIcon}>▶</Text>
-              <Text
+          <View style={styles.shadowLayer1}>
+            <View style={styles.shadowLayer2}>
+              <TouchableOpacity
                 style={[
-                  styles.startButtonText,
-                  { color: isDark ? "#fff" : "#000" },
+                  styles.pillButton,
+                  { backgroundColor: isDark ? colors.card : "white" },
                 ]}
+                onPress={handleStartPress}
               >
-                Start Workout
-              </Text>
-            </TouchableOpacity>
+                <Text style={styles.playIcon}>▶</Text>
+                <Text
+                  style={[
+                    styles.pillButtonText,
+                    { color: isDark ? "#fff" : "#000" },
+                  ]}
+                >
+                  Start Workout
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-      </View>
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  // New container for redesigned layout
   newContainer: {
     flex: 1,
     paddingTop: 30,
     paddingHorizontal: 24,
   },
 
-  // Header Section
+  // ── Header (always visible) ──────────────────────────
   headerContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -274,12 +251,11 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
 
-  // Streak Counter (Left)
+  // Streak
   streakContainer: {
     alignItems: "flex-start",
   },
 
-  // Shadow layers for streak glow effect
   streakShadowLayer1: {
     borderRadius: 20,
     alignItems: "flex-start",
@@ -323,12 +299,18 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 
-  // Routines Button (Right)
-  routinesContainer: {
+  // Action buttons (Exercises + Routines)
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 16,
+  },
+
+  actionItem: {
     alignItems: "center",
   },
 
-  routinesButton: {
+  actionButton: {
     width: 48,
     height: 48,
     borderRadius: 24,
@@ -341,19 +323,23 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
 
+  exercisesIcon: {
+    fontSize: 22,
+  },
+
   checkIcon: {
     fontSize: 24,
     fontWeight: "700",
   },
 
-  routinesLabel: {
+  actionLabel: {
     fontSize: 12,
     fontWeight: "600",
     marginTop: 8,
   },
 
-  // Center Section
-  centerSection: {
+  // ── Body (conditional) ───────────────────────────────
+  bodyCenter: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
@@ -361,6 +347,7 @@ const styles = StyleSheet.create({
     marginTop: -80,
   },
 
+  // Default state
   motivationalHeading: {
     fontSize: 34,
     fontWeight: "700",
@@ -375,84 +362,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 
-  // Shadow layers for glow effect
-  shadowLayer1: {
-    borderRadius: 999,
-    alignItems: "center",
-    shadowColor: "#007AFF",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 30,
-    elevation: 10,
-  },
-
-  shadowLayer2: {
-    borderRadius: 999,
-    alignItems: "center",
-    shadowColor: "#007AFF",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
-    elevation: 8,
-  },
-
-  // New Start Button (White Pill)
-  startButton: {
-    width: 280,
-    maxWidth: "90%",
-    height: 64,
-    borderRadius: 999,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#007AFF",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 14,
-    elevation: 6,
-  },
-
-  playIcon: {
-    fontSize: 30,
-    color: "#007AFF",
-    marginRight: 12,
-  },
-
-  startButtonText: {
-    fontSize: 20,
-    fontWeight: "700",
-  },
-
-  // Continue Button (matches Start Button)
-  continueButton: {
-    width: 280,
-    maxWidth: "90%",
-    height: 64,
-    borderRadius: 999,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#007AFF",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 14,
-    elevation: 6,
-  },
-
-  continueButtonText: {
-    fontSize: 20,
-    fontWeight: "700",
-  },
-
-  // Workout in progress styles
-  workoutInProgressContent: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    marginTop: -80,
-  },
-
+  // Workout in progress state
   workoutInProgressTitle: {
     fontSize: 28,
     fontWeight: "800",
@@ -504,15 +414,50 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
 
-  expandButton: {
-    paddingHorizontal: 40,
-    paddingVertical: 16,
-    borderRadius: 12,
+  // ── Shared pill button + glow ────────────────────────
+  shadowLayer1: {
+    borderRadius: 999,
+    alignItems: "center",
+    shadowColor: "#007AFF",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 30,
+    elevation: 10,
   },
 
-  expandButtonText: {
-    color: "#fff",
-    fontSize: 18,
+  shadowLayer2: {
+    borderRadius: 999,
+    alignItems: "center",
+    shadowColor: "#007AFF",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+
+  pillButton: {
+    width: 280,
+    maxWidth: "90%",
+    height: 64,
+    borderRadius: 999,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#007AFF",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+
+  playIcon: {
+    fontSize: 30,
+    color: "#007AFF",
+    marginRight: 12,
+  },
+
+  pillButtonText: {
+    fontSize: 20,
     fontWeight: "700",
   },
 });
