@@ -24,6 +24,7 @@ import { Workout } from "../../api/types";
 import { parseLocalDate } from "../../utils/date";
 import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
 import { useTrackTab } from "../../hooks/useTrackTab";
+import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
 
 type RootStackParamList = {
   HomeTabs: undefined;
@@ -53,66 +54,50 @@ export function History() {
   const [markedDates, setMarkedDates] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
   const [data, setData] = useState<Workout[]>([]);
-
-  // Function to fetch workouts
-  const fetchWorkouts = async () => {
-    if (!user?.userId) return;
-
-    console.log("Fetching workouts for user:", user.userId);
-    try {
-      const workouts = await getUserWorkouts(user.userId);
-      console.log("Workouts fetched:", workouts.length);
-      setData(workouts);
-
-      const marks: any = {};
-      workouts.forEach((w) => {
-        marks[w.datePerformed] = {
-          marked: true,
-          selected: true,
-          dotColor: "#1877F2",
-          selectedColor: "#1877F2",
-        };
-      });
-      setMarkedDates(marks);
-    } catch (err) {
-      console.error("Error loading workouts:", err);
-    }
-  };
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   // Fetch workouts on initial mount
   useEffect(() => {
     fetchWorkouts();
   }, []);
 
+  // Function to fetch workouts
+  const fetchWorkouts = async () => {
+    if (!user?.userId) return;
+    try {
+      const workouts = await getUserWorkouts(user.userId);
+      setData(workouts);
+      setMarkedDates(buildMarkedDates(workouts));
+    } catch (err) {
+      console.error("Error loading workouts:", err);
+    }
+  };
+
+  const buildMarkedDates = (workouts: Workout[]) => {
+    const marks: Record<string, boolean> = {};
+    workouts.forEach((w) => {
+      marks[w.datePerformed] = true;
+    });
+    return marks;
+  };
+
   // Refetch workouts every time the screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
       fetchWorkouts();
-    }, [])
+    }, []),
   );
 
   const handleDeleteWorkout = async (workoutId: string) => {
     try {
       await deleteWorkout(workoutId);
-
-      // Optimistically update local state
-      setData((prevData) => prevData.filter((w) => w.workoutId !== workoutId));
-
-      // Update calendar marks
-      const updatedWorkouts = data.filter((w) => w.workoutId !== workoutId);
-      const marks: any = {};
-      updatedWorkouts.forEach((w) => {
-        marks[w.datePerformed] = {
-          marked: true,
-          selected: true,
-          dotColor: "#1877F2",
-          selectedColor: "#1877F2",
-        };
+      setData((prevData) => {
+        const updated = prevData.filter((w) => w.workoutId !== workoutId);
+        setMarkedDates(buildMarkedDates(updated));
+        return updated;
       });
-      setMarkedDates(marks);
     } catch (error) {
       console.error("Error deleting workout:", error);
-      // Re-fetch to restore state if deletion failed
       fetchWorkouts();
     }
   };
@@ -138,9 +123,15 @@ export function History() {
     navigation.getParent()?.navigate("PR", { userId: user.userId });
   };
 
-  const filteredData = data.filter((item) =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredData = data.filter((item) => {
+    const matchesSearch = item.name
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase());
+    const matchesDate = selectedDate
+      ? item.datePerformed === selectedDate
+      : true;
+    return matchesSearch && matchesDate;
+  });
 
   const renderItem = ({ item }: { item: Workout }) => (
     <View style={styles.rowWrapper}>
@@ -179,7 +170,7 @@ export function History() {
                     month: "short",
                     day: "numeric",
                     year: "numeric",
-                  }
+                  },
                 )}
               </Text>
             </View>
@@ -197,10 +188,54 @@ export function History() {
     >
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <Calendar
+          maxDate={formattedToday}
           key={colors.background}
           style={styles.calendar}
           current={formattedToday}
-          markedDates={markedDates}
+          markedDates={{
+            ...Object.keys(markedDates).reduce((acc: any, date: string) => {
+              acc[date] = {
+                customStyles: {
+                  container: {
+                    backgroundColor: "rgba(24, 119, 242, 0.15)",
+                    borderRadius: 16,
+                  },
+                  text: { color: colors.text },
+                },
+              };
+              return acc;
+            }, {}),
+
+            [formattedToday]: {
+              customStyles: {
+                text: { color: "#1877F2", fontWeight: "700" },
+              },
+            },
+
+            // Selected day (not today) - inverted circle
+            ...(selectedDate
+              ? {
+                  [selectedDate]: {
+                    customStyles: {
+                      container: {
+                        backgroundColor: "#1877F2",
+                        borderRadius: 16,
+                      },
+                      text: {
+                        color: "#FFFFFF",
+                        fontWeight: "600",
+                      },
+                    },
+                  },
+                }
+              : {}),
+          }}
+          markingType="custom"
+          onDayPress={(day: { dateString: string }) => {
+            setSelectedDate((prev) =>
+              prev === day.dateString ? null : day.dateString,
+            );
+          }}
           theme={{
             backgroundColor: colors.card,
             calendarBackground: colors.card,
@@ -218,18 +253,11 @@ export function History() {
             textDayFontSize: 15,
             textMonthFontSize: 18,
             textDayHeaderFontSize: 13,
-            selectedDayBackgroundColor: "#1877F2",
-            selectedDayTextColor: "#ffffff",
-            dotColor: "#1877F2",
-            selectedDotColor: "#ffffff",
-            todayBackgroundColor: isDarkMode
-              ? "rgba(24, 119, 242, 0.15)"
-              : "rgba(24, 119, 242, 0.1)",
+            textDisabledColor: isDarkMode ? "#555" : "#ccc",
           }}
           hideExtraDays={true}
           enableSwipeMonths={true}
         />
-
         {/* Search Bar + PR Button */}
         <View style={styles.searchContainer}>
           <TextInput
@@ -255,12 +283,12 @@ export function History() {
             <Image source={weightlifter} style={styles.settingsButtonIcon} />
           </TouchableOpacity>
         </View>
-
         <FlatList
           data={filteredData}
           keyExtractor={(item) => item.workoutId}
           renderItem={renderItem}
           keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingBottom: MINI_PLAYER_HEIGHT + 30 }}
         />
       </View>
     </KeyboardAvoidingView>

@@ -8,6 +8,8 @@ import {
   Modal,
   Image,
   Keyboard,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import React, { useState, useEffect } from "react";
 import { LinearGradient } from "expo-linear-gradient";
@@ -39,32 +41,32 @@ type SelectedFilters = Record<FilterKey, boolean>;
 // Map user-friendly search terms to BodyPart enum values
 const bodyPartMapping: Record<string, string> = {
   // Singular forms
-  'bicep': 'BICEPS',
-  'tricep': 'TRICEPS',
-  'leg': 'LEGS',
-  'quad': 'QUADS',
-  'hamstring': 'HAMSTRINGS',
-  'glute': 'GLUTES',
-  'calf': 'CALVES',
-  'trap': 'TRAPS',
-  'forearm': 'FOREARMS',
+  bicep: "BICEPS",
+  tricep: "TRICEPS",
+  leg: "LEGS",
+  quad: "QUADS",
+  hamstring: "HAMSTRINGS",
+  glute: "GLUTES",
+  calf: "CALVES",
+  trap: "TRAPS",
+  forearm: "FOREARMS",
   // Plural forms
-  'biceps': 'BICEPS',
-  'triceps': 'TRICEPS',
-  'legs': 'LEGS',
-  'quads': 'QUADS',
-  'hamstrings': 'HAMSTRINGS',
-  'glutes': 'GLUTES',
-  'calves': 'CALVES',
-  'traps': 'TRAPS',
-  'forearms': 'FOREARMS',
+  biceps: "BICEPS",
+  triceps: "TRICEPS",
+  legs: "LEGS",
+  quads: "QUADS",
+  hamstrings: "HAMSTRINGS",
+  glutes: "GLUTES",
+  calves: "CALVES",
+  traps: "TRAPS",
+  forearms: "FOREARMS",
   // Common terms
-  'chest': 'CHEST',
-  'back': 'BACK',
-  'shoulder': 'SHOULDERS',
-  'shoulders': 'SHOULDERS',
-  'core': 'CORE',
-  'abs': 'CORE',
+  chest: "CHEST",
+  back: "BACK",
+  shoulder: "SHOULDERS",
+  shoulders: "SHOULDERS",
+  core: "CORE",
+  abs: "CORE",
 };
 
 export function ExerciseSelect() {
@@ -148,7 +150,7 @@ export function ExerciseSelect() {
         // Body part detected: match bodyPart AND search remaining words in name
         const bodyPartMatch = ex.bodyPart.toUpperCase() === detectedBodyPart;
         const nameMatch = remainingWords.every((word) =>
-          ex.name.toLowerCase().includes(word)
+          ex.name.toLowerCase().includes(word),
         );
         return bodyPartMatch && nameMatch;
       } else if (detectedBodyPart && remainingWords.length === 0) {
@@ -159,7 +161,7 @@ export function ExerciseSelect() {
         const searchMatch = searchWords.every(
           (word) =>
             ex.name.toLowerCase().includes(word) ||
-            ex.bodyPart.toLowerCase().includes(word)
+            ex.bodyPart.toLowerCase().includes(word),
         );
         return searchMatch;
       }
@@ -181,210 +183,241 @@ export function ExerciseSelect() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
-      {/* Search Bar */}
-      <View style={styles.searchRow}>
-        <View
-          style={[
-            styles.searchContainer,
-            { backgroundColor: colors.inputBg, borderColor: colors.border },
-          ]}
-        >
-          <Image
-            source={search}
-            style={[styles.searchIcon, { tintColor: colors.icon }]}
-          />
-
-          <TextInput
-            placeholder="Search Exercises"
-            placeholderTextColor={colors.subtle}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            style={[styles.searchInput, { color: colors.text }]}
-            returnKeyType="done"
-            onSubmitEditing={() => Keyboard.dismiss()}
-          />
-
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery("")}>
-              <Image
-                source={close}
-                style={[styles.clearIcon, { tintColor: colors.icon }]}
-              />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Filter Button */}
-        <TouchableOpacity
-          onPress={() => setIsFiltering(true)}
-          style={[
-            styles.filterButton,
-            { backgroundColor: colors.inputBg, borderColor: colors.border },
-          ]}
-        >
-          <Image
-            source={filter}
-            style={[styles.filterIcon, { tintColor: colors.icon }]}
-          />
-        </TouchableOpacity>
-      </View>
-
-      {/* Exercises List */}
-      <ScrollView
-        style={{ flex: 1, marginTop: 20 }}
-        contentContainerStyle={{ paddingBottom: 20 }}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 125 : 0}
       >
-        {filteredExercises.map((ex) => (
-          <View key={ex.exerciseId} style={styles.exerciseRow}>
-            <TouchableOpacity
-              style={{ flex: 1 }}
-              onPress={() => {
-                // Start timer if not already running
-                start();
-
-                // Generate unique workout exercise ID
-                const workoutExerciseId = Date.now().toString();
-
-                // Show mini player (timer persists)
-                showPlayer(workoutExerciseId);
-
-                // Navigate to ExerciseDetail modal (original workflow)
-                navigation.replace("ExerciseDetail", {
-                  exercise: {
-                    workoutExerciseId,
-                    exerciseId: ex.exerciseId,
-                    name: ex.name,
-                    sets: [],
-                  },
-                });
-              }}
-            >
-              <Text
-                style={{ fontSize: 16, fontWeight: "600", color: colors.text }}
-              >
-                {ex.name}
-              </Text>
-              <Text style={{ color: colors.subtle }}>{ex.bodyPart}</Text>
-              <Text style={{ color: colors.subtle, marginTop: 4 }}>
-                {ex.description}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => {
-                const greetingText = `Hello, I'm your personal ${ex.name} assistant! If you have any questions on this exercise, let me know!`;
-
-                // Navigate to ExerciseChat modal
-                navigation.navigate("ExerciseChat", {
-                  exercise: ex,
-                  greetingText,
-                });
-              }}
-              style={styles.chatIconButtonWrapper}
-            >
-              <LinearGradient
-                colors={
-                  isDark
-                    ? ["rgba(255, 255, 255, 0.25)", "rgba(255, 255, 255, 0.08)"]
-                    : ["rgba(255, 255, 255, 0.4)", "rgba(29, 29, 29, 0.12)"]
-                }
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={[
-                  styles.chatIconButton,
-                  {
-                    borderTopColor: isDark
-                      ? "rgba(255, 255, 255, 0.6)"
-                      : "rgba(255, 255, 255, 0.5)",
-                    borderLeftColor: isDark
-                      ? "rgba(255, 255, 255, 0.6)"
-                      : "rgba(255, 255, 255, 0.5)",
-                    borderBottomColor: isDark
-                      ? "rgba(255, 255, 255, 0.05)"
-                      : "rgba(0, 0, 0, 0.08)",
-                    borderRightColor: isDark
-                      ? "rgba(255, 255, 255, 0.05)"
-                      : "rgba(0, 0, 0, 0.08)",
-                    shadowColor: isDark ? "#fff" : "#000",
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: isDark ? 0.4 : 0.15,
-                    shadowRadius: 10,
-                    elevation: 8,
-                  },
-                ]}
-              >
-                <Image
-                  source={chat}
-                  style={{
-                    width: 20,
-                    height: 20,
-                    tintColor: isDark ? "#fff" : "#1D1D1D",
-                    transform: [{ translateX: 1.25 }, { translateY: -1 }],
-                  }}
-                />
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        ))}
-      </ScrollView>
-
-      {/* Filter Modal */}
-      <Modal visible={isFiltering} animationType="fade" transparent>
-        <View style={styles.modalBackground}>
+        {/* Search Bar */}
+        <View style={styles.searchRow}>
           <View
-            style={[styles.modalContainer, { backgroundColor: colors.modalBg }]}
+            style={[
+              styles.searchContainer,
+              { backgroundColor: colors.inputBg, borderColor: colors.border },
+            ]}
           >
-            <TouchableOpacity onPress={() => setIsFiltering(false)}>
-              <Image
-                source={close}
-                style={[
-                  styles.clearIcon,
-                  { tintColor: colors.icon, alignSelf: "flex-end" },
-                ]}
-              />
-            </TouchableOpacity>
+            <Image
+              source={search}
+              style={[styles.searchIcon, { tintColor: colors.icon }]}
+            />
 
-            <Text style={[styles.modalTitle, { color: colors.text }]}>
-              Filter Exercises
-            </Text>
+            <TextInput
+              placeholder="Search Exercises"
+              placeholderTextColor={colors.subtle}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              style={[styles.searchInput, { color: colors.text }]}
+              returnKeyType="done"
+              onSubmitEditing={() => Keyboard.dismiss()}
+            />
 
-            <ScrollView style={styles.scrollArea}>
-              {Object.entries(selectedFilters).map(([key, value]) => {
-                const typedKey = key as FilterKey;
-
-                return (
-                  <TouchableOpacity
-                    key={typedKey}
-                    onPress={() =>
-                      setSelectedFilters((prev) => ({
-                        ...prev,
-                        [typedKey]: !prev[typedKey],
-                      }))
-                    }
-                    style={styles.filterOption}
-                  >
-                    <View
-                      style={[
-                        styles.checkbox,
-                        {
-                          backgroundColor: value ? "#007AFF" : colors.card,
-                          borderColor: colors.border,
-                        },
-                      ]}
-                    />
-
-                    <Text style={{ fontSize: 16, color: colors.text }}>
-                      {typedKey}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-
-            <Button onPress={() => setIsFiltering(false)}>Apply Filters</Button>
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery("")}>
+                <Image
+                  source={close}
+                  style={[styles.clearIcon, { tintColor: colors.icon }]}
+                />
+              </TouchableOpacity>
+            )}
           </View>
+
+          {/* Filter Button */}
+          <TouchableOpacity
+            onPress={() => setIsFiltering(true)}
+            style={[
+              styles.filterButton,
+              { backgroundColor: colors.inputBg, borderColor: colors.border },
+            ]}
+          >
+            <Image
+              source={filter}
+              style={[styles.filterIcon, { tintColor: colors.icon }]}
+            />
+          </TouchableOpacity>
         </View>
-      </Modal>
+
+        {/* Exercises List */}
+        <ScrollView
+          style={{ flex: 1, marginTop: 20 }}
+          contentContainerStyle={{ paddingBottom: 20 }}
+        >
+          {filteredExercises.map((ex) => (
+            <View key={ex.exerciseId} style={styles.exerciseRow}>
+              <TouchableOpacity
+                style={{ flex: 1 }}
+                onPress={() => {
+                  // Start timer if not already running
+                  start();
+
+                  // Generate unique workout exercise ID
+                  const workoutExerciseId = Date.now().toString();
+
+                  // Show mini player (timer persists)
+                  showPlayer(workoutExerciseId);
+
+                  // Navigate to ExerciseDetail modal (original workflow)
+                  navigation.replace("ExerciseDetail", {
+                    exercise: {
+                      workoutExerciseId,
+                      exerciseId: ex.exerciseId,
+                      name: ex.name,
+                      sets: [],
+                    },
+                  });
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: colors.text,
+                  }}
+                >
+                  {ex.name}
+                </Text>
+                <Text style={{ color: colors.subtle }}>{ex.bodyPart}</Text>
+                <Text style={{ color: colors.subtle, marginTop: 4 }}>
+                  {ex.description}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => {
+                  const greetingText = `Hello, I'm your personal ${ex.name} assistant! If you have any questions on this exercise, let me know!`;
+
+                  // Navigate to ExerciseChat modal
+                  navigation.navigate("ExerciseChat", {
+                    exercise: ex,
+                    greetingText,
+                  });
+                }}
+                style={styles.chatIconButtonWrapper}
+              >
+                <LinearGradient
+                  colors={
+                    isDark
+                      ? [
+                          "rgba(255, 255, 255, 0.25)",
+                          "rgba(255, 255, 255, 0.08)",
+                        ]
+                      : ["rgba(255, 255, 255, 0.4)", "rgba(29, 29, 29, 0.12)"]
+                  }
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={[
+                    styles.chatIconButton,
+                    {
+                      borderTopColor: isDark
+                        ? "rgba(255, 255, 255, 0.6)"
+                        : "rgba(255, 255, 255, 0.5)",
+                      borderLeftColor: isDark
+                        ? "rgba(255, 255, 255, 0.6)"
+                        : "rgba(255, 255, 255, 0.5)",
+                      borderBottomColor: isDark
+                        ? "rgba(255, 255, 255, 0.05)"
+                        : "rgba(0, 0, 0, 0.08)",
+                      borderRightColor: isDark
+                        ? "rgba(255, 255, 255, 0.05)"
+                        : "rgba(0, 0, 0, 0.08)",
+                      shadowColor: isDark ? "#fff" : "#000",
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: isDark ? 0.4 : 0.15,
+                      shadowRadius: 10,
+                      elevation: 8,
+                    },
+                  ]}
+                >
+                  <Image
+                    source={chat}
+                    style={{
+                      width: 20,
+                      height: 20,
+                      tintColor: isDark ? "#fff" : "#1D1D1D",
+                      transform: [{ translateX: 1.25 }, { translateY: -1 }],
+                    }}
+                  />
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          ))}
+          <TouchableOpacity
+            onPress={() =>
+              navigation.navigate("CreateExercise", { startWorkout: true })
+            }
+            style={[styles.createButton, { borderColor: colors.border }]}
+          >
+            <Text style={[styles.createButtonText, { color: colors.subtle }]}>
+              + Create Custom Exercise
+            </Text>
+            <Text style={[styles.createButtonHint, { color: colors.border }]}>
+              Don't see your exercise? Add it here
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+
+        {/* Filter Modal */}
+        <Modal visible={isFiltering} animationType="fade" transparent>
+          <View style={styles.modalBackground}>
+            <View
+              style={[
+                styles.modalContainer,
+                { backgroundColor: colors.modalBg },
+              ]}
+            >
+              <TouchableOpacity onPress={() => setIsFiltering(false)}>
+                <Image
+                  source={close}
+                  style={[
+                    styles.clearIcon,
+                    { tintColor: colors.icon, alignSelf: "flex-end" },
+                  ]}
+                />
+              </TouchableOpacity>
+
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                Filter Exercises
+              </Text>
+
+              <ScrollView style={styles.scrollArea}>
+                {Object.entries(selectedFilters).map(([key, value]) => {
+                  const typedKey = key as FilterKey;
+
+                  return (
+                    <TouchableOpacity
+                      key={typedKey}
+                      onPress={() =>
+                        setSelectedFilters((prev) => ({
+                          ...prev,
+                          [typedKey]: !prev[typedKey],
+                        }))
+                      }
+                      style={styles.filterOption}
+                    >
+                      <View
+                        style={[
+                          styles.checkbox,
+                          {
+                            backgroundColor: value ? "#007AFF" : colors.card,
+                            borderColor: colors.border,
+                          },
+                        ]}
+                      />
+
+                      <Text style={{ fontSize: 16, color: colors.text }}>
+                        {typedKey}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              <Button onPress={() => setIsFiltering(false)}>
+                Apply Filters
+              </Button>
+            </View>
+          </View>
+        </Modal>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -471,5 +504,24 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     overflow: "hidden",
+  },
+  createButton: {
+    marginTop: 20,
+    marginBottom: 30,
+    paddingVertical: 18,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    alignItems: "center",
+    gap: 4,
+  },
+
+  createButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+
+  createButtonHint: {
+    fontSize: 12,
   },
 });

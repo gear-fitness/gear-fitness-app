@@ -44,9 +44,12 @@ public class WorkoutService {
     }
 
     @Transactional(readOnly = true)
-    public WorkoutDetailDTO getWorkoutDetails(UUID workoutId) {
+    public WorkoutDetailDTO getWorkoutDetails(UUID workoutId, UUID requestingUserId) {
         Workout workout = workoutRepository.findById(workoutId)
                 .orElseThrow(() -> new RuntimeException("Workout not found with id: " + workoutId));
+
+        boolean isOwner = requestingUserId != null
+                && workout.getUser().getUserId().equals(requestingUserId);
 
         List<WorkoutExerciseDTO> exercises = workout.getWorkoutExercises()
                 .stream()
@@ -68,7 +71,7 @@ public class WorkoutService {
                             we.getExercise().getName(),
                             we.getExercise().getBodyPart().toString(),
                             we.getPosition(),
-                            we.getNote(),
+                            isOwner ? we.getNote() : null,
                             sets);
                 })
                 .collect(Collectors.toList());
@@ -308,7 +311,7 @@ public class WorkoutService {
         }
 
         // Return workout details
-        return getWorkoutDetails(workout.getWorkoutId());
+        return getWorkoutDetails(workout.getWorkoutId(), userId);
     }
 
     @Transactional

@@ -37,6 +37,7 @@ import { AuthLoadingScreen } from "./screens/AuthLoading";
 import { CommentsScreen } from "../components/CommentsScreen";
 import { ExerciseList } from "./screens/ExerciseList";
 import { ExerciseHistory } from "./screens/ExerciseHistory";
+import { CreateExerciseScreen } from "./screens/CreateExerciseScreen";
 
 /* ---------------------- TABS ---------------------- */
 
@@ -186,6 +187,15 @@ const RootStack = createNativeStackNavigator({
       }),
     },
 
+    CreateExercise: {
+      screen: CreateExerciseScreen,
+      options: {
+        title: "New Exercise",
+        presentation: "modal",
+        headerShown: true,
+      },
+    },
+
     /* MODAL 2 — EXERCISE DETAIL */
     ExerciseDetail: {
       screen: ExerciseDetail,
@@ -207,12 +217,6 @@ const RootStack = createNativeStackNavigator({
       },
     },
 
-    NotFound: {
-      screen: NotFound,
-      options: { title: "404" },
-      linking: { path: "*" },
-    },
-
     /* MODAL 4 — WORKOUT COMPLETE */
     WorkoutComplete: {
       screen: WorkoutComplete,
@@ -221,6 +225,12 @@ const RootStack = createNativeStackNavigator({
         presentation: "modal",
         headerShown: true,
       },
+    },
+
+    NotFound: {
+      screen: NotFound,
+      options: { title: "404" },
+      linking: { path: "*" },
     },
 
     /* MODAL 5 — EXERCISE CHAT */
@@ -278,11 +288,18 @@ declare global {
 
       ExerciseDetail: {
         exercise: {
+          workoutExerciseId?: string;
           exerciseId: string;
           name: string;
           sets?: any[];
         };
       };
+
+      CreateExercise:
+        | {
+            startWorkout?: boolean; // if true, navigate to ExerciseDetail after creation
+          }
+        | undefined;
 
       ExerciseChat: {
         exercise: {

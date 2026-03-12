@@ -46,10 +46,17 @@ public class WorkoutController {
     }
 
     @GetMapping("/{workoutId}")
-    public ResponseEntity<WorkoutDetailDTO> getWorkoutDetails(@PathVariable UUID workoutId) {
+    public ResponseEntity<WorkoutDetailDTO> getWorkoutDetails(
+            @PathVariable UUID workoutId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            System.out.println("Fetching workout details for ID: " + workoutId);
-            WorkoutDetailDTO details = workoutService.getWorkoutDetails(workoutId);
+            UUID requestingUserId = null;
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                String token = authHeader.substring(7);
+                requestingUserId = jwtService.extractUserId(token);
+            }
+
+            WorkoutDetailDTO details = workoutService.getWorkoutDetails(workoutId, requestingUserId);
             return ResponseEntity.ok(details);
         } catch (RuntimeException e) {
             System.err.println("Error fetching workout: " + e.getMessage());
