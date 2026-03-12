@@ -96,6 +96,7 @@ export function WorkoutComplete() {
             reps: set.reps,
             weight: set.weight,
           })),
+          note: ex.note || "",
         })),
         createPost: createPost,
         caption: createPost ? caption : undefined,
