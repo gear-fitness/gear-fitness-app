@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.tsx",
   "scripts": {
-    "start": "node scripts/set-ip.js && expo start --dev-client",
+    "start": "node scripts/set-ip.js && cross-env APP_VARIANT=development expo start --dev-client",
     "web": "expo start --web",
     "android": "expo run:android",
     "ios": "expo run:ios"
@@ -45,6 +45,7 @@
     "@babel/core": "^7.20.0",
     "@types/react": "~19.1.10",
     "baseline-browser-mapping": "^2.10.0",
+    "cross-env": "^10.1.0",
     "typescript": "~5.9.2"
   },
   "private": true
