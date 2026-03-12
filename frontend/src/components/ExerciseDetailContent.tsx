@@ -58,14 +58,14 @@ export const ExerciseDetailContent = forwardRef<
   const formatTime = (t: number) =>
     `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(
       2,
-      "0"
+      "0",
     )}`;
 
   // Initialize with existing sets or default empty set
   const [sets, setSets] = useState(
     exercise.sets && exercise.sets.length > 0
       ? exercise.sets.map((s, i) => ({ id: `${i}`, ...s }))
-      : [{ id: "1", reps: "", weight: "" }]
+      : [{ id: "1", reps: "", weight: "" }],
   );
 
   // Track which sets we've already auto-added for to prevent duplicate additions
@@ -101,7 +101,7 @@ export const ExerciseDetailContent = forwardRef<
   // Core save logic without navigation
   const saveExercise = () => {
     const validSets = sets.filter(
-      (s) => s.reps.trim() !== "" && s.weight.trim() !== ""
+      (s) => s.reps.trim() !== "" && s.weight.trim() !== "",
     );
     if (validSets.length > 0) {
       addExercise({
@@ -131,7 +131,7 @@ export const ExerciseDetailContent = forwardRef<
       () => {
         // Save current sets without navigating away
         saveExercise();
-      }
+      },
     );
 
     return () => {
@@ -197,12 +197,12 @@ export const ExerciseDetailContent = forwardRef<
                   placeholder="Reps"
                   placeholderTextColor={colors.subtle}
                   value={item.reps}
-                  keyboardType="numeric"
+                  keyboardType="number-pad"
                   onChangeText={(t) =>
                     setSets((prev) =>
                       prev.map((s) =>
-                        s.id === item.id ? { ...s, reps: t } : s
-                      )
+                        s.id === item.id ? { ...s, reps: t } : s,
+                      ),
                     )
                   }
                   style={[
@@ -223,8 +223,8 @@ export const ExerciseDetailContent = forwardRef<
                   onChangeText={(t) =>
                     setSets((prev) =>
                       prev.map((s) =>
-                        s.id === item.id ? { ...s, weight: t } : s
-                      )
+                        s.id === item.id ? { ...s, weight: t } : s,
+                      ),
                     )
                   }
                   style={[

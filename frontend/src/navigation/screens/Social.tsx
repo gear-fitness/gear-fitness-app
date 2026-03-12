@@ -27,6 +27,7 @@ import { UserSearchCard } from "../../components/UserSearchCard";
 import { useAuth } from "../../context/AuthContext";
 import { ActivityModal } from "../../components/ActivityModal";
 import { useTrackTab } from "../../hooks/useTrackTab";
+import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
 import { feedRefresh } from "../../utils/feedRefreshFlag";
 
 export function Social() {
@@ -327,7 +328,9 @@ export function Social() {
           )}
           keyExtractor={(item) => String(item.postId)}
           contentContainerStyle={
-            posts.length === 0 ? styles.emptyContainer : styles.feedList
+            posts.length === 0
+              ? { ...styles.emptyContainer }
+              : { ...styles.feedList, paddingBottom: MINI_PLAYER_HEIGHT + 30 }
           }
           ListEmptyComponent={renderEmpty}
           ListFooterComponent={renderFooter}

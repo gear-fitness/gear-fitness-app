@@ -24,11 +24,10 @@ import { UserProfile, FollowerUser } from "../../api/types";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { socialFeedApi, FeedPost } from "../../api/socialFeedApi";
 import { FeedPostCard } from "../../components/FeedPostCard";
+import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
 import { feedRefresh } from "../../utils/feedRefreshFlag";
 
 export function Profile() {
-  useTrackTab("Profile");
-
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -36,6 +35,8 @@ export function Profile() {
 
   const usernameParam: string | undefined = route.params?.username;
   const isOtherUser = !!usernameParam;
+
+  useTrackTab(isOtherUser ? "UserProfile" : "Profile");
 
   // State management
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -351,7 +352,7 @@ export function Profile() {
         }
         contentContainerStyle={{
           paddingTop: insets.top + (isOtherUser ? 28 : 0),
-          paddingBottom: 40,
+          paddingBottom: MINI_PLAYER_HEIGHT + 30,
         }}
         onEndReached={loadMorePosts}
         onEndReachedThreshold={0.5}

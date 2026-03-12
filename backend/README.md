@@ -8,7 +8,7 @@
 cp run.sh.template run.sh
 ```
 
-Edit `run.sh` to contain correct values.
+Edit `run.sh` to contain correct values. (found in discord)
 
 2. Make it executable
 
@@ -26,6 +26,14 @@ docker-compose up -d
 
 ```bash
 ./run.sh
+```
+
+## Tips
+
+To properly shutdown docker and restart it use:
+
+```bash
+docker compose down -v
 ```
 
 ![Image](https://media1.tenor.com/m/lZmRtXcNlScAAAAd/rizzler-boom-rizzler-dance.gif)
