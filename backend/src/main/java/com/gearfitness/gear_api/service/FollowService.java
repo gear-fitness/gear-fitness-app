@@ -231,6 +231,7 @@ public class FollowService {
                 .map(f -> new FollowActivityDTO(
                         f.getFollower().getUserId(),
                         f.getFollower().getUsername(),
+                        f.getFollower().getProfilePictureUrl(),
                         f.getCreatedAt()
                 ))
                 .collect(Collectors.toList());

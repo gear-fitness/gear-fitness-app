@@ -49,6 +49,9 @@ public class AppUser {
     @Builder.Default
     private Boolean isPrivate = false;
 
+    @Column(name = "profile_picture_url", length = 512)
+    private String profilePictureUrl;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

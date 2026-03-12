@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { getFollowActivity } from "../api/followService";
+import { Avatar } from "./Avatar";
 
 type ActivityModalProps = {
   visible: boolean;
@@ -22,6 +23,7 @@ type ActivityModalProps = {
 type ActivityItem = {
   userId: string;
   username: string;
+  profilePictureUrl?: string;
   createdAt: string;
 };
 
@@ -43,6 +45,7 @@ export function ActivityModal({ visible, onClose }: ActivityModalProps) {
         const normalized: ActivityItem[] = data.map((item: any) => ({
           userId: item.userId,
           username: item.username,
+          profilePictureUrl: item.profilePictureUrl,
           createdAt: item.createdAt ?? new Date().toISOString(),
         }));
 
@@ -78,10 +81,10 @@ export function ActivityModal({ visible, onClose }: ActivityModalProps) {
       }}
       style={[styles.activityRow, { borderBottomColor: colors.border }]}
     >
-      <Ionicons
-        name="person-circle-outline"
+      <Avatar
+        username={item.username}
+        profilePictureUrl={item.profilePictureUrl}
         size={42}
-        color={colors.primary}
         style={styles.avatar}
       />
 

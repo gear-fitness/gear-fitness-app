@@ -23,6 +23,7 @@ public class FeedPostDTO {
 
     private UUID userId;
     private String username;
+    private String userProfilePictureUrl;
 
     private String workoutName;
     private LocalDate datePerformed;

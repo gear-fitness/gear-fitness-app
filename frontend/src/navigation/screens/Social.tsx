@@ -292,6 +292,7 @@ export function Social() {
             return (
               <UserSearchCard
                 username={item.username}
+                profilePictureUrl={item.profilePictureUrl}
                 onPress={() => {
                   setSearchQuery("");
                   setUserResults([]);

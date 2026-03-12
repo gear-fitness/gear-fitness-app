@@ -137,6 +137,7 @@ public class AppUserService {
                 .heightInches(user.getHeightInches())
                 .age(user.getAge())
                 .isPrivate(user.getIsPrivate())
+                .profilePictureUrl(user.getProfilePictureUrl())
                 .createdAt(user.getCreatedAt())
                 .workoutStats(workoutStats)
                 .followersCount(followersCount)
@@ -300,6 +301,7 @@ public class AppUserService {
                 .heightInches(user.getHeightInches())
                 .age(user.getAge())
                 .isPrivate(user.getIsPrivate())
+                .profilePictureUrl(user.getProfilePictureUrl())
                 .createdAt(user.getCreatedAt())
                 .build();
     }

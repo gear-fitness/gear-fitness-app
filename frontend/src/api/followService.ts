@@ -13,6 +13,7 @@ const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 export type FollowActivityDTO = {
   userId: string;
   username: string;
+  profilePictureUrl?: string;
   createdAt?: string; // ISO timestamp (optional for backward compatibility)
 };
 
