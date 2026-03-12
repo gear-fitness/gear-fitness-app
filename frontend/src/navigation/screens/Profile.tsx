@@ -25,6 +25,7 @@ import { useTrackTab } from "../../hooks/useTrackTab";
 import { socialFeedApi, FeedPost } from "../../api/socialFeedApi";
 import { FeedPostCard } from "../../components/FeedPostCard";
 import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
+import { feedRefresh } from "../../utils/feedRefreshFlag";
 
 export function Profile() {
   const insets = useSafeAreaInsets();
@@ -49,6 +50,7 @@ export function Profile() {
   const [loadingMorePosts, setLoadingMorePosts] = useState(false);
   const [currentPostsPage, setCurrentPostsPage] = useState(0);
   const [hasMorePosts, setHasMorePosts] = useState(true);
+  const [didChangeFollow, setDidChangeFollow] = useState(false);
 
   // Load profile data when screen is focused
   const loadProfile = async () => {
@@ -103,6 +105,7 @@ export function Profile() {
             onPress: async () => {
               try {
                 await unfollowUser(profile.userId);
+                feedRefresh.needed = true;
                 loadProfile();
               } catch {
                 Alert.alert("Error", "Failed to update follow status");
@@ -117,6 +120,7 @@ export function Profile() {
     // Follow user
     try {
       await followUser(profile.userId);
+      feedRefresh.needed = true;
       loadProfile();
     } catch {
       Alert.alert("Error", "Failed to update follow status");

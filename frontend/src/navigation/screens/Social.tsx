@@ -17,6 +17,7 @@ import {
   useTheme,
   useNavigation,
   useFocusEffect,
+  useRoute,
 } from "@react-navigation/native";
 
 import { socialFeedApi, FeedPost } from "../../api/socialFeedApi";
@@ -27,6 +28,7 @@ import { useAuth } from "../../context/AuthContext";
 import { ActivityModal } from "../../components/ActivityModal";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
+import { feedRefresh } from "../../utils/feedRefreshFlag";
 
 export function Social() {
   useTrackTab("Social");
@@ -55,6 +57,15 @@ export function Social() {
   useEffect(() => {
     loadFeed();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (feedRefresh.needed) {
+        feedRefresh.needed = false;
+        loadFeed();
+      }
+    }, []),
+  );
 
   // Load initial feed
   const loadFeed = async () => {
