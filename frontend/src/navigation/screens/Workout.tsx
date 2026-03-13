@@ -338,7 +338,7 @@ export function Workout() {
                   style={styles.quickStartButton}
                   onPress={() => handleQuickStartRoutine(routine)}
                 >
-                  <Text style={styles.quickStartText}>Start</Text>
+                  <Text style={styles.quickStartText}>▶</Text>
                 </TouchableOpacity>
               </View>
             ))
@@ -505,15 +505,16 @@ const styles = StyleSheet.create({
   },
   quickStartButton: {
     backgroundColor: "#007AFF",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
     marginLeft: 10,
   },
   quickStartText: {
     color: "#fff",
-    fontSize: 13,
-    fontWeight: "700",
+    fontSize: 18,
   },
 
   // Shadow layers for glow effect

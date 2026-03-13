@@ -5,7 +5,11 @@ import {
   StaticParamList,
 } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { Image } from "react-native";
+import { Appearance, Image } from "react-native";
+
+const isDark = Appearance.getColorScheme() === "dark";
+const initialHeaderBg = isDark ? "#000" : "#fff";
+const initialHeaderText = isDark ? "#fff" : "#000";
 
 /* ICONS */
 import bell from "../assets/bell.png";
@@ -37,6 +41,8 @@ import { AuthLoadingScreen } from "./screens/AuthLoading";
 import { CommentsScreen } from "../components/CommentsScreen";
 import { RoutineList } from "./screens/RoutineList";
 import { RoutineDetail } from "./screens/RoutineDetail";
+import { CreateRoutine } from "./screens/CreateRoutine";
+import { EditRoutine } from "./screens/EditRoutine";
 
 /* ---------------------- TABS ---------------------- */
 
@@ -241,19 +247,47 @@ const RootStack = createNativeStackNavigator({
       },
     },
 
+    CreateRoutine: {
+      screen: CreateRoutine,
+      options: {
+        headerShown: true,
+        headerShadowVisible: false,
+        headerStyle: { backgroundColor: initialHeaderBg },
+        headerTintColor: initialHeaderText,
+      },
+    },
+
+    EditRoutine: {
+      screen: EditRoutine,
+      options: {
+        headerShown: true,
+        title: "Edit Routine",
+        headerShadowVisible: false,
+        headerStyle: { backgroundColor: initialHeaderBg },
+        headerTintColor: initialHeaderText,
+      },
+    },
+
     RoutineList: {
       screen: RoutineList,
       options: {
-        headerShown: false,
+        headerShown: true,
+        title: "Routines",
+        headerShadowVisible: false,
+        headerStyle: { backgroundColor: initialHeaderBg },
+        headerTintColor: initialHeaderText,
+        headerTitleStyle: { color: initialHeaderText, fontWeight: "800", fontSize: 30 },
       },
     },
 
     RoutineDetail: {
       screen: RoutineDetail,
       options: {
-        title: "Routine",
+        title: "",
         headerShown: true,
-        headerBackTitle: "Routines",
+        headerShadowVisible: false,
+        headerStyle: { backgroundColor: initialHeaderBg },
+        headerTintColor: initialHeaderText,
       },
     },
   },
@@ -300,6 +334,8 @@ declare global {
         postId: string;
       };
 
+      CreateRoutine: { prefilledWorkoutId?: string } | undefined;
+      EditRoutine: { routine: import("../api/types").Routine };
       RoutineList: undefined;
       RoutineDetail: {
         routineId: string;

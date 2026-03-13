@@ -14,7 +14,6 @@ import { getWorkoutDetails } from "../../api/workoutService";
 import { WorkoutDetail } from "../../api/types";
 import { parseLocalDate } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
-import { CreateRoutineModal } from "../../components/CreateRoutineModal";
 
 type RootStackParamList = {
   DetailedHistory: {
@@ -36,7 +35,6 @@ export function DetailedHistory({ route }: Props) {
   const [workout, setWorkout] = useState<WorkoutDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [routineModalVisible, setRoutineModalVisible] = useState(false);
 
   useEffect(() => {
     const fetchWorkout = async () => {
@@ -141,7 +139,7 @@ export function DetailedHistory({ route }: Props) {
             styles.saveRoutineButton,
             { borderColor: isDark ? "#333" : "#D1D1D6" },
           ]}
-          onPress={() => setRoutineModalVisible(true)}
+          onPress={() => navigation.navigate("CreateRoutine", { prefilledWorkoutId: workoutId })}
         >
           <Text
             style={[styles.saveRoutineText, { color: isDark ? "#fff" : "#000" }]}
@@ -259,15 +257,6 @@ export function DetailedHistory({ route }: Props) {
       )}
     </ScrollView>
 
-      <CreateRoutineModal
-        visible={routineModalVisible}
-        onClose={() => setRoutineModalVisible(false)}
-        onCreated={() => {
-          setRoutineModalVisible(false);
-          Alert.alert("Saved!", "Routine created successfully.");
-        }}
-        prefilledWorkoutId={workoutId}
-      />
     </>
   );
 }

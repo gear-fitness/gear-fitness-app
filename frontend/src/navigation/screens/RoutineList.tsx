@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useLayoutEffect } from "react";
 import {
   View,
   Text,
@@ -13,9 +13,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { deleteRoutine, getUserRoutines } from "../../api/routineService";
 import { Routine } from "../../api/types";
-import { CreateRoutineModal } from "../../components/CreateRoutineModal";
 import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
-
+import { BackButton } from "../../components/BackButton";
 
 function formatDay(day: string): string {
   const map: Record<string, string> = {
@@ -59,7 +58,6 @@ export function RoutineList() {
 
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [loading, setLoading] = useState(true);
-  const [modalVisible, setModalVisible] = useState(false);
 
   const fetchRoutines = useCallback(async () => {
     try {
@@ -75,7 +73,7 @@ export function RoutineList() {
   useFocusEffect(
     useCallback(() => {
       fetchRoutines();
-    }, [fetchRoutines])
+    }, [fetchRoutines]),
   );
 
   const { getSwipeableProps } = useSwipeableDelete({
@@ -132,7 +130,7 @@ export function RoutineList() {
   const renderAddCard = () => (
     <TouchableOpacity
       style={[styles.addCard, { borderColor: colors.dashedBorder }]}
-      onPress={() => setModalVisible(true)}
+      onPress={() => navigation.navigate("CreateRoutine")}
       activeOpacity={0.7}
     >
       <Text style={[styles.addCardPlus, { color: colors.dashedBorder }]}>
@@ -141,36 +139,28 @@ export function RoutineList() {
     </TouchableOpacity>
   );
 
-  const canGoBack = navigation.canGoBack();
-
-  const HeaderRow = () => (
-    <View style={styles.header}>
-      {canGoBack ? (
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-          hitSlop={8}
-        >
-          <Text style={[styles.backText, { color: "#007AFF" }]}>‹ Back</Text>
-        </TouchableOpacity>
-      ) : (
-        <View style={styles.backButton} />
-      )}
-      <Text style={[styles.headerTitle, { color: colors.text }]}>Routines</Text>
-      <TouchableOpacity
-        style={[styles.headerButton, { backgroundColor: colors.headerButton }]}
-        onPress={() => setModalVisible(true)}
-        activeOpacity={0.7}
-      >
-        <Text style={[styles.headerButtonText, { color: colors.text }]}>+</Text>
-      </TouchableOpacity>
-    </View>
-  );
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerStyle: { backgroundColor: colors.bg },
+      headerTitleStyle: { color: colors.text, fontWeight: "800", fontSize: 30 },
+      headerTintColor: colors.text,
+      headerLeft: navigation.canGoBack()
+        ? () => (
+            <BackButton
+              onPress={() => navigation.goBack()}
+              color={colors.text}
+            />
+          )
+        : undefined,
+    });
+  }, [navigation, colors]);
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
-        <HeaderRow />
+      <SafeAreaView
+        edges={["bottom"]}
+        style={[styles.container, { backgroundColor: colors.bg }]}
+      >
         <View style={styles.centered}>
           <ActivityIndicator size="large" color="#007AFF" />
         </View>
@@ -179,28 +169,20 @@ export function RoutineList() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
-      {/* Header */}
-      <HeaderRow />
-
+    <SafeAreaView
+      edges={["bottom"]}
+      style={[styles.container, { backgroundColor: colors.bg }]}
+    >
       {/* Cards */}
       <FlatList
         data={routines}
         keyExtractor={(item) => item.routineId}
         renderItem={renderCard}
-        ListFooterComponent={renderAddCard}
+        ListHeaderComponent={renderAddCard}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       />
 
-      <CreateRoutineModal
-        visible={modalVisible}
-        onClose={() => setModalVisible(false)}
-        onCreated={(newRoutine) => {
-          setRoutines((prev) => [newRoutine, ...prev]);
-          setModalVisible(false);
-        }}
-      />
     </SafeAreaView>
   );
 }
@@ -213,40 +195,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 8,
-  },
-  backButton: {
-    width: 64,
-  },
-  backText: {
-    fontSize: 17,
-    fontWeight: "500",
-  },
-  headerTitle: {
-    fontSize: 34,
-    fontWeight: "800",
-    letterSpacing: -0.5,
-    flex: 1,
-    textAlign: "center",
-  },
-  headerButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  headerButtonText: {
-    fontSize: 26,
-    fontWeight: "300",
-    lineHeight: 30,
   },
   listContent: {
     paddingHorizontal: 24,
@@ -281,7 +229,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 2,
     borderStyle: "dashed",
-    height: 160,
+    height: 120,
     justifyContent: "center",
     alignItems: "center",
   },

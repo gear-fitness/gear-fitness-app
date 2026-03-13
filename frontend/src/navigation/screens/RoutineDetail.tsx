@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useLayoutEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -10,11 +10,11 @@ import {
   Alert,
 } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { getRoutineDetail, deleteRoutine } from "../../api/routineService";
 import { Routine } from "../../api/types";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
-import { EditRoutineModal } from "../../components/EditRoutineModal";
+import { BackButton } from "../../components/BackButton";
 
 type RootStackParamList = {
   RoutineDetail: { routineId: string };
@@ -56,21 +56,33 @@ export function RoutineDetail({ route }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [editModalVisible, setEditModalVisible] = useState(false);
 
-  useEffect(() => {
-    const fetch = async () => {
-      try {
-        const data = await getRoutineDetail(routineId);
-        setRoutine(data);
-      } catch (err: any) {
-        setError(err.message ?? "Failed to load routine");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetch();
-  }, [routineId]);
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      title: "",
+      headerStyle: { backgroundColor: colors.bg },
+      headerTintColor: colors.text,
+      headerLeft: () => (
+        <BackButton onPress={() => navigation.goBack()} color={colors.text} />
+      ),
+    });
+  }, [navigation, colors]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const fetch = async () => {
+        try {
+          const data = await getRoutineDetail(routineId);
+          setRoutine(data);
+        } catch (err: any) {
+          setError(err.message ?? "Failed to load routine");
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetch();
+    }, [routineId])
+  );
 
   const handleStartWorkout = async () => {
     if (!routine || routine.exercises.length === 0) {
@@ -119,11 +131,6 @@ export function RoutineDetail({ route }: Props) {
     );
   };
 
-  const handleRoutineSaved = (updatedRoutine: Routine) => {
-    setRoutine(updatedRoutine);
-    setEditModalVisible(false);
-  };
-
   if (loading) {
     return (
       <View style={[styles.container, styles.centered, { backgroundColor: colors.bg }]}>
@@ -156,7 +163,7 @@ export function RoutineDetail({ route }: Props) {
           </Text>
           <TouchableOpacity
             style={styles.editButton}
-            onPress={() => setEditModalVisible(true)}
+            onPress={() => routine && navigation.navigate("EditRoutine", { routine })}
           >
             <Text style={styles.editButtonText}>Edit</Text>
           </TouchableOpacity>
@@ -283,12 +290,6 @@ export function RoutineDetail({ route }: Props) {
           </TouchableOpacity>
         </View>
       </View>
-      <EditRoutineModal
-        visible={editModalVisible}
-        routine={routine}
-        onClose={() => setEditModalVisible(false)}
-        onSaved={handleRoutineSaved}
-      />
     </View>
   );
 }
