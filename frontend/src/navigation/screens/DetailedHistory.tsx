@@ -14,6 +14,7 @@ import { getWorkoutDetails } from "../../api/workoutService";
 import { WorkoutDetail } from "../../api/types";
 import { parseLocalDate } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
+import { useNavigation } from "@react-navigation/native";
 
 type RootStackParamList = {
   DetailedHistory: {
@@ -28,6 +29,7 @@ type Props = NativeStackScreenProps<RootStackParamList, "DetailedHistory">;
 export function DetailedHistory({ route }: Props) {
   useTrackTab("DetailedHistory");
 
+  const navigation = useNavigation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const { workoutId, caption, workoutName } = route.params;
@@ -108,155 +110,177 @@ export function DetailedHistory({ route }: Props) {
 
   return (
     <>
-    <ScrollView
-      style={[
-        styles.container,
-        { backgroundColor: isDark ? "#121212" : "#fff" },
-      ]}
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={[styles.workoutName, { color: isDark ? "#fff" : "#000" }]}>
-          {workout.name}
-        </Text>
-        <Text style={[styles.workoutDate, { color: isDark ? "#aaa" : "#666" }]}>
-          {parseLocalDate(workout.datePerformed).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          })}
-          {workout.durationMin != null && workout.durationMin > 0 && ` • ${workout.durationMin} min`}
-        </Text>
-        {workout.bodyTag && (
+      <ScrollView
+        style={[
+          styles.container,
+          { backgroundColor: isDark ? "#121212" : "#fff" },
+        ]}
+      >
+        {/* Header */}
+        <View style={styles.header}>
           <Text
-            style={[styles.bodyTag, { color: isDark ? "#1877F2" : "#1877F2" }]}
+            style={[styles.workoutName, { color: isDark ? "#fff" : "#000" }]}
           >
-            {workout.bodyTag}
+            {workout.name}
           </Text>
-        )}
-        <TouchableOpacity
-          style={[
-            styles.saveRoutineButton,
-            { borderColor: isDark ? "#333" : "#D1D1D6" },
-          ]}
-          onPress={() => navigation.navigate("CreateRoutine", { prefilledWorkoutId: workoutId })}
-        >
           <Text
-            style={[styles.saveRoutineText, { color: isDark ? "#fff" : "#000" }]}
+            style={[styles.workoutDate, { color: isDark ? "#aaa" : "#666" }]}
           >
-            Save as Routine
+            {parseLocalDate(workout.datePerformed).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })}
+            {workout.durationMin != null &&
+              workout.durationMin > 0 &&
+              ` • ${workout.durationMin} min`}
           </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Caption */}
-      {caption && (
-        <View
-          style={[
-            styles.captionContainer,
-            {
-              backgroundColor: isDark ? "#1e1e1e" : "#f9f9f9",
-              borderTopColor: isDark ? "#333" : "#e0e0e0",
-            },
-          ]}
-        >
-          <Text style={[styles.captionText, { color: isDark ? "#fff" : "#000" }]}>
-            {caption}
-          </Text>
-        </View>
-      )}
-
-      {/* Exercises */}
-      {workout.exercises && workout.exercises.length > 0 ? (
-        workout.exercises.map((exercise) => (
-          <View
-            key={exercise.workoutExerciseId}
+          {workout.bodyTag && (
+            <Text
+              style={[
+                styles.bodyTag,
+                { color: isDark ? "#1877F2" : "#1877F2" },
+              ]}
+            >
+              {workout.bodyTag}
+            </Text>
+          )}
+          <TouchableOpacity
             style={[
-              styles.exerciseCard,
+              styles.saveRoutineButton,
+              { borderColor: isDark ? "#333" : "#D1D1D6" },
+            ]}
+            onPress={() =>
+              navigation.navigate("CreateRoutine", {
+                prefilledWorkoutId: workoutId,
+              })
+            }
+          >
+            <Text
+              style={[
+                styles.saveRoutineText,
+                { color: isDark ? "#fff" : "#000" },
+              ]}
+            >
+              Save as Routine
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Caption */}
+        {caption && (
+          <View
+            style={[
+              styles.captionContainer,
               {
                 backgroundColor: isDark ? "#1e1e1e" : "#f9f9f9",
-                borderColor: isDark ? "#333" : "#e0e0e0",
+                borderTopColor: isDark ? "#333" : "#e0e0e0",
               },
             ]}
           >
             <Text
-              style={[styles.exerciseName, { color: isDark ? "#fff" : "#000" }]}
+              style={[styles.captionText, { color: isDark ? "#fff" : "#000" }]}
             >
-              {exercise.exerciseName}
+              {caption}
             </Text>
-            <Text
-              style={[styles.bodyPart, { color: isDark ? "#aaa" : "#666" }]}
-            >
-              {exercise.bodyPart}
-            </Text>
-            {exercise.note && (
-              <Text style={[styles.note, { color: isDark ? "#bbb" : "#777" }]}>
-                Note: {exercise.note}
-              </Text>
-            )}
+          </View>
+        )}
 
-            {/* Sets */}
-            <View style={styles.setsContainer}>
-              {exercise.sets && exercise.sets.length > 0 ? (
-                exercise.sets.map((set) => (
-                  <View
-                    key={set.workoutSetId}
-                    style={[
-                      styles.setRow,
-                      {
-                        backgroundColor: isDark ? "#2a2a2a" : "#fff",
-                        borderColor: isDark ? "#444" : "#ddd",
-                      },
-                      set.isPr && styles.prSet,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.setText,
-                        { color: isDark ? "#fff" : "#000" },
-                      ]}
-                    >
-                      Set {set.setNumber}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.setText,
-                        { color: isDark ? "#fff" : "#000" },
-                      ]}
-                    >
-                      {set.reps} reps
-                      {set.weightLbs !== null && ` @ ${set.weightLbs} lbs`}
-                    </Text>
-                    {set.isPr && <Text style={styles.prBadge}>PR 🏆</Text>}
-                  </View>
-                ))
-              ) : (
+        {/* Exercises */}
+        {workout.exercises && workout.exercises.length > 0 ? (
+          workout.exercises.map((exercise) => (
+            <View
+              key={exercise.workoutExerciseId}
+              style={[
+                styles.exerciseCard,
+                {
+                  backgroundColor: isDark ? "#1e1e1e" : "#f9f9f9",
+                  borderColor: isDark ? "#333" : "#e0e0e0",
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.exerciseName,
+                  { color: isDark ? "#fff" : "#000" },
+                ]}
+              >
+                {exercise.exerciseName}
+              </Text>
+              <Text
+                style={[styles.bodyPart, { color: isDark ? "#aaa" : "#666" }]}
+              >
+                {exercise.bodyPart}
+              </Text>
+              {exercise.note && (
                 <Text
-                  style={[
-                    styles.noSetsText,
-                    { color: isDark ? "#aaa" : "#666" },
-                  ]}
+                  style={[styles.note, { color: isDark ? "#bbb" : "#777" }]}
                 >
-                  No sets recorded
+                  Note: {exercise.note}
                 </Text>
               )}
-            </View>
-          </View>
-        ))
-      ) : (
-        <View style={styles.centerContent}>
-          <Text
-            style={[
-              styles.noExercisesText,
-              { color: isDark ? "#aaa" : "#666" },
-            ]}
-          >
-            No exercises recorded for this workout
-          </Text>
-        </View>
-      )}
-    </ScrollView>
 
+              {/* Sets */}
+              <View style={styles.setsContainer}>
+                {exercise.sets && exercise.sets.length > 0 ? (
+                  exercise.sets.map((set) => (
+                    <View
+                      key={set.workoutSetId}
+                      style={[
+                        styles.setRow,
+                        {
+                          backgroundColor: isDark ? "#2a2a2a" : "#fff",
+                          borderColor: isDark ? "#444" : "#ddd",
+                        },
+                        set.isPr && styles.prSet,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.setText,
+                          { color: isDark ? "#fff" : "#000" },
+                        ]}
+                      >
+                        Set {set.setNumber}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.setText,
+                          { color: isDark ? "#fff" : "#000" },
+                        ]}
+                      >
+                        {set.reps} reps
+                        {set.weightLbs !== null && ` @ ${set.weightLbs} lbs`}
+                      </Text>
+                      {set.isPr && <Text style={styles.prBadge}>PR 🏆</Text>}
+                    </View>
+                  ))
+                ) : (
+                  <Text
+                    style={[
+                      styles.noSetsText,
+                      { color: isDark ? "#aaa" : "#666" },
+                    ]}
+                  >
+                    No sets recorded
+                  </Text>
+                )}
+              </View>
+            </View>
+          ))
+        ) : (
+          <View style={styles.centerContent}>
+            <Text
+              style={[
+                styles.noExercisesText,
+                { color: isDark ? "#aaa" : "#666" },
+              ]}
+            >
+              No exercises recorded for this workout
+            </Text>
+          </View>
+        )}
+      </ScrollView>
     </>
   );
 }

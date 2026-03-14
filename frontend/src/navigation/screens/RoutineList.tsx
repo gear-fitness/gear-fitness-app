@@ -95,17 +95,18 @@ export function RoutineList() {
     const bodyParts = getBodyPartsSummary(item);
 
     return (
-      <Swipeable {...getSwipeableProps(item.routineId)}>
-        <TouchableOpacity
-          style={[
-            styles.card,
-            { backgroundColor: colors.card, borderColor: colors.cardBorder },
-          ]}
-          onPress={() =>
-            navigation.navigate("RoutineDetail", { routineId: item.routineId })
-          }
-          activeOpacity={0.7}
-        >
+      <View style={styles.cardWrapper}>
+        <Swipeable {...getSwipeableProps(item.routineId)}>
+          <TouchableOpacity
+            style={[
+              styles.card,
+              { backgroundColor: colors.card, borderColor: colors.cardBorder },
+            ]}
+            onPress={() =>
+              navigation.navigate("RoutineDetail", { routineId: item.routineId })
+            }
+            activeOpacity={0.7}
+          >
           {dayLabel !== "" && (
             <Text style={[styles.dayLabel, { color: colors.secondary }]}>
               {dayLabel.toUpperCase()}
@@ -122,8 +123,9 @@ export function RoutineList() {
               {bodyParts.toUpperCase()}
             </Text>
           )}
-        </TouchableOpacity>
-      </Swipeable>
+          </TouchableOpacity>
+        </Swipeable>
+      </View>
     );
   };
 
@@ -201,6 +203,10 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 40,
     gap: 14,
+  },
+  cardWrapper: {
+    borderRadius: 24,
+    overflow: "hidden",
   },
   card: {
     borderRadius: 24,

@@ -197,6 +197,7 @@ export function EditRoutine({ route }: Props) {
     const index = getIndex() ?? 0;
     return (
       <ScaleDecorator activeScale={1.03}>
+        <View style={styles.selectedRowWrapper}>
         <Swipeable {...getSwipeableProps(item.exerciseId)}>
           <View
             style={[
@@ -229,6 +230,7 @@ export function EditRoutine({ route }: Props) {
             </TouchableOpacity>
           </View>
         </Swipeable>
+        </View>
       </ScaleDecorator>
     );
   };
@@ -373,14 +375,18 @@ const styles = StyleSheet.create({
   daysRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   dayPill: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 },
   dayPillText: { fontSize: 13, fontWeight: "600" },
+  selectedRowWrapper: {
+    borderRadius: 12,
+    overflow: "hidden",
+    marginBottom: 8,
+    marginHorizontal: 16,
+  },
   selectedRow: {
     borderWidth: 1,
     borderRadius: 12,
     padding: 12,
-    marginBottom: 8,
     flexDirection: "row",
     alignItems: "center",
-    marginHorizontal: 16,
   },
   selectedInfo: { flex: 1 },
   selectedTitle: { fontSize: 15, fontWeight: "600" },
