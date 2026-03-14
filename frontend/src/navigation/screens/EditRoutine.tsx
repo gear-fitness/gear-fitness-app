@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import React, { useCallback, useLayoutEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -7,65 +7,26 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  useColorScheme,
 } from "react-native";
 import DraggableFlatList, {
   RenderItemParams,
   ScaleDecorator,
 } from "react-native-draggable-flatlist";
 import { Swipeable } from "react-native-gesture-handler";
-import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useNavigation } from "@react-navigation/native";
-import { getAllExercises, Exercise } from "../../api/exerciseService";
+import { Exercise } from "../../api/exerciseService";
 import { Routine, RoutineExercise } from "../../api/types";
 import { updateRoutine } from "../../api/routineService";
 import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
 import { BackButton } from "../../components/BackButton";
-import { Appearance } from "react-native";
+import { DAYS, DAY_FULL, DAY_SHORT } from "../../utils/days";
+import { useThemeColors } from "../../hooks/useThemeColors";
+import { useExerciseList } from "../../hooks/useExerciseList";
 
-const DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
-const DAY_FULL: Record<string, string> = {
-  MON: "MONDAY",
-  TUE: "TUESDAY",
-  WED: "WEDNESDAY",
-  THU: "THURSDAY",
-  FRI: "FRIDAY",
-  SAT: "SATURDAY",
-  SUN: "SUNDAY",
-};
-const DAY_SHORT: Record<string, string> = {
-  MONDAY: "MON",
-  TUESDAY: "TUE",
-  WEDNESDAY: "WED",
-  THURSDAY: "THU",
-  FRIDAY: "FRI",
-  SATURDAY: "SAT",
-  SUNDAY: "SUN",
-};
-
-type RootStackParamList = {
-  EditRoutine: { routine: Routine };
-};
-
-type Props = NativeStackScreenProps<RootStackParamList, "EditRoutine">;
-
-export function EditRoutine({ route }: Props) {
+export function EditRoutine({ route }: { route: { params: { routine: Routine } } }) {
   const { routine } = route.params;
-  const navigation = useNavigation<any>();
-  const isDark = useColorScheme() === "dark";
-
-  const colors = {
-    bg: isDark ? "#000" : "#fff",
-    surface: isDark ? "#1C1C1E" : "#F2F2F7",
-    text: isDark ? "#fff" : "#000",
-    secondary: isDark ? "#999" : "#666",
-    border: isDark ? "#3A3A3C" : "#D1D1D6",
-    inputBg: isDark ? "#1C1C1E" : "#F2F2F7",
-    day: isDark ? "#3A3A3C" : "#E5E5EA",
-    dayActive: "#007AFF",
-    dayActiveText: "#fff",
-    handle: isDark ? "#555" : "#C7C7CC",
-  };
+  const navigation = useNavigation();
+  const colors = useThemeColors();
 
   const [name, setName] = useState(routine.name);
   const [selectedDays, setSelectedDays] = useState<string[]>(
@@ -76,12 +37,11 @@ export function EditRoutine({ route }: Props) {
   const [selectedExercises, setSelectedExercises] = useState<RoutineExercise[]>(
     [...routine.exercises].sort((a, b) => a.position - b.position)
   );
-  const [allExercises, setAllExercises] = useState<Exercise[]>([]);
-  const [loadingExercises, setLoadingExercises] = useState(false);
+  const { exercises: allExercises, loading: loadingExercises } = useExerciseList();
   const [saving, setSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (!name.trim()) {
       Alert.alert("Name required", "Please enter a routine name.");
       return;
@@ -103,7 +63,7 @@ export function EditRoutine({ route }: Props) {
     } finally {
       setSaving(false);
     }
-  };
+  }, [name, selectedExercises, selectedDays, routine.routineId, navigation]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -125,21 +85,6 @@ export function EditRoutine({ route }: Props) {
       ),
     });
   }, [navigation, colors, saving, handleSave]);
-
-  useEffect(() => {
-    const load = async () => {
-      setLoadingExercises(true);
-      try {
-        const data = await getAllExercises();
-        setAllExercises(data);
-      } catch {
-        Alert.alert("Error", "Failed to load exercises.");
-      } finally {
-        setLoadingExercises(false);
-      }
-    };
-    load();
-  }, []);
 
   const selectedExerciseIds = useMemo(
     () => new Set(selectedExercises.map((ex) => ex.exerciseId)),
@@ -204,7 +149,7 @@ export function EditRoutine({ route }: Props) {
               styles.selectedRow,
               {
                 backgroundColor: isActive
-                  ? isDark ? "#2A2A2C" : "#E8E8ED"
+                  ? colors.isDark ? "#2A2A2C" : "#E8E8ED"
                   : colors.surface,
                 borderColor: colors.border,
               },
@@ -258,14 +203,14 @@ export function EditRoutine({ route }: Props) {
               key={day}
               style={[
                 styles.dayPill,
-                { backgroundColor: active ? colors.dayActive : colors.day },
+                { backgroundColor: active ? colors.pillActive : colors.pill },
               ]}
               onPress={() => toggleDay(day)}
             >
               <Text
                 style={[
                   styles.dayPillText,
-                  { color: active ? colors.dayActiveText : colors.text },
+                  { color: active ? colors.pillActiveText : colors.text },
                 ]}
               >
                 {day}

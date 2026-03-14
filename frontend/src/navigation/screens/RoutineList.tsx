@@ -1,33 +1,20 @@
-import React, { useState, useCallback, useLayoutEffect } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  useColorScheme,
   ActivityIndicator,
 } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect } from "@react-navigation/native";
 import { deleteRoutine, getUserRoutines } from "../../api/routineService";
 import { Routine } from "../../api/types";
 import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
-import { BackButton } from "../../components/BackButton";
-
-function formatDay(day: string): string {
-  const map: Record<string, string> = {
-    MONDAY: "Monday",
-    TUESDAY: "Tuesday",
-    WEDNESDAY: "Wednesday",
-    THURSDAY: "Thursday",
-    FRIDAY: "Friday",
-    SATURDAY: "Saturday",
-    SUNDAY: "Sunday",
-  };
-  return map[day] ?? day;
-}
+import { formatDay } from "../../utils/days";
+import { useThemedHeader } from "../../hooks/useThemedHeader";
 
 function getBodyPartsSummary(routine: Routine): string {
   const parts = routine.exercises
@@ -42,24 +29,15 @@ function getBodyPartsSummary(routine: Routine): string {
 }
 
 export function RoutineList() {
-  const navigation = useNavigation<any>();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-
-  const colors = {
-    bg: isDark ? "#000" : "#fff",
-    card: isDark ? "#1C1C1E" : "#F2F2F7",
-    cardBorder: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)",
-    text: isDark ? "#fff" : "#000",
-    secondary: isDark ? "#999" : "#666",
-    dashedBorder: isDark ? "#333" : "#C7C7CC",
-    headerButton: isDark ? "#1C1C1E" : "#F2F2F7",
-  };
+  const { navigation, colors } = useThemedHeader((c) => ({
+    headerTitleStyle: { color: c.text, fontWeight: "800" as const, fontSize: 30 },
+  }));
 
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchRoutines = useCallback(async () => {
+    setLoading(true);
     try {
       const data = await getUserRoutines();
       setRoutines(data);
@@ -80,9 +58,9 @@ export function RoutineList() {
     onDelete: async (id) => {
       try {
         await deleteRoutine(id);
-        fetchRoutines();
+        setRoutines((prev) => prev.filter((r) => r.routineId !== id));
       } catch {
-        // fetchRoutines will refresh state; no-op on error keeps card visible
+        fetchRoutines();
       }
     },
     deleteTitle: "Delete Routine",
@@ -100,7 +78,7 @@ export function RoutineList() {
           <TouchableOpacity
             style={[
               styles.card,
-              { backgroundColor: colors.card, borderColor: colors.cardBorder },
+              { backgroundColor: colors.surface, borderColor: colors.cardBorder },
             ]}
             onPress={() =>
               navigation.navigate("RoutineDetail", { routineId: item.routineId })
@@ -141,21 +119,6 @@ export function RoutineList() {
     </TouchableOpacity>
   );
 
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerStyle: { backgroundColor: colors.bg },
-      headerTitleStyle: { color: colors.text, fontWeight: "800", fontSize: 30 },
-      headerTintColor: colors.text,
-      headerLeft: navigation.canGoBack()
-        ? () => (
-            <BackButton
-              onPress={() => navigation.goBack()}
-              color={colors.text}
-            />
-          )
-        : undefined,
-    });
-  }, [navigation, colors]);
 
   if (loading) {
     return (

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useLayoutEffect } from "react";
+import React, { useState, useCallback, useLayoutEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -8,36 +8,24 @@ import {
   ScrollView,
   FlatList,
   ActivityIndicator,
-  useColorScheme,
   KeyboardAvoidingView,
   Platform,
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useNavigation } from "@react-navigation/native";
-import { Routine, Workout } from "../../api/types";
+import { Routine } from "../../api/types";
 import {
   createRoutine,
   createRoutineFromWorkout,
 } from "../../api/routineService";
-import { getAllExercises } from "../../api/exerciseService";
-import { getUserWorkouts } from "../../api/workoutService";
 import { useAuth } from "../../context/AuthContext";
 import { parseLocalDate } from "../../utils/date";
 import { BackButton } from "../../components/BackButton";
-import { Appearance } from "react-native";
-
-const DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
-const DAY_FULL: Record<string, string> = {
-  MON: "MONDAY",
-  TUE: "TUESDAY",
-  WED: "WEDNESDAY",
-  THU: "THURSDAY",
-  FRI: "FRIDAY",
-  SAT: "SATURDAY",
-  SUN: "SUNDAY",
-};
+import { DAYS, DAY_FULL } from "../../utils/days";
+import { useThemeColors } from "../../hooks/useThemeColors";
+import { useExerciseList } from "../../hooks/useExerciseList";
+import { useUserWorkouts } from "../../hooks/useUserWorkouts";
 
 type Step = "details" | "source" | "scratch" | "workout";
 
@@ -48,49 +36,23 @@ const STEP_TITLES: Record<Step, string> = {
   workout: "Pick a Workout",
 };
 
-type RootStackParamList = {
-  CreateRoutine: { prefilledWorkoutId?: string };
-};
-
-type Props = NativeStackScreenProps<RootStackParamList, "CreateRoutine">;
-
-export function CreateRoutine({ route }: Props) {
-  const navigation = useNavigation<any>();
+export function CreateRoutine({ route }: { route: { params?: { prefilledWorkoutId?: string } } }) {
+  const navigation = useNavigation();
   const prefilledWorkoutId = route.params?.prefilledWorkoutId;
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
   const { user } = useAuth();
+  const colors = useThemeColors();
 
-  const colors = {
-    bg: isDark ? "#000" : "#fff",
-    surface: isDark ? "#1C1C1E" : "#F2F2F7",
-    text: isDark ? "#fff" : "#000",
-    secondary: isDark ? "#999" : "#666",
-    border: isDark ? "#3A3A3C" : "#D1D1D6",
-    inputBg: isDark ? "#1C1C1E" : "#F2F2F7",
-    pill: isDark ? "#3A3A3C" : "#E5E5EA",
-    pillActive: "#007AFF",
-    pillActiveText: "#fff",
-    pillText: isDark ? "#fff" : "#000",
-    selected: isDark ? "rgba(0,122,255,0.2)" : "rgba(0,122,255,0.1)",
-    selectedBorder: "#007AFF",
-  };
+  const { exercises, loading: exercisesLoading, fetchExercises } = useExerciseList(false);
+  const { workouts, loading: workoutsLoading, fetchWorkouts } = useUserWorkouts();
 
   const [step, setStep] = useState<Step>("details");
   const [name, setName] = useState("");
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
-
-  const [exercises, setExercises] = useState<any[]>([]);
-  const [exercisesLoading, setExercisesLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedExerciseIds, setSelectedExerciseIds] = useState<string[]>([]);
-
-  const [workouts, setWorkouts] = useState<Workout[]>([]);
-  const [workoutsLoading, setWorkoutsLoading] = useState(false);
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(
     prefilledWorkoutId ?? null
   );
-
   const [submitting, setSubmitting] = useState(false);
 
   const stepBack: Record<Step, Step | null> = {
@@ -124,33 +86,6 @@ export function CreateRoutine({ route }: Props) {
     );
   };
 
-  const loadExercises = async () => {
-    if (exercises.length > 0) return;
-    setExercisesLoading(true);
-    try {
-      const data = await getAllExercises();
-      setExercises(data);
-    } catch (err) {
-      console.error("Failed to load exercises:", err);
-    } finally {
-      setExercisesLoading(false);
-    }
-  };
-
-  const loadWorkouts = async () => {
-    if (!user) return;
-    if (workouts.length > 0) return;
-    setWorkoutsLoading(true);
-    try {
-      const data = await getUserWorkouts(user.userId);
-      setWorkouts(data);
-    } catch (err) {
-      console.error("Failed to load workouts:", err);
-    } finally {
-      setWorkoutsLoading(false);
-    }
-  };
-
   const handleNextFromDetails = () => {
     if (!name.trim()) {
       Alert.alert("Name required", "Please enter a name for your routine.");
@@ -165,12 +100,12 @@ export function CreateRoutine({ route }: Props) {
 
   const handleChooseScratch = () => {
     setStep("scratch");
-    loadExercises();
+    fetchExercises();
   };
 
   const handleChooseWorkout = () => {
     setStep("workout");
-    loadWorkouts();
+    if (user) fetchWorkouts(user.userId);
   };
 
   const toggleExercise = (exerciseId: string) => {
@@ -214,14 +149,15 @@ export function CreateRoutine({ route }: Props) {
     }
   };
 
-  const filteredExercises = exercises.filter((ex) => {
+  const filteredExercises = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    if (!q) return true;
-    return (
-      ex.name.toLowerCase().includes(q) ||
-      ex.bodyPart.toLowerCase().includes(q)
+    if (!q) return exercises;
+    return exercises.filter(
+      (ex) =>
+        ex.name.toLowerCase().includes(q) ||
+        ex.bodyPart.toLowerCase().includes(q),
     );
-  });
+  }, [exercises, searchQuery]);
 
   if (step === "details") {
     return (
@@ -268,7 +204,7 @@ export function CreateRoutine({ route }: Props) {
                   <Text
                     style={[
                       styles.dayPillText,
-                      { color: active ? colors.pillActiveText : colors.pillText },
+                      { color: active ? colors.pillActiveText : colors.text },
                     ]}
                   >
                     {day}

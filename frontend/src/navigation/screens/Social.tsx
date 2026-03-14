@@ -31,7 +31,7 @@ export function Social() {
   useTrackTab("Social");
 
   const { colors } = useTheme();
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation();
   const { user } = useAuth();
 
   const [posts, setPosts] = useState<FeedPost[]>([]);

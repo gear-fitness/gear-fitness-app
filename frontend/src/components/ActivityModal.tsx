@@ -27,7 +27,7 @@ type ActivityItem = {
 
 export function ActivityModal({ visible, onClose }: ActivityModalProps) {
   const { colors } = useTheme();
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation();
 
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(false);

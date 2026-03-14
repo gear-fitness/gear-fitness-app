@@ -356,7 +356,7 @@ export function WorkoutTimerProvider({
   const loadFromRoutine = async (
     routineExercises: Array<{ exerciseId: string; name: string }>,
   ): Promise<void> => {
-    await reset();
+    await clearPersistedState();
 
     const newExercises: WorkoutExercise[] = routineExercises.map(
       (ex, index) => ({
@@ -367,11 +367,17 @@ export function WorkoutTimerProvider({
       }),
     );
 
+    setRunning(false);
+    setSeconds(0);
+    setStartTimestamp(null);
+    setTotalElapsedSeconds(0);
     setExercises(newExercises);
 
     if (newExercises.length > 0) {
-      start();
-      showPlayer(newExercises[0].workoutExerciseId);
+      setRunning(true);
+      setStartTimestamp(Date.now());
+      setCurrentExerciseId(newExercises[0].workoutExerciseId);
+      setPlayerVisible(true);
     }
   };
 

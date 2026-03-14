@@ -5,11 +5,7 @@ import {
   StaticParamList,
 } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { Appearance, Image } from "react-native";
-
-const isDark = Appearance.getColorScheme() === "dark";
-const initialHeaderBg = isDark ? "#000" : "#fff";
-const initialHeaderText = isDark ? "#fff" : "#000";
+import { Image } from "react-native";
 
 /* ICONS */
 import bell from "../assets/bell.png";
@@ -249,46 +245,46 @@ const RootStack = createNativeStackNavigator({
 
     CreateRoutine: {
       screen: CreateRoutine,
-      options: {
+      options: ({ theme }) => ({
         headerShown: true,
         headerShadowVisible: false,
-        headerStyle: { backgroundColor: initialHeaderBg },
-        headerTintColor: initialHeaderText,
-      },
+        headerStyle: { backgroundColor: theme.dark ? "#000" : "#fff" },
+        headerTintColor: theme.dark ? "#fff" : "#000",
+      }),
     },
 
     EditRoutine: {
       screen: EditRoutine,
-      options: {
+      options: ({ theme }) => ({
         headerShown: true,
         title: "Edit Routine",
         headerShadowVisible: false,
-        headerStyle: { backgroundColor: initialHeaderBg },
-        headerTintColor: initialHeaderText,
-      },
+        headerStyle: { backgroundColor: theme.dark ? "#000" : "#fff" },
+        headerTintColor: theme.dark ? "#fff" : "#000",
+      }),
     },
 
     RoutineList: {
       screen: RoutineList,
-      options: {
+      options: ({ theme }) => ({
         headerShown: true,
         title: "Routines",
         headerShadowVisible: false,
-        headerStyle: { backgroundColor: initialHeaderBg },
-        headerTintColor: initialHeaderText,
-        headerTitleStyle: { color: initialHeaderText, fontWeight: "800", fontSize: 30 },
-      },
+        headerStyle: { backgroundColor: theme.dark ? "#000" : "#fff" },
+        headerTintColor: theme.dark ? "#fff" : "#000",
+        headerTitleStyle: { color: theme.dark ? "#fff" : "#000", fontWeight: "800" as const, fontSize: 30 },
+      }),
     },
 
     RoutineDetail: {
       screen: RoutineDetail,
-      options: {
+      options: ({ theme }) => ({
         title: "",
         headerShown: true,
         headerShadowVisible: false,
-        headerStyle: { backgroundColor: initialHeaderBg },
-        headerTintColor: initialHeaderText,
-      },
+        headerStyle: { backgroundColor: theme.dark ? "#000" : "#fff" },
+        headerTintColor: theme.dark ? "#fff" : "#000",
+      }),
     },
   },
 });

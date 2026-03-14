@@ -33,7 +33,7 @@ export function Profile() {
   useTrackTab("Profile");
 
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation();
   const route = useRoute<any>();
   const { colors } = useTheme();
 

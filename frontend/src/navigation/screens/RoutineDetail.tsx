@@ -1,55 +1,24 @@
-import React, { useState, useLayoutEffect, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  useColorScheme,
   ActivityIndicator,
   Alert,
 } from "react-native";
-import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect } from "@react-navigation/native";
 import { getRoutineDetail, deleteRoutine } from "../../api/routineService";
 import { Routine } from "../../api/types";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
-import { BackButton } from "../../components/BackButton";
+import { formatDay } from "../../utils/days";
+import { useThemedHeader } from "../../hooks/useThemedHeader";
 
-type RootStackParamList = {
-  RoutineDetail: { routineId: string };
-};
-
-type Props = NativeStackScreenProps<RootStackParamList, "RoutineDetail">;
-
-const DAY_SHORT: Record<string, string> = {
-  MONDAY: "Mon",
-  TUESDAY: "Tue",
-  WEDNESDAY: "Wed",
-  THURSDAY: "Thu",
-  FRIDAY: "Fri",
-  SATURDAY: "Sat",
-  SUNDAY: "Sun",
-};
-
-export function RoutineDetail({ route }: Props) {
+export function RoutineDetail({ route }: { route: { params: { routineId: string } } }) {
   const { routineId } = route.params;
-  const navigation = useNavigation<any>();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
   const { loadFromRoutine } = useWorkoutTimer();
-
-  const colors = {
-    bg: isDark ? "#000" : "#fff",
-    card: isDark ? "#1C1C1E" : "#F2F2F7",
-    cardBorder: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)",
-    text: isDark ? "#fff" : "#000",
-    secondary: isDark ? "#999" : "#666",
-    separator: isDark ? "#2C2C2E" : "#E5E5EA",
-    pill: isDark ? "#2C2C2E" : "#E5E5EA",
-    pillText: isDark ? "#ccc" : "#555",
-    positionBg: isDark ? "#3A3A3C" : "#E5E5EA",
-  };
+  const { navigation, colors } = useThemedHeader(() => ({ title: "" }));
 
   const [routine, setRoutine] = useState<Routine | null>(null);
   const [loading, setLoading] = useState(true);
@@ -57,20 +26,9 @@ export function RoutineDetail({ route }: Props) {
   const [starting, setStarting] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      title: "",
-      headerStyle: { backgroundColor: colors.bg },
-      headerTintColor: colors.text,
-      headerLeft: () => (
-        <BackButton onPress={() => navigation.goBack()} color={colors.text} />
-      ),
-    });
-  }, [navigation, colors]);
-
   useFocusEffect(
     useCallback(() => {
-      const fetch = async () => {
+      const loadRoutine = async () => {
         try {
           const data = await getRoutineDetail(routineId);
           setRoutine(data);
@@ -80,7 +38,7 @@ export function RoutineDetail({ route }: Props) {
           setLoading(false);
         }
       };
-      fetch();
+      loadRoutine();
     }, [routineId])
   );
 
@@ -175,10 +133,10 @@ export function RoutineDetail({ route }: Props) {
             {routine.scheduledDays.map((day) => (
               <View
                 key={day}
-                style={[styles.dayPill, { backgroundColor: colors.pill }]}
+                style={[styles.dayPill, { backgroundColor: colors.separator }]}
               >
                 <Text style={[styles.dayPillText, { color: colors.pillText }]}>
-                  {DAY_SHORT[day] ?? day}
+                  {formatDay(day)}
                 </Text>
               </View>
             ))}
@@ -195,7 +153,7 @@ export function RoutineDetail({ route }: Props) {
         <View
           style={[
             styles.exerciseCard,
-            { backgroundColor: colors.card, borderColor: colors.cardBorder },
+            { backgroundColor: colors.surface, borderColor: colors.cardBorder },
           ]}
         >
           {routine.exercises.length === 0 ? (
@@ -281,8 +239,8 @@ export function RoutineDetail({ route }: Props) {
               <ActivityIndicator color="#007AFF" />
             ) : (
               <>
-                <Text style={[styles.startIcon, { color: isDark ? "#fff" : "#000" }]}>▶</Text>
-                <Text style={[styles.startButtonText, { color: isDark ? "#fff" : "#000" }]}>
+                <Text style={[styles.startIcon, { color: colors.text }]}>▶</Text>
+                <Text style={[styles.startButtonText, { color: colors.text }]}>
                   Start Workout
                 </Text>
               </>

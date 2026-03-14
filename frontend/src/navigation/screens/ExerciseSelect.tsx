@@ -70,7 +70,7 @@ const bodyPartMapping: Record<string, string> = {
 export function ExerciseSelect() {
   useTrackTab("ExerciseSelect");
 
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation();
   const { showPlayer, start } = useWorkoutTimer();
 
   const isDark = useColorScheme() === "dark";
