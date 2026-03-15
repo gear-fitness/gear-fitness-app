@@ -285,7 +285,6 @@ export function ExerciseSelect() {
                 onPress={() => {
                   const greetingText = `Hello, I'm your personal ${ex.name} assistant! If you have any questions on this exercise, let me know!`;
 
-                  // Navigate to ExerciseChat modal
                   navigation.navigate("ExerciseChat", {
                     exercise: ex,
                     greetingText,
@@ -489,11 +488,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 10,
   },
-
   chatIconButtonWrapper: {
     marginLeft: 10,
   },
-
   chatIconButton: {
     padding: 10,
     borderRadius: 24,

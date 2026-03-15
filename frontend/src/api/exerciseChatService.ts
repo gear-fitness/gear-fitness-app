@@ -20,26 +20,24 @@ export interface ChatResponse {
   response: string;
 }
 
-/**
- * Send a chat message about a specific exercise
- */
 export async function sendExerciseChat(
-  exerciseId: string,
-  messages: ChatMessage[]
+  messages: ChatMessage[],
+  exerciseId?: string,
 ): Promise<ChatResponse> {
   const authHeader = await getAuthHeader();
 
-  const response = await fetch(
-    `${API_BASE_URL}/api/exercises/${exerciseId}/chat`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...authHeader,
-      },
-      body: JSON.stringify({ messages }),
-    }
-  );
+  const endpoint = exerciseId
+    ? `${API_BASE_URL}/api/exercises/${exerciseId}/chat`
+    : `${API_BASE_URL}/api/exercises/chat`;
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeader,
+    },
+    body: JSON.stringify({ messages }),
+  });
 
   if (!response.ok) {
     const errorText = await response.text();

@@ -1,23 +1,26 @@
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { useLayoutEffect } from "react";
+import { createNativeBottomTabNavigator } from "@react-navigation/bottom-tabs/unstable";
 import { HeaderButton } from "@react-navigation/elements";
 import {
   createStaticNavigation,
   StaticParamList,
+  useNavigation,
+  useTheme,
 } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { Image } from "react-native";
+import {
+  Image,
+  NativeSyntheticEvent,
+  StyleSheet,
+  Text,
+  TextInputFocusEventData,
+  View,
+} from "react-native";
 
 /* ICONS */
-import bell from "../assets/bell.png";
-import avatar from "../assets/avatar.png";
-import workout from "../assets/workout.png";
-import home from "../assets/home.png";
-import community from "../assets/community.png";
-import calendar from "../assets/calendar.png";
 import close from "../assets/close.png";
 
 /* SCREENS */
-import { Home } from "./screens/Home";
 import { Profile } from "./screens/Profile";
 import { Settings } from "./screens/Settings";
 import { Social } from "./screens/Social";
@@ -41,24 +44,68 @@ import { CreateExerciseScreen } from "./screens/CreateExerciseScreen";
 
 /* ---------------------- TABS ---------------------- */
 
-const HomeTabs = createBottomTabNavigator({
-  initialRouteName: "Home",
+function SearchTabScreen() {
+  const navigation = useNavigation<any>();
+  const { colors } = useTheme();
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerShadowVisible: false,
+      headerLargeTitle: true,
+      headerLargeTitleStyle: {
+        fontSize: 30,
+        fontWeight: "700",
+        color: colors.text,
+      },
+      headerStyle: {
+        backgroundColor: colors.background,
+      },
+      headerLargeStyle: {
+        backgroundColor: colors.background,
+      },
+      headerSearchBarOptions: {
+        placeholder: "Ask about any exercise",
+        hideWhenScrolling: false,
+        barTintColor: colors.background,
+        tintColor: colors.text,
+        onSearchButtonPress: (
+          e: NativeSyntheticEvent<TextInputFocusEventData>,
+        ) => {
+          const text = e.nativeEvent.text?.trim();
+
+          if (!text) {
+            return;
+          }
+
+          navigation.getParent()?.navigate("ExerciseChat", {
+            initialPrompt: text,
+          });
+        },
+      },
+    });
+  }, [colors.background, colors.text, navigation]);
+
+  return (
+    <View style={[styles.searchScreen, { backgroundColor: colors.background }]}>
+      <Text style={[styles.searchHeadline, { color: colors.text }]}>
+        Ask me about any exercise, movement pattern, or training question.
+      </Text>
+    </View>
+  );
+}
+
+const HomeTabs = createNativeBottomTabNavigator({
+  initialRouteName: "Workouts",
   screenOptions: {
-    tabBarShowLabel: true,
     headerShown: false,
   },
   screens: {
-    Home: {
-      screen: Home,
+    Workouts: {
+      screen: Workout,
       options: {
-        title: "Home",
-        tabBarIcon: ({ color, size }) => (
-          <Image
-            source={home}
-            tintColor={color}
-            style={{ width: size, height: size }}
-          />
-        ),
+        title: "Workouts",
+        tabBarLabel: "",
+        tabBarIcon: { type: "sfSymbol", name: "dumbbell" },
       },
     },
 
@@ -67,54 +114,56 @@ const HomeTabs = createBottomTabNavigator({
       options: {
         headerShown: false,
         title: "Social",
-        tabBarIcon: ({ color, size }) => (
-          <Image
-            source={community}
-            tintColor={color}
-            style={{ width: size, height: size }}
-          />
-        ),
-      },
-    },
-
-    Workouts: {
-      screen: Workout,
-      options: {
-        tabBarIcon: ({ color, size }) => (
-          <Image
-            source={workout}
-            tintColor={color}
-            style={{ width: size, height: size }}
-          />
-        ),
+        tabBarLabel: "",
+        tabBarIcon: { type: "sfSymbol", name: "magnifyingglass" },
       },
     },
 
     History: {
       screen: History,
       options: {
-        tabBarIcon: ({ color, size }) => (
-          <Image
-            source={calendar}
-            tintColor={color}
-            style={{ width: size, height: size }}
-          />
-        ),
+        title: "History",
+        tabBarLabel: "",
+        tabBarIcon: { type: "sfSymbol", name: "calendar" },
       },
     },
 
     Profile: {
       screen: Profile,
       options: {
-        tabBarIcon: ({ color, size }) => (
-          <Image
-            source={avatar}
-            tintColor={color}
-            style={{ width: size, height: size }}
-          />
-        ),
+        title: "Profile",
+        tabBarLabel: "",
+        tabBarIcon: ({ focused }) => ({
+          type: "sfSymbol",
+          name: focused ? "person.crop.circle.fill" : "person.crop.circle",
+        }),
       },
     },
+
+    Search: {
+      screen: SearchTabScreen,
+      options: {
+        title: "Assistant",
+        headerShown: true,
+        tabBarLabel: "",
+        tabBarSystemItem: "search",
+        tabBarIcon: { type: "sfSymbol", name: "sparkle" },
+      },
+    },
+  },
+});
+
+const styles = StyleSheet.create({
+  searchScreen: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  searchHeadline: {
+    fontSize: 22,
+    fontWeight: "600",
+    textAlign: "center",
   },
 });
 
@@ -237,9 +286,9 @@ const RootStack = createNativeStackNavigator({
     ExerciseChat: {
       screen: ExerciseChat,
       options: {
-        title: "Exercise Chat",
-        presentation: "modal",
+        title: "Exercise Coach",
         headerShown: true,
+        headerBackTitle: "Back",
       },
     },
     Comments: {
@@ -301,15 +350,18 @@ declare global {
           }
         | undefined;
 
-      ExerciseChat: {
-        exercise: {
-          exerciseId: string;
-          name: string;
-          bodyPart: string;
-          description: string;
-        };
-        greetingText: string;
-      };
+      ExerciseChat:
+        | {
+            exercise?: {
+              exerciseId: string;
+              name: string;
+              bodyPart: string;
+              description: string;
+            };
+            greetingText?: string;
+            initialPrompt?: string;
+          }
+        | undefined;
 
       Comments: {
         postId: string;

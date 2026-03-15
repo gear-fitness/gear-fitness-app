@@ -79,7 +79,7 @@ export function WorkoutTimerProvider({
   );
 
   // Tab tracking
-  const [activeTab, setActiveTab] = useState("Home"); // Default to Home tab
+  const [activeTab, setActiveTab] = useState("Workouts"); // Default to visible tab
 
   // Persistence state
   const [isRestoringState, setIsRestoringState] = useState(false);

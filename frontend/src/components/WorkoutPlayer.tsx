@@ -10,7 +10,7 @@ export const MINI_PLAYER_HEIGHT = 70;
 const MINIMUM_BOTTOM_CLEARANCE = 84;
 
 // Tabs where miniplayer should be visible
-const ALLOWED_TABS = ["Home", "Social", "Workouts", "History", "Profile"];
+const ALLOWED_TABS = ["Social", "Workouts", "History", "Profile"];
 
 export function WorkoutPlayer() {
   const { playerVisible, activeTab } = useWorkoutTimer();

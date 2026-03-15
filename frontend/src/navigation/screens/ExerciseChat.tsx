@@ -1,19 +1,20 @@
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
-  StyleSheet,
-  View,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  Text,
   KeyboardAvoidingView,
   Platform,
-  Keyboard,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useRoute, useNavigation } from "@react-navigation/native";
-import { useState } from "react";
 import { useColorScheme } from "react-native";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
 import { sendExerciseChat } from "../../api/exerciseChatService";
+import { BackButton } from "../../components/BackButton";
 import { useTrackTab } from "../../hooks/useTrackTab";
 
 type ChatMessageState = {
@@ -27,23 +28,23 @@ export function ExerciseChat() {
   useTrackTab("ExerciseChat");
 
   const route = useRoute<any>();
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const isDark = useColorScheme() === "dark";
+  const handledInitialPromptRef = useRef(false);
 
   const exercise = route.params?.exercise;
   const greetingText = route.params?.greetingText;
+  const initialPrompt = route.params?.initialPrompt;
 
   const colors = {
     bg: isDark ? "#000" : "#fff",
     text: isDark ? "#fff" : "#000",
     subtle: isDark ? "#aaa" : "#666",
-    icon: isDark ? "#fff" : "#555",
     border: isDark ? "#333" : "#ccc",
     inputBg: isDark ? "#1c1c1e" : "#fff",
     card: isDark ? "#222" : "#fff",
   };
 
-  // Initialize with greeting message
   const [messages, setMessages] = useState<ChatMessageState[]>(
     greetingText
       ? [
@@ -54,17 +55,26 @@ export function ExerciseChat() {
             timestamp: new Date(),
           },
         ]
-      : []
+      : [],
   );
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      title: exercise?.name || "Exercise Coach",
+      headerBackVisible: false,
+      headerLeft: () => (
+        <BackButton onPress={navigation.goBack} color={colors.text} />
+      ),
+    });
+  }, [colors.text, exercise?.name, navigation]);
+
   const sendMessage = async (userMessage: string) => {
-    if (!exercise || !userMessage.trim()) return;
+    if (!userMessage.trim()) return;
 
     setIsLoading(true);
 
-    // 1. Add user message
     const newUserMessage: ChatMessageState = {
       id: Date.now().toString(),
       text: userMessage.trim(),
@@ -77,13 +87,12 @@ export function ExerciseChat() {
     setInputText("");
 
     try {
-      // Send chat request
       const data = await sendExerciseChat(
-        exercise.exerciseId,
-        updatedMessages.map((m) => ({
-          text: m.text,
-          isUser: m.isUser,
-        }))
+        updatedMessages.map((message) => ({
+          text: message.text,
+          isUser: message.isUser,
+        })),
+        exercise?.exerciseId,
       );
 
       if (!data.response) {
@@ -113,6 +122,16 @@ export function ExerciseChat() {
     }
   };
 
+  useEffect(() => {
+    if (!initialPrompt?.trim()) return;
+    if (handledInitialPromptRef.current) return;
+
+    handledInitialPromptRef.current = true;
+    void sendMessage(initialPrompt);
+  }, [initialPrompt]);
+
+  const showEmptyState = messages.length === 0 && !isLoading;
+
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: colors.bg }]}
@@ -120,39 +139,40 @@ export function ExerciseChat() {
       keyboardVerticalOffset={Platform.OS === "ios" ? 125 : 0}
     >
       <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
-        {/* Header with exercise name */}
-        <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <View style={styles.headerContent}>
-            <Text style={[styles.title, { color: colors.text }]}>
-              {exercise?.name || "Exercise Chat"}
-            </Text>
-            <Text style={[styles.subtitle, { color: colors.subtle }]}>
-              AI Assistant
-            </Text>
-          </View>
-        </View>
-
-        {/* Messages ScrollView */}
         <ScrollView
           style={{ flex: 1, paddingHorizontal: 10 }}
-          contentContainerStyle={{ paddingVertical: 10 }}
+          contentContainerStyle={[
+            styles.messagesContent,
+            showEmptyState && styles.emptyMessagesContent,
+          ]}
         >
-          {messages.map((msg) => (
-            <View
-              key={msg.id}
-              style={[
-                styles.messageBubble,
-                {
-                  alignSelf: msg.isUser ? "flex-end" : "flex-start",
-                  backgroundColor: msg.isUser ? "#007AFF" : colors.card,
-                },
-              ]}
-            >
-              <Text style={{ color: msg.isUser ? "#fff" : colors.text }}>
-                {msg.text}
+          {showEmptyState ? (
+            <View style={styles.emptyState}>
+              <Text style={[styles.emptyStateText, { color: colors.text }]}>
+                {exercise
+                  ? `Ask me anything about ${exercise.name}.`
+                  : "Ask me about any exercise, movement pattern, or training question."}
               </Text>
             </View>
-          ))}
+          ) : (
+            messages.map((msg) => (
+              <View
+                key={msg.id}
+                style={[
+                  styles.messageBubble,
+                  {
+                    alignSelf: msg.isUser ? "flex-end" : "flex-start",
+                    backgroundColor: msg.isUser ? "#007AFF" : colors.card,
+                  },
+                ]}
+              >
+                <Text style={{ color: msg.isUser ? "#fff" : colors.text }}>
+                  {msg.text}
+                </Text>
+              </View>
+            ))
+          )}
+
           {isLoading && (
             <Text style={{ color: colors.subtle, fontStyle: "italic" }}>
               AI is thinking...
@@ -160,7 +180,6 @@ export function ExerciseChat() {
           )}
         </ScrollView>
 
-        {/* Input Row */}
         <View
           style={[
             styles.inputRow,
@@ -175,12 +194,14 @@ export function ExerciseChat() {
               styles.input,
               { backgroundColor: colors.inputBg, color: colors.text },
             ]}
-            placeholder="Ask about this exercise..."
+            placeholder={
+              exercise ? "Ask about this exercise..." : "Ask about any exercise..."
+            }
             placeholderTextColor={colors.subtle}
             value={inputText}
             onChangeText={setInputText}
             multiline
-            blurOnSubmit={true}
+            blurOnSubmit
           />
           <TouchableOpacity
             onPress={() => sendMessage(inputText)}
@@ -202,37 +223,29 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    alignItems: "center",
+  messagesContent: {
+    paddingVertical: 10,
   },
-
-  headerContent: {
-    alignItems: "center",
+  emptyMessagesContent: {
+    flexGrow: 1,
   },
-
-  title: {
-    fontSize: 18,
-    fontWeight: "bold",
+  emptyState: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  emptyStateText: {
+    fontSize: 22,
+    fontWeight: "600",
     textAlign: "center",
   },
-
-  subtitle: {
-    fontSize: 12,
-    textAlign: "center",
-    marginTop: 2,
-  },
-
   messageBubble: {
     maxWidth: "80%",
     padding: 12,
     borderRadius: 16,
     marginVertical: 4,
   },
-
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -242,7 +255,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
     marginBottom: 25,
   },
-
   input: {
     flex: 1,
     borderRadius: 20,
@@ -251,7 +263,6 @@ const styles = StyleSheet.create({
     marginRight: 10,
     maxHeight: 100,
   },
-
   sendButton: {
     width: 32,
     height: 32,
@@ -261,7 +272,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 4,
   },
-
   sendArrow: {
     color: "#000",
     fontSize: 20,
