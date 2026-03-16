@@ -12,7 +12,7 @@ import {
   Button,
 } from "react-native";
 import { useColorScheme } from "react-native";
-import { GlassView } from 'expo-glass-effect';
+import { GlassView } from "expo-glass-effect";
 import {
   useState,
   useEffect,
@@ -21,10 +21,16 @@ import {
   useRef,
 } from "react";
 import { Swipeable } from "react-native-gesture-handler";
+import { useNavigation } from "@react-navigation/native";
 
 import stopwatch from "../assets/stopwatch.png";
+import { SymbolView } from "expo-symbols";
 
-import { useWorkoutTimer, WorkoutExercise, WorkoutSet } from "../context/WorkoutContext";
+import {
+  useWorkoutTimer,
+  WorkoutExercise,
+  WorkoutSet,
+} from "../context/WorkoutContext";
 import { useSwipeableDelete } from "../hooks/useSwipeableDelete";
 
 interface ExerciseDetailContentProps {
@@ -51,6 +57,7 @@ export const ExerciseDetailContent = forwardRef<
   ExerciseDetailContentProps
 >(({ exercise, onSummary, onAddExercise, isInPlayer = false }, ref) => {
   const { seconds, addExercise } = useWorkoutTimer();
+  const navigation = useNavigation<any>();
   const isDark = useColorScheme() === "dark";
   const [note, setNote] = useState(exercise.note || "");
 
@@ -61,6 +68,7 @@ export const ExerciseDetailContent = forwardRef<
     card: isDark ? "#1c1c1e" : "#fff",
     border: isDark ? "#333" : "#ccc",
     inputBg: isDark ? "#2a2a2a" : "#f2f2f2",
+    accent: "#007AFF",
   };
 
   const formatTime = (t: number) =>
@@ -150,156 +158,174 @@ export const ExerciseDetailContent = forwardRef<
 
   return (
     <>
-    <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      <Text style={[styles.title, { color: colors.text }]}>
-        {exercise.name}
-      </Text>
+      <View style={[styles.container, { backgroundColor: colors.bg }]}>
+        {/* Title Row with Info Button */}
+        <View style={styles.titleRow}>
+          <View style={styles.titleSpacer} />
+          <Text
+            style={[styles.title, { color: colors.text }]}
+            numberOfLines={1}
+          >
+            {exercise.name}
+          </Text>
+          <View style={styles.titleSpacer}>
+            <TouchableOpacity
+              onPress={() =>
+                navigation.navigate("ExerciseHistory", { exercise })
+              }
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={styles.infoButton}
+            >
+              <SymbolView name="info.circle" tintColor={"#007AFF"} size={24} />
+            </TouchableOpacity>
+          </View>
+        </View>
 
-      <View style={[styles.fullDivider, { borderColor: colors.border }]} />
+        <View style={[styles.fullDivider, { borderColor: colors.border }]} />
 
-      {/* TIMER */}
-      <View style={styles.timerRow}>
-        <View style={styles.timerLeft}>
-          <Image
-            source={stopwatch}
-            style={[styles.timerIcon, { tintColor: colors.text }]}
-          />
-          <Text style={[styles.timerText, { color: colors.text }]}>
-            {formatTime(seconds)}
+        {/* TIMER */}
+        <View style={styles.timerRow}>
+          <View style={styles.timerLeft}>
+            <Image
+              source={stopwatch}
+              style={[styles.timerIcon, { tintColor: colors.text }]}
+            />
+            <Text style={[styles.timerText, { color: colors.text }]}>
+              {formatTime(seconds)}
+            </Text>
+          </View>
+        </View>
+        <TextInput
+          placeholder="Notes (optional)"
+          placeholderTextColor={colors.subtle}
+          value={note}
+          onChangeText={setNote}
+          style={[
+            styles.noteInput,
+            { backgroundColor: colors.inputBg, color: colors.text },
+          ]}
+          multiline
+          inputAccessoryViewID={inputAccessoryViewID}
+        />
+        {/* HEADERS */}
+        <View style={styles.tableHeaderRow}>
+          <Text style={[styles.tableHeaderNum, { color: colors.subtle }]}>
+            Set
+          </Text>
+          <Text style={[styles.tableHeaderText, { color: colors.subtle }]}>
+            Reps
+          </Text>
+          <Text style={[styles.tableHeaderText, { color: colors.subtle }]}>
+            Weight
           </Text>
         </View>
-      </View>
-      <TextInput
-        placeholder="Notes (optional)"
-        placeholderTextColor={colors.subtle}
-        value={note}
-        onChangeText={setNote}
-        style={[
-          styles.noteInput,
-          { backgroundColor: colors.inputBg, color: colors.text },
-        ]}
-         multiline
-         inputAccessoryViewID={inputAccessoryViewID}
-      />
-      {/* HEADERS */}
-      <View style={styles.tableHeaderRow}>
-        <Text style={[styles.tableHeaderNum, { color: colors.subtle }]}>
-          Set
-        </Text>
-        <Text style={[styles.tableHeaderText, { color: colors.subtle }]}>
-          Reps
-        </Text>
-        <Text style={[styles.tableHeaderText, { color: colors.subtle }]}>
-          Weight
-        </Text>
-      </View>
 
-      {/* SET LIST */}
-      <FlatList
-        ref={flatListRef}
-        data={sets}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingBottom: 10 }}
-        keyboardShouldPersistTaps="handled"
-        renderItem={({ item, index }) => {
-          const setContent = (
-            <View
-              style={[
-                styles.setCard,
-                { backgroundColor: colors.card, borderColor: colors.border },
-              ]}
-            >
-              <Text style={[styles.setNumber, { color: colors.text }]}>
-                {index + 1}
-              </Text>
-
-              <View style={styles.inputContainer}>
-                <TextInput
-                  placeholder="Reps"
-                  placeholderTextColor={colors.subtle}
-                  value={item.reps}
-                  keyboardType="number-pad"
-                  onChangeText={(t) =>
-                    setSets((prev) =>
-                      prev.map((s) =>
-                        s.id === item.id ? { ...s, reps: t } : s,
-                      ),
-                    )
-                  }
-                  style={[
-                    styles.input,
-                    { backgroundColor: colors.inputBg, color: colors.text },
-                  ]}
-                  returnKeyType="done"
-                  onSubmitEditing={() => Keyboard.dismiss()}
-                />
-              </View>
-
-              <View style={styles.inputContainer}>
-                <TextInput
-                  placeholder="Weight"
-                  placeholderTextColor={colors.subtle}
-                  value={item.weight}
-                  keyboardType="numeric"
-                  onChangeText={(t) =>
-                    setSets((prev) =>
-                      prev.map((s) =>
-                        s.id === item.id ? { ...s, weight: t } : s,
-                      ),
-                    )
-                  }
-                  style={[
-                    styles.input,
-                    { backgroundColor: colors.inputBg, color: colors.text },
-                  ]}
-                  returnKeyType="done"
-                  onSubmitEditing={() => Keyboard.dismiss()}
-                />
-              </View>
-            </View>
-          );
-
-          return (
-            <View style={styles.rowWrapper}>
-              <Swipeable
-                {...(sets.length > 1 ? getSwipeableProps(item.id) : {})}
-                enabled={sets.length > 1}
+        {/* SET LIST */}
+        <FlatList
+          ref={flatListRef}
+          data={sets}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{ paddingBottom: 10 }}
+          keyboardShouldPersistTaps="handled"
+          renderItem={({ item, index }) => {
+            const setContent = (
+              <View
+                style={[
+                  styles.setCard,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                ]}
               >
-                {setContent}
-              </Swipeable>
-            </View>
-          );
-        }}
-      />
+                <Text style={[styles.setNumber, { color: colors.text }]}>
+                  {index + 1}
+                </Text>
 
-      {/* FOOTER */}
-      <View style={[styles.footerRow, { borderColor: colors.border }]}>
-        <TouchableOpacity
-          style={styles.footerButton}
-          onPress={() => handleSave(onSummary)}
-        >
-          <Text style={styles.footerButtonText}>Summary</Text>
-        </TouchableOpacity>
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    placeholder="Reps"
+                    placeholderTextColor={colors.subtle}
+                    value={item.reps}
+                    keyboardType="number-pad"
+                    onChangeText={(t) =>
+                      setSets((prev) =>
+                        prev.map((s) =>
+                          s.id === item.id ? { ...s, reps: t } : s,
+                        ),
+                      )
+                    }
+                    style={[
+                      styles.input,
+                      { backgroundColor: colors.inputBg, color: colors.text },
+                    ]}
+                    returnKeyType="done"
+                    onSubmitEditing={() => Keyboard.dismiss()}
+                  />
+                </View>
 
-        <TouchableOpacity
-          style={styles.footerButton}
-          onPress={() => handleSave(onAddExercise)}
-        >
-          <Text style={styles.footerButtonText}>Select Exercise</Text>
-        </TouchableOpacity>
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    placeholder="Weight"
+                    placeholderTextColor={colors.subtle}
+                    value={item.weight}
+                    keyboardType="numeric"
+                    onChangeText={(t) =>
+                      setSets((prev) =>
+                        prev.map((s) =>
+                          s.id === item.id ? { ...s, weight: t } : s,
+                        ),
+                      )
+                    }
+                    style={[
+                      styles.input,
+                      { backgroundColor: colors.inputBg, color: colors.text },
+                    ]}
+                    returnKeyType="done"
+                    onSubmitEditing={() => Keyboard.dismiss()}
+                  />
+                </View>
+              </View>
+            );
+
+            return (
+              <View style={styles.rowWrapper}>
+                <Swipeable
+                  {...(sets.length > 1 ? getSwipeableProps(item.id) : {})}
+                  enabled={sets.length > 1}
+                >
+                  {setContent}
+                </Swipeable>
+              </View>
+            );
+          }}
+        />
+
+        {/* FOOTER */}
+        <View style={[styles.footerRow, { borderColor: colors.border }]}>
+          <TouchableOpacity
+            style={styles.footerButton}
+            onPress={() => handleSave(onSummary)}
+          >
+            <Text style={styles.footerButtonText}>Summary</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.footerButton}
+            onPress={() => handleSave(onAddExercise)}
+          >
+            <Text style={styles.footerButtonText}>Select Exercise</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
-    {Platform.OS === "ios" && (
-  <InputAccessoryView nativeID={inputAccessoryViewID}>
-    <View style={styles.keyboardToolbar}>
-      <View style={{ flex: 1 }} />
-      <GlassView style={{ borderRadius: 25, padding: 8 }}>
-        <Button title="Done" onPress={() => Keyboard.dismiss()}  />
-      </GlassView>
-    </View>
-  </InputAccessoryView>
-)}
-</>
+      {Platform.OS === "ios" && (
+        <InputAccessoryView nativeID={inputAccessoryViewID}>
+          <View style={styles.keyboardToolbar}>
+            <View style={{ flex: 1 }} />
+            <GlassView style={{ borderRadius: 25, padding: 8 }}>
+              <Button title="Done" onPress={() => Keyboard.dismiss()} />
+            </GlassView>
+          </View>
+        </InputAccessoryView>
+      )}
+    </>
   );
 });
 
@@ -312,11 +338,26 @@ const styles = StyleSheet.create({
     paddingBottom: 0,
   },
 
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+
+  titleSpacer: {
+    width: 40,
+    alignItems: "flex-end",
+  },
+
   title: {
+    flex: 1,
     fontSize: 28,
     fontWeight: "700",
     textAlign: "center",
-    marginBottom: 6,
+  },
+
+  infoButton: {
+    padding: 4,
   },
 
   fullDivider: {

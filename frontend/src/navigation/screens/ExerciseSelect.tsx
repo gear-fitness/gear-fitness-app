@@ -1,73 +1,22 @@
-import { Button, Text } from "@react-navigation/elements";
+import { Text } from "@react-navigation/elements";
 import {
   StyleSheet,
   View,
-  TextInput,
   TouchableOpacity,
   ScrollView,
-  Modal,
-  Image,
-  Keyboard,
-  KeyboardAvoidingView,
-  Platform,
+  SectionList,
 } from "react-native";
-import React, { useState, useEffect } from "react";
-import { LinearGradient } from "expo-linear-gradient";
-import search from "../../assets/search.png";
-import filter from "../../assets/filter.png";
-import close from "../../assets/close.png";
-import chat from "../../assets/chat.png";
+import React, { useState, useEffect, useMemo } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
+
 import { getAllExercises } from "../../api/exerciseService";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { useTrackTab } from "../../hooks/useTrackTab";
 
-type FilterKey =
-  | "CALVES"
-  | "HAMSTRINGS"
-  | "TRICEPS"
-  | "BICEPS"
-  | "LEGS"
-  | "BACK"
-  | "CHEST"
-  | "SHOULDERS"
-  | "CORE"
-  | "GLUTES";
-
-type SelectedFilters = Record<FilterKey, boolean>;
-
-// Map user-friendly search terms to BodyPart enum values
-const bodyPartMapping: Record<string, string> = {
-  // Singular forms
-  bicep: "BICEPS",
-  tricep: "TRICEPS",
-  leg: "LEGS",
-  quad: "QUADS",
-  hamstring: "HAMSTRINGS",
-  glute: "GLUTES",
-  calf: "CALVES",
-  trap: "TRAPS",
-  forearm: "FOREARMS",
-  // Plural forms
-  biceps: "BICEPS",
-  triceps: "TRICEPS",
-  legs: "LEGS",
-  quads: "QUADS",
-  hamstrings: "HAMSTRINGS",
-  glutes: "GLUTES",
-  calves: "CALVES",
-  traps: "TRAPS",
-  forearms: "FOREARMS",
-  // Common terms
-  chest: "CHEST",
-  back: "BACK",
-  shoulder: "SHOULDERS",
-  shoulders: "SHOULDERS",
-  core: "CORE",
-  abs: "CORE",
-};
+import { ExerciseSearchBar } from "../../components/ExerciseSearchBar";
+import { ExerciseCard } from "../../components/ExerciseCard";
 
 export function ExerciseSelect() {
   useTrackTab("ExerciseSelect");
@@ -81,92 +30,14 @@ export function ExerciseSelect() {
     bg: isDark ? "#000" : "#fff",
     text: isDark ? "#fff" : "#000",
     subtle: isDark ? "#aaa" : "#666",
-    icon: isDark ? "#fff" : "#555",
-    border: isDark ? "#333" : "#ccc",
-    inputBg: isDark ? "#1c1c1e" : "#fff",
-    modalBg: isDark ? "#111" : "#fff",
-    card: isDark ? "#222" : "#fff",
+    border: isDark ? "#333" : "#e0e0e0",
+    inputBg: isDark ? "#1c1c1e" : "#f5f5f5",
+    accent: "#007AFF",
   };
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [isFiltering, setIsFiltering] = useState(false);
-
-  const [selectedFilters, setSelectedFilters] = useState<SelectedFilters>({
-    LEGS: false,
-    BACK: false,
-    CHEST: false,
-    SHOULDERS: false,
-    CORE: false,
-    CALVES: false,
-    HAMSTRINGS: false,
-    TRICEPS: false,
-    BICEPS: false,
-    GLUTES: false,
-  });
-
   const [exercises, setExercises] = useState<any[]>([]);
-
-  const activeFilters = Object.entries(selectedFilters)
-    .filter(([_, value]) => value)
-    .map(([key]) => key);
-
-  const filteredExercises = exercises
-    .filter((ex) => {
-      const query = searchQuery.toLowerCase().trim();
-
-      if (!query) {
-        // No search query - just apply body part filters
-        const filterMatch =
-          activeFilters.length === 0 ||
-          activeFilters.includes(ex.bodyPart.toUpperCase());
-        return filterMatch;
-      }
-
-      // Parse search query into words
-      const searchWords = query.split(/\s+/);
-
-      // Check if any word matches a body part
-      let detectedBodyPart: string | null = null;
-      let remainingWords: string[] = [];
-
-      for (const word of searchWords) {
-        const mappedBodyPart = bodyPartMapping[word];
-        if (mappedBodyPart) {
-          detectedBodyPart = mappedBodyPart;
-        } else {
-          remainingWords.push(word);
-        }
-      }
-
-      // Apply body part filters from filter modal
-      const filterMatch =
-        activeFilters.length === 0 ||
-        activeFilters.includes(ex.bodyPart.toUpperCase());
-
-      if (!filterMatch) return false;
-
-      // Smart matching based on detected body part
-      if (detectedBodyPart && remainingWords.length > 0) {
-        // Body part detected: match bodyPart AND search remaining words in name
-        const bodyPartMatch = ex.bodyPart.toUpperCase() === detectedBodyPart;
-        const nameMatch = remainingWords.every((word) =>
-          ex.name.toLowerCase().includes(word),
-        );
-        return bodyPartMatch && nameMatch;
-      } else if (detectedBodyPart && remainingWords.length === 0) {
-        // Only body part search (e.g., just "bicep")
-        return ex.bodyPart.toUpperCase() === detectedBodyPart;
-      } else {
-        // No body part detected - search all words in name or bodyPart
-        const searchMatch = searchWords.every(
-          (word) =>
-            ex.name.toLowerCase().includes(word) ||
-            ex.bodyPart.toLowerCase().includes(word),
-        );
-        return searchMatch;
-      }
-    })
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const [selectedBodyPart, setSelectedBodyPart] = useState<string | null>(null);
 
   useEffect(() => {
     const loadExercises = async () => {
@@ -177,169 +48,158 @@ export function ExerciseSelect() {
         console.error("Failed to fetch exercises:", err);
       }
     };
-
     loadExercises();
   }, []);
 
+  const bodyParts = useMemo(() => {
+    const parts = new Set(exercises.map((ex) => ex.bodyPart.toUpperCase()));
+    return Array.from(parts).sort();
+  }, [exercises]);
+
+  const sections = useMemo(() => {
+    const query = searchQuery.toLowerCase().trim();
+
+    const filtered = exercises.filter((ex) => {
+      const matchesSearch =
+        !query ||
+        ex.name.toLowerCase().includes(query) ||
+        ex.bodyPart.toLowerCase().includes(query);
+
+      const matchesBodyPart =
+        !selectedBodyPart || ex.bodyPart.toUpperCase() === selectedBodyPart;
+
+      return matchesSearch && matchesBodyPart;
+    });
+
+    const grouped: Record<string, any[]> = {};
+    filtered.forEach((ex) => {
+      const key = ex.bodyPart.toUpperCase();
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(ex);
+    });
+
+    return Object.keys(grouped)
+      .sort()
+      .map((key) => ({
+        title: key,
+        data: grouped[key].sort((a: any, b: any) =>
+          a.name.localeCompare(b.name),
+        ),
+      }));
+  }, [exercises, searchQuery, selectedBodyPart]);
+
+  const handleExercisePress = (exercise: any) => {
+    start();
+
+    const workoutExerciseId = Date.now().toString();
+
+    showPlayer(workoutExerciseId);
+
+    navigation.replace("ExerciseDetail", {
+      exercise: {
+        workoutExerciseId,
+        exerciseId: exercise.exerciseId,
+        name: exercise.name,
+        sets: [],
+      },
+    });
+  };
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 125 : 0}
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.bg }]}
+      edges={["bottom"]}
+    >
+      {/* Search Bar */}
+      <ExerciseSearchBar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        placeholder="Search exercises..."
+      />
+
+      {/* Body Part Filter Chips */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.chipScrollView}
+        contentContainerStyle={styles.chipContainer}
       >
-        {/* Search Bar */}
-        <View style={styles.searchRow}>
-          <View
-            style={[
-              styles.searchContainer,
-              { backgroundColor: colors.inputBg, borderColor: colors.border },
-            ]}
-          >
-            <Image
-              source={search}
-              style={[styles.searchIcon, { tintColor: colors.icon }]}
-            />
-
-            <TextInput
-              placeholder="Search Exercises"
-              placeholderTextColor={colors.subtle}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              style={[styles.searchInput, { color: colors.text }]}
-              returnKeyType="done"
-              onSubmitEditing={() => Keyboard.dismiss()}
-            />
-
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery("")}>
-                <Image
-                  source={close}
-                  style={[styles.clearIcon, { tintColor: colors.icon }]}
-                />
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* Filter Button */}
-          <TouchableOpacity
-            onPress={() => setIsFiltering(true)}
-            style={[
-              styles.filterButton,
-              { backgroundColor: colors.inputBg, borderColor: colors.border },
-            ]}
-          >
-            <Image
-              source={filter}
-              style={[styles.filterIcon, { tintColor: colors.icon }]}
-            />
-          </TouchableOpacity>
-        </View>
-
-        {/* Exercises List */}
-        <ScrollView
-          style={{ flex: 1, marginTop: 20 }}
-          contentContainerStyle={{ paddingBottom: 20 }}
+        <TouchableOpacity
+          style={[
+            styles.chip,
+            {
+              backgroundColor: !selectedBodyPart
+                ? colors.accent
+                : colors.inputBg,
+              borderColor: !selectedBodyPart ? colors.accent : colors.border,
+            },
+          ]}
+          onPress={() => setSelectedBodyPart(null)}
         >
-          {filteredExercises.map((ex) => (
-            <View key={ex.exerciseId} style={styles.exerciseRow}>
-              <TouchableOpacity
-                style={{ flex: 1 }}
-                onPress={() => {
-                  // Start timer if not already running
-                  start();
+          <Text
+            style={[
+              styles.chipText,
+              { color: !selectedBodyPart ? "#fff" : colors.text },
+            ]}
+          >
+            All
+          </Text>
+        </TouchableOpacity>
+        {bodyParts.map((part) => (
+          <TouchableOpacity
+            key={part}
+            style={[
+              styles.chip,
+              {
+                backgroundColor:
+                  selectedBodyPart === part ? colors.accent : colors.inputBg,
+                borderColor:
+                  selectedBodyPart === part ? colors.accent : colors.border,
+              },
+            ]}
+            onPress={() =>
+              setSelectedBodyPart(selectedBodyPart === part ? null : part)
+            }
+          >
+            <Text
+              style={[
+                styles.chipText,
+                { color: selectedBodyPart === part ? "#fff" : colors.text },
+              ]}
+            >
+              {part}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
 
-                  // Generate unique workout exercise ID
-                  const workoutExerciseId = Date.now().toString();
-
-                  // Show mini player (timer persists)
-                  showPlayer(workoutExerciseId);
-
-                  // Navigate to ExerciseDetail modal (original workflow)
-                  navigation.replace("ExerciseDetail", {
-                    exercise: {
-                      workoutExerciseId,
-                      exerciseId: ex.exerciseId,
-                      name: ex.name,
-                      sets: [],
-                    },
-                  });
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 16,
-                    fontWeight: "600",
-                    color: colors.text,
-                  }}
-                >
-                  {ex.name}
-                </Text>
-                <Text style={{ color: colors.subtle }}>{ex.bodyPart}</Text>
-                <Text style={{ color: colors.subtle, marginTop: 4 }}>
-                  {ex.description}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => {
-                  const greetingText = `Hello, I'm your personal ${ex.name} assistant! If you have any questions on this exercise, let me know!`;
-
-                  // Navigate to ExerciseChat modal
-                  navigation.navigate("ExerciseChat", {
-                    exercise: ex,
-                    greetingText,
-                  });
-                }}
-                style={styles.chatIconButtonWrapper}
-              >
-                <LinearGradient
-                  colors={
-                    isDark
-                      ? [
-                          "rgba(255, 255, 255, 0.25)",
-                          "rgba(255, 255, 255, 0.08)",
-                        ]
-                      : ["rgba(255, 255, 255, 0.4)", "rgba(29, 29, 29, 0.12)"]
-                  }
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={[
-                    styles.chatIconButton,
-                    {
-                      borderTopColor: isDark
-                        ? "rgba(255, 255, 255, 0.6)"
-                        : "rgba(255, 255, 255, 0.5)",
-                      borderLeftColor: isDark
-                        ? "rgba(255, 255, 255, 0.6)"
-                        : "rgba(255, 255, 255, 0.5)",
-                      borderBottomColor: isDark
-                        ? "rgba(255, 255, 255, 0.05)"
-                        : "rgba(0, 0, 0, 0.08)",
-                      borderRightColor: isDark
-                        ? "rgba(255, 255, 255, 0.05)"
-                        : "rgba(0, 0, 0, 0.08)",
-                      shadowColor: isDark ? "#fff" : "#000",
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: isDark ? 0.4 : 0.15,
-                      shadowRadius: 10,
-                      elevation: 8,
-                    },
-                  ]}
-                >
-                  <Image
-                    source={chat}
-                    style={{
-                      width: 20,
-                      height: 20,
-                      tintColor: isDark ? "#fff" : "#1D1D1D",
-                      transform: [{ translateX: 1.25 }, { translateY: -1 }],
-                    }}
-                  />
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          ))}
+      {/* Exercise List */}
+      <SectionList
+        style={styles.list}
+        sections={sections}
+        keyExtractor={(item) => item.exerciseId}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        stickySectionHeadersEnabled
+        renderSectionHeader={({ section: { title } }) => (
+          <View style={[styles.sectionHeader, { backgroundColor: colors.bg }]}>
+            <Text style={[styles.sectionHeaderText, { color: colors.subtle }]}>
+              {title}
+            </Text>
+            <Text style={[styles.sectionCount, { color: colors.subtle }]}>
+              {sections.find((s) => s.title === title)?.data.length || 0}
+            </Text>
+          </View>
+        )}
+        renderItem={({ item }) => (
+          <ExerciseCard
+            exercise={item}
+            onPress={() => handleExercisePress(item)}
+          />
+        )}
+        contentContainerStyle={styles.listContent}
+        ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+        ListFooterComponent={
           <TouchableOpacity
             onPress={() =>
               navigation.navigate("CreateExercise", { startWorkout: true })
@@ -353,158 +213,78 @@ export function ExerciseSelect() {
               Don't see your exercise? Add it here
             </Text>
           </TouchableOpacity>
-        </ScrollView>
-
-        {/* Filter Modal */}
-        <Modal visible={isFiltering} animationType="fade" transparent>
-          <View style={styles.modalBackground}>
-            <View
-              style={[
-                styles.modalContainer,
-                { backgroundColor: colors.modalBg },
-              ]}
-            >
-              <TouchableOpacity onPress={() => setIsFiltering(false)}>
-                <Image
-                  source={close}
-                  style={[
-                    styles.clearIcon,
-                    { tintColor: colors.icon, alignSelf: "flex-end" },
-                  ]}
-                />
-              </TouchableOpacity>
-
-              <Text style={[styles.modalTitle, { color: colors.text }]}>
-                Filter Exercises
-              </Text>
-
-              <ScrollView style={styles.scrollArea}>
-                {Object.entries(selectedFilters).map(([key, value]) => {
-                  const typedKey = key as FilterKey;
-
-                  return (
-                    <TouchableOpacity
-                      key={typedKey}
-                      onPress={() =>
-                        setSelectedFilters((prev) => ({
-                          ...prev,
-                          [typedKey]: !prev[typedKey],
-                        }))
-                      }
-                      style={styles.filterOption}
-                    >
-                      <View
-                        style={[
-                          styles.checkbox,
-                          {
-                            backgroundColor: value ? "#007AFF" : colors.card,
-                            borderColor: colors.border,
-                          },
-                        ]}
-                      />
-
-                      <Text style={{ fontSize: 16, color: colors.text }}>
-                        {typedKey}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-
-              <Button onPress={() => setIsFiltering(false)}>
-                Apply Filters
-              </Button>
-            </View>
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyIcon}>🔍</Text>
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>
+              No exercises found
+            </Text>
+            <Text style={[styles.emptySubtitle, { color: colors.subtle }]}>
+              Try adjusting your search or filters
+            </Text>
           </View>
-        </Modal>
-      </KeyboardAvoidingView>
+        }
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 20, paddingTop: 10 },
-
-  searchRow: { flexDirection: "row", alignItems: "center", marginTop: 10 },
-
-  searchContainer: {
+  container: {
     flex: 1,
-    flexDirection: "row",
+  },
+
+  // Filter Chips
+  chipScrollView: {
+    flexGrow: 0,
+    marginBottom: 8,
+  },
+  chipContainer: {
+    paddingHorizontal: 20,
+    gap: 8,
     alignItems: "center",
-    borderWidth: 1,
+  },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 20,
-    paddingHorizontal: 10,
-    height: 40,
-  },
-
-  searchIcon: { width: 18, height: 18, marginRight: 8 },
-  clearIcon: { width: 16, height: 16 },
-
-  searchInput: { flex: 1, fontSize: 16 },
-
-  filterButton: {
-    marginLeft: 10,
-    borderRadius: 20,
-    padding: 8,
     borderWidth: 1,
-    justifyContent: "center",
-    alignItems: "center",
+  },
+  chipText: {
+    fontSize: 13,
+    fontWeight: "600",
   },
 
-  filterIcon: { width: 20, height: 20 },
-
-  modalBackground: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.3)",
-  },
-
-  modalContainer: {
-    width: "80%",
-    borderRadius: 10,
-    padding: 20,
-  },
-
-  modalTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 10 },
-
-  scrollArea: { maxHeight: 300, marginVertical: 10 },
-
-  filterOption: {
+  // Section Headers
+  sectionHeader: {
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    marginVertical: 5,
-  },
-
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderWidth: 1,
-    marginRight: 10,
-    borderRadius: 4,
-  },
-
-  exerciseRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    paddingHorizontal: 20,
     paddingVertical: 10,
   },
-
-  chatIconButtonWrapper: {
-    marginLeft: 10,
+  sectionHeaderText: {
+    fontSize: 13,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  sectionCount: {
+    fontSize: 13,
+    fontWeight: "600",
   },
 
-  chatIconButton: {
-    padding: 10,
-    borderRadius: 24,
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderBottomWidth: 1,
-    borderRightWidth: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    overflow: "hidden",
+  // Exercise List
+  list: {
+    flex: 1,
   },
+  listContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+
+  // Create Button
   createButton: {
     marginTop: 20,
     marginBottom: 30,
@@ -515,13 +295,32 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 4,
   },
-
   createButtonText: {
     fontSize: 15,
     fontWeight: "600",
   },
-
   createButtonHint: {
     fontSize: 12,
+  },
+
+  // Empty State
+  emptyState: {
+    alignItems: "center",
+    paddingTop: 60,
+    paddingHorizontal: 40,
+  },
+  emptyIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 15,
+    textAlign: "center",
+    lineHeight: 22,
   },
 });

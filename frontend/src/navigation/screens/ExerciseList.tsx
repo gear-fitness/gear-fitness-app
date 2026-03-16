@@ -2,11 +2,8 @@ import { Text } from "@react-navigation/elements";
 import {
   StyleSheet,
   View,
-  TextInput,
   TouchableOpacity,
   ScrollView,
-  Image,
-  Keyboard,
   SectionList,
 } from "react-native";
 import React, { useState, useEffect, useMemo } from "react";
@@ -14,10 +11,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
 
-import search from "../../assets/search.png";
-import close from "../../assets/close.png";
 import { getAllExercises } from "../../api/exerciseService";
 import { useTrackTab } from "../../hooks/useTrackTab";
+import { ExerciseSearchBar } from "../../components/ExerciseSearchBar";
+import { ExerciseCard } from "../../components/ExerciseCard";
 
 export function ExerciseList() {
   useTrackTab("ExerciseList");
@@ -29,11 +26,8 @@ export function ExerciseList() {
     bg: isDark ? "#000" : "#fff",
     text: isDark ? "#fff" : "#000",
     subtle: isDark ? "#aaa" : "#666",
-    icon: isDark ? "#fff" : "#555",
     border: isDark ? "#333" : "#e0e0e0",
     inputBg: isDark ? "#1c1c1e" : "#f5f5f5",
-    card: isDark ? "#1c1c1e" : "#fff",
-    sectionBg: isDark ? "#111" : "#f9f9f9",
     accent: "#007AFF",
   };
 
@@ -100,36 +94,11 @@ export function ExerciseList() {
       edges={["bottom"]}
     >
       {/* Search Bar */}
-      <View style={styles.searchWrapper}>
-        <View
-          style={[
-            styles.searchContainer,
-            { backgroundColor: colors.inputBg, borderColor: colors.border },
-          ]}
-        >
-          <Image
-            source={search}
-            style={[styles.searchIcon, { tintColor: colors.icon }]}
-          />
-          <TextInput
-            placeholder="Search exercises..."
-            placeholderTextColor={colors.subtle}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            style={[styles.searchInput, { color: colors.text }]}
-            returnKeyType="done"
-            onSubmitEditing={() => Keyboard.dismiss()}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery("")}>
-              <Image
-                source={close}
-                style={[styles.clearIcon, { tintColor: colors.icon }]}
-              />
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
+      <ExerciseSearchBar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        placeholder="Search exercises..."
+      />
 
       {/* Body Part Filter Chips */}
       <ScrollView
@@ -206,39 +175,10 @@ export function ExerciseList() {
           </View>
         )}
         renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[
-              styles.exerciseCard,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-              },
-            ]}
+          <ExerciseCard
+            exercise={item}
             onPress={() => handleExercisePress(item)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.exerciseCardContent}>
-              <View style={styles.exerciseInfo}>
-                <Text
-                  style={[styles.exerciseName, { color: colors.text }]}
-                  numberOfLines={1}
-                >
-                  {item.name}
-                </Text>
-                <Text
-                  style={[styles.exerciseDescription, { color: colors.subtle }]}
-                  numberOfLines={2}
-                >
-                  {item.description}
-                </Text>
-              </View>
-              <View style={styles.exerciseArrow}>
-                <Text style={[styles.arrowText, { color: colors.subtle }]}>
-                  ›
-                </Text>
-              </View>
-            </View>
-          </TouchableOpacity>
+          />
         )}
         contentContainerStyle={styles.listContent}
         ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
@@ -263,57 +203,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // Search
-  searchWrapper: {
-    marginTop: 10,
-    paddingHorizontal: 20,
-    marginBottom: 12,
-  },
-
-  searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 44,
-  },
-
-  searchIcon: {
-    width: 18,
-    height: 18,
-    marginRight: 8,
-  },
-
-  clearIcon: {
-    width: 16,
-    height: 16,
-  },
-
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-  },
-
   // Filter Chips
   chipScrollView: {
     flexGrow: 0,
     marginBottom: 8,
   },
-
   chipContainer: {
     paddingHorizontal: 20,
     gap: 8,
     alignItems: "center",
   },
-
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
   },
-
   chipText: {
     fontSize: 13,
     fontWeight: "600",
@@ -327,14 +232,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
   },
-
   sectionHeaderText: {
     fontSize: 13,
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
-
   sectionCount: {
     fontSize: 13,
     fontWeight: "600",
@@ -344,47 +247,9 @@ const styles = StyleSheet.create({
   list: {
     flex: 1,
   },
-
   listContent: {
     paddingHorizontal: 20,
     paddingBottom: 40,
-  },
-
-  exerciseCard: {
-    borderRadius: 12,
-    borderWidth: 1,
-    overflow: "hidden",
-  },
-
-  exerciseCardContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-  },
-
-  exerciseInfo: {
-    flex: 1,
-  },
-
-  exerciseName: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 4,
-  },
-
-  exerciseDescription: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-
-  exerciseArrow: {
-    marginLeft: 12,
-    justifyContent: "center",
-  },
-
-  arrowText: {
-    fontSize: 24,
-    fontWeight: "300",
   },
 
   // Empty State
@@ -393,18 +258,15 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingHorizontal: 40,
   },
-
   emptyIcon: {
     fontSize: 48,
     marginBottom: 16,
   },
-
   emptyTitle: {
     fontSize: 18,
     fontWeight: "700",
     marginBottom: 8,
   },
-
   emptySubtitle: {
     fontSize: 15,
     textAlign: "center",
