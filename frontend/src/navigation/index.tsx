@@ -35,18 +35,9 @@ import { CreateExerciseScreen } from "./screens/CreateExerciseScreen";
 
 /* ---------------------- TABS ---------------------- */
 
-bottomAccessory: ({ placement }) => {
-  return (
-    <View style={{ padding: 16 }}>
-      <Text>Placement: {placement}</Text>
-    </View>
-  );
-  };
-
 const HomeTabs = createBottomTabNavigator({
   initialRouteName: "Explore",
   implementation: "native",
-  tabBarMinimizeBehavior: "onScrollDown",
   screenOptions: {
     headerShown: false,
     tabBarLabel: "",
