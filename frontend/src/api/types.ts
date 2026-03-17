@@ -15,6 +15,8 @@ export interface WorkoutStats {
     Sat: number;
     Sun: number;
   };
+  workoutStreak: number;
+  workoutDaysCurrentWeek: number;
 }
 
 export interface UserProfile {
@@ -25,6 +27,7 @@ export interface UserProfile {
   heightInches: number | null;
   age: number | null;
   isPrivate: boolean;
+  profilePictureUrl: string | null;
   createdAt: string;
   workoutStats: WorkoutStats;
   followersCount: number;
@@ -35,6 +38,7 @@ export interface UserProfile {
 export interface FollowerUser {
   userId: string;
   username: string;
+  profilePictureUrl?: string | null;
 }
 
 export interface FollowersResponse {

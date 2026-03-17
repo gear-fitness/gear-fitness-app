@@ -1,13 +1,14 @@
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@react-navigation/native";
+import { Avatar } from "./Avatar";
 
 type Props = {
   username: string;
+  profilePictureUrl?: string | null;
   onPress: () => void;
 };
 
-export function UserSearchCard({ username, onPress }: Props) {
+export function UserSearchCard({ username, profilePictureUrl, onPress }: Props) {
   const { colors } = useTheme();
 
   return (
@@ -16,10 +17,10 @@ export function UserSearchCard({ username, onPress }: Props) {
       onPress={onPress}
       activeOpacity={0.8}
     >
-      <Ionicons
-        name="person-circle-outline"
+      <Avatar
+        username={username}
+        profilePictureUrl={profilePictureUrl}
         size={42}
-        color={colors.primary}
         style={styles.avatar}
       />
 

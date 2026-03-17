@@ -20,5 +20,6 @@ public class UserDTO {
     private Integer heightInches;
     private Integer age;
     private Boolean isPrivate;
+    private String profilePictureUrl;
     private LocalDateTime createdAt;
 }

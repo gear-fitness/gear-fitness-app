@@ -245,6 +245,7 @@ export function Social() {
           renderItem={({ item }) => (
             <UserSearchCard
               username={item.username}
+              profilePictureUrl={item.profilePictureUrl}
               onPress={() => {
                 setSearchQuery("");
                 setUserResults([]);

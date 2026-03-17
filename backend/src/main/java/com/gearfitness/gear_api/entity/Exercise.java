@@ -8,7 +8,9 @@ import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 @Entity
 @Table(name = "exercise")
@@ -45,6 +47,8 @@ public class Exercise {
     )
     @JsonIgnore
     @Builder.Default
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Set<WorkoutExercise> workoutExercises = new HashSet<>();
 
     public enum BodyPart {

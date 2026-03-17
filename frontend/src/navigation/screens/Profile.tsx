@@ -13,12 +13,16 @@ import { useNavigation, useRoute, useTheme } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
+import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
+
 import {
   getCurrentUserProfile,
   getUserProfile,
   getUserFollowers,
   followUser,
   unfollowUser,
+  uploadProfilePicture,
 } from "../../api/userService";
 import { UserProfile, FollowerUser } from "../../api/types";
 import { useTrackTab } from "../../hooks/useTrackTab";
@@ -26,6 +30,7 @@ import { socialFeedApi, FeedPost } from "../../api/socialFeedApi";
 import { FeedPostCard } from "../../components/FeedPostCard";
 import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
 import { feedRefresh } from "../../utils/feedRefreshFlag";
+import { Avatar } from "../../components/Avatar";
 
 export function Profile() {
   const insets = useSafeAreaInsets();
@@ -43,6 +48,7 @@ export function Profile() {
   const [followers, setFollowers] = useState<FollowerUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   // Posts state management
   const [posts, setPosts] = useState<FeedPost[]>([]);
@@ -174,6 +180,35 @@ export function Profile() {
     navigation.navigate("Comments", { postId });
   };
 
+  // Handle profile picture upload
+  const handlePickImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (result.canceled) return;
+
+      setUploading(true);
+      const manipulated = await ImageManipulator.manipulateAsync(
+        result.assets[0].uri,
+        [{ resize: { width: 300 } }],
+        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+      );
+
+      await uploadProfilePicture(manipulated.uri);
+      await loadProfile();
+    } catch (e: any) {
+      console.error("Upload error:", e);
+      Alert.alert("Error", e?.message || "Failed to upload profile picture");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   // Format height from inches to feet and inches
   const formatHeight = (h: number | null) =>
     h ? `${Math.floor(h / 12)}' ${h % 12}"` : "N/A";
@@ -186,11 +221,28 @@ export function Profile() {
       <View style={styles.container}>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <View style={styles.avatarWrapper}>
-              <Text style={styles.avatarLetter}>
-                {profile.username.charAt(0).toUpperCase()}
-              </Text>
-            </View>
+            {!isOtherUser ? (
+              <TouchableOpacity onPress={handlePickImage} disabled={uploading}>
+                <Avatar
+                  username={profile.username}
+                  profilePictureUrl={profile.profilePictureUrl}
+                  size={110}
+                />
+                <View style={styles.cameraOverlay}>
+                  {uploading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Ionicons name="camera" size={18} color="#fff" />
+                  )}
+                </View>
+              </TouchableOpacity>
+            ) : (
+              <Avatar
+                username={profile.username}
+                profilePictureUrl={profile.profilePictureUrl}
+                size={110}
+              />
+            )}
 
             <View>
               <Text style={styles.username}>{profile.username}</Text>
@@ -256,11 +308,12 @@ export function Profile() {
           ) : (
             <View style={styles.friendsRow}>
               {followers.slice(0, 5).map((f) => (
-                <View key={f.userId} style={styles.friend}>
-                  <Text style={styles.friendLetter}>
-                    {f.username.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
+                <Avatar
+                  key={f.userId}
+                  username={f.username}
+                  profilePictureUrl={f.profilePictureUrl}
+                  size={40}
+                />
               ))}
             </View>
           )}
@@ -407,19 +460,16 @@ const styles = StyleSheet.create({
     gap: 16,
   },
 
-  avatarWrapper: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    backgroundColor: "#e5e5e5",
+  cameraOverlay: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(0,0,0,0.6)",
     justifyContent: "center",
     alignItems: "center",
-  },
-
-  avatarLetter: {
-    fontSize: 48,
-    fontWeight: "bold",
-    color: "#666",
   },
 
   username: { fontSize: 24, fontWeight: "bold" },
@@ -461,22 +511,6 @@ const styles = StyleSheet.create({
   friendsRow: {
     flexDirection: "row",
     gap: 12,
-  },
-
-  friend: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#ccc",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  friendLetter: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#666",
-    includeFontPadding: false,
   },
 
   weekRow: {
