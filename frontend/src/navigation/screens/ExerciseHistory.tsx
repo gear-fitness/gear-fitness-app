@@ -24,7 +24,7 @@ const CHART_HEIGHT = 200;
 const CHART_PADDING = { top: 24, right: 20, bottom: 30, left: 50 };
 
 type TimeScope = "1m" | "3m" | "1y" | "all";
-type ChartType = "weight" | "volume";
+type ChartType = "pr" | "volume" | "session_max";
 
 const TIME_SCOPES: { key: TimeScope; label: string }[] = [
   { key: "1m", label: "1M" },
@@ -32,6 +32,18 @@ const TIME_SCOPES: { key: TimeScope; label: string }[] = [
   { key: "1y", label: "1Y" },
   { key: "all", label: "ALL" },
 ];
+
+const CHART_TITLES: Record<ChartType, string> = {
+  pr: "PR Over Time",
+  volume: "Session Volume Over Time",
+  session_max: "Heaviest Weight Per Session",
+};
+
+const CHART_UNITS: Record<ChartType, string> = {
+  pr: "lbs",
+  volume: "total lbs",
+  session_max: "lbs",
+};
 
 export function ExerciseHistory() {
   const navigation = useNavigation<any>();
@@ -48,25 +60,39 @@ export function ExerciseHistory() {
     card: isDark ? "#1c1c1e" : "#f7f7f7",
     accent: "#007AFF",
     pr: "#FFD700",
-    chartLine: "#007AFF",
-    chartDot: "#007AFF",
     chartGrid: isDark ? "#333" : "#e0e0e0",
+    prLine: "#FFD700",
+    prDotColor: "#FFD700",
     volumeLine: "#34C759",
-    volumeDot: "#34C759",
+    volumeDotColor: "#34C759",
+    sessionMaxLine: "#007AFF",
+    sessionMaxDotColor: "#007AFF",
     scopeActive: "#007AFF",
     scopeInactive: isDark ? "#1c1c1e" : "#f0f0f0",
     scopeTextActive: "#fff",
     scopeTextInactive: isDark ? "#aaa" : "#666",
   };
 
+  const CHART_COLORS: Record<ChartType, { line: string; dot: string }> = {
+    pr: { line: colors.prLine, dot: colors.prDotColor },
+    volume: { line: colors.volumeLine, dot: colors.volumeDotColor },
+    session_max: {
+      line: colors.sessionMaxLine,
+      dot: colors.sessionMaxDotColor,
+    },
+  };
+
   const [history, setHistory] = useState<ExerciseHistoryType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [timeScope, setTimeScope] = useState<TimeScope>("all");
-  const [activeChart, setActiveChart] = useState<ChartType>("weight");
+  const [activeChartIndex, setActiveChartIndex] = useState(0);
 
   const screenWidth = Dimensions.get("window").width;
   const chartWidth = screenWidth - 70;
+
+  const chartTypes: ChartType[] = ["pr", "session_max", "volume"];
+  const activeChart = chartTypes[activeChartIndex];
 
   useEffect(() => {
     const load = async () => {
@@ -109,22 +135,38 @@ export function ExerciseHistory() {
     });
   }, [history, timeScope]);
 
-  // Chart data: weight
-  const weightChartData = useMemo(() => {
+  // Helper: get max weight from a session
+  const getSessionMax = (session: ExerciseSession): number => {
+    const weights = session.sets
+      .filter((s) => s.weightLbs != null)
+      .map((s) => s.weightLbs!);
+    if (weights.length === 0) return 0;
+    return Math.max(...weights);
+  };
+
+  // Chart data: PR over time (running max — only goes up)
+  const prChartData = useMemo(() => {
+    if (scopedSessions.length === 0) return [];
+    const chronological = [...scopedSessions].reverse();
+    let runningMax = 0;
+    return chronological
+      .map((session) => {
+        const sessionMax = getSessionMax(session);
+        if (sessionMax > runningMax) runningMax = sessionMax;
+        return { date: session.datePerformed, value: runningMax };
+      })
+      .filter((d) => d.value > 0);
+  }, [scopedSessions]);
+
+  // Chart data: session max (heaviest weight that day — goes up AND down)
+  const sessionMaxChartData = useMemo(() => {
     if (scopedSessions.length === 0) return [];
     return [...scopedSessions]
       .reverse()
-      .map((session) => {
-        const maxWeight = Math.max(
-          ...session.sets
-            .filter((s) => s.weightLbs != null)
-            .map((s) => s.weightLbs!),
-        );
-        return {
-          date: session.datePerformed,
-          value: maxWeight === -Infinity ? 0 : maxWeight,
-        };
-      })
+      .map((session) => ({
+        date: session.datePerformed,
+        value: getSessionMax(session),
+      }))
       .filter((d) => d.value > 0);
   }, [scopedSessions]);
 
@@ -138,10 +180,7 @@ export function ExerciseHistory() {
           (sum, s) => sum + (s.weightLbs || 0) * (s.reps || 0),
           0,
         );
-        return {
-          date: session.datePerformed,
-          value: totalVolume,
-        };
+        return { date: session.datePerformed, value: totalVolume };
       })
       .filter((d) => d.value > 0);
   }, [scopedSessions]);
@@ -186,7 +225,7 @@ export function ExerciseHistory() {
   // Handle chart page change
   const onChartScroll = (e: any) => {
     const pageIndex = Math.round(e.nativeEvent.contentOffset.x / chartWidth);
-    setActiveChart(pageIndex === 0 ? "weight" : "volume");
+    setActiveChartIndex(Math.min(pageIndex, chartTypes.length - 1));
   };
 
   // Render a single chart
@@ -203,15 +242,13 @@ export function ExerciseHistory() {
           ]}
         >
           <Text style={[styles.chartPlaceholderText, { color: colors.subtle }]}>
-            Need at least 2 sessions to show{" "}
-            {type === "weight" ? "weight" : "volume"} chart
+            Need at least 2 sessions to show chart
           </Text>
         </View>
       );
     }
 
-    const lineColor = type === "weight" ? colors.chartLine : colors.volumeLine;
-    const dotColor = type === "weight" ? colors.chartDot : colors.volumeDot;
+    const { line: lineColor, dot: dotColor } = CHART_COLORS[type];
 
     const drawWidth = chartWidth - CHART_PADDING.left - CHART_PADDING.right;
     const drawHeight = CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom;
@@ -232,7 +269,6 @@ export function ExerciseHistory() {
 
     const polylinePoints = points.map((p) => `${p.x},${p.y}`).join(" ");
 
-    // Y-axis labels
     const yTicks = Array.from({ length: 5 }, (_, i) => {
       const val = minV + (range * i) / 4;
       const y =
@@ -240,7 +276,6 @@ export function ExerciseHistory() {
       return { val: Math.round(val), y };
     });
 
-    // X-axis labels
     const xIndices =
       data.length <= 3
         ? data.map((_, i) => i)
@@ -255,7 +290,6 @@ export function ExerciseHistory() {
     return (
       <View style={{ width: chartWidth }}>
         <Svg width={chartWidth} height={CHART_HEIGHT}>
-          {/* Grid lines */}
           {yTicks.map((tick, i) => (
             <Line
               key={`grid-${i}`}
@@ -268,8 +302,6 @@ export function ExerciseHistory() {
               strokeDasharray="4,4"
             />
           ))}
-
-          {/* Y-axis labels */}
           {yTicks.map((tick, i) => (
             <SvgText
               key={`ylabel-${i}`}
@@ -282,8 +314,6 @@ export function ExerciseHistory() {
               {type === "volume" ? formatVolume(tick.val) : tick.val}
             </SvgText>
           ))}
-
-          {/* X-axis labels */}
           {xLabels.map((label, i) => (
             <SvgText
               key={`xlabel-${i}`}
@@ -296,8 +326,6 @@ export function ExerciseHistory() {
               {label.label}
             </SvgText>
           ))}
-
-          {/* Line */}
           <Polyline
             points={polylinePoints}
             fill="none"
@@ -306,8 +334,6 @@ export function ExerciseHistory() {
             strokeLinejoin="round"
             strokeLinecap="round"
           />
-
-          {/* Dots */}
           {points.map((p, i) => (
             <Circle key={`dot-${i}`} cx={p.x} cy={p.y} r={4} fill={dotColor} />
           ))}
@@ -455,9 +481,13 @@ export function ExerciseHistory() {
     );
   }
 
-  const chartPages = [
-    { key: "weight" as ChartType, data: weightChartData },
-    { key: "volume" as ChartType, data: volumeChartData },
+  const chartPages: {
+    key: ChartType;
+    data: { date: string; value: number }[];
+  }[] = [
+    { key: "pr", data: prChartData },
+    { key: "session_max", data: sessionMaxChartData },
+    { key: "volume", data: volumeChartData },
   ];
 
   return (
@@ -544,16 +574,14 @@ export function ExerciseHistory() {
           ))}
         </View>
 
-        {/* Chart Title */}
+        {/* Chart Card */}
         <View style={[styles.chartCard, { backgroundColor: colors.card }]}>
           <View style={styles.chartTitleRow}>
             <Text style={[styles.chartTitle, { color: colors.text }]}>
-              {activeChart === "weight"
-                ? "Max Weight Over Time"
-                : "Session Volume Over Time"}
+              {CHART_TITLES[activeChart]}
             </Text>
             <Text style={[styles.chartUnit, { color: colors.subtle }]}>
-              {activeChart === "weight" ? "lbs" : "total lbs"}
+              {CHART_UNITS[activeChart]}
             </Text>
           </View>
 
@@ -576,26 +604,20 @@ export function ExerciseHistory() {
 
           {/* Page Dots */}
           <View style={styles.pageDots}>
-            <View
-              style={[
-                styles.dot,
-                {
-                  backgroundColor:
-                    activeChart === "weight" ? colors.accent : colors.border,
-                },
-              ]}
-            />
-            <View
-              style={[
-                styles.dot,
-                {
-                  backgroundColor:
-                    activeChart === "volume"
-                      ? colors.volumeLine
-                      : colors.border,
-                },
-              ]}
-            />
+            {chartTypes.map((type, i) => (
+              <View
+                key={type}
+                style={[
+                  styles.dot,
+                  {
+                    backgroundColor:
+                      activeChartIndex === i
+                        ? CHART_COLORS[type].line
+                        : colors.border,
+                  },
+                ]}
+              />
+            ))}
           </View>
         </View>
 
@@ -607,8 +629,8 @@ export function ExerciseHistory() {
             </Text>
           </View>
 
-          {history && history.sessions.length > 0 ? (
-            history.sessions.map((session, i) => renderSession(session, i))
+          {scopedSessions.length > 0 ? (
+            scopedSessions.map((session, i) => renderSession(session, i))
           ) : (
             <View style={styles.emptyState}>
               <Text style={[styles.emptyText, { color: colors.subtle }]}>
@@ -638,7 +660,6 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
 
-  // Title
   titleSection: {
     marginVertical: 20,
   },
@@ -656,7 +677,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 
-  // Stats Row
   statsRow: {
     flexDirection: "row",
     gap: 10,
@@ -683,7 +703,6 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
 
-  // Time Scope
   scopeRow: {
     flexDirection: "row",
     gap: 8,
@@ -702,7 +721,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  // Chart
   chartCard: {
     borderRadius: 12,
     padding: 16,
@@ -740,7 +758,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
 
-  // Page Dots
   pageDots: {
     flexDirection: "row",
     justifyContent: "center",
@@ -754,7 +771,6 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
 
-  // History Section
   historySection: {
     marginBottom: 20,
   },
@@ -771,7 +787,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  // Session Card
   sessionCard: {
     borderRadius: 12,
     padding: 16,
@@ -808,7 +823,6 @@ const styles = StyleSheet.create({
     color: "#000",
   },
 
-  // Sets Table
   setsTable: {},
 
   setsHeaderRow: {
@@ -825,7 +839,6 @@ const styles = StyleSheet.create({
 
   setRow: {
     flexDirection: "row",
-    display: "flex",
     paddingVertical: 6,
   },
 
@@ -859,7 +872,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 
-  // Empty & Error
   emptyState: {
     paddingVertical: 40,
     alignItems: "center",
