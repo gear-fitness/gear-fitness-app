@@ -17,6 +17,7 @@ export default {
         : "com.gearfitness",
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
+        NSPhotoLibraryUsageDescription: "Allow Gear Fitness to access your photos to set a profile picture.",
         NSAppTransportSecurity: {
           NSExceptionDomains: {
             "gear-fitness.us-west-2.elasticbeanstalk.com": {
@@ -65,6 +66,10 @@ export default {
       ],
       "expo-secure-store",
       "expo-notifications",
+      "expo-image-picker",
+        {
+          "photosPermission": "Allow Gear Fitness to access your photos to set a profile picture."
+        }
     ],
     extra: {
       eas: {
