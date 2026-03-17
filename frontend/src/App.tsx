@@ -1,10 +1,8 @@
-import { Assets as NavigationAssets } from "@react-navigation/elements";
 import {
   DarkTheme,
   DefaultTheme,
   NavigationContainerRefWithCurrent,
 } from "@react-navigation/native";
-import { Asset } from "expo-asset";
 import { createURL } from "expo-linking";
 import * as SplashScreen from "expo-splash-screen";
 import * as React from "react";
@@ -22,16 +20,6 @@ import * as Notifications from "expo-notifications";
 // Create navigation ref for use outside NavigationContainer
 export const navigationRef =
   React.createRef<NavigationContainerRefWithCurrent<any>>();
-
-Asset.loadAsync([
-  ...NavigationAssets,
-  require("./assets/home.png"),
-  require("./assets/bell.png"),
-  require("./assets/workout.png"),
-  require("./assets/community.png"),
-  require("./assets/avatar.png"),
-  require("./assets/calendar.png"),
-]);
 
 SplashScreen.preventAutoHideAsync();
 

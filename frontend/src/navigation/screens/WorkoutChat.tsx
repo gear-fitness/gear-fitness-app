@@ -7,13 +7,12 @@ import {
   Text,
   KeyboardAvoidingView,
   Platform,
-  Keyboard,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRoute, useNavigation } from "@react-navigation/native";
-import { useState } from "react";
+import { useNavigation } from "@react-navigation/native";
+import { useState, useRef, useEffect } from "react";
 import { useColorScheme } from "react-native";
-import { sendExerciseChat } from "../../api/exerciseChatService";
+import { sendWorkoutChat } from "../../api/workoutChatService";
 import { useTrackTab } from "../../hooks/useTrackTab";
 
 type ChatMessageState = {
@@ -23,15 +22,15 @@ type ChatMessageState = {
   timestamp: Date;
 };
 
-export function ExerciseChat() {
-  useTrackTab("ExerciseChat");
+const GREETING_TEXT =
+  "Hey! I'm your workout assistant. Ask me anything about exercises, form, programming, or training — I'm here to help!";
 
-  const route = useRoute<any>();
+export function WorkoutChat() {
+  useTrackTab("WorkoutChat");
+
   const navigation = useNavigation();
   const isDark = useColorScheme() === "dark";
-
-  const exercise = route.params?.exercise;
-  const greetingText = route.params?.greetingText;
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const colors = {
     bg: isDark ? "#000" : "#fff",
@@ -43,28 +42,22 @@ export function ExerciseChat() {
     card: isDark ? "#222" : "#fff",
   };
 
-  // Initialize with greeting message
-  const [messages, setMessages] = useState<ChatMessageState[]>(
-    greetingText
-      ? [
-          {
-            id: "0",
-            text: greetingText,
-            isUser: false,
-            timestamp: new Date(),
-          },
-        ]
-      : []
-  );
+  const [messages, setMessages] = useState<ChatMessageState[]>([
+    {
+      id: "0",
+      text: GREETING_TEXT,
+      isUser: false,
+      timestamp: new Date(),
+    },
+  ]);
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const sendMessage = async (userMessage: string) => {
-    if (!exercise || !userMessage.trim()) return;
+    if (!userMessage.trim()) return;
 
     setIsLoading(true);
 
-    // 1. Add user message
     const newUserMessage: ChatMessageState = {
       id: Date.now().toString(),
       text: userMessage.trim(),
@@ -77,13 +70,11 @@ export function ExerciseChat() {
     setInputText("");
 
     try {
-      // Send chat request
-      const data = await sendExerciseChat(
-        exercise.exerciseId,
+      const data = await sendWorkoutChat(
         updatedMessages.map((m) => ({
           text: m.text,
           isUser: m.isUser,
-        }))
+        })),
       );
 
       if (!data.response) {
@@ -113,29 +104,41 @@ export function ExerciseChat() {
     }
   };
 
+  const inputRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("focus", () => {
+      setTimeout(() => inputRef.current?.focus(), 1);
+    });
+    return unsubscribe;
+  }, [navigation]);
+
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: colors.bg }]}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 125 : 0}
-    >
-      <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
-        {/* Header with exercise name */}
+    <SafeAreaView style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        style={[styles.container]}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        {/* Header */}
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
           <View style={styles.headerContent}>
             <Text style={[styles.title, { color: colors.text }]}>
-              {exercise?.name || "Exercise Chat"}
+              Workout Assistant
             </Text>
             <Text style={[styles.subtitle, { color: colors.subtle }]}>
-              AI Assistant
+              Ask about any exercise, form, or programming
             </Text>
           </View>
         </View>
 
-        {/* Messages ScrollView */}
+        {/* Messages */}
         <ScrollView
+          ref={scrollViewRef}
           style={{ flex: 1, paddingHorizontal: 10 }}
           contentContainerStyle={{ paddingVertical: 10 }}
+          onContentSizeChange={() =>
+            scrollViewRef.current?.scrollToEnd({ animated: true })
+          }
         >
           {messages.map((msg) => (
             <View
@@ -175,7 +178,8 @@ export function ExerciseChat() {
               styles.input,
               { backgroundColor: colors.inputBg, color: colors.text },
             ]}
-            placeholder="Ask about this exercise..."
+            ref={inputRef}
+            placeholder="Ask about any exercise..."
             placeholderTextColor={colors.subtle}
             value={inputText}
             onChangeText={setInputText}
@@ -193,14 +197,15 @@ export function ExerciseChat() {
             <Text style={styles.sendArrow}>↑</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    marginBottom: 40,
   },
 
   header: {

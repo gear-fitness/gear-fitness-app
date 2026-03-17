@@ -33,13 +33,11 @@ export function ExerciseDetail() {
   }, [navigation]);
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
-      <ExerciseDetailContent
-        ref={contentRef}
-        exercise={exercise}
-        onSummary={() => navigation.replace("WorkoutSummary")}
-        onAddExercise={() => navigation.replace("ExerciseSelect")}
-      />
-    </KeyboardAvoidingView>
+    <ExerciseDetailContent
+      ref={contentRef}
+      exercise={exercise}
+      onSummary={() => navigation.replace("WorkoutSummary")}
+      onAddExercise={() => navigation.replace("ExerciseSelect")}
+    />
   );
 }
