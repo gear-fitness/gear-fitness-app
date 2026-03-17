@@ -5,15 +5,9 @@ import {
   StaticParamList,
 } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { Image } from "react-native";
+import { Image, View, Text } from "react-native";
 
 /* ICONS */
-import bell from "../assets/bell.png";
-import avatar from "../assets/avatar.png";
-import workout from "../assets/workout.png";
-import home from "../assets/home.png";
-import community from "../assets/community.png";
-import calendar from "../assets/calendar.png";
 import close from "../assets/close.png";
 
 /* SCREENS */
@@ -32,7 +26,7 @@ import { WorkoutSummary } from "./screens/WorkoutSummary";
 import { WorkoutComplete } from "./screens/WorkoutComplete";
 import { LoginScreen } from "./screens/Login";
 import { SignUpProfileScreen } from "./screens/SignUpProfile";
-import { ExerciseChat } from "./screens/ExerciseChat";
+import { WorkoutChat } from "./screens/WorkoutChat";
 import { AuthLoadingScreen } from "./screens/AuthLoading";
 import { CommentsScreen } from "../components/CommentsScreen";
 import { ExerciseList } from "./screens/ExerciseList";
@@ -42,77 +36,43 @@ import { CreateExerciseScreen } from "./screens/CreateExerciseScreen";
 /* ---------------------- TABS ---------------------- */
 
 const HomeTabs = createBottomTabNavigator({
-  initialRouteName: "Home",
+  initialRouteName: "Explore",
+  implementation: "native",
   screenOptions: {
-    tabBarShowLabel: true,
     headerShown: false,
+    tabBarLabel: "",
   },
   screens: {
-    Home: {
-      screen: Home,
-      options: {
-        title: "Home",
-        tabBarIcon: ({ color, size }) => (
-          <Image
-            source={home}
-            tintColor={color}
-            style={{ width: size, height: size }}
-          />
-        ),
-      },
-    },
-
-    Social: {
-      screen: Social,
-      options: {
-        headerShown: false,
-        title: "Social",
-        tabBarIcon: ({ color, size }) => (
-          <Image
-            source={community}
-            tintColor={color}
-            style={{ width: size, height: size }}
-          />
-        ),
-      },
-    },
-
     Workouts: {
       screen: Workout,
       options: {
-        tabBarIcon: ({ color, size }) => (
-          <Image
-            source={workout}
-            tintColor={color}
-            style={{ width: size, height: size }}
-          />
-        ),
+        tabBarIcon: { type: "sfSymbol", name: "dumbbell.fill" },
       },
     },
-
+    Explore: {
+      screen: Social,
+      options: {
+        headerShown: false,
+        tabBarIcon: { type: "sfSymbol", name: "magnifyingglass" },
+      },
+    },
     History: {
       screen: History,
       options: {
-        tabBarIcon: ({ color, size }) => (
-          <Image
-            source={calendar}
-            tintColor={color}
-            style={{ width: size, height: size }}
-          />
-        ),
+        tabBarIcon: { type: "sfSymbol", name: "calendar" },
       },
     },
-
     Profile: {
       screen: Profile,
       options: {
-        tabBarIcon: ({ color, size }) => (
-          <Image
-            source={avatar}
-            tintColor={color}
-            style={{ width: size, height: size }}
-          />
-        ),
+        tabBarIcon: { type: "sfSymbol", name: "person.fill" },
+      },
+    },
+    AiChat: {
+      screen: WorkoutChat,
+      options: {
+        tabBarSystemItem: "search",
+        tabBarIcon: { type: "sfSymbol", name: "sparkle" },
       },
     },
   },
@@ -232,16 +192,6 @@ const RootStack = createNativeStackNavigator({
       options: { title: "404" },
       linking: { path: "*" },
     },
-
-    /* MODAL 5 — EXERCISE CHAT */
-    ExerciseChat: {
-      screen: ExerciseChat,
-      options: {
-        title: "Exercise Chat",
-        presentation: "modal",
-        headerShown: true,
-      },
-    },
     Comments: {
       screen: CommentsScreen,
       options: {
@@ -285,6 +235,7 @@ declare global {
       WorkoutSummary: undefined;
       WorkoutComplete: undefined;
       ExerciseSelect: undefined;
+      ExerciseChat: undefined;
 
       ExerciseDetail: {
         exercise: {
@@ -300,16 +251,6 @@ declare global {
             startWorkout?: boolean; // if true, navigate to ExerciseDetail after creation
           }
         | undefined;
-
-      ExerciseChat: {
-        exercise: {
-          exerciseId: string;
-          name: string;
-          bodyPart: string;
-          description: string;
-        };
-        greetingText: string;
-      };
 
       Comments: {
         postId: string;

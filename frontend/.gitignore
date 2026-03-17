@@ -40,4 +40,7 @@ yarn-error.*
 
 app-example
 
+# Build artifacts
 *.ipa
+*.tar.gz
+*.app
