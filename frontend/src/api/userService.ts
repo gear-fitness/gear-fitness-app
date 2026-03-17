@@ -230,6 +230,63 @@ export async function updateUserProfile(
 }
 
 /**
+ * Upload a profile picture
+ */
+export async function uploadProfilePicture(imageUri: string): Promise<any> {
+  const authHeader = await getAuthHeader();
+
+  const formData = new FormData();
+  formData.append("file", {
+    uri: imageUri,
+    type: "image/jpeg",
+    name: "profile.jpg",
+  } as any);
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/users/me/profile-picture`,
+    {
+      method: "POST",
+      headers: {
+        ...authHeader,
+      },
+      body: formData,
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to upload profile picture: ${errorText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Delete the current user's profile picture
+ */
+export async function deleteProfilePicture(): Promise<any> {
+  const authHeader = await getAuthHeader();
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/users/me/profile-picture`,
+    {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeader,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to delete profile picture: ${errorText}`);
+  }
+
+  return response.json();
+}
+
+/**
  * Search users by username (partial match)
  */
 export async function searchUsers(query: string) {

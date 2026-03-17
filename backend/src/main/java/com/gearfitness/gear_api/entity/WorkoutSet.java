@@ -4,7 +4,9 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -24,6 +26,8 @@ public class WorkoutSet {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "workout_exercise_id", nullable = false)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private WorkoutExercise workoutExercise;
 
     @Column(name = "set_number", nullable = false)

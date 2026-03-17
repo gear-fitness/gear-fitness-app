@@ -137,6 +137,7 @@ public class AppUserService {
                 .heightInches(user.getHeightInches())
                 .age(user.getAge())
                 .isPrivate(user.getIsPrivate())
+                .profilePictureUrl(user.getProfilePictureUrl())
                 .createdAt(user.getCreatedAt())
                 .workoutStats(workoutStats)
                 .followersCount(followersCount)
@@ -165,11 +166,84 @@ public class AppUserService {
         // Build weekly split (map of day names to workout counts)
         Map<String, Integer> weeklySplit = buildWeeklySplit(user, startOfWeek, endOfWeek);
 
+        // Calculate streak (consecutive completed weeks with 5+ distinct workout days)
+        int workoutStreak = calculateWorkoutStreak(user);
+
+        // Count distinct workout days in the current week
+        List<Workout> currentWeekWorkouts = workoutRepository.findByUserAndDatePerformedBetween(
+                user, startOfWeek, endOfWeek
+        );
+        int workoutDaysCurrentWeek = (int) currentWeekWorkouts.stream()
+                .map(Workout::getDatePerformed)
+                .distinct()
+                .count();
+
         return WorkoutStatsDTO.builder()
                 .totalWorkouts(totalWorkouts)
                 .workoutsThisWeek(workoutsThisWeek)
                 .weeklySplit(weeklySplit)
+                .workoutStreak(workoutStreak)
+                .workoutDaysCurrentWeek(workoutDaysCurrentWeek)
                 .build();
+    }
+
+    /**
+     * Calculate workout streak
+     * Algorithm:
+     * 1. Walk backwards to see which week failed (less than 5 workouts in a week)
+     * 2. Count all distinct workout days from the Monday after that failed week through today.
+     *    If no week failed, count all distinct workout days ever.
+     */
+    private int calculateWorkoutStreak(AppUser user) {
+        LocalDate today = LocalDate.now();
+        LocalDate currentWeekMonday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+
+        // the most recent completed week that failed (< 5 distinct workout days)
+        LocalDate streakStartDate = null; // null means no failed week found — count everything
+        LocalDate checkWeekMonday = currentWeekMonday.minusWeeks(1);
+
+        while (true) {
+            LocalDate checkWeekSunday = checkWeekMonday.plusDays(6);
+            List<Workout> weekWorkouts = workoutRepository.findByUserAndDatePerformedBetween(
+                    user, checkWeekMonday, checkWeekSunday
+            );
+
+            long distinctDays = weekWorkouts.stream()
+                    .map(Workout::getDatePerformed)
+                    .distinct()
+                    .count();
+
+            if (distinctDays < 5) {
+                // This week failed — streak starts from the Monday after it
+                streakStartDate = checkWeekMonday.plusWeeks(1);
+                break;
+            }
+
+            // If no workouts at all in this week, we've gone past all user activity
+            if (weekWorkouts.isEmpty()) {
+                break;
+            }
+
+            checkWeekMonday = checkWeekMonday.minusWeeks(1);
+        }
+
+        // Count distinct workout days from streakStartDate through today
+        List<Workout> streakWorkouts;
+        if (streakStartDate != null) {
+            streakWorkouts = workoutRepository.findByUserAndDatePerformedBetween(
+                    user, streakStartDate, today
+            );
+        } else {
+            // No failed week found — count all workouts up to today
+            streakWorkouts = workoutRepository.findByUserAndDatePerformedBetween(
+                    user, LocalDate.of(2000, 1, 1), today
+            );
+        }
+
+        return (int) streakWorkouts.stream()
+                .map(Workout::getDatePerformed)
+                .distinct()
+                .count();
     }
 
     /**
@@ -227,6 +301,7 @@ public class AppUserService {
                 .heightInches(user.getHeightInches())
                 .age(user.getAge())
                 .isPrivate(user.getIsPrivate())
+                .profilePictureUrl(user.getProfilePictureUrl())
                 .createdAt(user.getCreatedAt())
                 .build();
     }

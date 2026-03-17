@@ -1,23 +1,25 @@
 package com.gearfitness.gear_api.service;
 
-import com.gearfitness.gear_api.dto.FollowActivityDTO;
-import com.gearfitness.gear_api.dto.FollowResponse;
-import com.gearfitness.gear_api.dto.FollowerDTO;
-import com.gearfitness.gear_api.entity.AppUser;
-import com.gearfitness.gear_api.entity.Follow;
-import com.gearfitness.gear_api.repository.AppUserRepository;
-import com.gearfitness.gear_api.repository.FollowRepository;
-import com.gearfitness.gear_api.entity.Notification;
-import com.gearfitness.gear_api.repository.NotificationRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.gearfitness.gear_api.dto.FollowActivityDTO;
+import com.gearfitness.gear_api.dto.FollowResponse;
+import com.gearfitness.gear_api.dto.FollowerDTO;
+import com.gearfitness.gear_api.entity.AppUser;
+import com.gearfitness.gear_api.entity.Follow;
+import com.gearfitness.gear_api.entity.Notification;
+import com.gearfitness.gear_api.repository.AppUserRepository;
+import com.gearfitness.gear_api.repository.FollowRepository;
+import com.gearfitness.gear_api.repository.NotificationRepository;
+
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -153,14 +155,16 @@ public class FollowService {
                 AppUser user = userRepository.findById(userId)
                                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-                return followRepository
-                                .findByFolloweeAndStatus(user, Follow.FollowStatus.ACCEPTED)
-                                .stream()
-                                .map(f -> new FollowerDTO(
-                                                f.getFollower().getUserId(),
-                                                f.getFollower().getUsername()))
-                                .collect(Collectors.toList());
-        }
+        return followRepository
+                .findByFolloweeAndStatus(user, Follow.FollowStatus.ACCEPTED)
+                .stream()
+                .map(f -> new FollowerDTO(
+                        f.getFollower().getUserId(),
+                        f.getFollower().getUsername(),
+                        f.getFollower().getProfilePictureUrl()
+                ))
+                .collect(Collectors.toList());
+    }
 
         /**
          * Get list of users that this user is following
@@ -170,14 +174,16 @@ public class FollowService {
                 AppUser user = userRepository.findById(userId)
                                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-                return followRepository
-                                .findByFollowerAndStatus(user, Follow.FollowStatus.ACCEPTED)
-                                .stream()
-                                .map(f -> new FollowerDTO(
-                                                f.getFollowee().getUserId(),
-                                                f.getFollowee().getUsername()))
-                                .collect(Collectors.toList());
-        }
+        return followRepository
+                .findByFollowerAndStatus(user, Follow.FollowStatus.ACCEPTED)
+                .stream()
+                .map(f -> new FollowerDTO(
+                        f.getFollowee().getUserId(),
+                        f.getFollowee().getUsername(),
+                        f.getFollowee().getProfilePictureUrl()
+                ))
+                .collect(Collectors.toList());
+    }
 
         /**
          * Get pending follow requests for a user
@@ -187,14 +193,16 @@ public class FollowService {
                 AppUser user = userRepository.findById(userId)
                                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-                return followRepository
-                                .findByFolloweeAndStatus(user, Follow.FollowStatus.PENDING)
-                                .stream()
-                                .map(f -> new FollowerDTO(
-                                                f.getFollower().getUserId(),
-                                                f.getFollower().getUsername()))
-                                .collect(Collectors.toList());
-        }
+        return followRepository
+                .findByFolloweeAndStatus(user, Follow.FollowStatus.PENDING)
+                .stream()
+                .map(f -> new FollowerDTO(
+                        f.getFollower().getUserId(),
+                        f.getFollower().getUsername(),
+                        f.getFollower().getProfilePictureUrl()
+                ))
+                .collect(Collectors.toList());
+    }
 
         /**
          * Accept a follow request
@@ -240,14 +248,16 @@ public class FollowService {
                 AppUser user = userRepository.findById(userId)
                                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-                return followRepository
-                                .findByFolloweeAndStatus(user, Follow.FollowStatus.ACCEPTED)
-                                .stream()
-                                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
-                                .map(f -> new FollowActivityDTO(
-                                                f.getFollower().getUserId(),
-                                                f.getFollower().getUsername(),
-                                                f.getCreatedAt()))
-                                .collect(Collectors.toList());
-        }
+        return followRepository
+                .findByFolloweeAndStatus(user, Follow.FollowStatus.ACCEPTED)
+                .stream()
+                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
+                .map(f -> new FollowActivityDTO(
+                        f.getFollower().getUserId(),
+                        f.getFollower().getUsername(),
+                        f.getFollower().getProfilePictureUrl(),
+                        f.getCreatedAt()
+                ))
+                .collect(Collectors.toList());
+    }
 }

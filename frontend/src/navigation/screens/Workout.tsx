@@ -1,12 +1,14 @@
 import { Text } from "@react-navigation/elements";
 import { StyleSheet, View, TouchableOpacity, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation, useTheme } from "@react-navigation/native";
+import { useNavigation, useTheme, useFocusEffect } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
+import React from "react";
 
 import stopwatch from "../../assets/stopwatch.png";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { useTrackTab } from "../../hooks/useTrackTab";
+import { useAuth } from "../../context/AuthContext";
 
 export function Workout() {
   useTrackTab("Workouts");
@@ -16,7 +18,17 @@ export function Workout() {
   const scheme = useColorScheme();
   const isDark = scheme === "dark";
 
+  const { user, refreshUser } = useAuth();
   const { playerVisible, seconds, running, exercises } = useWorkoutTimer();
+
+  // Refresh user profile (includes streak data) when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      refreshUser();
+    }, [])
+  );
+
+  const streak = user?.workoutStats?.workoutStreak ?? 0;
 
   const handleStartPress = () => {
     navigation.navigate("ExerciseSelect");
