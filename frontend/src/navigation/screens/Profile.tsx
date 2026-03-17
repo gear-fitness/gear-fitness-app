@@ -192,8 +192,9 @@ export function Profile() {
 
       await uploadProfilePicture(manipulated.uri);
       await loadProfile();
-    } catch (e) {
-      Alert.alert("Error", "Failed to upload profile picture");
+    } catch (e: any) {
+      console.error("Upload error:", e);
+      Alert.alert("Error", e?.message || "Failed to upload profile picture");
     } finally {
       setUploading(false);
     }

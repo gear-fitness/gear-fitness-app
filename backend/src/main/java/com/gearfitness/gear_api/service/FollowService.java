@@ -139,7 +139,8 @@ public class FollowService {
                 .stream()
                 .map(f -> new FollowerDTO(
                         f.getFollower().getUserId(),
-                        f.getFollower().getUsername()
+                        f.getFollower().getUsername(),
+                        f.getFollower().getProfilePictureUrl()
                 ))
                 .collect(Collectors.toList());
     }
@@ -157,7 +158,8 @@ public class FollowService {
                 .stream()
                 .map(f -> new FollowerDTO(
                         f.getFollowee().getUserId(),
-                        f.getFollowee().getUsername()
+                        f.getFollowee().getUsername(),
+                        f.getFollowee().getProfilePictureUrl()
                 ))
                 .collect(Collectors.toList());
     }
@@ -175,7 +177,8 @@ public class FollowService {
                 .stream()
                 .map(f -> new FollowerDTO(
                         f.getFollower().getUserId(),
-                        f.getFollower().getUsername()
+                        f.getFollower().getUsername(),
+                        f.getFollower().getProfilePictureUrl()
                 ))
                 .collect(Collectors.toList());
     }

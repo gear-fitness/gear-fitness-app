@@ -181,8 +181,12 @@ public class AppUserController {
             UserDTO updatedUser = userService.getUserProfile(userId);
             return ResponseEntity.ok(updatedUser);
         } catch (RuntimeException e) {
+            System.err.println("Profile picture upload error: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
+            System.err.println("Profile picture upload error: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.internalServerError().body("Failed to upload profile picture");
         }
     }

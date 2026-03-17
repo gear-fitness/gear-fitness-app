@@ -4,7 +4,9 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -39,6 +41,8 @@ public class Exercise {
     @OneToMany(mappedBy = "exercise", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore
     @Builder.Default
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Set<WorkoutExercise> workoutExercises = new HashSet<>();
 
     public enum BodyPart {
