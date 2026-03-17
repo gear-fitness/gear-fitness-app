@@ -20,6 +20,22 @@ public class ExerciseChatController {
     private final ExerciseRepository exerciseRepository;
     private final GeminiService geminiService;
 
+    @PostMapping("/chat")
+    public ResponseEntity<ChatResponseDTO> generalChat(@RequestBody ChatRequestDTO request) {
+        List messages = request.getMessages();
+
+        if (messages == null || messages.isEmpty()) {
+            System.err.println("ERROR: ChatRequestDTO received with null or empty 'messages' list.");
+            return ResponseEntity.badRequest().body(
+                new ChatResponseDTO("Conversation history is missing or empty. Please ensure your request body is structured correctly.")
+            );
+        }
+
+        String aiResponse = geminiService.generateGeneralExerciseResponse(messages);
+
+        return ResponseEntity.ok(new ChatResponseDTO(aiResponse));
+    }
+
     @PostMapping("/{exerciseId}/chat")
     public ResponseEntity<ChatResponseDTO> chat(
             @PathVariable UUID exerciseId,

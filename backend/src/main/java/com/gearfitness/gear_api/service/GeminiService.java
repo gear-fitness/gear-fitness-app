@@ -28,21 +28,38 @@ public class GeminiService {
     }
 
     public String generateResponse(Exercise exercise, List<ChatMessageDTO> messages) {
-        try {
-            String systemText = String.format(
-                    "You are a helpful fitness coach specializing in the \"%s\" exercise for %s. %s\n\n" +
-                            "Instructions:\n" +
-                            "- Answer questions about this exercise only\n" +
-                            "- Use plain text without markdown formatting\n" +
-                            "- Keep responses to 3-4 sentences\n" +
-                            "- Be conversational and helpful\n" +
-                            "- Answer directly without asking clarifying questions first\n" +
-                            "- For off-topic questions, politely redirect to this exercise",
-                    exercise.getName(),
-                    exercise.getBodyPart(),
-                    exercise.getDescription() != null ? exercise.getDescription() : "");
+        String systemText = String.format(
+                "You are a helpful fitness coach specializing in the \"%s\" exercise for %s. %s\n\n" +
+                        "Instructions:\n" +
+                        "- Answer questions about this exercise only\n" +
+                        "- Use plain text without markdown formatting\n" +
+                        "- Keep responses to 3-4 sentences\n" +
+                        "- Be conversational and helpful\n" +
+                        "- Answer directly without asking clarifying questions first\n" +
+                        "- For off-topic questions, politely redirect to this exercise",
+                exercise.getName(),
+                exercise.getBodyPart(),
+                exercise.getDescription() != null ? exercise.getDescription() : "");
 
-            // ✅ Split history from current message
+        return generateResponseWithSystemText(systemText, messages);
+    }
+
+    public String generateGeneralExerciseResponse(List<ChatMessageDTO> messages) {
+        String systemText =
+                "You are a helpful fitness coach who can answer questions about any exercise, workout movement, " +
+                "training form, muscles worked, or exercise selection.\n\n" +
+                "Instructions:\n" +
+                "- Answer exercise and fitness questions in plain text without markdown formatting\n" +
+                "- Keep responses to 3-4 sentences unless more detail is clearly needed\n" +
+                "- Be conversational, practical, and safety-conscious\n" +
+                "- If the user mentions a specific exercise, tailor the answer to that exercise\n" +
+                "- If a question is unrelated to exercise or fitness, politely redirect back to fitness topics";
+
+        return generateResponseWithSystemText(systemText, messages);
+    }
+
+    private String generateResponseWithSystemText(String systemText, List<ChatMessageDTO> messages) {
+        try {
             List<Content> history = messages.subList(0, messages.size() - 1).stream()
                     .map(msg -> Content.builder()
                             .role(msg.isUser() ? "user" : "model")
