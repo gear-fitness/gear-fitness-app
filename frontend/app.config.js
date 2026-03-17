@@ -64,6 +64,7 @@ export default {
         },
       ],
       "expo-secure-store",
+      "expo-notifications",
     ],
     extra: {
       eas: {

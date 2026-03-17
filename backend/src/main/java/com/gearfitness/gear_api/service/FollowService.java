@@ -23,227 +23,231 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class FollowService {
 
-    private final FollowRepository followRepository;
-    private final AppUserRepository userRepository;
-    private final NotificationRepository notificationRepository;
+        private final FollowRepository followRepository;
+        private final AppUserRepository userRepository;
+        private final NotificationRepository notificationRepository;
+        private final ExpoPushService expoPushService;
 
-    /**
-     * Follow a user
-     * Creates a follow relationship with ACCEPTED or PENDING status
-     */
-    @Transactional
-    public FollowResponse followUser(UUID followerId, UUID followeeId) {
-        if (followerId.equals(followeeId)) {
-            throw new RuntimeException("Cannot follow yourself");
+        /**
+         * Follow a user
+         * Creates a follow relationship with ACCEPTED or PENDING status
+         */
+        @Transactional
+        public FollowResponse followUser(UUID followerId, UUID followeeId) {
+                if (followerId.equals(followeeId)) {
+                        throw new RuntimeException("Cannot follow yourself");
+                }
+
+                AppUser follower = userRepository.findById(followerId)
+                                .orElseThrow(() -> new RuntimeException("Follower user not found"));
+
+                AppUser followee = userRepository.findById(followeeId)
+                                .orElseThrow(() -> new RuntimeException("User to follow not found"));
+
+                Optional<Follow> existing = followRepository.findByFollowerAndFollowee(follower, followee);
+
+                if (existing.isPresent()) {
+                        throw new RuntimeException(
+                                        "Follow already exists with status: " +
+                                                        existing.get().getStatus());
+                }
+
+                Follow.FollowStatus status = followee.getIsPrivate()
+                                ? Follow.FollowStatus.PENDING
+                                : Follow.FollowStatus.ACCEPTED;
+
+                Follow follow = Follow.builder()
+                                .follower(follower)
+                                .followee(followee)
+                                .status(status)
+                                .createdAt(LocalDateTime.now())
+                                .respondedAt(
+                                                status == Follow.FollowStatus.ACCEPTED
+                                                                ? LocalDateTime.now()
+                                                                : null)
+                                .build();
+
+                followRepository.save(follow);
+                // Create follow notification
+                Notification notification = Notification.builder()
+                                .recipient(followee)
+                                .actor(follower)
+                                .type(Notification.NotificationType.FOLLOW)
+                                .build();
+
+                notificationRepository.save(notification);
+
+                // Send push notification
+                String data = String.format(
+                                """
+                                                {"type":"FOLLOW","screen":"UserProfile","params":{"username":"%s"}}
+                                                """,
+                                follower.getUsername());
+                expoPushService.sendPushNotification(
+                                followee.getExpoPushToken(),
+                                "New Follower",
+                                follower.getUsername() + " started following you",
+                                data);
+
+                return FollowResponse.builder()
+                                .followeeId(followee.getUserId())
+                                .followeeUsername(followee.getUsername())
+                                .status(status.name().toLowerCase())
+                                .message(
+                                                status == Follow.FollowStatus.ACCEPTED
+                                                                ? "Now following " + followee.getUsername()
+                                                                : "Follow request sent to " + followee.getUsername())
+                                .build();
         }
 
-        AppUser follower = userRepository.findById(followerId)
-                .orElseThrow(() -> new RuntimeException("Follower user not found"));
+        /**
+         * Follow a user by username
+         */
+        @Transactional
+        public FollowResponse followUserByUsername(UUID followerId, String username) {
+                AppUser followee = userRepository.findByUsername(username)
+                                .orElseThrow(() -> new RuntimeException("User not found: " + username));
 
-        AppUser followee = userRepository.findById(followeeId)
-                .orElseThrow(() -> new RuntimeException("User to follow not found"));
-
-        Optional<Follow> existing =
-                followRepository.findByFollowerAndFollowee(follower, followee);
-
-        if (existing.isPresent()) {
-            throw new RuntimeException(
-                    "Follow already exists with status: " +
-                            existing.get().getStatus()
-            );
+                return followUser(followerId, followee.getUserId());
         }
 
-        Follow.FollowStatus status = followee.getIsPrivate()
-                ? Follow.FollowStatus.PENDING
-                : Follow.FollowStatus.ACCEPTED;
+        /**
+         * Unfollow a user
+         */
+        @Transactional
+        public void unfollowUser(UUID followerId, UUID followeeId) {
+                AppUser follower = userRepository.findById(followerId)
+                                .orElseThrow(() -> new RuntimeException("Follower user not found"));
 
-        Follow follow = Follow.builder()
-                .follower(follower)
-                .followee(followee)
-                .status(status)
-                .createdAt(LocalDateTime.now())
-                .respondedAt(
-                        status == Follow.FollowStatus.ACCEPTED
-                                ? LocalDateTime.now()
-                                : null
-                )
-                .build();
+                AppUser followee = userRepository.findById(followeeId)
+                                .orElseThrow(() -> new RuntimeException("User to unfollow not found"));
 
-        followRepository.save(follow);
-        // Create follow notification
-        Notification notification = Notification.builder()
-        .recipient(followee)
-        .actor(follower)
-        .type(Notification.NotificationType.FOLLOW)
-        .build();
+                Follow follow = followRepository.findByFollowerAndFollowee(follower, followee)
+                                .orElseThrow(() -> new RuntimeException("Not following this user"));
 
-        notificationRepository.save(notification);
-
-        return FollowResponse.builder()
-                .followeeId(followee.getUserId())
-                .followeeUsername(followee.getUsername())
-                .status(status.name().toLowerCase())
-                .message(
-                        status == Follow.FollowStatus.ACCEPTED
-                                ? "Now following " + followee.getUsername()
-                                : "Follow request sent to " + followee.getUsername()
-                )
-                .build();
-    }
-
-    /**
-     * Follow a user by username
-     */
-    @Transactional
-    public FollowResponse followUserByUsername(UUID followerId, String username) {
-        AppUser followee = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found: " + username));
-
-        return followUser(followerId, followee.getUserId());
-    }
-
-    /**
-     * Unfollow a user
-     */
-    @Transactional
-    public void unfollowUser(UUID followerId, UUID followeeId) {
-        AppUser follower = userRepository.findById(followerId)
-                .orElseThrow(() -> new RuntimeException("Follower user not found"));
-
-        AppUser followee = userRepository.findById(followeeId)
-                .orElseThrow(() -> new RuntimeException("User to unfollow not found"));
-
-        Follow follow = followRepository.findByFollowerAndFollowee(follower, followee)
-                .orElseThrow(() -> new RuntimeException("Not following this user"));
-
-        followRepository.delete(follow);
-    }
-
-    /**
-     * Check if a user is following another user
-     */
-    public boolean isFollowing(UUID followerId, UUID followeeId) {
-        AppUser follower = userRepository.findById(followerId).orElse(null);
-        AppUser followee = userRepository.findById(followeeId).orElse(null);
-
-        if (follower == null || followee == null) {
-            return false;
+                followRepository.delete(follow);
         }
 
-        return followRepository.existsByFollowerAndFolloweeAndStatus(
-                follower,
-                followee,
-                Follow.FollowStatus.ACCEPTED
-        );
-    }
+        /**
+         * Check if a user is following another user
+         */
+        public boolean isFollowing(UUID followerId, UUID followeeId) {
+                AppUser follower = userRepository.findById(followerId).orElse(null);
+                AppUser followee = userRepository.findById(followeeId).orElse(null);
 
-    /**
-     * Get list of followers for a user
-     */
-    @Transactional(readOnly = true)
-    public List<FollowerDTO> getFollowers(UUID userId) {
-        AppUser user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                if (follower == null || followee == null) {
+                        return false;
+                }
 
-        return followRepository
-                .findByFolloweeAndStatus(user, Follow.FollowStatus.ACCEPTED)
-                .stream()
-                .map(f -> new FollowerDTO(
-                        f.getFollower().getUserId(),
-                        f.getFollower().getUsername()
-                ))
-                .collect(Collectors.toList());
-    }
+                return followRepository.existsByFollowerAndFolloweeAndStatus(
+                                follower,
+                                followee,
+                                Follow.FollowStatus.ACCEPTED);
+        }
 
-    /**
-     * Get list of users that this user is following
-     */
-    @Transactional(readOnly = true)
-    public List<FollowerDTO> getFollowing(UUID userId) {
-        AppUser user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        /**
+         * Get list of followers for a user
+         */
+        @Transactional(readOnly = true)
+        public List<FollowerDTO> getFollowers(UUID userId) {
+                AppUser user = userRepository.findById(userId)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
 
-        return followRepository
-                .findByFollowerAndStatus(user, Follow.FollowStatus.ACCEPTED)
-                .stream()
-                .map(f -> new FollowerDTO(
-                        f.getFollowee().getUserId(),
-                        f.getFollowee().getUsername()
-                ))
-                .collect(Collectors.toList());
-    }
+                return followRepository
+                                .findByFolloweeAndStatus(user, Follow.FollowStatus.ACCEPTED)
+                                .stream()
+                                .map(f -> new FollowerDTO(
+                                                f.getFollower().getUserId(),
+                                                f.getFollower().getUsername()))
+                                .collect(Collectors.toList());
+        }
 
-    /**
-     * Get pending follow requests for a user
-     */
-    @Transactional(readOnly = true)
-    public List<FollowerDTO> getPendingRequests(UUID userId) {
-        AppUser user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        /**
+         * Get list of users that this user is following
+         */
+        @Transactional(readOnly = true)
+        public List<FollowerDTO> getFollowing(UUID userId) {
+                AppUser user = userRepository.findById(userId)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
 
-        return followRepository
-                .findByFolloweeAndStatus(user, Follow.FollowStatus.PENDING)
-                .stream()
-                .map(f -> new FollowerDTO(
-                        f.getFollower().getUserId(),
-                        f.getFollower().getUsername()
-                ))
-                .collect(Collectors.toList());
-    }
+                return followRepository
+                                .findByFollowerAndStatus(user, Follow.FollowStatus.ACCEPTED)
+                                .stream()
+                                .map(f -> new FollowerDTO(
+                                                f.getFollowee().getUserId(),
+                                                f.getFollowee().getUsername()))
+                                .collect(Collectors.toList());
+        }
 
-    /**
-     * Accept a follow request
-     */
-    @Transactional
-    public void acceptFollowRequest(UUID followeeId, UUID followerId) {
-        AppUser followee = userRepository.findById(followeeId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        /**
+         * Get pending follow requests for a user
+         */
+        @Transactional(readOnly = true)
+        public List<FollowerDTO> getPendingRequests(UUID userId) {
+                AppUser user = userRepository.findById(userId)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
 
-        AppUser follower = userRepository.findById(followerId)
-                .orElseThrow(() -> new RuntimeException("Follower not found"));
+                return followRepository
+                                .findByFolloweeAndStatus(user, Follow.FollowStatus.PENDING)
+                                .stream()
+                                .map(f -> new FollowerDTO(
+                                                f.getFollower().getUserId(),
+                                                f.getFollower().getUsername()))
+                                .collect(Collectors.toList());
+        }
 
-        Follow follow = followRepository.findByFollowerAndFollowee(follower, followee)
-                .orElseThrow(() -> new RuntimeException("Follow request not found"));
+        /**
+         * Accept a follow request
+         */
+        @Transactional
+        public void acceptFollowRequest(UUID followeeId, UUID followerId) {
+                AppUser followee = userRepository.findById(followeeId)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
 
-        follow.setStatus(Follow.FollowStatus.ACCEPTED);
-        follow.setRespondedAt(LocalDateTime.now());
-    }
+                AppUser follower = userRepository.findById(followerId)
+                                .orElseThrow(() -> new RuntimeException("Follower not found"));
 
-    /**
-     * Decline a follow request
-     */
-    @Transactional
-    public void declineFollowRequest(UUID followeeId, UUID followerId) {
-        AppUser followee = userRepository.findById(followeeId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                Follow follow = followRepository.findByFollowerAndFollowee(follower, followee)
+                                .orElseThrow(() -> new RuntimeException("Follow request not found"));
 
-        AppUser follower = userRepository.findById(followerId)
-                .orElseThrow(() -> new RuntimeException("Follower not found"));
+                follow.setStatus(Follow.FollowStatus.ACCEPTED);
+                follow.setRespondedAt(LocalDateTime.now());
+        }
 
-        Follow follow = followRepository.findByFollowerAndFollowee(follower, followee)
-                .orElseThrow(() -> new RuntimeException("Follow request not found"));
+        /**
+         * Decline a follow request
+         */
+        @Transactional
+        public void declineFollowRequest(UUID followeeId, UUID followerId) {
+                AppUser followee = userRepository.findById(followeeId)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
 
-        follow.setStatus(Follow.FollowStatus.DECLINED);
-        follow.setRespondedAt(LocalDateTime.now());
-    }
+                AppUser follower = userRepository.findById(followerId)
+                                .orElseThrow(() -> new RuntimeException("Follower not found"));
 
-    /**
-     * Get recent follow activity for a user
-     */
-    @Transactional(readOnly = true)
-    public List<FollowActivityDTO> getFollowActivity(UUID userId) {
-        AppUser user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                Follow follow = followRepository.findByFollowerAndFollowee(follower, followee)
+                                .orElseThrow(() -> new RuntimeException("Follow request not found"));
 
-        return followRepository
-                .findByFolloweeAndStatus(user, Follow.FollowStatus.ACCEPTED)
-                .stream()
-                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
-                .map(f -> new FollowActivityDTO(
-                        f.getFollower().getUserId(),
-                        f.getFollower().getUsername(),
-                        f.getCreatedAt()
-                ))
-                .collect(Collectors.toList());
-    }
+                follow.setStatus(Follow.FollowStatus.DECLINED);
+                follow.setRespondedAt(LocalDateTime.now());
+        }
+
+        /**
+         * Get recent follow activity for a user
+         */
+        @Transactional(readOnly = true)
+        public List<FollowActivityDTO> getFollowActivity(UUID userId) {
+                AppUser user = userRepository.findById(userId)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
+
+                return followRepository
+                                .findByFolloweeAndStatus(user, Follow.FollowStatus.ACCEPTED)
+                                .stream()
+                                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
+                                .map(f -> new FollowActivityDTO(
+                                                f.getFollower().getUserId(),
+                                                f.getFollower().getUsername(),
+                                                f.getCreatedAt()))
+                                .collect(Collectors.toList());
+        }
 }
