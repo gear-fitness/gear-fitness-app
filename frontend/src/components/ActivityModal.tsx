@@ -50,27 +50,17 @@ export function ActivityModal({ visible, onClose }: ActivityModalProps) {
     if (!visible) return;
 
     const loadNotifications = async () => {
-      try {
-        setLoading(true);
-        const data = await getFollowActivity();
-
-        const normalized: ActivityItem[] = data.map((item: any) => ({
-          userId: item.userId,
-          username: item.username,
-          profilePictureUrl: item.profilePictureUrl,
-          createdAt: item.createdAt ?? new Date().toISOString(),
-        }));
-
-        setActivity(normalized);
-        const data = await notificationService.getNotifications();
-        setNotifications(data);
-        await notificationService.markNotificationsRead();
-      } catch (error) {
-        console.error("Failed to load notifications", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  try {
+    setLoading(true);
+    const data = await notificationService.getNotifications();
+    setNotifications(data);
+    await notificationService.markNotificationsRead();
+  } catch (error) {
+    console.error("Failed to load notifications", error);
+  } finally {
+    setLoading(false);
+  }
+};
 
     loadNotifications();
   }, [visible]);
