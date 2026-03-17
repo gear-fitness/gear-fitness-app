@@ -12,44 +12,30 @@ import { useTheme, useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { notificationService } from "../api/notificationService";
-import { Avatar } from "./Avatar";
+import { getFollowActivity } from "../api/followService";
 
 type ActivityModalProps = {
   visible: boolean;
   onClose: () => void;
 };
+
 type ActivityItem = {
   userId: string;
   username: string;
-  profilePictureUrl?: string;
   createdAt: string;
-};
-
-type NotificationItem = {
-  notificationId: string;
-  type: string;
-  actorUsername: string;
-  profilePictureUrl?: string;
-  postId?: string;
-  workoutId?: string | null;
-  commentBody?: string;
-  createdAt: string;
-  isRead: boolean;
 };
 
 export function ActivityModal({ visible, onClose }: ActivityModalProps) {
   const { colors } = useTheme();
   const navigation = useNavigation<any>();
 
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [, forceUpdate] = useState(0);
 
   useEffect(() => {
     if (!visible) return;
 
-    const loadNotifications = async () => {
+    const loadActivity = async () => {
       try {
         setLoading(true);
         const data = await getFollowActivity();
@@ -57,120 +43,61 @@ export function ActivityModal({ visible, onClose }: ActivityModalProps) {
         const normalized: ActivityItem[] = data.map((item: any) => ({
           userId: item.userId,
           username: item.username,
-          profilePictureUrl: item.profilePictureUrl,
           createdAt: item.createdAt ?? new Date().toISOString(),
         }));
 
         setActivity(normalized);
-        const data = await notificationService.getNotifications();
-        setNotifications(data);
-        await notificationService.markNotificationsRead();
       } catch (error) {
-        console.error("Failed to load notifications", error);
+        console.error("Failed to load activity", error);
       } finally {
         setLoading(false);
       }
     };
 
-    loadNotifications();
-  }, [visible]);
-
-  useEffect(() => {
-    if (!visible) return;
-
-    const interval = setInterval(() => {
-      forceUpdate((n) => n + 1);
-    }, 60000);
-
-    return () => clearInterval(interval);
+    loadActivity();
   }, [visible]);
 
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
     const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
 
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(seconds / 3600);
-    const days = Math.floor(seconds / 86400);
-
     if (seconds < 60) return "Just now";
-    if (minutes < 60) return `${minutes}m`;
-    if (hours < 24) return `${hours}h`;
-    if (days < 7) return `${days}d`;
-
-    return date.toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-      year:
-        date.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
-    });
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
+    return `${Math.floor(seconds / 86400)}d`;
   };
 
-  const renderItem = ({ item }: { item: NotificationItem }) => {
-    const actionText = (() => {
-      switch (item.type) {
-        case "FOLLOW":
-          return " followed you";
-        case "LIKE":
-          return " liked your post";
-        case "COMMENT":
-          return " commented on your post";
-        default:
-          return " interacted";
-      }
-    })();
-
-    return (
-      <TouchableOpacity
-        activeOpacity={0.8}
-        onPress={() => {
-          onClose();
-
-          if (item.type === "FOLLOW") {
-            navigation.navigate("UserProfile", {
-              username: item.actorUsername,
-            });
-          } else if (item.type === "COMMENT" && item.postId) {
-            navigation.navigate("Comments", {
-              postId: item.postId,
-            });
-          } else if (item.type === "LIKE" && item.workoutId) {
-            navigation.navigate("DetailedHistory", {
-              workoutId: item.workoutId,
-            });
-          }
-        }}
-        style={[styles.row, { borderBottomColor: colors.border }]}
-      >
-        {/* Avatar click */}
-        <TouchableOpacity
-          onPress={() => {
-            onClose();
-            navigation.navigate("UserProfile", {
-              username: item.actorUsername,
-            });
-          }}
-        >
-          <Avatar
-          username={item.username}
-          profilePictureUrl={item.profilePictureUrl}
-          size={42}
-          style={styles.avatar}
+  const renderItem = ({ item }: { item: ActivityItem }) => (
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onPress={() => {
+        onClose();
+        navigation.navigate("UserProfile", {
+          username: item.username,
+        });
+      }}
+      style={[styles.activityRow, { borderBottomColor: colors.border }]}
+    >
+      <Ionicons
+        name="person-circle-outline"
+        size={42}
+        color={colors.primary}
+        style={styles.avatar}
       />
 
-        <View style={styles.textContainer}>
-          <Text style={{ color: colors.text }}>
-            <Text style={{ fontWeight: "600" }}>{item.actorUsername}</Text>
-            {actionText}
+      <View style={styles.textContainer}>
+        <View style={styles.rowText}>
+          <Text style={[styles.activityText, { color: colors.text }]}>
+            <Text style={styles.username}>{item.username}</Text> followed you
+          </Text>
+
+          <Text style={[styles.time, { color: colors.text + "99" }]}>
+            {formatTimeAgo(item.createdAt)}
           </Text>
         </View>
-
-        <Text style={[styles.time, { color: colors.text + "99" }]}>
-          {formatTimeAgo(item.createdAt)}
-        </Text>
-      </TouchableOpacity>
-    );
-  };
+      </View>
+    </TouchableOpacity>
+  );
 
   return (
     <Modal
@@ -183,11 +110,9 @@ export function ActivityModal({ visible, onClose }: ActivityModalProps) {
         style={[styles.container, { backgroundColor: colors.background }]}
       >
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <View style={{ width: 24 }} />
-
           <Text style={[styles.title, { color: colors.text }]}>Activity</Text>
 
-          <TouchableOpacity onPress={onClose}>
+          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <Ionicons name="close" size={24} color={colors.text} />
           </TouchableOpacity>
         </View>
@@ -196,23 +121,21 @@ export function ActivityModal({ visible, onClose }: ActivityModalProps) {
           <View style={styles.center}>
             <ActivityIndicator size="large" color={colors.primary} />
           </View>
-        ) : notifications.length === 0 ? (
+        ) : activity.length === 0 ? (
           <View style={styles.center}>
             <Ionicons
               name="notifications-outline"
-              size={60}
+              size={48}
               color={colors.border}
-              style={{ marginBottom: 10 }}
             />
-
-            <Text style={{ color: colors.text + "99", fontSize: 16 }}>
-              No Notifications
+            <Text style={[styles.emptyText, { color: colors.text }]}>
+              No activity yet
             </Text>
           </View>
         ) : (
           <FlatList
-            data={notifications}
-            keyExtractor={(item) => item.notificationId}
+            data={activity}
+            keyExtractor={(item) => item.userId}
             renderItem={renderItem}
           />
         )}
@@ -226,39 +149,51 @@ const styles = StyleSheet.create({
 
   header: {
     height: 48,
-    flexDirection: "row",
+    justifyContent: "center",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
     borderBottomWidth: 1,
   },
 
-  title: {
-    fontSize: 18,
-    fontWeight: "600",
-    textAlign: "center",
-    flex: 1,
+  title: { fontSize: 18, fontWeight: "600" },
+
+  closeButton: {
+    position: "absolute",
+    right: 16,
+    top: 0,
+    bottom: 0,
+    justifyContent: "center",
   },
 
   center: {
     flex: 1,
-    justifyContent: "center",
     alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
   },
 
-  row: {
+  emptyText: { marginTop: 12, fontSize: 16 },
+
+  activityRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 14,
     borderBottomWidth: 1,
   },
 
-  textContainer: {
-    flex: 1,
+  avatar: { marginRight: 12 },
+
+  textContainer: { flex: 1 },
+
+  rowText: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
 
-  time: {
-    fontSize: 12,
-  },
+  activityText: { fontSize: 16 },
+
+  username: { fontWeight: "600" },
+
+  time: { fontSize: 12 },
 });
