@@ -25,6 +25,7 @@
     "expo-linking": "~55.0.7",
     "expo-secure-store": "~55.0.8",
     "expo-splash-screen": "~55.0.10",
+    "expo-symbols": "~55.0.5",
     "expo-system-ui": "~55.0.9",
     "react": "19.2.0",
     "react-dom": "19.2.0",

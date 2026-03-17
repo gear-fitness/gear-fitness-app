@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useColorScheme } from "react-native";
 import { sendWorkoutChat } from "../../api/workoutChatService";
 import { useTrackTab } from "../../hooks/useTrackTab";
@@ -104,6 +104,15 @@ export function WorkoutChat() {
     }
   };
 
+  const inputRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("focus", () => {
+      setTimeout(() => inputRef.current?.focus(), 1);
+    });
+    return unsubscribe;
+  }, [navigation]);
+
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <KeyboardAvoidingView
@@ -169,6 +178,7 @@ export function WorkoutChat() {
               styles.input,
               { backgroundColor: colors.inputBg, color: colors.text },
             ]}
+            ref={inputRef}
             placeholder="Ask about any exercise..."
             placeholderTextColor={colors.subtle}
             value={inputText}
