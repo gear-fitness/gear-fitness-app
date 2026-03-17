@@ -4,7 +4,9 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.io.Serializable;
@@ -24,11 +26,15 @@ public class Follow {
     @Id
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "follower_id", nullable = false)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private AppUser follower;
 
     @Id
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "followee_id", nullable = false)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private AppUser followee;
 
     @Enumerated(EnumType.STRING)

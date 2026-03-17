@@ -18,6 +18,7 @@ export interface WorkoutExercise {
   exerciseId: string;
   name: string;
   sets: WorkoutSet[];
+  note?: string;
 }
 
 interface PersistedWorkoutState {

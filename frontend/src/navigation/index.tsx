@@ -35,6 +35,9 @@ import { SignUpProfileScreen } from "./screens/SignUpProfile";
 import { ExerciseChat } from "./screens/ExerciseChat";
 import { AuthLoadingScreen } from "./screens/AuthLoading";
 import { CommentsScreen } from "../components/CommentsScreen";
+import { ExerciseList } from "./screens/ExerciseList";
+import { ExerciseHistory } from "./screens/ExerciseHistory";
+import { CreateExerciseScreen } from "./screens/CreateExerciseScreen";
 import { RoutineList } from "./screens/RoutineList";
 import { RoutineDetail } from "./screens/RoutineDetail";
 import { CreateRoutine } from "./screens/CreateRoutine";
@@ -188,6 +191,15 @@ const RootStack = createNativeStackNavigator({
       }),
     },
 
+    CreateExercise: {
+      screen: CreateExerciseScreen,
+      options: {
+        title: "New Exercise",
+        presentation: "modal",
+        headerShown: true,
+      },
+    },
+
     /* MODAL 2 — EXERCISE DETAIL */
     ExerciseDetail: {
       screen: ExerciseDetail,
@@ -209,12 +221,6 @@ const RootStack = createNativeStackNavigator({
       },
     },
 
-    NotFound: {
-      screen: NotFound,
-      options: { title: "404" },
-      linking: { path: "*" },
-    },
-
     /* MODAL 4 — WORKOUT COMPLETE */
     WorkoutComplete: {
       screen: WorkoutComplete,
@@ -223,6 +229,12 @@ const RootStack = createNativeStackNavigator({
         presentation: "modal",
         headerShown: true,
       },
+    },
+
+    NotFound: {
+      screen: NotFound,
+      options: { title: "404" },
+      linking: { path: "*" },
     },
 
     /* MODAL 5 — EXERCISE CHAT */
@@ -240,6 +252,20 @@ const RootStack = createNativeStackNavigator({
         title: "Comments",
         presentation: "modal",
         headerShown: true,
+      },
+    },
+    ExerciseList: {
+      screen: ExerciseList,
+      options: {
+        title: "Exercises",
+        headerBackTitle: "Back",
+      },
+    },
+    ExerciseHistory: {
+      screen: ExerciseHistory,
+      options: {
+        title: "Exercise History",
+        headerBackTitle: "Back",
       },
     },
 
@@ -272,7 +298,11 @@ const RootStack = createNativeStackNavigator({
         headerShadowVisible: false,
         headerStyle: { backgroundColor: theme.dark ? "#000" : "#fff" },
         headerTintColor: theme.dark ? "#fff" : "#000",
-        headerTitleStyle: { color: theme.dark ? "#fff" : "#000", fontWeight: "800" as const, fontSize: 30 },
+        headerTitleStyle: {
+          color: theme.dark ? "#fff" : "#000",
+          fontWeight: "800" as const,
+          fontSize: 30,
+        },
       }),
     },
 
@@ -310,11 +340,18 @@ declare global {
 
       ExerciseDetail: {
         exercise: {
+          workoutExerciseId?: string;
           exerciseId: string;
           name: string;
           sets?: any[];
         };
       };
+
+      CreateExercise:
+        | {
+            startWorkout?: boolean; // if true, navigate to ExerciseDetail after creation
+          }
+        | undefined;
 
       ExerciseChat: {
         exercise: {

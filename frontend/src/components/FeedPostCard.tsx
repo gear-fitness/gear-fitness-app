@@ -6,6 +6,7 @@ import { useNavigation, useTheme } from "@react-navigation/native";
 import { FeedPost, socialFeedApi } from "../api/socialFeedApi";
 import { parseLocalDate } from "../utils/date";
 import { useAuth } from "../context/AuthContext";
+import { Avatar } from "./Avatar";
 interface Props {
   post: FeedPost;
   onOpenComments: (postId: string) => void;
@@ -75,11 +76,7 @@ export function FeedPostCard({ post, onOpenComments }: Props) {
       <View style={styles.header}>
         {isOwnPost ? (
           <View style={styles.userInfo}>
-            <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-              <Text style={styles.avatarText}>
-                {post.username.charAt(0).toUpperCase()}
-              </Text>
-            </View>
+            <Avatar username={post.username} profilePictureUrl={post.userProfilePictureUrl} size={40} />
             <View>
               <Text style={[styles.username, { color: colors.text }]}>
                 {post.username}
@@ -101,11 +98,7 @@ export function FeedPostCard({ post, onOpenComments }: Props) {
             }
           >
             <View style={styles.userInfo}>
-              <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-                <Text style={styles.avatarText}>
-                  {post.username.charAt(0).toUpperCase()}
-                </Text>
-              </View>
+              <Avatar username={post.username} profilePictureUrl={post.userProfilePictureUrl} size={40} />
               <View>
                 <Text style={[styles.username, { color: colors.text }]}>
                   {post.username}

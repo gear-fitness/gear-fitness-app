@@ -6,7 +6,7 @@ import { MiniPlayer } from "./MiniPlayer";
 import { useWorkoutTimer } from "../context/WorkoutContext";
 import { navigationRef } from "../App";
 
-const MINI_PLAYER_HEIGHT = 70;
+export const MINI_PLAYER_HEIGHT = 70;
 const MINIMUM_BOTTOM_CLEARANCE = 84;
 
 // Tabs where miniplayer should be visible
