@@ -30,103 +30,128 @@ import lombok.RequiredArgsConstructor;
 @Transactional
 public class PostInteractionService {
 
-    private final PostRepository postRepository;
-    private final PostLikeRepository postLikeRepository;
-    private final PostCommentRepository postCommentRepository;
-    private final AppUserRepository appUserRepository;
-    private final NotificationRepository notificationRepository;
+        private final PostRepository postRepository;
+        private final PostLikeRepository postLikeRepository;
+        private final PostCommentRepository postCommentRepository;
+        private final AppUserRepository appUserRepository;
+        private final NotificationRepository notificationRepository;
+        private final ExpoPushService expoPushService;
 
-    public LikeResponse toggleLike(UUID userId, UUID postId) {
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new RuntimeException("Post not found"));
+        public LikeResponse toggleLike(UUID userId, UUID postId) {
+                Post post = postRepository.findById(postId)
+                                .orElseThrow(() -> new RuntimeException("Post not found"));
 
-        AppUser user = appUserRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                AppUser user = appUserRepository.findById(userId)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
 
-        PostLike.PostLikeId likeId = new PostLike.PostLikeId(postId, userId);
-        Optional<PostLike> existingLike = postLikeRepository.findById(likeId);
+                PostLike.PostLikeId likeId = new PostLike.PostLikeId(postId, userId);
+                Optional<PostLike> existingLike = postLikeRepository.findById(likeId);
 
-        boolean liked;
-        if (existingLike.isPresent()) {
-            // Unlike
-            postLikeRepository.delete(existingLike.get());
-            liked = false;
-        } else {
-            // Like
-            PostLike newLike = PostLike.builder()
-                    .post(post)
-                    .user(user)
-                    .build();
-            postLikeRepository.save(newLike);
-            liked = true;
+                boolean liked;
+                if (existingLike.isPresent()) {
+                        // Unlike
+                        postLikeRepository.delete(existingLike.get());
+                        liked = false;
+                } else {
+                        // Like
+                        PostLike newLike = PostLike.builder()
+                                        .post(post)
+                                        .user(user)
+                                        .build();
+                        postLikeRepository.save(newLike);
+                        liked = true;
 
-            // Create notification if user is not liking their own post
-if (!post.getUser().getUserId().equals(userId)) {
-    Notification notification = Notification.builder()
-            .recipient(post.getUser())
-            .actor(user)
-            .type(Notification.NotificationType.LIKE)
-            .post(post)
-            .build();
+                        // Create notification if user is not liking their own post
+                        if (!post.getUser().getUserId().equals(userId)) {
+                                Notification notification = Notification.builder()
+                                                .recipient(post.getUser())
+                                                .actor(user)
+                                                .type(Notification.NotificationType.LIKE)
+                                                .post(post)
+                                                .build();
 
-    notificationRepository.save(notification);
-}
+                                notificationRepository.save(notification);
+
+                                String data = String.format(
+                                                """
+                                                                {"type":"LIKE","screen":"DetailedHistory","params":{"workoutId":"%s"}}
+                                                                """,
+                                                post.getWorkout().getWorkoutId());
+                                expoPushService.sendPushNotification(
+                                                post.getUser().getExpoPushToken(),
+                                                "New Like",
+                                                user.getUsername() + " liked your post",
+                                                data);
+                        }
+                }
+
+                long likeCount = postLikeRepository.countByPost_PostId(postId);
+
+                return LikeResponse.builder()
+                                .liked(liked)
+                                .likeCount(likeCount)
+                                .build();
         }
 
-        long likeCount = postLikeRepository.countByPost_PostId(postId);
+        public Page<CommentDTO> getComments(UUID postId, int page, int size) {
+                Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+                Page<PostComment> comments = postCommentRepository.findByPost_PostId(postId, pageable);
 
-        return LikeResponse.builder()
-                .liked(liked)
-                .likeCount(likeCount)
-                .build();
-    }
+                return comments.map(this::mapToDTO);
+        }
 
-    public Page<CommentDTO> getComments(UUID postId, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<PostComment> comments = postCommentRepository.findByPost_PostId(postId, pageable);
+        public CommentDTO addComment(UUID userId, UUID postId, String body) {
+                Post post = postRepository.findById(postId)
+                                .orElseThrow(() -> new RuntimeException("Post not found"));
 
-        return comments.map(this::mapToDTO);
-    }
+                AppUser user = appUserRepository.findById(userId)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
 
-    public CommentDTO addComment(UUID userId, UUID postId, String body) {
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new RuntimeException("Post not found"));
+                PostComment comment = PostComment.builder()
+                                .post(post)
+                                .user(user)
+                                .body(body)
+                                .build();
 
-        AppUser user = appUserRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                PostComment savedComment = postCommentRepository.save(comment);
 
-        PostComment comment = PostComment.builder()
-                .post(post)
-                .user(user)
-                .body(body)
-                .build();
+                // Create notification if commenter is not the post owner
+                if (!post.getUser().getUserId().equals(userId)) {
+                        Notification notification = Notification.builder()
+                                        .recipient(post.getUser())
+                                        .actor(user)
+                                        .type(Notification.NotificationType.COMMENT)
+                                        .post(post)
+                                        .comment(savedComment)
+                                        .build();
 
-        PostComment savedComment = postCommentRepository.save(comment);
-        
-        // Create notification if commenter is not the post owner
-if (!post.getUser().getUserId().equals(userId)) {
-    Notification notification = Notification.builder()
-            .recipient(post.getUser())
-            .actor(user)
-            .type(Notification.NotificationType.COMMENT)
-            .post(post)
-            .comment(savedComment)
-            .build();
+                        notificationRepository.save(notification);
 
-    notificationRepository.save(notification);
-}
+                        // Send push notification
+                        String data = String.format(
+                                        """
+                                                        {"type":"COMMENT","screen":"Comments","params":{"postId":"%s"}}
+                                                        """,
+                                        post.getPostId());
+                        expoPushService.sendPushNotification(
+                                        post.getUser().getExpoPushToken(),
+                                        "New Comment",
+                                        user.getUsername() + " commented: "
+                                                        + (body.length() > 50 ? body.substring(0, 50) + "..." : body),
+                                        data);
+                }
 
-        return mapToDTO(savedComment);
-    }
+                return mapToDTO(savedComment);
+        }
 
-    private CommentDTO mapToDTO(PostComment comment) {
-        return CommentDTO.builder()
-                .commentId(comment.getCommentId())
-                .postId(comment.getPost().getPostId())
-                .userId(comment.getUser().getUserId())
-                .username(comment.getUser().getUsername())
-                .body(comment.getBody())
-                .createdAt(comment.getCreatedAt())
-                .build();
-    }
+        private CommentDTO mapToDTO(PostComment comment) {
+                return CommentDTO.builder()
+                                .commentId(comment.getCommentId())
+                                .postId(comment.getPost().getPostId())
+                                .userId(comment.getUser().getUserId())
+                                .username(comment.getUser().getUsername())
+                                .body(comment.getBody())
+                                .createdAt(comment.getCreatedAt())
+                                .build();
+        }
 }

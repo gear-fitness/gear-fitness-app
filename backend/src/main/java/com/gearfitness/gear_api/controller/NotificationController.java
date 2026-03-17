@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -45,5 +46,27 @@ public class NotificationController {
         UUID userId = jwtService.extractUserId(token);
 
         notificationService.markAllAsRead(userId);
+    }
+
+    @PostMapping("/token")
+    public void registerToken(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody Map<String, String> body) {
+
+        String token = authHeader.substring(7);
+        UUID userId = jwtService.extractUserId(token);
+        String pushToken = body.get("token");
+
+        notificationService.registerPushToken(userId, pushToken);
+    }
+
+    @DeleteMapping("/token")
+    public void unregisterToken(
+            @RequestHeader("Authorization") String authHeader) {
+
+        String token = authHeader.substring(7);
+        UUID userId = jwtService.extractUserId(token);
+
+        notificationService.unregisterPushToken(userId);
     }
 }
