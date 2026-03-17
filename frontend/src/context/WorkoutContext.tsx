@@ -1,6 +1,12 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useRef,
+} from "react";
 import { AppState, AppStateStatus } from "react-native";
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export interface WorkoutSet {
   reps: string;
@@ -28,7 +34,7 @@ interface PersistedWorkoutState {
 }
 
 const WORKOUT_STATE_VERSION = 1;
-const STORAGE_KEY = '@workout_state';
+const STORAGE_KEY = "@workout_state";
 const SAVE_DEBOUNCE_MS = 500;
 const MAX_STATE_AGE_DAYS = 7;
 
@@ -54,6 +60,10 @@ interface WorkoutContextValue {
   // Tab tracking
   activeTab: string;
   setActiveTab: (tab: string) => void;
+
+  loadFromRoutine: (
+    exercises: Array<{ exerciseId: string; name: string }>,
+  ) => Promise<void>;
 }
 
 const WorkoutTimerContext = createContext<WorkoutContextValue | null>(null);
@@ -75,7 +85,7 @@ export function WorkoutTimerProvider({
   // Player state
   const [playerVisible, setPlayerVisible] = useState(false);
   const [currentExerciseId, setCurrentExerciseId] = useState<string | null>(
-    null
+    null,
   );
 
   // Tab tracking
@@ -107,7 +117,7 @@ export function WorkoutTimerProvider({
       try {
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       } catch (error) {
-        console.error('Failed to save workout state:', error);
+        console.error("Failed to save workout state:", error);
       }
     };
 
@@ -157,7 +167,8 @@ export function WorkoutTimerProvider({
       }
 
       // Age check (don't restore workouts older than 7 days)
-      const daysSinceLastSave = (Date.now() - parsed.lastSaveTimestamp) / (1000 * 60 * 60 * 24);
+      const daysSinceLastSave =
+        (Date.now() - parsed.lastSaveTimestamp) / (1000 * 60 * 60 * 24);
       if (daysSinceLastSave > MAX_STATE_AGE_DAYS) {
         await AsyncStorage.removeItem(STORAGE_KEY);
         setIsRestoringState(false);
@@ -171,9 +182,9 @@ export function WorkoutTimerProvider({
       setActiveTab(parsed.activeTab);
       restoreTimerState(parsed);
 
-      console.log('Workout state restored successfully');
+      console.log("Workout state restored successfully");
     } catch (error) {
-      console.error('Failed to restore workout state:', error);
+      console.error("Failed to restore workout state:", error);
       await AsyncStorage.removeItem(STORAGE_KEY);
     } finally {
       setIsRestoringState(false);
@@ -184,7 +195,7 @@ export function WorkoutTimerProvider({
     try {
       await AsyncStorage.removeItem(STORAGE_KEY);
     } catch (error) {
-      console.error('Failed to clear workout state:', error);
+      console.error("Failed to clear workout state:", error);
     }
   };
 
@@ -202,7 +213,16 @@ export function WorkoutTimerProvider({
     if (exercises.length > 0 || running || totalElapsedSeconds > 0) {
       saveWorkoutState(false);
     }
-  }, [seconds, running, exercises, playerVisible, currentExerciseId, activeTab, totalElapsedSeconds, isRestoringState]);
+  }, [
+    seconds,
+    running,
+    exercises,
+    playerVisible,
+    currentExerciseId,
+    activeTab,
+    totalElapsedSeconds,
+    isRestoringState,
+  ]);
 
   // ---------------- TIMER LOOP ----------------
   // Update seconds based on timestamp calculation
@@ -234,32 +254,38 @@ export function WorkoutTimerProvider({
           setSeconds(totalElapsedSeconds + currentElapsed);
           console.log(
             "App returned to foreground, timer synced to:",
-            totalElapsedSeconds + currentElapsed
+            totalElapsedSeconds + currentElapsed,
           );
-        } else if (
-          nextAppState.match(/inactive|background/)
-        ) {
+        } else if (nextAppState.match(/inactive|background/)) {
           // App going to background - save immediately (no debounce)
           console.log("App going to background, saving state...");
           saveWorkoutState(true);
         }
-      }
+      },
     );
 
     return () => {
       subscription.remove();
     };
-  }, [running, startTimestamp, totalElapsedSeconds, exercises, playerVisible, currentExerciseId, activeTab]);
+  }, [
+    running,
+    startTimestamp,
+    totalElapsedSeconds,
+    exercises,
+    playerVisible,
+    currentExerciseId,
+    activeTab,
+  ]);
 
   // ---------------- EXERCISES LIST ----------------
   const addExercise = (exercise: WorkoutExercise) => {
     setExercises((prev) => {
       const exists = prev.find(
-        (e) => e.workoutExerciseId === exercise.workoutExerciseId
+        (e) => e.workoutExerciseId === exercise.workoutExerciseId,
       );
       if (exists) {
         return prev.map((e) =>
-          e.workoutExerciseId === exercise.workoutExerciseId ? exercise : e
+          e.workoutExerciseId === exercise.workoutExerciseId ? exercise : e,
         );
       }
       return [...prev, exercise];
@@ -268,20 +294,20 @@ export function WorkoutTimerProvider({
 
   const updateExercise = (
     workoutExerciseId: string,
-    updatedFields: Partial<WorkoutExercise>
+    updatedFields: Partial<WorkoutExercise>,
   ) => {
     setExercises((prev) =>
       prev.map((ex) =>
         ex.workoutExerciseId === workoutExerciseId
           ? { ...ex, ...updatedFields }
-          : ex
-      )
+          : ex,
+      ),
     );
   };
 
   const removeExercise = (workoutExerciseId: string) => {
     setExercises((prev) =>
-      prev.filter((ex) => ex.workoutExerciseId !== workoutExerciseId)
+      prev.filter((ex) => ex.workoutExerciseId !== workoutExerciseId),
     );
   };
 
@@ -328,6 +354,34 @@ export function WorkoutTimerProvider({
     setCurrentExerciseId(null);
   };
 
+  const loadFromRoutine = async (
+    routineExercises: Array<{ exerciseId: string; name: string }>,
+  ): Promise<void> => {
+    await clearPersistedState();
+
+    const newExercises: WorkoutExercise[] = routineExercises.map(
+      (ex, index) => ({
+        workoutExerciseId: `routine-${Date.now()}-${index}`,
+        exerciseId: ex.exerciseId,
+        name: ex.name,
+        sets: [{ reps: "", weight: "" }],
+      }),
+    );
+
+    setRunning(false);
+    setSeconds(0);
+    setStartTimestamp(null);
+    setTotalElapsedSeconds(0);
+    setExercises(newExercises);
+
+    if (newExercises.length > 0) {
+      setRunning(true);
+      setStartTimestamp(Date.now());
+      setCurrentExerciseId(newExercises[0].workoutExerciseId);
+      setPlayerVisible(true);
+    }
+  };
+
   return (
     <WorkoutTimerContext.Provider
       value={{
@@ -348,6 +402,7 @@ export function WorkoutTimerProvider({
         // Tab tracking
         activeTab,
         setActiveTab,
+        loadFromRoutine,
       }}
     >
       {children}

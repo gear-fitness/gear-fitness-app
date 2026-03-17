@@ -34,7 +34,7 @@ import { Avatar } from "../../components/Avatar";
 
 export function Profile() {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation();
   const route = useRoute<any>();
   const { colors } = useTheme();
 

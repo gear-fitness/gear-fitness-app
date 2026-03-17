@@ -1,14 +1,19 @@
+import React from "react";
 import { Text } from "@react-navigation/elements";
 import { StyleSheet, View, TouchableOpacity, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation, useTheme, useFocusEffect } from "@react-navigation/native";
+import {
+  useNavigation,
+  useTheme,
+  useFocusEffect,
+} from "@react-navigation/native";
 import { useColorScheme } from "react-native";
-import React from "react";
 
 import stopwatch from "../../assets/stopwatch.png";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { useAuth } from "../../context/AuthContext";
+import { TodaysRoutines } from "../../components/TodaysRoutines";
 
 export function Workout() {
   useTrackTab("Workouts");
@@ -25,7 +30,7 @@ export function Workout() {
   useFocusEffect(
     React.useCallback(() => {
       refreshUser();
-    }, [])
+    }, []),
   );
 
   const streak = user?.workoutStats?.workoutStreak ?? 0;
@@ -36,6 +41,10 @@ export function Workout() {
 
   const handleExercisesPress = () => {
     navigation.navigate("ExerciseList");
+  };
+
+  const handleRoutinesPress = () => {
+    navigation.navigate("RoutineList");
   };
 
   const formatTime = (t: number) =>
@@ -64,7 +73,7 @@ export function Workout() {
             <Text
               style={[styles.streakNumber, { color: isDark ? "#fff" : "#000" }]}
             >
-              N/A
+              {streak}
             </Text>
           </View>
           <Text
@@ -99,7 +108,7 @@ export function Workout() {
                 styles.actionButton,
                 { backgroundColor: isDark ? colors.card : "white" },
               ]}
-              onPress={() => {}}
+              onPress={handleRoutinesPress}
             >
               <Text style={[styles.checkIcon, { color: "#007AFF" }]}>✓</Text>
             </TouchableOpacity>
@@ -242,6 +251,8 @@ export function Workout() {
               </TouchableOpacity>
             </View>
           </View>
+
+          <TodaysRoutines />
         </View>
       )}
     </SafeAreaView>
@@ -373,7 +384,6 @@ const styles = StyleSheet.create({
     marginBottom: 48,
     lineHeight: 22,
   },
-
   // Workout in progress state
   workoutInProgressTitle: {
     fontSize: 28,
@@ -426,7 +436,7 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
 
-  // ── Shared pill button + glow ────────────────────────
+  // Shared pill button + glow
   shadowLayer1: {
     borderRadius: 999,
     alignItems: "center",

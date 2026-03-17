@@ -18,7 +18,7 @@ export function FeedPostCard({ post, onOpenComments }: Props) {
   const [likeCount, setLikeCount] = useState(post.likeCount);
   const [likedByUser, setLikedByUser] = useState(post.likedByCurrentUser);
   const [liking, setLiking] = useState(false);
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation();
 
   const isOwnPost = post.username === user?.username;
 

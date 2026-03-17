@@ -32,6 +32,10 @@ import { CommentsScreen } from "../components/CommentsScreen";
 import { ExerciseList } from "./screens/ExerciseList";
 import { ExerciseHistory } from "./screens/ExerciseHistory";
 import { CreateExerciseScreen } from "./screens/CreateExerciseScreen";
+import { RoutineList } from "./screens/RoutineList";
+import { RoutineDetail } from "./screens/RoutineDetail";
+import { CreateRoutine } from "./screens/CreateRoutine";
+import { EditRoutine } from "./screens/EditRoutine";
 
 /* ---------------------- TABS ---------------------- */
 
@@ -214,6 +218,54 @@ const RootStack = createNativeStackNavigator({
         headerBackTitle: "Back",
       },
     },
+
+    CreateRoutine: {
+      screen: CreateRoutine,
+      options: ({ theme }) => ({
+        headerShown: true,
+        headerShadowVisible: false,
+        headerStyle: { backgroundColor: theme.dark ? "#000" : "#fff" },
+        headerTintColor: theme.dark ? "#fff" : "#000",
+      }),
+    },
+
+    EditRoutine: {
+      screen: EditRoutine,
+      options: ({ theme }) => ({
+        headerShown: true,
+        title: "Edit Routine",
+        headerShadowVisible: false,
+        headerStyle: { backgroundColor: theme.dark ? "#000" : "#fff" },
+        headerTintColor: theme.dark ? "#fff" : "#000",
+      }),
+    },
+
+    RoutineList: {
+      screen: RoutineList,
+      options: ({ theme }) => ({
+        headerShown: true,
+        title: "Routines",
+        headerShadowVisible: false,
+        headerStyle: { backgroundColor: theme.dark ? "#000" : "#fff" },
+        headerTintColor: theme.dark ? "#fff" : "#000",
+        headerTitleStyle: {
+          color: theme.dark ? "#fff" : "#000",
+          fontWeight: "800" as const,
+          fontSize: 30,
+        },
+      }),
+    },
+
+    RoutineDetail: {
+      screen: RoutineDetail,
+      options: ({ theme }) => ({
+        title: "",
+        headerShown: true,
+        headerShadowVisible: false,
+        headerStyle: { backgroundColor: theme.dark ? "#000" : "#fff" },
+        headerTintColor: theme.dark ? "#fff" : "#000",
+      }),
+    },
   },
 });
 
@@ -254,6 +306,13 @@ declare global {
 
       Comments: {
         postId: string;
+      };
+
+      CreateRoutine: { prefilledWorkoutId?: string } | undefined;
+      EditRoutine: { routine: import("../api/types").Routine };
+      RoutineList: undefined;
+      RoutineDetail: {
+        routineId: string;
       };
     }
   }

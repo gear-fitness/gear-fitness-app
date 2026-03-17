@@ -10,7 +10,7 @@ import { loginWithGoogle } from "../../api/authService";
 import { useAuth } from "../../context/AuthContext";
 
 export function LoginScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation();
   const { colors } = useTheme();
   const { login } = useAuth();
   const handleGoogleSIgnIn = async () => {

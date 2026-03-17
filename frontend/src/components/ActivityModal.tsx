@@ -32,7 +32,7 @@ type NotificationItem = {
 
 export function ActivityModal({ visible, onClose }: ActivityModalProps) {
   const { colors } = useTheme();
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation();
 
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(false);
