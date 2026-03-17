@@ -1,6 +1,6 @@
 /**
- * Exercise Chat service
- * API calls for AI chat about exercises
+ * Workout Chat service
+ * API calls for AI chat about general workout / exercise topics
  */
 
 import { getAuthHeader } from "../utils/auth";
@@ -21,25 +21,21 @@ export interface ChatResponse {
 }
 
 /**
- * Send a chat message about a specific exercise
+ * Send a chat message to the general workout assistant
  */
-export async function sendExerciseChat(
-  exerciseId: string,
-  messages: ChatMessage[]
+export async function sendWorkoutChat(
+  messages: ChatMessage[],
 ): Promise<ChatResponse> {
   const authHeader = await getAuthHeader();
 
-  const response = await fetch(
-    `${API_BASE_URL}/api/exercises/${exerciseId}/chat`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...authHeader,
-      },
-      body: JSON.stringify({ messages }),
-    }
-  );
+  const response = await fetch(`${API_BASE_URL}/api/workout-chat`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeader,
+    },
+    body: JSON.stringify({ messages }),
+  });
 
   if (!response.ok) {
     const errorText = await response.text();
