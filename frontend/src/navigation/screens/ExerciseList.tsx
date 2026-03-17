@@ -12,18 +12,14 @@ import { useNavigation } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
 
 import { getAllExercises } from "../../api/exerciseService";
-import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { useTrackTab } from "../../hooks/useTrackTab";
-
 import { ExerciseSearchBar } from "../../components/ExerciseSearchBar";
 import { ExerciseCard } from "../../components/ExerciseCard";
 
-export function ExerciseSelect() {
-  useTrackTab("ExerciseSelect");
+export function ExerciseList() {
+  useTrackTab("ExerciseList");
 
   const navigation = useNavigation<any>();
-  const { showPlayer, start } = useWorkoutTimer();
-
   const isDark = useColorScheme() === "dark";
 
   const colors = {
@@ -89,20 +85,7 @@ export function ExerciseSelect() {
   }, [exercises, searchQuery, selectedBodyPart]);
 
   const handleExercisePress = (exercise: any) => {
-    start();
-
-    const workoutExerciseId = Date.now().toString();
-
-    showPlayer(workoutExerciseId);
-
-    navigation.replace("ExerciseDetail", {
-      exercise: {
-        workoutExerciseId,
-        exerciseId: exercise.exerciseId,
-        name: exercise.name,
-        sets: [],
-      },
-    });
+    navigation.navigate("ExerciseHistory", { exercise });
   };
 
   return (
@@ -199,21 +182,6 @@ export function ExerciseSelect() {
         )}
         contentContainerStyle={styles.listContent}
         ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-        ListFooterComponent={
-          <TouchableOpacity
-            onPress={() =>
-              navigation.navigate("CreateExercise", { startWorkout: true })
-            }
-            style={[styles.createButton, { borderColor: colors.border }]}
-          >
-            <Text style={[styles.createButtonText, { color: colors.subtle }]}>
-              + Create Custom Exercise
-            </Text>
-            <Text style={[styles.createButtonHint, { color: colors.border }]}>
-              Don't see your exercise? Add it here
-            </Text>
-          </TouchableOpacity>
-        }
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>🔍</Text>
@@ -282,25 +250,6 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 20,
     paddingBottom: 40,
-  },
-
-  // Create Button
-  createButton: {
-    marginTop: 20,
-    marginBottom: 30,
-    paddingVertical: 18,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderStyle: "dashed",
-    alignItems: "center",
-    gap: 4,
-  },
-  createButtonText: {
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  createButtonHint: {
-    fontSize: 12,
   },
 
   // Empty State

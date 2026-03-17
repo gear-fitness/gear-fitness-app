@@ -1,18 +1,16 @@
 package com.gearfitness.gear_api.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-
-import java.util.HashSet;
-import java.util.Set;
-import java.util.UUID;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
 @Table(name = "exercise")
@@ -37,8 +35,16 @@ public class Exercise {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private AppUser user;
+
     // Relationships
-    @OneToMany(mappedBy = "exercise", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(
+        mappedBy = "exercise",
+        cascade = CascadeType.ALL,
+        orphanRemoval = true
+    )
     @JsonIgnore
     @Builder.Default
     @ToString.Exclude
@@ -46,20 +52,20 @@ public class Exercise {
     private Set<WorkoutExercise> workoutExercises = new HashSet<>();
 
     public enum BodyPart {
-    CHEST,
-    BACK,
-    SHOULDERS,
-    BICEPS,
-    TRICEPS,
-    LEGS,
-    QUADS,
-    HAMSTRINGS,
-    GLUTES,
-    CALVES,
-    CORE,
-    TRAPS,      
-    FOREARMS,   
-    FULL_BODY,
-    OTHER
-}
+        CHEST,
+        BACK,
+        SHOULDERS,
+        BICEPS,
+        TRICEPS,
+        LEGS,
+        QUADS,
+        HAMSTRINGS,
+        GLUTES,
+        CALVES,
+        CORE,
+        TRAPS,
+        FOREARMS,
+        FULL_BODY,
+        OTHER,
+    }
 }

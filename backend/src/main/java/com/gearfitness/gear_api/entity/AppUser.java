@@ -54,6 +54,9 @@ public class AppUser {
     @Column(name = "profile_picture_url", length = 512)
     private String profilePictureUrl;
 
+    @Column(name = "expo_push_token")
+    private String expoPushToken;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

@@ -8,7 +8,11 @@ import {
 import { storeToken, clearAuthToken, isAuthenticated } from "../utils/auth";
 import { getCurrentUserProfile } from "../api/userService";
 import { UserProfile } from "../api/types";
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Device from "expo-device";
+import * as Notifications from "expo-notifications";
+import Constants from "expo-constants";
+import { notificationService } from "../api/notificationService";
 
 export type User = UserProfile;
 
@@ -39,6 +43,38 @@ export function AuthProvider({ children }: AuthProviderProps) {
     initializeAuth();
   }, []);
 
+  const registerPushToken = async () => {
+    if (!Device.isDevice) return;
+
+    const { status: existingStatus } =
+      await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+
+    if (existingStatus !== "granted") {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+
+    if (finalStatus !== "granted") {
+      console.warn("Failed to get push token permissions!");
+      return;
+    }
+
+    const projectId =
+      Constants?.expoConfig?.extra?.eas?.projectId ??
+      Constants?.easConfig?.projectId;
+
+    if (!projectId) return;
+
+    try {
+      const token = (await Notifications.getExpoPushTokenAsync({ projectId }))
+        .data;
+      await notificationService.registerToken(token);
+    } catch (e) {
+      console.error("Failed to register push token:", e);
+    }
+  };
+
   /**
    * Initialize authentication state
    * Checks if token exists and fetches user profile
@@ -53,6 +89,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         try {
           const userProfile = await getCurrentUserProfile();
           setUser(userProfile);
+          await registerPushToken();
         } catch (profileError) {
           console.error("Failed to fetch user profile:", profileError);
 
@@ -68,7 +105,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           } else {
             // Network error - keep token but show error
             setAuthError(
-              "Unable to load profile. Please check your connection."
+              "Unable to load profile. Please check your connection.",
             );
             // Don't clear user or token - allow retry
           }
@@ -98,6 +135,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Fetch and store user profile
       const userProfile = await getCurrentUserProfile();
       setUser(userProfile);
+      await registerPushToken();
     } catch (error) {
       console.error("Login failed:", error);
       await clearAuthToken();
@@ -113,11 +151,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
    */
   const logout = async () => {
     try {
+      await notificationService.unregisterToken();
       await clearAuthToken();
       setUser(null);
 
       // Clear any in-progress workout
-      await AsyncStorage.removeItem('@workout_state');
+      await AsyncStorage.removeItem("@workout_state");
     } catch (error) {
       console.error("Logout failed:", error);
       throw error;
