@@ -1,6 +1,8 @@
 package com.gearfitness.gear_api.service;
 
+import com.gearfitness.gear_api.entity.AppUser;
 import com.gearfitness.gear_api.entity.Notification;
+import com.gearfitness.gear_api.repository.AppUserRepository;
 import com.gearfitness.gear_api.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -15,6 +17,7 @@ import java.util.UUID;
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
+    private final AppUserRepository appUserRepository;
 
     @Transactional(readOnly = true)
     public List<NotificationDTO> getNotificationsForUser(UUID userId) {
@@ -30,8 +33,7 @@ public class NotificationService {
                         .commentBody(n.getComment() != null ? n.getComment().getBody() : null)
                         .createdAt(n.getCreatedAt())
                         .isRead(n.isRead())
-                        .build()
-                )
+                        .build())
                 .toList();
     }
 
@@ -42,12 +44,27 @@ public class NotificationService {
 
     @Transactional
     public void markAllAsRead(UUID userId) {
-        List<Notification> notifications =
-                notificationRepository
-                        .findByRecipient_UserIdOrderByCreatedAtDesc(userId);
+        List<Notification> notifications = notificationRepository
+                .findByRecipient_UserIdOrderByCreatedAtDesc(userId);
 
         notifications.forEach(n -> n.setRead(true));
 
         notificationRepository.saveAll(notifications);
+    }
+
+    @Transactional
+    public void registerPushToken(UUID userId, String pushToken) {
+        AppUser user = appUserRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setExpoPushToken(pushToken);
+        appUserRepository.save(user);
+    }
+
+    @Transactional
+    public void unregisterPushToken(UUID userId) {
+        AppUser user = appUserRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setExpoPushToken(null);
+        appUserRepository.save(user);
     }
 }

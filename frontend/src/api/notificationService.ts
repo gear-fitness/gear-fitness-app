@@ -83,4 +83,39 @@ export const notificationService = {
       throw new Error("Failed to mark notifications read");
     }
   },
+
+  registerToken: async (pushToken: string): Promise<void> => {
+    const authHeader = await getAuthHeader();
+    const response = await fetch(
+      `${process.env.EXPO_PUBLIC_API_URL}/api/notifications/token`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeader,
+        },
+        body: JSON.stringify({ token: pushToken }),
+      },
+    );
+    if (!response.ok) {
+      throw new Error("Failed to register push token");
+    }
+  },
+
+  unregisterToken: async (): Promise<void> => {
+    const authHeader = await getAuthHeader();
+    const response = await fetch(
+      `${process.env.EXPO_PUBLIC_API_URL}/api/notifications/token`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeader,
+        },
+      },
+    );
+    if (!response.ok) {
+      throw new Error("Failed to unregister push token");
+    }
+  },
 };

@@ -49,6 +49,9 @@ public class AppUser {
     @Builder.Default
     private Boolean isPrivate = false;
 
+    @Column(name = "expo_push_token")
+    private String expoPushToken;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
