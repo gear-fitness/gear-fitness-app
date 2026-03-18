@@ -1,10 +1,12 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { useFocusEffect, useNavigation, useTheme } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
 import { getTodaysRoutines } from "../api/routineService";
 import { Routine } from "../api/types";
 import { useWorkoutTimer } from "../context/WorkoutContext";
+import { useStartCountdown } from "../hooks/useStartCountdown";
+import { StartCountdownOverlay } from "./StartCountdownOverlay";
 
 export function TodaysRoutines() {
   const navigation = useNavigation();
@@ -12,6 +14,7 @@ export function TodaysRoutines() {
   const isDark = useColorScheme() === "dark";
   const { loadFromRoutine } = useWorkoutTimer();
   const [todaysRoutines, setTodaysRoutines] = useState<Routine[]>([]);
+  const pendingRoutineRef = useRef<Routine | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -27,7 +30,7 @@ export function TodaysRoutines() {
     }, []),
   );
 
-  const handleQuickStartRoutine = async (routine: Routine) => {
+  const handleQuickStartRoutine = useCallback(async (routine: Routine) => {
     if (!routine.exercises.length) return;
     try {
       await loadFromRoutine(
@@ -36,10 +39,26 @@ export function TodaysRoutines() {
           name: ex.exerciseName,
         })),
       );
-      navigation.navigate("WorkoutSummary");
+      (navigation as any).navigate("WorkoutSummary");
     } catch {
       // Ignore and keep user on current screen.
     }
+  }, [loadFromRoutine, navigation]);
+
+  const { isCountdownVisible, countdownValue, startCountdown, cancelCountdown } =
+    useStartCountdown({
+      onComplete: async () => {
+        const pendingRoutine = pendingRoutineRef.current;
+        pendingRoutineRef.current = null;
+        if (!pendingRoutine) return;
+        await handleQuickStartRoutine(pendingRoutine);
+      },
+    });
+
+  const handleQuickStartPress = (routine: Routine) => {
+    if (!routine.exercises.length) return;
+    pendingRoutineRef.current = routine;
+    startCountdown();
   };
 
   return (
@@ -73,7 +92,7 @@ export function TodaysRoutines() {
             <TouchableOpacity
               style={styles.todayCardLeft}
               onPress={() =>
-                navigation.navigate("RoutineDetail", {
+                (navigation as any).navigate("RoutineDetail", {
                   routineId: routine.routineId,
                 })
               }
@@ -97,13 +116,20 @@ export function TodaysRoutines() {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.quickStartButton}
-              onPress={() => handleQuickStartRoutine(routine)}
+              onPress={() => handleQuickStartPress(routine)}
             >
               <Text style={styles.quickStartText}>▶</Text>
             </TouchableOpacity>
           </View>
         ))
       )}
+
+      <StartCountdownOverlay
+        visible={isCountdownVisible}
+        countdownValue={countdownValue}
+        isDark={isDark}
+        onCancel={cancelCountdown}
+      />
     </View>
   );
 }

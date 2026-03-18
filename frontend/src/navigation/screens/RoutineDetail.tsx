@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  useColorScheme,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { getRoutineDetail, deleteRoutine } from "../../api/routineService";
@@ -14,11 +15,14 @@ import { Routine } from "../../api/types";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { formatDay } from "../../utils/days";
 import { useThemedHeader } from "../../hooks/useThemedHeader";
+import { StartCountdownOverlay } from "../../components/StartCountdownOverlay";
+import { useStartCountdown } from "../../hooks/useStartCountdown";
 
 export function RoutineDetail({ route }: { route: { params: { routineId: string } } }) {
   const { routineId } = route.params;
   const { loadFromRoutine } = useWorkoutTimer();
   const { navigation, colors } = useThemedHeader(() => ({ title: "" }));
+  const isDark = useColorScheme() === "dark";
 
   const [routine, setRoutine] = useState<Routine | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,7 +46,7 @@ export function RoutineDetail({ route }: { route: { params: { routineId: string 
     }, [routineId])
   );
 
-  const handleStartWorkout = async () => {
+  const startRoutineWorkout = async () => {
     if (!routine || routine.exercises.length === 0) {
       Alert.alert(
         "No exercises",
@@ -58,10 +62,32 @@ export function RoutineDetail({ route }: { route: { params: { routineId: string 
           name: ex.exerciseName,
         }))
       );
-      navigation.navigate("WorkoutSummary");
+      (navigation as any).navigate("WorkoutSummary");
     } finally {
       setStarting(false);
     }
+  };
+  const {
+    isCountdownVisible,
+    countdownValue,
+    startCountdown,
+    cancelCountdown,
+  } = useStartCountdown({
+    onComplete: startRoutineWorkout,
+  });
+
+  const handleStartWorkout = () => {
+    if (starting || deleting) return;
+
+    if (!routine || routine.exercises.length === 0) {
+      Alert.alert(
+        "No exercises",
+        "This routine has no exercises to start a workout with."
+      );
+      return;
+    }
+
+    startCountdown();
   };
 
   const handleDelete = () => {
@@ -121,7 +147,9 @@ export function RoutineDetail({ route }: { route: { params: { routineId: string 
           </Text>
           <TouchableOpacity
             style={styles.editButton}
-            onPress={() => routine && navigation.navigate("EditRoutine", { routine })}
+            onPress={() =>
+              routine && (navigation as any).navigate("EditRoutine", { routine })
+            }
           >
             <Text style={styles.editButtonText}>Edit</Text>
           </TouchableOpacity>
@@ -248,6 +276,13 @@ export function RoutineDetail({ route }: { route: { params: { routineId: string 
           </TouchableOpacity>
         </View>
       </View>
+
+      <StartCountdownOverlay
+        visible={isCountdownVisible}
+        countdownValue={countdownValue}
+        isDark={isDark}
+        onCancel={cancelCountdown}
+      />
     </View>
   );
 }
