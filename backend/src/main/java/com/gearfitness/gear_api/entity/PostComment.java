@@ -46,7 +46,7 @@ public class PostComment {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @OneToMany(mappedBy = "comment", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "comment")
     @Builder.Default
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
