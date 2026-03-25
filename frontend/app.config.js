@@ -6,7 +6,7 @@ export default {
     slug: "gear-fitness",
     version: "1.0.0",
     orientation: "portrait",
-    icon: "./assets/GearLogo.png",
+    icon: IS_DEV ? "./assets/GearLogoDev.png" : "./assets/GearLogo.png",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
     scheme: "gearfitness",
