@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Text } from "@react-navigation/elements";
 import { StyleSheet, View, TouchableOpacity, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -14,17 +14,27 @@ import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { useAuth } from "../../context/AuthContext";
 import { TodaysRoutines } from "../../components/TodaysRoutines";
+import { StartCountdownOverlay } from "../../components/StartCountdownOverlay";
+import { useStartCountdown } from "../../hooks/useStartCountdown";
 
 export function Workout() {
   useTrackTab("Workouts");
 
-  const navigation = useNavigation();
+  const navigation = useNavigation() as any;
   const { colors } = useTheme();
   const scheme = useColorScheme();
   const isDark = scheme === "dark";
 
   const { user, refreshUser } = useAuth();
   const { playerVisible, seconds, running, exercises } = useWorkoutTimer();
+  const {
+    isCountdownVisible,
+    countdownValue,
+    startCountdown,
+    cancelCountdown,
+  } = useStartCountdown({
+    onComplete: () => navigation.navigate("ExerciseSelect"),
+  });
 
   // Refresh user profile (includes streak data) when screen comes into focus
   useFocusEffect(
@@ -35,8 +45,18 @@ export function Workout() {
 
   const streak = user?.workoutStats?.workoutStreak ?? 0;
 
+  useEffect(() => {
+    navigation.setOptions({
+      tabBarStyle: isCountdownVisible ? { display: "none" } : undefined,
+    });
+
+    return () => {
+      navigation.setOptions({ tabBarStyle: undefined });
+    };
+  }, [isCountdownVisible, navigation]);
+
   const handleStartPress = () => {
-    navigation.navigate("ExerciseSelect");
+    startCountdown();
   };
 
   const handleExercisesPress = () => {
@@ -255,6 +275,13 @@ export function Workout() {
           <TodaysRoutines />
         </View>
       )}
+
+      <StartCountdownOverlay
+        visible={isCountdownVisible}
+        countdownValue={countdownValue}
+        isDark={isDark}
+        onCancel={cancelCountdown}
+      />
     </SafeAreaView>
   );
 }
@@ -482,4 +509,5 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "700",
   },
+
 });
