@@ -1,4 +1,7 @@
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import {
+  BottomTabBar,
+  createBottomTabNavigator,
+} from "@react-navigation/bottom-tabs";
 import { HeaderButton } from "@react-navigation/elements";
 import {
   createStaticNavigation,
@@ -36,15 +39,35 @@ import { RoutineList } from "./screens/RoutineList";
 import { RoutineDetail } from "./screens/RoutineDetail";
 import { CreateRoutine } from "./screens/CreateRoutine";
 import { EditRoutine } from "./screens/EditRoutine";
+import { Platform } from "react-native";
 
 /* ---------------------- TABS ---------------------- */
 
+const majorVersionIOS = parseInt(Platform.Version, 10);
 const HomeTabs = createBottomTabNavigator({
   initialRouteName: "Explore",
-  implementation: "native",
+  ...(majorVersionIOS >= 26 && { implementation: "native" }),
+  ...(majorVersionIOS < 26 && {
+    tabBar: (props) => (
+      <View
+        style={{
+          paddingTop: 8,
+          borderTopColor: "#00000020",
+          borderTopWidth: 1,
+        }}
+      >
+        <BottomTabBar {...props} />
+      </View>
+    ),
+  }),
   screenOptions: {
     headerShown: false,
     tabBarLabel: "",
+    ...(majorVersionIOS < 26 && {
+      tabBarStyle: {
+        borderTopWidth: 0,
+      },
+    }),
   },
   screens: {
     Workouts: {
@@ -75,7 +98,7 @@ const HomeTabs = createBottomTabNavigator({
     AiChat: {
       screen: WorkoutChat,
       options: {
-        tabBarSystemItem: "search",
+        ...(majorVersionIOS >= 26 && { tabBarSystemItem: "search" }),
         tabBarIcon: { type: "sfSymbol", name: "sparkle" },
       },
     },
