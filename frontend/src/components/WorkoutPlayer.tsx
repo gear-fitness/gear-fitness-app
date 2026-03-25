@@ -1,4 +1,4 @@
-import { StyleSheet, Animated } from "react-native";
+import { StyleSheet, Animated, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useEffect, useRef } from "react";
 
@@ -7,7 +7,6 @@ import { useWorkoutTimer } from "../context/WorkoutContext";
 import { navigationRef } from "../App";
 
 export const MINI_PLAYER_HEIGHT = 70;
-const MINIMUM_BOTTOM_CLEARANCE = 84;
 
 // Tabs where miniplayer should be visible
 const ALLOWED_TABS = ["Home", "Social", "Workouts", "History", "Profile"];
@@ -33,8 +32,9 @@ export function WorkoutPlayer() {
     }).start();
   }, [shouldShow, slideAnim]);
 
-  const bottomOffset = Math.max(insets.bottom, MINIMUM_BOTTOM_CLEARANCE);
+  const majorVersionIOS = parseInt(Platform.Version, 10);
 
+  const bottomOffset = 49 + insets.bottom + (majorVersionIOS < 26 ? 8 : 0);
   const translateY = slideAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [MINI_PLAYER_HEIGHT + 20, 0],

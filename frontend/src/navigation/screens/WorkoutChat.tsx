@@ -8,7 +8,10 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { useState, useRef, useEffect } from "react";
 import { useColorScheme } from "react-native";
@@ -113,11 +116,20 @@ export function WorkoutChat() {
     return unsubscribe;
   }, [navigation]);
 
+  const majorVersionIOS = parseInt(Platform.Version, 10);
+  const insets = useSafeAreaInsets();
+
+  const tabBarPadding = majorVersionIOS >= 26 ? 49 + insets.bottom : 0;
+
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+    <SafeAreaView
+      style={{ flex: 1, paddingBottom: tabBarPadding }}
+      edges={["top"]}
+    >
       <KeyboardAvoidingView
-        style={[styles.container]}
+        style={styles.container}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={10}
       >
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
@@ -205,7 +217,7 @@ export function WorkoutChat() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    marginBottom: 40,
+    marginBottom: 8,
   },
 
   header: {
@@ -245,7 +257,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 25,
     marginHorizontal: 10,
-    marginBottom: 25,
   },
 
   input: {
