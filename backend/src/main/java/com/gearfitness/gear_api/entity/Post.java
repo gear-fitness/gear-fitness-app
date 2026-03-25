@@ -61,4 +61,8 @@ public class Post {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private Set<PostComment> postComments = new HashSet<>();
+
+    @OneToMany(mappedBy = "post")
+    @Builder.Default
+    private Set<Notification> notifications = new HashSet<>();
 }
