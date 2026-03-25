@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme, useRoute } from "@react-navigation/native";
 import { socialFeedApi, Comment } from "../api/socialFeedApi";
+import { Avatar } from "./Avatar";
 
 export function CommentsScreen() {
   const { colors } = useTheme();
@@ -75,9 +76,7 @@ export function CommentsScreen() {
 
   const renderComment = ({ item }: { item: Comment }) => (
     <View style={styles.commentItem}>
-      <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-        <Text style={styles.avatarText}>{item.username[0].toUpperCase()}</Text>
-      </View>
+      <Avatar username={item.username} size={36} />
       <View style={styles.commentContent}>
         <View style={styles.commentHeader}>
           <Text style={[styles.username, { color: colors.text }]}>

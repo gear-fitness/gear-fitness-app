@@ -3,7 +3,7 @@ import { StyleSheet, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 
 export function NotFound() {
-  const navigation = useNavigation<any>(); // <- FIX TYPING
+  const navigation = useNavigation();
 
   return (
     <View style={styles.container}>

@@ -7,11 +7,13 @@ public class FollowActivityDTO {
 
     private UUID userId;
     private String username;
+    private String profilePictureUrl;
     private LocalDateTime createdAt;
 
-    public FollowActivityDTO(UUID userId, String username, LocalDateTime createdAt) {
+    public FollowActivityDTO(UUID userId, String username, String profilePictureUrl, LocalDateTime createdAt) {
         this.userId = userId;
         this.username = username;
+        this.profilePictureUrl = profilePictureUrl;
         this.createdAt = createdAt;
     }
 
@@ -21,6 +23,10 @@ public class FollowActivityDTO {
 
     public String getUsername() {
         return username;
+    }
+
+    public String getProfilePictureUrl() {
+        return profilePictureUrl;
     }
 
     public LocalDateTime getCreatedAt() {

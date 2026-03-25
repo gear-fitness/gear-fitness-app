@@ -14,6 +14,10 @@ import {
 import { getCurrentUserProfile } from "../api/userService";
 import { UserProfile } from "../api/types";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Device from "expo-device";
+import * as Notifications from "expo-notifications";
+import Constants from "expo-constants";
+import { notificationService } from "../api/notificationService";
 import { logoutFromServer } from "../api/authService";
 
 export type User = UserProfile;
@@ -45,6 +49,38 @@ export function AuthProvider({ children }: AuthProviderProps) {
     initializeAuth();
   }, []);
 
+  const registerPushToken = async () => {
+    if (!Device.isDevice) return;
+
+    const { status: existingStatus } =
+      await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+
+    if (existingStatus !== "granted") {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+
+    if (finalStatus !== "granted") {
+      console.warn("Failed to get push token permissions!");
+      return;
+    }
+
+    const projectId =
+      Constants?.expoConfig?.extra?.eas?.projectId ??
+      Constants?.easConfig?.projectId;
+
+    if (!projectId) return;
+
+    try {
+      const token = (await Notifications.getExpoPushTokenAsync({ projectId }))
+        .data;
+      await notificationService.registerToken(token);
+    } catch (e) {
+      console.error("Failed to register push token:", e);
+    }
+  };
+
   /**
    * Initialize authentication state
    * Checks if token exists and fetches user profile
@@ -58,6 +94,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         try {
           const userProfile = await getCurrentUserProfile();
           setUser(userProfile);
+          await registerPushToken();
         } catch (profileError) {
           console.error("Failed to fetch user profile:", profileError);
           await clearAuthTokens();
@@ -85,6 +122,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       await storeTokens(accessToken, refreshToken);
       const userProfile = await getCurrentUserProfile();
       setUser(userProfile);
+      await registerPushToken();
     } catch (error) {
       console.error("Login failed:", error);
       await clearAuthTokens();
@@ -100,6 +138,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
    */
   const logout = async () => {
     try {
+      await notificationService.unregisterToken();
       const refreshToken = await getRefreshToken();
       if (refreshToken) {
         await logoutFromServer(refreshToken);

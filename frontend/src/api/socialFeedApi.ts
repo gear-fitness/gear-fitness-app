@@ -20,6 +20,7 @@ export interface FeedPost {
   createdAt: string;
   userId: string;
   username: string;
+  userProfilePictureUrl?: string;
   workoutName: string;
   datePerformed: string;
   durationMin?: number;

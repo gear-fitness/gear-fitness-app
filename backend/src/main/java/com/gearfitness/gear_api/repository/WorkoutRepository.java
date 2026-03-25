@@ -20,8 +20,7 @@ public interface WorkoutRepository extends JpaRepository<Workout, UUID> {
 
     @EntityGraph(attributePaths = {
             "workoutExercises",
-            "workoutExercises.exercise",
-            "workoutExercises.workoutSets"
+            "workoutExercises.exercise"
     })
     @Query("SELECT w FROM Workout w WHERE w.workoutId = :workoutId")
     Optional<Workout> findByIdWithDetails(@Param("workoutId") UUID workoutId);
@@ -29,8 +28,7 @@ public interface WorkoutRepository extends JpaRepository<Workout, UUID> {
     @Override
     @EntityGraph(attributePaths = {
             "workoutExercises",
-            "workoutExercises.exercise",
-            "workoutExercises.workoutSets"
+            "workoutExercises.exercise"
     })
     Optional<Workout> findById(UUID workoutId);
 

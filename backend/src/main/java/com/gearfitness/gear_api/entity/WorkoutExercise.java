@@ -4,7 +4,9 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,11 +27,15 @@ public class WorkoutExercise {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "workout_id", nullable = false)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Workout workout;
 
     // CHANGED: fetch = FetchType.EAGER to load exercise details (name, bodyPart)
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "exercise_id", nullable = false)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Exercise exercise;
 
     @Column(nullable = false)
@@ -44,5 +50,7 @@ public class WorkoutExercise {
     @OneToMany(mappedBy = "workoutExercise", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @OrderBy("setNumber ASC")
     @Builder.Default
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private List<WorkoutSet> workoutSets = new ArrayList<>();
 }

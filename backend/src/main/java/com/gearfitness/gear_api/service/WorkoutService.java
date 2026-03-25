@@ -14,6 +14,7 @@ import com.gearfitness.gear_api.entity.WorkoutExercise;
 import com.gearfitness.gear_api.entity.WorkoutSet;
 import com.gearfitness.gear_api.repository.AppUserRepository;
 import com.gearfitness.gear_api.repository.ExerciseRepository;
+import com.gearfitness.gear_api.repository.NotificationRepository;
 import com.gearfitness.gear_api.repository.PostRepository;
 import com.gearfitness.gear_api.repository.WorkoutRepository;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +36,7 @@ public class WorkoutService {
     private final ExerciseRepository exerciseRepository;
     private final PostRepository postRepository;
     private final AppUserRepository appUserRepository;
+    private final NotificationRepository notificationRepository;
 
     @Transactional(readOnly = true)
     public List<Workout> getWorkoutsByUser(UUID userId) {
@@ -44,9 +46,12 @@ public class WorkoutService {
     }
 
     @Transactional(readOnly = true)
-    public WorkoutDetailDTO getWorkoutDetails(UUID workoutId) {
+    public WorkoutDetailDTO getWorkoutDetails(UUID workoutId, UUID requestingUserId) {
         Workout workout = workoutRepository.findById(workoutId)
                 .orElseThrow(() -> new RuntimeException("Workout not found with id: " + workoutId));
+
+        boolean isOwner = requestingUserId != null
+                && workout.getUser().getUserId().equals(requestingUserId);
 
         List<WorkoutExerciseDTO> exercises = workout.getWorkoutExercises()
                 .stream()
@@ -68,7 +73,7 @@ public class WorkoutService {
                             we.getExercise().getName(),
                             we.getExercise().getBodyPart().toString(),
                             we.getPosition(),
-                            we.getNote(),
+                            isOwner ? we.getNote() : null,
                             sets);
                 })
                 .collect(Collectors.toList());
@@ -159,7 +164,8 @@ public class WorkoutService {
         }
 
         // Calculate date range
-        // Extend endDate to the end of the current week (Saturday) to ensure full week is displayed
+        // Extend endDate to the end of the current week (Saturday) to ensure full week
+        // is displayed
         LocalDate endDate = LocalDate.now()
                 .with(TemporalAdjusters.nextOrSame(DayOfWeek.SATURDAY));
 
@@ -245,8 +251,8 @@ public class WorkoutService {
                 .user(user)
                 .name(submission.getName())
                 .datePerformed(submission.getDatePerformed() != null
-                    ? LocalDate.parse(submission.getDatePerformed())
-                    : LocalDate.now())
+                        ? LocalDate.parse(submission.getDatePerformed())
+                        : LocalDate.now())
                 .durationMin(submission.getDurationMin())
                 .bodyTags(submission.getBodyTags() != null ? submission.getBodyTags() : new ArrayList<>())
                 .workoutExercises(new ArrayList<>())
@@ -308,7 +314,7 @@ public class WorkoutService {
         }
 
         // Return workout details
-        return getWorkoutDetails(workout.getWorkoutId());
+        return getWorkoutDetails(workout.getWorkoutId(), userId);
     }
 
     @Transactional
@@ -319,6 +325,11 @@ public class WorkoutService {
         // Security check: Verify the user owns this workout
         if (!workout.getUser().getUserId().equals(userId)) {
             throw new IllegalArgumentException("User does not have permission to delete this workout");
+        }
+
+        if (workout.getPost() != null) {
+            notificationRepository.deleteAllByPost(workout.getPost());
+            notificationRepository.deleteAllByCommentIn(workout.getPost().getPostComments());
         }
 
         // Delete the workout - cascade will handle related entities

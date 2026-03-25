@@ -22,7 +22,7 @@ export function WorkoutSummary() {
   useTrackTab("WorkoutSummary");
 
   const isDark = useColorScheme() === "dark";
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation();
 
   const {
     seconds,

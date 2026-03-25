@@ -26,7 +26,7 @@ export function WorkoutComplete() {
   useTrackTab("WorkoutComplete");
 
   const isDark = useColorScheme() === "dark";
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation();
   const { exercises, seconds, reset } = useWorkoutTimer();
 
   const [workoutName, setWorkoutName] = useState("");
@@ -96,6 +96,7 @@ export function WorkoutComplete() {
             reps: set.reps,
             weight: set.weight,
           })),
+          note: ex.note || "",
         })),
         createPost: createPost,
         caption: createPost ? caption : undefined,

@@ -11,6 +11,7 @@ import apiClient from "./apiClient";
 export type FollowActivityDTO = {
   userId: string;
   username: string;
+  profilePictureUrl?: string;
   createdAt?: string; // ISO timestamp (optional for backward compatibility)
 };
 
