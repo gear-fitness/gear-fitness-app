@@ -1,15 +1,12 @@
 {
-  "name": "develop",
+  "name": "gear-fitness",
   "version": "1.0.0",
-  "description": "<img width=\"1916\" height=\"818\" alt=\"image\" src=\"https://github.com/user-attachments/assets/13036473-e0c7-4126-8bd4-68a00067088d\" />",
-  "main": "index.js",
+  "description": "Gear Fitness monorepo tooling",
+  "private": true,
   "scripts": {
     "format": "prettier --write \"**/*.java\" \"**/*.ts\" \"**/*.tsx\"",
     "format:check": "prettier --check \"**/*.java\" \"**/*.ts\" \"**/*.tsx\""
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "devDependencies": {
     "prettier-plugin-java": "^2.8.1"
   }
