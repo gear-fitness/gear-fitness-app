@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { useNavigation, useTheme } from "@react-navigation/native";
 import { useAuth } from "../../context/AuthContext";
+import { hasSeenOnboarding } from "../onboarding/storage";
 
 export function AuthLoadingScreen() {
   const { colors, dark } = useTheme();
@@ -17,11 +18,16 @@ export function AuthLoadingScreen() {
 
   useEffect(() => {
     if (!isLoading && !authError) {
-      // Auth initialization complete without error
-      navigation.reset({
-        index: 0,
-        routes: [{ name: isAuthenticated ? "HomeTabs" : "Login" }],
-      });
+      if (isAuthenticated) {
+        navigation.reset({ index: 0, routes: [{ name: "HomeTabs" }] });
+      } else {
+        hasSeenOnboarding().then((seen) => {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: seen ? "Login" : "Onboarding" }],
+          });
+        });
+      }
     }
   }, [isLoading, isAuthenticated, authError, navigation]);
 

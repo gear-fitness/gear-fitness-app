@@ -27,7 +27,7 @@ import { ExerciseDetail } from "./screens/ExerciseDetail";
 import { WorkoutSummary } from "./screens/WorkoutSummary";
 import { WorkoutComplete } from "./screens/WorkoutComplete";
 import { LoginScreen } from "./screens/Login";
-import { SignUpProfileScreen } from "./screens/SignUpProfile";
+import { OnboardingScreen } from "./screens/Onboarding";
 import { WorkoutChat } from "./screens/WorkoutChat";
 import { AuthLoadingScreen } from "./screens/AuthLoading";
 import { CommentsScreen } from "../components/CommentsScreen";
@@ -118,13 +118,9 @@ const RootStack = createNativeStackNavigator({
       screen: LoginScreen,
       options: { headerShown: false },
     },
-    SignUpProfile: {
-      screen: SignUpProfileScreen,
-      options: {
-        headerShown: true,
-        title: "Complete Profile",
-        headerBackVisible: false,
-      },
+    Onboarding: {
+      screen: OnboardingScreen,
+      options: { headerShown: false },
     },
     HomeTabs: {
       screen: HomeTabs,
@@ -301,6 +297,7 @@ declare global {
     interface RootParamList {
       AuthLoading: undefined;
       Login: undefined;
+      Onboarding: undefined;
       HomeTabs: undefined;
       History: undefined;
       Settings: undefined;
