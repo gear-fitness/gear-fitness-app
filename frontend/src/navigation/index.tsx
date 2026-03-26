@@ -14,7 +14,6 @@ import { Image, View, Text } from "react-native";
 import close from "../assets/close.png";
 
 /* SCREENS */
-import { Home } from "./screens/Home";
 import { Profile } from "./screens/Profile";
 import { Settings } from "./screens/Settings";
 import { Social } from "./screens/Social";

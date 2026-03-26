@@ -16,7 +16,6 @@ import {
   useTheme,
   useNavigation,
   useFocusEffect,
-  useRoute,
 } from "@react-navigation/native";
 
 import { socialFeedApi, FeedPost } from "../../api/socialFeedApi";

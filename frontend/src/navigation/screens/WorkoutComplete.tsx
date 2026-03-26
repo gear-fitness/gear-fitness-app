@@ -1,4 +1,3 @@
-// frontend/src/navigation/screens/WorkoutComplete.tsx
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Text,

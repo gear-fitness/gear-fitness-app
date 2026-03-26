@@ -1,5 +1,3 @@
-import { SafeAreaView } from "react-native-safe-area-context";
-import { KeyboardAvoidingView } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useEffect, useRef } from "react";
 

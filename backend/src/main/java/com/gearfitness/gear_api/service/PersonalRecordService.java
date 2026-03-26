@@ -1,7 +1,6 @@
 package com.gearfitness.gear_api.service;
 
 import com.gearfitness.gear_api.dto.PersonalRecordDTO;
-import com.gearfitness.gear_api.repository.WorkoutRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import java.math.BigDecimal;
@@ -16,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class PersonalRecordService {
 
   private final EntityManager entityManager;
-  private final WorkoutRepository workoutRepository;
 
   @Transactional(readOnly = true)
   public List<PersonalRecordDTO> getBigThreePRs(UUID userId) {

@@ -6,7 +6,6 @@ import {
   useColorScheme,
   ActivityIndicator,
   TouchableOpacity,
-  Alert,
 } from "react-native";
 import React, { useState, useEffect } from "react";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";

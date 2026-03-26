@@ -28,7 +28,6 @@ import { SymbolView } from "expo-symbols";
 
 import {
   useWorkoutTimer,
-  WorkoutExercise,
   WorkoutSet,
 } from "../context/WorkoutContext";
 import { useSwipeableDelete } from "../hooks/useSwipeableDelete";

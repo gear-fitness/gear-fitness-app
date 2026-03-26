@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useLayoutEffect, useMemo } from "react";
+import React, { useState, useLayoutEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -14,7 +14,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
-import { Routine } from "../../api/types";
 import {
   createRoutine,
   createRoutineFromWorkout,
@@ -36,26 +35,14 @@ const STEP_TITLES: Record<Step, string> = {
   workout: "Pick a Workout",
 };
 
-export function CreateRoutine({
-  route,
-}: {
-  route: { params?: { prefilledWorkoutId?: string } };
-}) {
+export function CreateRoutine({ route }: { route: { params?: { prefilledWorkoutId?: string } } }) {
   const navigation = useNavigation();
   const prefilledWorkoutId = route.params?.prefilledWorkoutId;
   const { user } = useAuth();
   const colors = useThemeColors();
 
-  const {
-    exercises,
-    loading: exercisesLoading,
-    fetchExercises,
-  } = useExerciseList(false);
-  const {
-    workouts,
-    loading: workoutsLoading,
-    fetchWorkouts,
-  } = useUserWorkouts();
+  const { exercises, loading: exercisesLoading, fetchExercises } = useExerciseList(false);
+  const { workouts, loading: workoutsLoading, fetchWorkouts } = useUserWorkouts();
 
   const [step, setStep] = useState<Step>("details");
   const [name, setName] = useState("");
@@ -63,7 +50,7 @@ export function CreateRoutine({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedExerciseIds, setSelectedExerciseIds] = useState<string[]>([]);
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(
-    prefilledWorkoutId ?? null,
+    prefilledWorkoutId ?? null
   );
   const [submitting, setSubmitting] = useState(false);
 
@@ -85,9 +72,7 @@ export function CreateRoutine({
       gestureEnabled: prevStep === null,
       headerLeft: () => (
         <BackButton
-          onPress={
-            prevStep ? () => setStep(prevStep) : () => navigation.goBack()
-          }
+          onPress={prevStep ? () => setStep(prevStep) : () => navigation.goBack()}
           color={colors.text}
         />
       ),
@@ -96,7 +81,7 @@ export function CreateRoutine({
 
   const toggleDay = (day: string) => {
     setSelectedDays((prev) =>
-      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day],
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
     );
   };
 
@@ -126,7 +111,7 @@ export function CreateRoutine({
     setSelectedExerciseIds((prev) =>
       prev.includes(exerciseId)
         ? prev.filter((id) => id !== exerciseId)
-        : [...prev, exerciseId],
+        : [...prev, exerciseId]
     );
   };
 
@@ -134,7 +119,7 @@ export function CreateRoutine({
     if (selectedExerciseIds.length === 0) {
       Alert.alert(
         "No exercises",
-        "Please select at least one exercise for your routine.",
+        "Please select at least one exercise for your routine."
       );
       return;
     }
@@ -211,9 +196,7 @@ export function CreateRoutine({
                   key={day}
                   style={[
                     styles.dayPill,
-                    {
-                      backgroundColor: active ? colors.pillActive : colors.pill,
-                    },
+                    { backgroundColor: active ? colors.pillActive : colors.pill },
                   ]}
                   onPress={() => toggleDay(day)}
                 >
@@ -270,9 +253,7 @@ export function CreateRoutine({
             <Text style={[styles.sourceCardTitle, { color: colors.text }]}>
               Build from scratch
             </Text>
-            <Text
-              style={[styles.sourceCardSubtitle, { color: colors.secondary }]}
-            >
+            <Text style={[styles.sourceCardSubtitle, { color: colors.secondary }]}>
               Search and add exercises manually
             </Text>
           </View>
@@ -291,9 +272,7 @@ export function CreateRoutine({
             <Text style={[styles.sourceCardTitle, { color: colors.text }]}>
               From a past workout
             </Text>
-            <Text
-              style={[styles.sourceCardSubtitle, { color: colors.secondary }]}
-            >
+            <Text style={[styles.sourceCardSubtitle, { color: colors.secondary }]}>
               Copy exercises from a completed workout
             </Text>
           </View>
@@ -346,9 +325,7 @@ export function CreateRoutine({
                     styles.exerciseRow,
                     {
                       borderBottomColor: colors.border,
-                      backgroundColor: selected
-                        ? colors.selected
-                        : "transparent",
+                      backgroundColor: selected ? colors.selected : "transparent",
                     },
                   ]}
                   onPress={() => toggleExercise(item.exerciseId)}
@@ -357,20 +334,13 @@ export function CreateRoutine({
                     <Text style={[styles.exerciseName, { color: colors.text }]}>
                       {item.name}
                     </Text>
-                    <Text
-                      style={[
-                        styles.exerciseBodyPart,
-                        { color: colors.secondary },
-                      ]}
-                    >
+                    <Text style={[styles.exerciseBodyPart, { color: colors.secondary }]}>
                       {item.bodyPart}
                     </Text>
                   </View>
                   {selected && (
                     <View style={styles.positionBadge}>
-                      <Text style={styles.positionBadgeText}>
-                        {posIndex + 1}
-                      </Text>
+                      <Text style={styles.positionBadgeText}>{posIndex + 1}</Text>
                     </View>
                   )}
                 </TouchableOpacity>
@@ -382,10 +352,7 @@ export function CreateRoutine({
 
         <SafeAreaView
           edges={["bottom"]}
-          style={[
-            styles.stickyBottom,
-            { backgroundColor: colors.bg, borderTopColor: colors.border },
-          ]}
+          style={[styles.stickyBottom, { backgroundColor: colors.bg, borderTopColor: colors.border }]}
         >
           <TouchableOpacity
             style={[styles.primaryButton, submitting && styles.disabledButton]}
@@ -437,20 +404,12 @@ export function CreateRoutine({
                   <Text style={[styles.exerciseName, { color: colors.text }]}>
                     {item.name}
                   </Text>
-                  <Text
-                    style={[
-                      styles.exerciseBodyPart,
-                      { color: colors.secondary },
-                    ]}
-                  >
-                    {parseLocalDate(item.datePerformed).toLocaleDateString(
-                      "en-US",
-                      {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      },
-                    )}
+                  <Text style={[styles.exerciseBodyPart, { color: colors.secondary }]}>
+                    {parseLocalDate(item.datePerformed).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
                   </Text>
                 </View>
                 {selected && <Text style={styles.checkmark}>✓</Text>}
@@ -463,10 +422,7 @@ export function CreateRoutine({
 
       <SafeAreaView
         edges={["bottom"]}
-        style={[
-          styles.stickyBottom,
-          { backgroundColor: colors.bg, borderTopColor: colors.border },
-        ]}
+        style={[styles.stickyBottom, { backgroundColor: colors.bg, borderTopColor: colors.border }]}
       >
         <TouchableOpacity
           style={[
