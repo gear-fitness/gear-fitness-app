@@ -1,0 +1,15 @@
+{
+  "name": "develop",
+  "version": "1.0.0",
+  "description": "<img width=\"1916\" height=\"818\" alt=\"image\" src=\"https://github.com/user-attachments/assets/13036473-e0c7-4126-8bd4-68a00067088d\" />",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "prettier-plugin-java": "^2.8.1"
+  }
+}
