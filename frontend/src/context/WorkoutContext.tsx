@@ -181,8 +181,6 @@ export function WorkoutTimerProvider({
       setCurrentExerciseId(parsed.currentExerciseId);
       setActiveTab(parsed.activeTab);
       restoreTimerState(parsed);
-
-      console.log("Workout state restored successfully");
     } catch (error) {
       console.error("Failed to restore workout state:", error);
       await AsyncStorage.removeItem(STORAGE_KEY);
@@ -252,13 +250,8 @@ export function WorkoutTimerProvider({
           const now = Date.now();
           const currentElapsed = Math.floor((now - startTimestamp) / 1000);
           setSeconds(totalElapsedSeconds + currentElapsed);
-          console.log(
-            "App returned to foreground, timer synced to:",
-            totalElapsedSeconds + currentElapsed,
-          );
         } else if (nextAppState.match(/inactive|background/)) {
           // App going to background - save immediately (no debounce)
-          console.log("App going to background, saving state...");
           saveWorkoutState(true);
         }
       },

@@ -74,8 +74,6 @@ public class ExerciseController {
     @PathVariable UUID exerciseId,
     @RequestHeader("Authorization") String authHeader
   ) {
-    System.out.println("=== History endpoint hit for: " + exerciseId);
-
     try {
       String token = authHeader.substring(7);
       UUID userId = jwtService.extractUserId(token);
