@@ -1,4 +1,3 @@
-import { getAuthHeader } from "../utils/auth";
 import apiClient from "./apiClient";
 
 export interface Page<T> {

@@ -3,7 +3,6 @@
  * API calls for workout-related data
  */
 
-import { getAuthHeader } from "../utils/auth";
 import apiClient from "./apiClient";
 import {
   DailyVolumeData,
@@ -12,8 +11,6 @@ import {
   WorkoutDetail,
   PersonalRecord,
 } from "./types";
-
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 
 export interface WorkoutSubmission {
   name: string;
