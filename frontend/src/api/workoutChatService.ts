@@ -2,10 +2,7 @@
  * Workout Chat service
  * API calls for AI chat about general workout / exercise topics
  */
-
-import { getAuthHeader } from "../utils/auth";
-
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL;
+import apiClient from "./apiClient";
 
 export interface ChatMessage {
   text: string;
@@ -26,21 +23,8 @@ export interface ChatResponse {
 export async function sendWorkoutChat(
   messages: ChatMessage[],
 ): Promise<ChatResponse> {
-  const authHeader = await getAuthHeader();
-
-  const response = await fetch(`${API_BASE_URL}/api/workout-chat`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...authHeader,
-    },
-    body: JSON.stringify({ messages }),
+  const { data } = await apiClient.post<ChatResponse>("/workout-chat", {
+    messages,
   });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Chat failed: ${errorText}`);
-  }
-
-  return response.json();
+  return data;
 }

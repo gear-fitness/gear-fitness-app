@@ -5,30 +5,40 @@
 
 import * as SecureStore from "expo-secure-store";
 
-const TOKEN_KEY = "authToken";
+const ACCESS_TOKEN_KEY = "accessToken";
+const REFRESH_TOKEN_KEY = "refreshToken";
 
 /**
- * Store JWT token securely
+ * Store both access and refresh tokens
  */
-export async function storeToken(token: string): Promise<void> {
-  try {
-    await SecureStore.setItemAsync(TOKEN_KEY, token);
-  } catch (error) {
-    console.error("Failed to store token:", error);
-    throw new Error("Failed to store authentication token");
-  }
+export async function storeTokens(
+  accessToken: string,
+  refreshToken: string,
+): Promise<void> {
+  await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, accessToken);
+  await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refreshToken);
 }
 
 /**
  * Get the authentication token from SecureStore
  * @returns The JWT token or null if not found
  */
-export async function getAuthToken(): Promise<string | null> {
+export async function getAccessToken(): Promise<string | null> {
   try {
-    const token = await SecureStore.getItemAsync(TOKEN_KEY);
+    const token = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
     return token;
   } catch (error) {
-    console.error("Error retrieving auth token:", error);
+    console.error("Error retrieving access token:", error);
+    return null;
+  }
+}
+
+/** Get refresh token */
+export async function getRefreshToken(): Promise<string | null> {
+  try {
+    return await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+  } catch (error) {
+    console.error("Error retrieving refresh token:", error);
     return null;
   }
 }
@@ -38,7 +48,7 @@ export async function getAuthToken(): Promise<string | null> {
  * @returns Object with Authorization header or empty object if no token
  */
 export async function getAuthHeader(): Promise<{ Authorization?: string }> {
-  const token = await getAuthToken();
+  const token = await getAccessToken();
   if (!token) {
     return {};
   }
@@ -47,33 +57,18 @@ export async function getAuthHeader(): Promise<{ Authorization?: string }> {
   };
 }
 
-/**
- * Save the authentication token to SecureStore
- * @param token The JWT token to save
- */
-export async function setAuthToken(token: string): Promise<void> {
+/** Clear all auth tokens */
+export async function clearAuthTokens(): Promise<void> {
   try {
-    await SecureStore.setItemAsync(TOKEN_KEY, token);
+    await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
+    await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
   } catch (error) {
-    console.error("Error saving auth token:", error);
+    console.error("Error clearing auth tokens:", error);
   }
 }
 
-/**
- * Remove the authentication token from SecureStore
- */
-export async function clearAuthToken(): Promise<void> {
-  try {
-    await SecureStore.deleteItemAsync(TOKEN_KEY);
-  } catch (error) {
-    console.error("Error clearing auth token:", error);
-  }
-}
-
-/**
- * Check if user is authenticated (has valid token)
- */
-export async function isAuthenticated(): Promise<boolean> {
-  const token = await getAuthToken();
-  return token !== null;
+/** Check if user has tokens stored */
+export async function hasStoredTokens(): Promise<boolean> {
+  const accessToken = await getAccessToken();
+  return accessToken !== null;
 }

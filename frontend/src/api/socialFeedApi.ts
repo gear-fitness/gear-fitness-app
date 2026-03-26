@@ -1,4 +1,4 @@
-import { getAuthHeader } from "../utils/auth";
+import apiClient from "./apiClient";
 
 export interface Page<T> {
   content: T[];
@@ -42,109 +42,40 @@ export interface Comment {
 
 export const socialFeedApi = {
   getFeed: async (page: number, size: number = 20): Promise<Page<FeedPost>> => {
-    const authHeader = await getAuthHeader();
-    const response = await fetch(
-      `${process.env.EXPO_PUBLIC_API_URL}/api/feed?page=${page}&size=${size}`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          ...authHeader,
-        },
-      }
-    );
-
-    console.log("Response status:", response.status);
-    console.log("Response ok:", response.ok);
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch feed");
-    }
-
-    return response.json();
+    const { data } = await apiClient.get("/feed", { params: { page, size } });
+    return data;
   },
 
-  getUserPosts: async (userId: string, page: number, size: number = 20): Promise<Page<FeedPost>> => {
-    const authHeader = await getAuthHeader();
-    const response = await fetch(
-      `${process.env.EXPO_PUBLIC_API_URL}/api/feed/user/${userId}?page=${page}&size=${size}`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          ...authHeader,
-        },
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch user posts");
-    }
-
-    return response.json();
+  getUserPosts: async (
+    userId: string,
+    page: number,
+    size: number = 20,
+  ): Promise<Page<FeedPost>> => {
+    const { data } = await apiClient.get(`/feed/user/${userId}`, {
+      params: { page, size },
+    });
+    return data;
   },
   toggleLike: async (postId: string): Promise<{ liked: boolean }> => {
-    const authHeader = await getAuthHeader();
-    const response = await fetch(
-      `${process.env.EXPO_PUBLIC_API_URL}/api/posts/${postId}/like`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...authHeader,
-        },
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error("Failed to toggle like");
-    }
-
-    return response.json();
+    const { data } = await apiClient.post(`/posts/${postId}/like`);
+    return data;
   },
 
   getComments: async (
     postId: string,
     page: number = 0,
-    size: number = 20
+    size: number = 20,
   ): Promise<Page<Comment>> => {
-    const authHeader = await getAuthHeader();
-    const response = await fetch(
-      `${process.env.EXPO_PUBLIC_API_URL}/api/posts/${postId}/comments?page=${page}&size=${size}`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          ...authHeader,
-        },
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch comments");
-    }
-
-    return response.json();
+    const { data } = await apiClient.get(`/posts/${postId}/comments`, {
+      params: { page, size },
+    });
+    return data;
   },
 
   addComment: async (postId: string, body: string): Promise<Comment> => {
-    const authHeader = await getAuthHeader();
-    const response = await fetch(
-      `${process.env.EXPO_PUBLIC_API_URL}/api/posts/${postId}/comments`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...authHeader,
-        },
-        body: JSON.stringify({ body }),
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error("Failed to add comment");
-    }
-
-    return response.json();
+    const { data } = await apiClient.post(`/posts/${postId}/comments`, {
+      body,
+    });
+    return data;
   },
 };

@@ -1,4 +1,4 @@
-import { getAuthHeader } from "../utils/auth";
+import apiClient from "./apiClient";
 
 export interface NotificationDTO {
   notificationId: string;
@@ -13,109 +13,24 @@ export interface NotificationDTO {
 
 export const notificationService = {
   getUnreadCount: async (): Promise<number> => {
-    const authHeader = await getAuthHeader();
-
-    const response = await fetch(
-      `${process.env.EXPO_PUBLIC_API_URL}/api/notifications/unread-count`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          ...authHeader,
-        },
-      },
-    );
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch unread count");
-    }
-
-    return response.json();
+    const { data } = await apiClient.get<number>("/notifications/unread-count");
+    return data;
   },
 
   getNotifications: async (): Promise<NotificationDTO[]> => {
-    const authHeader = await getAuthHeader();
-
-    console.log(
-      "Calling:",
-      `${process.env.EXPO_PUBLIC_API_URL}/api/notifications`,
-    );
-    console.log("Auth header:", authHeader);
-
-    const response = await fetch(
-      `${process.env.EXPO_PUBLIC_API_URL}/api/notifications`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          ...authHeader,
-        },
-      },
-    );
-
-    console.log("Status:", response.status);
-
-    const text = await response.text();
-    console.log("Response body:", text);
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch notifications");
-    }
-
-    return JSON.parse(text);
+    const { data } = await apiClient.get<NotificationDTO[]>("/notifications");
+    return data;
   },
 
   markNotificationsRead: async (): Promise<void> => {
-    const authHeader = await getAuthHeader();
-
-    const response = await fetch(
-      `${process.env.EXPO_PUBLIC_API_URL}/api/notifications/mark-read`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...authHeader,
-        },
-      },
-    );
-
-    if (!response.ok) {
-      throw new Error("Failed to mark notifications read");
-    }
+    await apiClient.post("/notifications/mark-read");
   },
 
   registerToken: async (pushToken: string): Promise<void> => {
-    const authHeader = await getAuthHeader();
-    const response = await fetch(
-      `${process.env.EXPO_PUBLIC_API_URL}/api/notifications/token`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...authHeader,
-        },
-        body: JSON.stringify({ token: pushToken }),
-      },
-    );
-    if (!response.ok) {
-      throw new Error("Failed to register push token");
-    }
+    await apiClient.post("/notifications/token", { token: pushToken });
   },
 
   unregisterToken: async (): Promise<void> => {
-    const authHeader = await getAuthHeader();
-    const response = await fetch(
-      `${process.env.EXPO_PUBLIC_API_URL}/api/notifications/token`,
-      {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          ...authHeader,
-        },
-      },
-    );
-    if (!response.ok) {
-      throw new Error("Failed to unregister push token");
-    }
+    await apiClient.delete("/notifications/token");
   },
 };

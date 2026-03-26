@@ -25,10 +25,10 @@ export function LoginScreen() {
           throw new Error("No ID token received from Google");
         }
 
-        const { token, newUser } = await loginWithGoogle(idToken);
+        const { token, refreshToken, newUser } = await loginWithGoogle(idToken);
 
-        // Store this token for future API calls
-        await login(token);
+        //store tokens
+        await login(token, refreshToken);
 
         const { name, email, photo } = user;
         console.log("User Info:", { name, email, photo });
