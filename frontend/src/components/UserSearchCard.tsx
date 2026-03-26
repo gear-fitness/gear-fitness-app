@@ -8,7 +8,11 @@ type Props = {
   onPress: () => void;
 };
 
-export function UserSearchCard({ username, profilePictureUrl, onPress }: Props) {
+export function UserSearchCard({
+  username,
+  profilePictureUrl,
+  onPress,
+}: Props) {
   const { colors } = useTheme();
 
   return (

@@ -23,7 +23,11 @@ import { DAYS, DAY_FULL, DAY_SHORT } from "../../utils/days";
 import { useThemeColors } from "../../hooks/useThemeColors";
 import { useExerciseList } from "../../hooks/useExerciseList";
 
-export function EditRoutine({ route }: { route: { params: { routine: Routine } } }) {
+export function EditRoutine({
+  route,
+}: {
+  route: { params: { routine: Routine } };
+}) {
   const { routine } = route.params;
   const navigation = useNavigation();
   const colors = useThemeColors();
@@ -32,12 +36,13 @@ export function EditRoutine({ route }: { route: { params: { routine: Routine } }
   const [selectedDays, setSelectedDays] = useState<string[]>(
     routine.scheduledDays
       .map((d) => DAY_SHORT[d])
-      .filter((d): d is string => Boolean(d))
+      .filter((d): d is string => Boolean(d)),
   );
   const [selectedExercises, setSelectedExercises] = useState<RoutineExercise[]>(
-    [...routine.exercises].sort((a, b) => a.position - b.position)
+    [...routine.exercises].sort((a, b) => a.position - b.position),
   );
-  const { exercises: allExercises, loading: loadingExercises } = useExerciseList();
+  const { exercises: allExercises, loading: loadingExercises } =
+    useExerciseList();
   const [saving, setSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -75,7 +80,11 @@ export function EditRoutine({ route }: { route: { params: { routine: Routine } }
         <BackButton onPress={() => navigation.goBack()} color={colors.text} />
       ),
       headerRight: () => (
-        <TouchableOpacity onPress={handleSave} disabled={saving} style={styles.saveButton}>
+        <TouchableOpacity
+          onPress={handleSave}
+          disabled={saving}
+          style={styles.saveButton}
+        >
           {saving ? (
             <ActivityIndicator size="small" color="#007AFF" />
           ) : (
@@ -88,7 +97,7 @@ export function EditRoutine({ route }: { route: { params: { routine: Routine } }
 
   const selectedExerciseIds = useMemo(
     () => new Set(selectedExercises.map((ex) => ex.exerciseId)),
-    [selectedExercises]
+    [selectedExercises],
   );
 
   const filteredExercises = useMemo(() => {
@@ -105,12 +114,14 @@ export function EditRoutine({ route }: { route: { params: { routine: Routine } }
 
   const toggleDay = (day: string) => {
     setSelectedDays((prev) =>
-      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day],
     );
   };
 
   const removeExercise = (exerciseId: string) => {
-    setSelectedExercises((prev) => prev.filter((ex) => ex.exerciseId !== exerciseId));
+    setSelectedExercises((prev) =>
+      prev.filter((ex) => ex.exerciseId !== exerciseId),
+    );
   };
 
   const addExercise = (exercise: Exercise) => {
@@ -143,38 +154,48 @@ export function EditRoutine({ route }: { route: { params: { routine: Routine } }
     return (
       <ScaleDecorator activeScale={1.03}>
         <View style={styles.selectedRowWrapper}>
-        <Swipeable {...getSwipeableProps(item.exerciseId)}>
-          <View
-            style={[
-              styles.selectedRow,
-              {
-                backgroundColor: isActive
-                  ? colors.isDark ? "#2A2A2C" : "#E8E8ED"
-                  : colors.surface,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <View style={styles.selectedInfo}>
-              <Text style={[styles.selectedTitle, { color: colors.text }]}>
-                {index + 1}. {item.exerciseName}
-              </Text>
-              <Text style={[styles.selectedSubtitle, { color: colors.secondary }]}>
-                {item.bodyPart}
-              </Text>
-            </View>
-            <TouchableOpacity
-              onLongPress={drag}
-              delayLongPress={150}
-              style={styles.dragHandle}
-              hitSlop={8}
+          <Swipeable {...getSwipeableProps(item.exerciseId)}>
+            <View
+              style={[
+                styles.selectedRow,
+                {
+                  backgroundColor: isActive
+                    ? colors.isDark
+                      ? "#2A2A2C"
+                      : "#E8E8ED"
+                    : colors.surface,
+                  borderColor: colors.border,
+                },
+              ]}
             >
-              <View style={[styles.handleBar, { backgroundColor: colors.handle }]} />
-              <View style={[styles.handleBar, { backgroundColor: colors.handle }]} />
-              <View style={[styles.handleBar, { backgroundColor: colors.handle }]} />
-            </TouchableOpacity>
-          </View>
-        </Swipeable>
+              <View style={styles.selectedInfo}>
+                <Text style={[styles.selectedTitle, { color: colors.text }]}>
+                  {index + 1}. {item.exerciseName}
+                </Text>
+                <Text
+                  style={[styles.selectedSubtitle, { color: colors.secondary }]}
+                >
+                  {item.bodyPart}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onLongPress={drag}
+                delayLongPress={150}
+                style={styles.dragHandle}
+                hitSlop={8}
+              >
+                <View
+                  style={[styles.handleBar, { backgroundColor: colors.handle }]}
+                />
+                <View
+                  style={[styles.handleBar, { backgroundColor: colors.handle }]}
+                />
+                <View
+                  style={[styles.handleBar, { backgroundColor: colors.handle }]}
+                />
+              </TouchableOpacity>
+            </View>
+          </Swipeable>
         </View>
       </ScaleDecorator>
     );
@@ -182,11 +203,17 @@ export function EditRoutine({ route }: { route: { params: { routine: Routine } }
 
   const ListHeader = () => (
     <View style={styles.listHeaderContent}>
-      <Text style={[styles.label, { color: colors.secondary }]}>ROUTINE NAME</Text>
+      <Text style={[styles.label, { color: colors.secondary }]}>
+        ROUTINE NAME
+      </Text>
       <TextInput
         style={[
           styles.input,
-          { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border },
+          {
+            backgroundColor: colors.inputBg,
+            color: colors.text,
+            borderColor: colors.border,
+          },
         ]}
         value={name}
         onChangeText={setName}
@@ -194,7 +221,9 @@ export function EditRoutine({ route }: { route: { params: { routine: Routine } }
         placeholderTextColor={colors.secondary}
       />
 
-      <Text style={[styles.label, { color: colors.secondary }]}>SCHEDULED DAYS</Text>
+      <Text style={[styles.label, { color: colors.secondary }]}>
+        SCHEDULED DAYS
+      </Text>
       <View style={styles.daysRow}>
         {DAYS.map((day) => {
           const active = selectedDays.includes(day);
@@ -233,11 +262,17 @@ export function EditRoutine({ route }: { route: { params: { routine: Routine } }
 
   const ListFooter = () => (
     <View style={styles.listFooterContent}>
-      <Text style={[styles.label, { color: colors.secondary }]}>ADD EXERCISES</Text>
+      <Text style={[styles.label, { color: colors.secondary }]}>
+        ADD EXERCISES
+      </Text>
       <TextInput
         style={[
           styles.input,
-          { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border },
+          {
+            backgroundColor: colors.inputBg,
+            color: colors.text,
+            borderColor: colors.border,
+          },
         ]}
         value={searchQuery}
         onChangeText={setSearchQuery}
@@ -255,13 +290,20 @@ export function EditRoutine({ route }: { route: { params: { routine: Routine } }
             key={item.exerciseId}
             style={[
               styles.availableRow,
-              { borderBottomColor: colors.border, backgroundColor: colors.surface },
+              {
+                borderBottomColor: colors.border,
+                backgroundColor: colors.surface,
+              },
             ]}
             onPress={() => addExercise(item)}
           >
             <View style={styles.selectedInfo}>
-              <Text style={[styles.selectedTitle, { color: colors.text }]}>{item.name}</Text>
-              <Text style={[styles.selectedSubtitle, { color: colors.secondary }]}>
+              <Text style={[styles.selectedTitle, { color: colors.text }]}>
+                {item.name}
+              </Text>
+              <Text
+                style={[styles.selectedSubtitle, { color: colors.secondary }]}
+              >
                 {item.bodyPart}
               </Text>
             </View>

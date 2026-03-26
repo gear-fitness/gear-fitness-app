@@ -30,7 +30,11 @@ function getBodyPartsSummary(routine: Routine): string {
 
 export function RoutineList() {
   const { navigation, colors } = useThemedHeader((c) => ({
-    headerTitleStyle: { color: c.text, fontWeight: "800" as const, fontSize: 30 },
+    headerTitleStyle: {
+      color: c.text,
+      fontWeight: "800" as const,
+      fontSize: 30,
+    },
   }));
 
   const [routines, setRoutines] = useState<Routine[]>([]);
@@ -78,29 +82,34 @@ export function RoutineList() {
           <TouchableOpacity
             style={[
               styles.card,
-              { backgroundColor: colors.surface, borderColor: colors.cardBorder },
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.cardBorder,
+              },
             ]}
             onPress={() =>
-              navigation.navigate("RoutineDetail", { routineId: item.routineId })
+              navigation.navigate("RoutineDetail", {
+                routineId: item.routineId,
+              })
             }
             activeOpacity={0.7}
           >
-          {dayLabel !== "" && (
-            <Text style={[styles.dayLabel, { color: colors.secondary }]}>
-              {dayLabel.toUpperCase()}
+            {dayLabel !== "" && (
+              <Text style={[styles.dayLabel, { color: colors.secondary }]}>
+                {dayLabel.toUpperCase()}
+              </Text>
+            )}
+            <Text style={[styles.cardTitle, { color: colors.text }]}>
+              {item.name}
             </Text>
-          )}
-          <Text style={[styles.cardTitle, { color: colors.text }]}>
-            {item.name}
-          </Text>
-          {bodyParts !== "" && (
-            <Text
-              style={[styles.cardBodyParts, { color: colors.secondary }]}
-              numberOfLines={1}
-            >
-              {bodyParts.toUpperCase()}
-            </Text>
-          )}
+            {bodyParts !== "" && (
+              <Text
+                style={[styles.cardBodyParts, { color: colors.secondary }]}
+                numberOfLines={1}
+              >
+                {bodyParts.toUpperCase()}
+              </Text>
+            )}
           </TouchableOpacity>
         </Swipeable>
       </View>
@@ -118,7 +127,6 @@ export function RoutineList() {
       </Text>
     </TouchableOpacity>
   );
-
 
   if (loading) {
     return (
@@ -147,7 +155,6 @@ export function RoutineList() {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       />
-
     </SafeAreaView>
   );
 }

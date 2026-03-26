@@ -3,70 +3,67 @@ package com.gearfitness.gear_api.controller;
 import com.gearfitness.gear_api.dto.NotificationDTO;
 import com.gearfitness.gear_api.security.JwtService;
 import com.gearfitness.gear_api.service.NotificationService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/notifications")
 @RequiredArgsConstructor
 public class NotificationController {
 
-    private final NotificationService notificationService;
-    private final JwtService jwtService;
+  private final NotificationService notificationService;
+  private final JwtService jwtService;
 
-    @GetMapping
-    public List<NotificationDTO> getNotifications(
-            @RequestHeader("Authorization") String authHeader) {
+  @GetMapping
+  public List<NotificationDTO> getNotifications(
+    @RequestHeader("Authorization") String authHeader
+  ) {
+    String token = authHeader.substring(7);
+    UUID userId = jwtService.extractUserId(token);
 
-        String token = authHeader.substring(7);
-        UUID userId = jwtService.extractUserId(token);
+    return notificationService.getNotificationsForUser(userId);
+  }
 
-        return notificationService.getNotificationsForUser(userId);
-    }
+  @GetMapping("/unread-count")
+  public long getUnreadCount(
+    @RequestHeader("Authorization") String authHeader
+  ) {
+    String token = authHeader.substring(7);
+    UUID userId = jwtService.extractUserId(token);
 
-    @GetMapping("/unread-count")
-    public long getUnreadCount(
-            @RequestHeader("Authorization") String authHeader) {
+    return notificationService.getUnreadCount(userId);
+  }
 
-        String token = authHeader.substring(7);
-        UUID userId = jwtService.extractUserId(token);
+  @PostMapping("/mark-read")
+  public void markAllAsRead(@RequestHeader("Authorization") String authHeader) {
+    String token = authHeader.substring(7);
+    UUID userId = jwtService.extractUserId(token);
 
-        return notificationService.getUnreadCount(userId);
-    }
+    notificationService.markAllAsRead(userId);
+  }
 
-    @PostMapping("/mark-read")
-    public void markAllAsRead(
-            @RequestHeader("Authorization") String authHeader) {
+  @PostMapping("/token")
+  public void registerToken(
+    @RequestHeader("Authorization") String authHeader,
+    @RequestBody Map<String, String> body
+  ) {
+    String token = authHeader.substring(7);
+    UUID userId = jwtService.extractUserId(token);
+    String pushToken = body.get("token");
 
-        String token = authHeader.substring(7);
-        UUID userId = jwtService.extractUserId(token);
+    notificationService.registerPushToken(userId, pushToken);
+  }
 
-        notificationService.markAllAsRead(userId);
-    }
+  @DeleteMapping("/token")
+  public void unregisterToken(
+    @RequestHeader("Authorization") String authHeader
+  ) {
+    String token = authHeader.substring(7);
+    UUID userId = jwtService.extractUserId(token);
 
-    @PostMapping("/token")
-    public void registerToken(
-            @RequestHeader("Authorization") String authHeader,
-            @RequestBody Map<String, String> body) {
-
-        String token = authHeader.substring(7);
-        UUID userId = jwtService.extractUserId(token);
-        String pushToken = body.get("token");
-
-        notificationService.registerPushToken(userId, pushToken);
-    }
-
-    @DeleteMapping("/token")
-    public void unregisterToken(
-            @RequestHeader("Authorization") String authHeader) {
-
-        String token = authHeader.substring(7);
-        UUID userId = jwtService.extractUserId(token);
-
-        notificationService.unregisterPushToken(userId);
-    }
+    notificationService.unregisterPushToken(userId);
+  }
 }

@@ -9,7 +9,11 @@ interface BackButtonProps {
 
 const CONTAINER_SIZE = 36;
 
-export function BackButton({ onPress, color = "#fff", size = 28 }: BackButtonProps) {
+export function BackButton({
+  onPress,
+  color = "#fff",
+  size = 28,
+}: BackButtonProps) {
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -17,7 +21,9 @@ export function BackButton({ onPress, color = "#fff", size = 28 }: BackButtonPro
       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       activeOpacity={0.5}
     >
-      <Text style={{ color, fontSize: size, includeFontPadding: false }}>←</Text>
+      <Text style={{ color, fontSize: size, includeFontPadding: false }}>
+        ←
+      </Text>
     </TouchableOpacity>
   );
 }

@@ -18,7 +18,11 @@ import { useThemedHeader } from "../../hooks/useThemedHeader";
 import { StartCountdownOverlay } from "../../components/StartCountdownOverlay";
 import { useStartCountdown } from "../../hooks/useStartCountdown";
 
-export function RoutineDetail({ route }: { route: { params: { routineId: string } } }) {
+export function RoutineDetail({
+  route,
+}: {
+  route: { params: { routineId: string } };
+}) {
   const { routineId } = route.params;
   const { loadFromRoutine } = useWorkoutTimer();
   const { navigation, colors } = useThemedHeader(() => ({ title: "" }));
@@ -43,14 +47,14 @@ export function RoutineDetail({ route }: { route: { params: { routineId: string 
         }
       };
       loadRoutine();
-    }, [routineId])
+    }, [routineId]),
   );
 
   const startRoutineWorkout = async () => {
     if (!routine || routine.exercises.length === 0) {
       Alert.alert(
         "No exercises",
-        "This routine has no exercises to start a workout with."
+        "This routine has no exercises to start a workout with.",
       );
       return;
     }
@@ -60,7 +64,7 @@ export function RoutineDetail({ route }: { route: { params: { routineId: string 
         routine.exercises.map((ex) => ({
           exerciseId: ex.exerciseId,
           name: ex.exerciseName,
-        }))
+        })),
       );
       (navigation as any).navigate("WorkoutSummary");
     } finally {
@@ -82,7 +86,7 @@ export function RoutineDetail({ route }: { route: { params: { routineId: string 
     if (!routine || routine.exercises.length === 0) {
       Alert.alert(
         "No exercises",
-        "This routine has no exercises to start a workout with."
+        "This routine has no exercises to start a workout with.",
       );
       return;
     }
@@ -105,19 +109,28 @@ export function RoutineDetail({ route }: { route: { params: { routineId: string 
               await deleteRoutine(routineId);
               navigation.goBack();
             } catch {
-              Alert.alert("Error", "Failed to delete routine. Please try again.");
+              Alert.alert(
+                "Error",
+                "Failed to delete routine. Please try again.",
+              );
             } finally {
               setDeleting(false);
             }
           },
         },
-      ]
+      ],
     );
   };
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.centered, { backgroundColor: colors.bg }]}>
+      <View
+        style={[
+          styles.container,
+          styles.centered,
+          { backgroundColor: colors.bg },
+        ]}
+      >
         <ActivityIndicator size="large" color="#007AFF" />
       </View>
     );
@@ -125,7 +138,13 @@ export function RoutineDetail({ route }: { route: { params: { routineId: string 
 
   if (error || !routine) {
     return (
-      <View style={[styles.container, styles.centered, { backgroundColor: colors.bg }]}>
+      <View
+        style={[
+          styles.container,
+          styles.centered,
+          { backgroundColor: colors.bg },
+        ]}
+      >
         <Text style={[styles.errorText, { color: colors.text }]}>
           {error ?? "Routine not found"}
         </Text>
@@ -148,7 +167,8 @@ export function RoutineDetail({ route }: { route: { params: { routineId: string 
           <TouchableOpacity
             style={styles.editButton}
             onPress={() =>
-              routine && (navigation as any).navigate("EditRoutine", { routine })
+              routine &&
+              (navigation as any).navigate("EditRoutine", { routine })
             }
           >
             <Text style={styles.editButtonText}>Edit</Text>
@@ -205,9 +225,7 @@ export function RoutineDetail({ route }: { route: { params: { routineId: string 
                     </Text>
                   </View>
                   <View style={styles.exerciseInfo}>
-                    <Text
-                      style={[styles.exerciseName, { color: colors.text }]}
-                    >
+                    <Text style={[styles.exerciseName, { color: colors.text }]}>
                       {ex.exerciseName}
                     </Text>
                     <Text
@@ -267,7 +285,9 @@ export function RoutineDetail({ route }: { route: { params: { routineId: string 
               <ActivityIndicator color="#007AFF" />
             ) : (
               <>
-                <Text style={[styles.startIcon, { color: colors.text }]}>▶</Text>
+                <Text style={[styles.startIcon, { color: colors.text }]}>
+                  ▶
+                </Text>
                 <Text style={[styles.startButtonText, { color: colors.text }]}>
                   Start Workout
                 </Text>

@@ -196,7 +196,7 @@ export function Profile() {
       const manipulated = await ImageManipulator.manipulateAsync(
         result.assets[0].uri,
         [{ resize: { width: 300 } }],
-        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG },
       );
 
       await uploadProfilePicture(manipulated.uri);

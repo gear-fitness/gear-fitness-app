@@ -16,14 +16,19 @@ export function useThemedHeader(
   useLayoutEffect(() => {
     const custom = getOptions?.(colors) ?? {};
     const defaultHeaderLeft = navigation.canGoBack()
-      ? () => React.createElement(BackButton, {
-          onPress: () => navigation.goBack(),
-          color: colors.text,
-        })
+      ? () =>
+          React.createElement(BackButton, {
+            onPress: () => navigation.goBack(),
+            color: colors.text,
+          })
       : undefined;
     navigation.setOptions({
       headerStyle: { backgroundColor: colors.bg },
-      headerTitleStyle: { color: colors.text, fontWeight: "700" as const, fontSize: 17 },
+      headerTitleStyle: {
+        color: colors.text,
+        fontWeight: "700" as const,
+        fontSize: 17,
+      },
       headerTintColor: colors.text,
       headerShadowVisible: false,
       headerLeft: defaultHeaderLeft,

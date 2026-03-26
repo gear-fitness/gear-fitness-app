@@ -1,16 +1,15 @@
 package com.gearfitness.gear_api.entity;
 
 import jakarta.persistence.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
 
 @Entity
 @Table(name = "workout_exercise")
@@ -20,37 +19,42 @@ import java.util.UUID;
 @Builder
 public class WorkoutExercise {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "workout_exercise_id")
-    private UUID workoutExerciseId;
+  @Id
+  @GeneratedValue(strategy = GenerationType.UUID)
+  @Column(name = "workout_exercise_id")
+  private UUID workoutExerciseId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "workout_id", nullable = false)
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
-    private Workout workout;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "workout_id", nullable = false)
+  @ToString.Exclude
+  @EqualsAndHashCode.Exclude
+  private Workout workout;
 
-    // CHANGED: fetch = FetchType.EAGER to load exercise details (name, bodyPart)
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "exercise_id", nullable = false)
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
-    private Exercise exercise;
+  // CHANGED: fetch = FetchType.EAGER to load exercise details (name, bodyPart)
+  @ManyToOne(fetch = FetchType.EAGER)
+  @JoinColumn(name = "exercise_id", nullable = false)
+  @ToString.Exclude
+  @EqualsAndHashCode.Exclude
+  private Exercise exercise;
 
-    @Column(nullable = false)
-    private Integer position;
+  @Column(nullable = false)
+  private Integer position;
 
-    @Column(columnDefinition = "TEXT")
-    private String note;
+  @Column(columnDefinition = "TEXT")
+  private String note;
 
-    // Relationships
-    // CHANGED: fetch = FetchType.EAGER to load sets when exercise is loaded
-    // CHANGED: Using List instead of Set to maintain order
-    @OneToMany(mappedBy = "workoutExercise", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
-    @OrderBy("setNumber ASC")
-    @Builder.Default
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
-    private List<WorkoutSet> workoutSets = new ArrayList<>();
+  // Relationships
+  // CHANGED: fetch = FetchType.EAGER to load sets when exercise is loaded
+  // CHANGED: Using List instead of Set to maintain order
+  @OneToMany(
+    mappedBy = "workoutExercise",
+    cascade = CascadeType.ALL,
+    orphanRemoval = true,
+    fetch = FetchType.EAGER
+  )
+  @OrderBy("setNumber ASC")
+  @Builder.Default
+  @ToString.Exclude
+  @EqualsAndHashCode.Exclude
+  private List<WorkoutSet> workoutSets = new ArrayList<>();
 }

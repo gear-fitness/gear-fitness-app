@@ -10,9 +10,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UpdateUserProfileRequest {
-    private String username;      // Optional - only if user wants to change it
-    private Integer weightLbs;      // Optional
-    private Integer heightInches;     // Optional
-    private Integer age;          // Optional
-    private Boolean isPrivate;    // Optional
+
+  private String username; // Optional - only if user wants to change it
+  private Integer weightLbs; // Optional
+  private Integer heightInches; // Optional
+  private Integer age; // Optional
+  private Boolean isPrivate; // Optional
 }

@@ -1,7 +1,7 @@
 package com.gearfitness.gear_api.dto;
 
-import java.util.UUID;
 import java.util.List;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -10,7 +10,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CreateRoutineFromWorkoutDTO {
-    private UUID workoutId;
-    private String name;
-    private List<String> scheduledDays;
+
+  private UUID workoutId;
+  private String name;
+  private List<String> scheduledDays;
 }

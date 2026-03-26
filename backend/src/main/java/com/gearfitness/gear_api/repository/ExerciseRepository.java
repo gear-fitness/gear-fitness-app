@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 public interface ExerciseRepository extends JpaRepository<Exercise, UUID> {
-    List<Exercise> findByBodyPart(Exercise.BodyPart bodyPart);
-    List<Exercise> findByUserIsNullOrUserUserId(UUID userId);
-    List<Exercise> findByUserUserId(UUID userId);
+  List<Exercise> findByBodyPart(Exercise.BodyPart bodyPart);
+  List<Exercise> findByUserIsNullOrUserUserId(UUID userId);
+  List<Exercise> findByUserUserId(UUID userId);
 }

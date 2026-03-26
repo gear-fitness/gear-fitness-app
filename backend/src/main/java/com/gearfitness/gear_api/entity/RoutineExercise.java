@@ -1,13 +1,11 @@
 package com.gearfitness.gear_api.entity;
 
 import jakarta.persistence.*;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.util.UUID;
-
 import org.checkerframework.checker.units.qual.C;
 
 @Entity
@@ -17,19 +15,20 @@ import org.checkerframework.checker.units.qual.C;
 @AllArgsConstructor
 @Builder
 public class RoutineExercise {
-    
-    @Id@GeneratedValue(strategy = GenerationType.UUID)
-    @Column (name = "routine_exercise_id")
-    private UUID routineExerciseId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "routine_id", nullable = false)
-    private Routine routine;
+  @Id
+  @GeneratedValue(strategy = GenerationType.UUID)
+  @Column(name = "routine_exercise_id")
+  private UUID routineExerciseId;
 
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "exercise_id", nullable = false)
-    private Exercise exercise;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "routine_id", nullable = false)
+  private Routine routine;
 
-    @Column(nullable = false)
-    private Integer position;
+  @ManyToOne(fetch = FetchType.EAGER)
+  @JoinColumn(name = "exercise_id", nullable = false)
+  private Exercise exercise;
+
+  @Column(nullable = false)
+  private Integer position;
 }

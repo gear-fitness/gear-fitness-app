@@ -1,6 +1,10 @@
 import React, { useCallback, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { useFocusEffect, useNavigation, useTheme } from "@react-navigation/native";
+import {
+  useFocusEffect,
+  useNavigation,
+  useTheme,
+} from "@react-navigation/native";
 import { useColorScheme } from "react-native";
 import { getTodaysRoutines } from "../api/routineService";
 import { Routine } from "../api/types";
@@ -30,30 +34,37 @@ export function TodaysRoutines() {
     }, []),
   );
 
-  const handleQuickStartRoutine = useCallback(async (routine: Routine) => {
-    if (!routine.exercises.length) return;
-    try {
-      await loadFromRoutine(
-        routine.exercises.map((ex) => ({
-          exerciseId: ex.exerciseId,
-          name: ex.exerciseName,
-        })),
-      );
-      (navigation as any).navigate("WorkoutSummary");
-    } catch {
-      // Ignore and keep user on current screen.
-    }
-  }, [loadFromRoutine, navigation]);
+  const handleQuickStartRoutine = useCallback(
+    async (routine: Routine) => {
+      if (!routine.exercises.length) return;
+      try {
+        await loadFromRoutine(
+          routine.exercises.map((ex) => ({
+            exerciseId: ex.exerciseId,
+            name: ex.exerciseName,
+          })),
+        );
+        (navigation as any).navigate("WorkoutSummary");
+      } catch {
+        // Ignore and keep user on current screen.
+      }
+    },
+    [loadFromRoutine, navigation],
+  );
 
-  const { isCountdownVisible, countdownValue, startCountdown, cancelCountdown } =
-    useStartCountdown({
-      onComplete: async () => {
-        const pendingRoutine = pendingRoutineRef.current;
-        pendingRoutineRef.current = null;
-        if (!pendingRoutine) return;
-        await handleQuickStartRoutine(pendingRoutine);
-      },
-    });
+  const {
+    isCountdownVisible,
+    countdownValue,
+    startCountdown,
+    cancelCountdown,
+  } = useStartCountdown({
+    onComplete: async () => {
+      const pendingRoutine = pendingRoutineRef.current;
+      pendingRoutineRef.current = null;
+      if (!pendingRoutine) return;
+      await handleQuickStartRoutine(pendingRoutine);
+    },
+  });
 
   const handleQuickStartPress = (routine: Routine) => {
     if (!routine.exercises.length) return;
@@ -64,19 +75,13 @@ export function TodaysRoutines() {
   return (
     <View style={styles.todaySection}>
       <Text
-        style={[
-          styles.todaySectionTitle,
-          { color: isDark ? "#999" : "#666" },
-        ]}
+        style={[styles.todaySectionTitle, { color: isDark ? "#999" : "#666" }]}
       >
         TODAY'S ROUTINES
       </Text>
       {todaysRoutines.length === 0 ? (
         <Text
-          style={[
-            styles.emptyTodayText,
-            { color: isDark ? "#999" : "#666" },
-          ]}
+          style={[styles.emptyTodayText, { color: isDark ? "#999" : "#666" }]}
         >
           No routines scheduled for today.
         </Text>

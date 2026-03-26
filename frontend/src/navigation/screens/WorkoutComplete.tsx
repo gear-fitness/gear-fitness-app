@@ -20,7 +20,7 @@ import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { submitWorkout, WorkoutSubmission } from "../../api/workoutService";
 import { getCurrentLocalDateString } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export function WorkoutComplete() {
   useTrackTab("WorkoutComplete");
@@ -105,7 +105,7 @@ export function WorkoutComplete() {
       const result = await submitWorkout(submission);
 
       // Clear persisted workout state
-      await AsyncStorage.removeItem('@workout_state');
+      await AsyncStorage.removeItem("@workout_state");
 
       Alert.alert(
         "Success",
@@ -125,13 +125,13 @@ export function WorkoutComplete() {
                   "WorkoutSummary",
                   "ExerciseDetail",
                   "ExerciseSelect",
-                ].includes(r.name)
+                ].includes(r.name),
               ).length;
 
               navigation.pop(modalCount);
             },
           },
-        ]
+        ],
       );
     } catch (error) {
       console.error("Failed to save workout:", error);
@@ -163,13 +163,13 @@ export function WorkoutComplete() {
                 "WorkoutSummary",
                 "ExerciseDetail",
                 "ExerciseSelect",
-              ].includes(r.name)
+              ].includes(r.name),
             ).length;
 
             navigation.pop(modalCount);
           },
         },
-      ]
+      ],
     );
   };
 
@@ -185,156 +185,158 @@ export function WorkoutComplete() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-        <Text style={[styles.title, { color: colors.text }]}>
-          Workout Complete! 🎉
-        </Text>
-
-        <Text style={[styles.subtitle, { color: colors.subtle }]}>
-          Duration: {Math.floor(seconds / 60)} minutes
-        </Text>
-
-        {/* Workout Name */}
-        <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.text }]}>
-            Workout Name *
+          <Text style={[styles.title, { color: colors.text }]}>
+            Workout Complete! 🎉
           </Text>
-          <TextInput
-            style={[
-              styles.input,
-              { backgroundColor: colors.input, color: colors.text },
-            ]}
-            placeholder="e.g., Chest Day, Leg Day..."
-            placeholderTextColor={colors.subtle}
-            value={workoutName}
-            onChangeText={setWorkoutName}
-            returnKeyType="done"
-            onSubmitEditing={() => Keyboard.dismiss()}
-          />
-        </View>
 
-        {/* Body Tag */}
-        <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.text }]}>Body Tag *</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.tagScroll}
-          >
-            {bodyTags.map((tag) => (
-              <TouchableOpacity
-                key={tag}
-                onPress={() => toggleBodyTag(tag)}
-                style={[
-                  styles.tagButton,
-                  {
-                    backgroundColor: bodyTag.includes(tag)
-                      ? "#007AFF"
-                      : colors.card,
-                    borderColor: colors.border,
-                  },
-                ]}
-              >
-                <Text
+          <Text style={[styles.subtitle, { color: colors.subtle }]}>
+            Duration: {Math.floor(seconds / 60)} minutes
+          </Text>
+
+          {/* Workout Name */}
+          <View style={styles.section}>
+            <Text style={[styles.label, { color: colors.text }]}>
+              Workout Name *
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                { backgroundColor: colors.input, color: colors.text },
+              ]}
+              placeholder="e.g., Chest Day, Leg Day..."
+              placeholderTextColor={colors.subtle}
+              value={workoutName}
+              onChangeText={setWorkoutName}
+              returnKeyType="done"
+              onSubmitEditing={() => Keyboard.dismiss()}
+            />
+          </View>
+
+          {/* Body Tag */}
+          <View style={styles.section}>
+            <Text style={[styles.label, { color: colors.text }]}>
+              Body Tag *
+            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.tagScroll}
+            >
+              {bodyTags.map((tag) => (
+                <TouchableOpacity
+                  key={tag}
+                  onPress={() => toggleBodyTag(tag)}
                   style={[
-                    styles.tagText,
-                    { color: bodyTag.includes(tag) ? "#fff" : colors.text },
+                    styles.tagButton,
+                    {
+                      backgroundColor: bodyTag.includes(tag)
+                        ? "#007AFF"
+                        : colors.card,
+                      borderColor: colors.border,
+                    },
                   ]}
                 >
-                  {tag.replace("_", " ")}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+                  <Text
+                    style={[
+                      styles.tagText,
+                      { color: bodyTag.includes(tag) ? "#fff" : colors.text },
+                    ]}
+                  >
+                    {tag.replace("_", " ")}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
 
-        {/* Exercises Summary */}
-        <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.text }]}>
-            Exercises ({exercises.length})
-          </Text>
-          {exercises.map((ex) => (
-            <View
-              key={ex.workoutExerciseId}
-              style={[
-                styles.exerciseCard,
-                { backgroundColor: colors.card, borderColor: colors.border },
-              ]}
-            >
-              <Text style={[styles.exerciseName, { color: colors.text }]}>
-                {ex.name}
-              </Text>
-              <Text style={{ color: colors.subtle }}>
-                {ex.sets.filter((s) => s.reps && s.weight).length} sets
-              </Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Caption (for posting) */}
-        <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.text }]}>
-            Caption (optional - for posting)
-          </Text>
-          <TextInput
-            style={[
-              styles.input,
-              styles.captionInput,
-              { backgroundColor: colors.input, color: colors.text },
-            ]}
-            placeholder="Share your thoughts about this workout..."
-            placeholderTextColor={colors.subtle}
-            value={caption}
-            onChangeText={setCaption}
-            onFocus={() => {
-              setTimeout(() => {
-                scrollViewRef.current?.scrollToEnd({ animated: true });
-              }, 100);
-            }}
-            multiline
-            blurOnSubmit={true}
-          />
-        </View>
-
-        {/* Action Buttons */}
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={[styles.button, { backgroundColor: colors.card }]}
-            onPress={() => handleSaveWorkout(false)}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color={colors.text} />
-            ) : (
-              <Text style={[styles.buttonText, { color: colors.text }]}>
-                Save Workout
-              </Text>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.button, { backgroundColor: "#007AFF" }]}
-            onPress={() => handleSaveWorkout(true)}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={[styles.buttonText, { color: "#fff" }]}>
-                Save & Post
-              </Text>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.button, styles.discardButton]}
-            onPress={handleDiscardWorkout}
-            disabled={loading}
-          >
-            <Text style={[styles.buttonText, { color: "#FF3B30" }]}>
-              Discard Workout
+          {/* Exercises Summary */}
+          <View style={styles.section}>
+            <Text style={[styles.label, { color: colors.text }]}>
+              Exercises ({exercises.length})
             </Text>
-          </TouchableOpacity>
-        </View>
+            {exercises.map((ex) => (
+              <View
+                key={ex.workoutExerciseId}
+                style={[
+                  styles.exerciseCard,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                ]}
+              >
+                <Text style={[styles.exerciseName, { color: colors.text }]}>
+                  {ex.name}
+                </Text>
+                <Text style={{ color: colors.subtle }}>
+                  {ex.sets.filter((s) => s.reps && s.weight).length} sets
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Caption (for posting) */}
+          <View style={styles.section}>
+            <Text style={[styles.label, { color: colors.text }]}>
+              Caption (optional - for posting)
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                styles.captionInput,
+                { backgroundColor: colors.input, color: colors.text },
+              ]}
+              placeholder="Share your thoughts about this workout..."
+              placeholderTextColor={colors.subtle}
+              value={caption}
+              onChangeText={setCaption}
+              onFocus={() => {
+                setTimeout(() => {
+                  scrollViewRef.current?.scrollToEnd({ animated: true });
+                }, 100);
+              }}
+              multiline
+              blurOnSubmit={true}
+            />
+          </View>
+
+          {/* Action Buttons */}
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: colors.card }]}
+              onPress={() => handleSaveWorkout(false)}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color={colors.text} />
+              ) : (
+                <Text style={[styles.buttonText, { color: colors.text }]}>
+                  Save Workout
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: "#007AFF" }]}
+              onPress={() => handleSaveWorkout(true)}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={[styles.buttonText, { color: "#fff" }]}>
+                  Save & Post
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.button, styles.discardButton]}
+              onPress={handleDiscardWorkout}
+              disabled={loading}
+            >
+              <Text style={[styles.buttonText, { color: "#FF3B30" }]}>
+                Discard Workout
+              </Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       </SafeAreaView>
     </KeyboardAvoidingView>

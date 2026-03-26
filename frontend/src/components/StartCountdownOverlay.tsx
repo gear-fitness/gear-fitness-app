@@ -79,7 +79,10 @@ export function StartCountdownOverlay({
           onPress={onCancel}
         >
           <Text
-            style={[styles.countdownCancelText, { color: isDark ? "#fff" : "#111" }]}
+            style={[
+              styles.countdownCancelText,
+              { color: isDark ? "#fff" : "#111" },
+            ]}
           >
             Cancel
           </Text>

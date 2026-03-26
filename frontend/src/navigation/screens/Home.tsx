@@ -41,7 +41,8 @@ export function Home() {
 
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { colors } = useTheme();
   const colorScheme = useColorScheme();
   const isDarkMode = colorScheme === "dark";
@@ -62,7 +63,7 @@ export function Home() {
   useFocusEffect(
     React.useCallback(() => {
       fetchData();
-    }, [])
+    }, []),
   );
 
   const fetchData = async () => {
@@ -116,7 +117,7 @@ export function Home() {
 
   const getPreviousWeekAverage = (
     allData: DailyVolumeData[],
-    offset: number
+    offset: number,
   ) => {
     const totalDays = allData.length;
     const prevWeekEndIndex = totalDays + offset * 7 - 7;
@@ -369,7 +370,10 @@ export function Home() {
   });
 
   return (
-    <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={styles.scrollContainer}
+      showsVerticalScrollIndicator={false}
+    >
       <View style={styles.container}>
         <Text style={styles.title}>Activity</Text>
 
@@ -496,7 +500,7 @@ export function Home() {
                       <Text style={styles.cardTitle}>{workout.name}</Text>
                       <Text style={styles.cardSubtitle}>
                         {parseLocalDate(
-                          workout.datePerformed
+                          workout.datePerformed,
                         ).toLocaleDateString("en-US", {
                           month: "short",
                           day: "numeric",

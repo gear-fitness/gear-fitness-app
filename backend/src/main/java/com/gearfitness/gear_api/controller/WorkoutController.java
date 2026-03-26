@@ -8,147 +8,172 @@ import com.gearfitness.gear_api.dto.WorkoutSubmissionDTO;
 import com.gearfitness.gear_api.entity.Workout;
 import com.gearfitness.gear_api.security.JwtService;
 import com.gearfitness.gear_api.service.WorkoutService;
-
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
 import java.time.DayOfWeek;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/workouts")
 @RequiredArgsConstructor
 public class WorkoutController {
 
-    private final WorkoutService workoutService;
-    private final JwtService jwtService;
+  private final WorkoutService workoutService;
+  private final JwtService jwtService;
 
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<List<WorkoutDTO>> getWorkoutsByUser(@PathVariable UUID userId) {
-        try {
-            List<WorkoutDTO> workouts = workoutService.getWorkoutsByUser(userId)
-                    .stream()
-                    .map(w -> new WorkoutDTO(
-                            w.getWorkoutId(),
-                            w.getName(),
-                            w.getDatePerformed(),
-                            w.getCreatedAt()))
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(workouts);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+  @GetMapping("/user/{userId}")
+  public ResponseEntity<List<WorkoutDTO>> getWorkoutsByUser(
+    @PathVariable UUID userId
+  ) {
+    try {
+      List<WorkoutDTO> workouts = workoutService
+        .getWorkoutsByUser(userId)
+        .stream()
+        .map(w ->
+          new WorkoutDTO(
+            w.getWorkoutId(),
+            w.getName(),
+            w.getDatePerformed(),
+            w.getCreatedAt()
+          )
+        )
+        .collect(Collectors.toList());
+      return ResponseEntity.ok(workouts);
+    } catch (Exception e) {
+      e.printStackTrace();
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
+  }
 
-    @GetMapping("/{workoutId}")
-    public ResponseEntity<WorkoutDetailDTO> getWorkoutDetails(
-            @PathVariable UUID workoutId,
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
-        try {
-            UUID requestingUserId = null;
-            if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                String token = authHeader.substring(7);
-                requestingUserId = jwtService.extractUserId(token);
-            }
+  @GetMapping("/{workoutId}")
+  public ResponseEntity<WorkoutDetailDTO> getWorkoutDetails(
+    @PathVariable UUID workoutId,
+    @RequestHeader(value = "Authorization", required = false) String authHeader
+  ) {
+    try {
+      UUID requestingUserId = null;
+      if (authHeader != null && authHeader.startsWith("Bearer ")) {
+        String token = authHeader.substring(7);
+        requestingUserId = jwtService.extractUserId(token);
+      }
 
-            WorkoutDetailDTO details = workoutService.getWorkoutDetails(workoutId, requestingUserId);
-            return ResponseEntity.ok(details);
-        } catch (RuntimeException e) {
-            System.err.println("Error fetching workout: " + e.getMessage());
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        } catch (Exception e) {
-            System.err.println("Unexpected error: " + e.getMessage());
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+      WorkoutDetailDTO details = workoutService.getWorkoutDetails(
+        workoutId,
+        requestingUserId
+      );
+      return ResponseEntity.ok(details);
+    } catch (RuntimeException e) {
+      System.err.println("Error fetching workout: " + e.getMessage());
+      e.printStackTrace();
+      return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+    } catch (Exception e) {
+      System.err.println("Unexpected error: " + e.getMessage());
+      e.printStackTrace();
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
+  }
 
-    @PostMapping
-    public ResponseEntity<WorkoutDTO> addWorkout(@RequestBody Workout workout) {
-        try {
-            Workout saved = workoutService.addWorkout(workout);
-            return ResponseEntity.ok(new WorkoutDTO(
-                    saved.getWorkoutId(),
-                    saved.getName(),
-                    saved.getDatePerformed(),
-                    saved.getCreatedAt()));
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+  @PostMapping
+  public ResponseEntity<WorkoutDTO> addWorkout(@RequestBody Workout workout) {
+    try {
+      Workout saved = workoutService.addWorkout(workout);
+      return ResponseEntity.ok(
+        new WorkoutDTO(
+          saved.getWorkoutId(),
+          saved.getName(),
+          saved.getDatePerformed(),
+          saved.getCreatedAt()
+        )
+      );
+    } catch (Exception e) {
+      e.printStackTrace();
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
+  }
 
-    @PostMapping("/submit")
-    public ResponseEntity<WorkoutDetailDTO> submitWorkout(
-            @RequestBody WorkoutSubmissionDTO submission,
-            @RequestHeader("Authorization") String authHeader) {
-        try {
-            String token = authHeader.substring(7); // Remove "Bearer "
-            UUID userId = jwtService.extractUserId(token);
+  @PostMapping("/submit")
+  public ResponseEntity<WorkoutDetailDTO> submitWorkout(
+    @RequestBody WorkoutSubmissionDTO submission,
+    @RequestHeader("Authorization") String authHeader
+  ) {
+    try {
+      String token = authHeader.substring(7); // Remove "Bearer "
+      UUID userId = jwtService.extractUserId(token);
 
-            WorkoutDetailDTO workout = workoutService.submitWorkout(submission, userId);
-            return ResponseEntity.ok(workout);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+      WorkoutDetailDTO workout = workoutService.submitWorkout(
+        submission,
+        userId
+      );
+      return ResponseEntity.ok(workout);
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().build();
+    } catch (Exception e) {
+      e.printStackTrace();
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
+  }
 
-    // Weekly volume statistics
-    @GetMapping("/user/{userId}/weekly-volume")
-    public ResponseEntity<List<WeeklyVolumeDTO>> getWeeklyVolume(
-            @PathVariable UUID userId,
-            @RequestParam(defaultValue = "12") int weeks) {
-        try {
-            List<WeeklyVolumeDTO> weeklyVolume = workoutService.getWeeklyVolume(userId, weeks);
-            return ResponseEntity.ok(weeklyVolume);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+  // Weekly volume statistics
+  @GetMapping("/user/{userId}/weekly-volume")
+  public ResponseEntity<List<WeeklyVolumeDTO>> getWeeklyVolume(
+    @PathVariable UUID userId,
+    @RequestParam(defaultValue = "12") int weeks
+  ) {
+    try {
+      List<WeeklyVolumeDTO> weeklyVolume = workoutService.getWeeklyVolume(
+        userId,
+        weeks
+      );
+      return ResponseEntity.ok(weeklyVolume);
+    } catch (Exception e) {
+      e.printStackTrace();
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
+  }
 
-    // Daily volume statistics
-    @GetMapping("/user/{userId}/daily-volume")
-    public ResponseEntity<List<DailyVolumeDTO>> getDailyVolume(
-            @PathVariable UUID userId,
-            @RequestParam(defaultValue = "2") int weeks,
-            @RequestParam(defaultValue = "SUNDAY") String weekStartDay) {
-        try {
-            DayOfWeek startDay = DayOfWeek.valueOf(weekStartDay.toUpperCase());
-            List<DailyVolumeDTO> dailyVolume = workoutService.getDailyVolume(userId, weeks, startDay);
-            return ResponseEntity.ok(dailyVolume);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+  // Daily volume statistics
+  @GetMapping("/user/{userId}/daily-volume")
+  public ResponseEntity<List<DailyVolumeDTO>> getDailyVolume(
+    @PathVariable UUID userId,
+    @RequestParam(defaultValue = "2") int weeks,
+    @RequestParam(defaultValue = "SUNDAY") String weekStartDay
+  ) {
+    try {
+      DayOfWeek startDay = DayOfWeek.valueOf(weekStartDay.toUpperCase());
+      List<DailyVolumeDTO> dailyVolume = workoutService.getDailyVolume(
+        userId,
+        weeks,
+        startDay
+      );
+      return ResponseEntity.ok(dailyVolume);
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().build();
+    } catch (Exception e) {
+      e.printStackTrace();
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
+  }
 
-    @DeleteMapping("/{workoutId}")
-    public ResponseEntity<Void> deleteWorkout(
-            @PathVariable UUID workoutId,
-            @RequestHeader("Authorization") String authHeader) {
-        try {
-            String token = authHeader.substring(7); // Remove "Bearer "
-            UUID userId = jwtService.extractUserId(token);
+  @DeleteMapping("/{workoutId}")
+  public ResponseEntity<Void> deleteWorkout(
+    @PathVariable UUID workoutId,
+    @RequestHeader("Authorization") String authHeader
+  ) {
+    try {
+      String token = authHeader.substring(7); // Remove "Bearer "
+      UUID userId = jwtService.extractUserId(token);
 
-            workoutService.deleteWorkout(workoutId, userId);
-            return ResponseEntity.noContent().build();
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+      workoutService.deleteWorkout(workoutId, userId);
+      return ResponseEntity.noContent().build();
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+    } catch (Exception e) {
+      e.printStackTrace();
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
+  }
 }

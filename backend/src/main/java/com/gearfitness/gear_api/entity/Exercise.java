@@ -20,52 +20,52 @@ import lombok.ToString;
 @Builder
 public class Exercise {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "exercise_id")
-    private UUID exerciseId;
+  @Id
+  @GeneratedValue(strategy = GenerationType.UUID)
+  @Column(name = "exercise_id")
+  private UUID exerciseId;
 
-    @Column(nullable = false)
-    private String name;
+  @Column(nullable = false)
+  private String name;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "body_part", nullable = false)
-    private BodyPart bodyPart;
+  @Enumerated(EnumType.STRING)
+  @Column(name = "body_part", nullable = false)
+  private BodyPart bodyPart;
 
-    @Column(columnDefinition = "TEXT")
-    private String description;
+  @Column(columnDefinition = "TEXT")
+  private String description;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
-    private AppUser user;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "user_id")
+  private AppUser user;
 
-    // Relationships
-    @OneToMany(
-        mappedBy = "exercise",
-        cascade = CascadeType.ALL,
-        orphanRemoval = true
-    )
-    @JsonIgnore
-    @Builder.Default
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
-    private Set<WorkoutExercise> workoutExercises = new HashSet<>();
+  // Relationships
+  @OneToMany(
+    mappedBy = "exercise",
+    cascade = CascadeType.ALL,
+    orphanRemoval = true
+  )
+  @JsonIgnore
+  @Builder.Default
+  @ToString.Exclude
+  @EqualsAndHashCode.Exclude
+  private Set<WorkoutExercise> workoutExercises = new HashSet<>();
 
-    public enum BodyPart {
-        CHEST,
-        BACK,
-        SHOULDERS,
-        BICEPS,
-        TRICEPS,
-        LEGS,
-        QUADS,
-        HAMSTRINGS,
-        GLUTES,
-        CALVES,
-        CORE,
-        TRAPS,
-        FOREARMS,
-        FULL_BODY,
-        OTHER,
-    }
+  public enum BodyPart {
+    CHEST,
+    BACK,
+    SHOULDERS,
+    BICEPS,
+    TRICEPS,
+    LEGS,
+    QUADS,
+    HAMSTRINGS,
+    GLUTES,
+    CALVES,
+    CORE,
+    TRAPS,
+    FOREARMS,
+    FULL_BODY,
+    OTHER,
+  }
 }

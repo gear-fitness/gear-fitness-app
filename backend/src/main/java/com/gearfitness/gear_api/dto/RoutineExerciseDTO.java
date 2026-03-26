@@ -9,9 +9,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RoutineExerciseDTO {
-    private UUID routineExerciseId;
-    private String exerciseName;
-    private String bodyPart;
-    private Integer position;
-    private UUID exerciseId;
+
+  private UUID routineExerciseId;
+  private String exerciseName;
+  private String bodyPart;
+  private Integer position;
+  private UUID exerciseId;
 }

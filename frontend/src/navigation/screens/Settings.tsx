@@ -42,8 +42,12 @@ export function Settings() {
 
       {user && (
         <View style={[styles.userInfo, { backgroundColor: colors.card }]}>
-          <Text style={[styles.infoText, { color: colors.text }]}>Username: {user.username}</Text>
-          <Text style={[styles.infoText, { color: colors.text }]}>Email: {user.email}</Text>
+          <Text style={[styles.infoText, { color: colors.text }]}>
+            Username: {user.username}
+          </Text>
+          <Text style={[styles.infoText, { color: colors.text }]}>
+            Email: {user.email}
+          </Text>
         </View>
       )}
 

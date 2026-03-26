@@ -10,7 +10,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CreateRoutineDTO {
-    private String name;
-    private List<String> scheduledDays;
-    private List<UUID> exerciseIds;
+
+  private String name;
+  private List<String> scheduledDays;
+  private List<UUID> exerciseIds;
 }

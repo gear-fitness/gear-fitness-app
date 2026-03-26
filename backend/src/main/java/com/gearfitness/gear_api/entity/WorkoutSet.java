@@ -1,15 +1,14 @@
 package com.gearfitness.gear_api.entity;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-
-import java.math.BigDecimal;
-import java.util.UUID;
 
 @Entity
 @Table(name = "workout_set")
@@ -19,27 +18,27 @@ import java.util.UUID;
 @Builder
 public class WorkoutSet {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "workout_set_id")
-    private UUID workoutSetId;
+  @Id
+  @GeneratedValue(strategy = GenerationType.UUID)
+  @Column(name = "workout_set_id")
+  private UUID workoutSetId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "workout_exercise_id", nullable = false)
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
-    private WorkoutExercise workoutExercise;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "workout_exercise_id", nullable = false)
+  @ToString.Exclude
+  @EqualsAndHashCode.Exclude
+  private WorkoutExercise workoutExercise;
 
-    @Column(name = "set_number", nullable = false)
-    private Integer setNumber;
+  @Column(name = "set_number", nullable = false)
+  private Integer setNumber;
 
-    @Column(nullable = false)
-    private Integer reps;
+  @Column(nullable = false)
+  private Integer reps;
 
-    @Column(name = "weight_lbs", precision = 10, scale = 2)  // Changed from weight_kg to weight_lbs
-    private BigDecimal weightLbs;
+  @Column(name = "weight_lbs", precision = 10, scale = 2) // Changed from weight_kg to weight_lbs
+  private BigDecimal weightLbs;
 
-    @Column(name = "is_pr", nullable = false)
-    @Builder.Default
-    private Boolean isPr = false;
+  @Column(name = "is_pr", nullable = false)
+  @Builder.Default
+  private Boolean isPr = false;
 }
