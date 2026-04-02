@@ -1,13 +1,19 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { View, StyleSheet, Alert } from "react-native";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { View, StyleSheet, Alert, Appearance } from "react-native";
+
+const initialBg = Appearance.getColorScheme() === "dark" ? "#000" : "#F2F2F7";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import {
   GoogleSignin,
   isSuccessResponse,
 } from "@react-native-google-signin/google-signin";
 
-import { OnboardingDraft, OnboardingStep, Gender, Height, Weight, DOB, OnboardingProfile, OnboardingPermissions } from "../onboarding/types";
+import {
+  OnboardingDraft, OnboardingStep, Gender, Height, Weight, DOB,
+  OnboardingProfile, OnboardingPermissions, TOTAL_STEPS,
+} from "../onboarding/types";
 import {
   loadOnboardingDraft,
   saveOnboardingDraft,
@@ -15,7 +21,10 @@ import {
   clearOnboardingDraft,
 } from "../onboarding/storage";
 import { loginWithGoogle } from "../../api/authService";
+import { updateUserProfile, uploadProfilePicture } from "../../api/userService";
 import { useAuth } from "../../context/AuthContext";
+import { useOnboardingColors } from "../onboarding/components/useOnboardingColors";
+import { RootStackParamList } from "..";
 
 import { IntroStep } from "../onboarding/components/IntroStep";
 import { GenderStep } from "../onboarding/components/GenderStep";
@@ -24,19 +33,33 @@ import { ProfileStep } from "../onboarding/components/ProfileStep";
 import { PermissionsStep } from "../onboarding/components/PermissionsStep";
 import { AllSetStep } from "../onboarding/components/AllSetStep";
 
+const STEP_COMPONENTS = [
+  IntroStep, GenderStep, AboutYouStep, ProfileStep, PermissionsStep, AllSetStep,
+] as const;
+
 const defaultDraft = (): OnboardingDraft => ({
   step: 0,
   updatedAt: new Date().toISOString(),
 });
 
+function calcAge(year: number, month: number, day: number): number {
+  const today = new Date();
+  let age = today.getFullYear() - year;
+  const m = today.getMonth() - month;
+  if (m < 0 || (m === 0 && today.getDate() < day)) age--;
+  return Math.max(0, age);
+}
+
 export function OnboardingScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { login } = useAuth();
   const insets = useSafeAreaInsets();
+  const colors = useOnboardingColors();
 
   const [draft, setDraft] = useState<OnboardingDraft>(defaultDraft());
   const [hydrated, setHydrated] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
+  const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ─── Hydrate saved draft on mount ───────────────────────────
   useEffect(() => {
@@ -48,12 +71,15 @@ export function OnboardingScreen() {
       .catch(() => setHydrated(true));
   }, []);
 
-  // ─── Persist draft whenever it changes (after hydration) ────
+  // ─── Debounced persist ──────────────────────────────────────
   const persistDraft = useCallback(
     (updated: OnboardingDraft) => {
       if (!hydrated) return;
       const stamped = { ...updated, updatedAt: new Date().toISOString() };
-      saveOnboardingDraft(stamped);
+      if (persistTimer.current) clearTimeout(persistTimer.current);
+      persistTimer.current = setTimeout(() => {
+        saveOnboardingDraft(stamped);
+      }, 600);
     },
     [hydrated]
   );
@@ -71,8 +97,14 @@ export function OnboardingScreen() {
 
   // ─── Step navigation ─────────────────────────────────────────
   const goTo = useCallback((step: OnboardingStep) => updateDraft({ step }), [updateDraft]);
-  const goBack = useCallback(() => goTo(Math.max(0, draft.step - 1) as OnboardingStep), [goTo, draft.step]);
-  const goNext = useCallback(() => goTo(Math.min(5, draft.step + 1) as OnboardingStep), [goTo, draft.step]);
+  const goBack = useCallback(
+    () => goTo(Math.max(0, draft.step - 1) as OnboardingStep),
+    [goTo, draft.step]
+  );
+  const goNext = useCallback(
+    () => goTo(Math.min(TOTAL_STEPS, draft.step + 1) as OnboardingStep),
+    [goTo, draft.step]
+  );
 
   // ─── Final sign-in CTA ───────────────────────────────────────
   const handleSignIn = async () => {
@@ -87,7 +119,33 @@ export function OnboardingScreen() {
         const { token, refreshToken } = await loginWithGoogle(idToken);
         await login(token, refreshToken);
 
-        // TODO: send draft profile data to backend (gender, height, weight, dob, username, photo)
+        // Sync collected profile data to backend (best-effort, non-blocking)
+        try {
+          const h = draft.height;
+          const w = draft.weight;
+          const heightInches = h?.unit === "ft_in"
+            ? h.ft * 12 + h.inch
+            : h?.unit === "cm"
+            ? Math.round(h.cm / 2.54)
+            : null;
+          const weightLbs = w?.unit === "lbs"
+            ? w.value
+            : w?.unit === "kg"
+            ? Math.round(w.value * 2.205)
+            : null;
+          const age = draft.dob
+            ? calcAge(draft.dob.year, draft.dob.month, draft.dob.day)
+            : null;
+
+          await updateUserProfile(heightInches, weightLbs, age);
+
+          if (draft.profile?.photoUri) {
+            await uploadProfilePicture(draft.profile.photoUri);
+          }
+        } catch (syncErr) {
+          // Profile sync failure should not block the user from proceeding
+          console.warn("Onboarding profile sync failed:", syncErr);
+        }
 
         await markOnboardingSeen();
         await clearOnboardingDraft();
@@ -106,61 +164,42 @@ export function OnboardingScreen() {
     }
   };
 
+  // ─── Step props map ──────────────────────────────────────────
+  const stepProps = useMemo(() => {
+    const base = { onBack: goBack };
+    return [
+      { onGetStarted: goNext, onGoogleSignIn: handleSignIn },
+      { selected: draft.gender, onSelect: (g: Gender) => updateDraft({ gender: g }), ...base, onContinue: goNext },
+      {
+        height: draft.height,
+        weight: draft.weight,
+        dob: draft.dob,
+        onHeightChange: (h: Height) => updateDraft({ height: h }),
+        onWeightChange: (w: Weight) => updateDraft({ weight: w }),
+        onDobChange: (d: DOB) => updateDraft({ dob: d }),
+        ...base,
+        onContinue: goNext,
+      },
+      { profile: draft.profile, onProfileChange: (p: OnboardingProfile) => updateDraft({ profile: p }), ...base, onContinue: goNext },
+      { permissions: draft.permissions, onPermissionsChange: (p: OnboardingPermissions) => updateDraft({ permissions: p }), ...base, onContinue: goNext },
+      { onSignIn: handleSignIn, ...base, isLoading: isSigningIn },
+    ] as const;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft, goBack, goNext, updateDraft, isSigningIn]);
+
   if (!hydrated) return null;
+
+  const CurrentStep = STEP_COMPONENTS[draft.step] as React.ComponentType<any>;
+  const currentProps = stepProps[draft.step];
 
   return (
     <View
       style={[
         styles.container,
-        { paddingTop: insets.top, paddingBottom: 0 },
+        { backgroundColor: colors.screenBg ?? initialBg, paddingTop: insets.top },
       ]}
     >
-      {draft.step === 0 && (
-        <IntroStep onGetStarted={goNext} />
-      )}
-      {draft.step === 1 && (
-        <GenderStep
-          selected={draft.gender}
-          onSelect={(g: Gender) => updateDraft({ gender: g })}
-          onBack={goBack}
-          onContinue={goNext}
-        />
-      )}
-      {draft.step === 2 && (
-        <AboutYouStep
-          height={draft.height}
-          weight={draft.weight}
-          dob={draft.dob}
-          onHeightChange={(h: Height) => updateDraft({ height: h })}
-          onWeightChange={(w: Weight) => updateDraft({ weight: w })}
-          onDobChange={(d: DOB) => updateDraft({ dob: d })}
-          onBack={goBack}
-          onContinue={goNext}
-        />
-      )}
-      {draft.step === 3 && (
-        <ProfileStep
-          profile={draft.profile}
-          onProfileChange={(p: OnboardingProfile) => updateDraft({ profile: p })}
-          onBack={goBack}
-          onContinue={goNext}
-        />
-      )}
-      {draft.step === 4 && (
-        <PermissionsStep
-          permissions={draft.permissions}
-          onPermissionsChange={(p: OnboardingPermissions) => updateDraft({ permissions: p })}
-          onBack={goBack}
-          onContinue={goNext}
-        />
-      )}
-      {draft.step === 5 && (
-        <AllSetStep
-          onSignIn={handleSignIn}
-          onBack={goBack}
-          isLoading={isSigningIn}
-        />
-      )}
+      <CurrentStep {...currentProps} />
     </View>
   );
 }
@@ -168,6 +207,6 @@ export function OnboardingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F2F2F7",
+    paddingBottom: 0,
   },
 });

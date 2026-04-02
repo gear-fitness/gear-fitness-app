@@ -1,21 +1,27 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, Pressable, TouchableOpacity } from "react-native";
+import React, { useMemo } from "react";
+import { View, Text, StyleSheet, Pressable } from "react-native";
 import { OnboardingPermissions } from "../types";
 import { OnboardingTopBar } from "./OnboardingTopBar";
+import { useOnboardingColors } from "./useOnboardingColors";
+import { makeOnboardingStyles } from "./makeOnboardingStyles";
 
 interface ToggleSwitchProps {
   value: boolean;
   onToggle: () => void;
+  colors: ReturnType<typeof useOnboardingColors>;
 }
 
-function ToggleSwitch({ value, onToggle }: ToggleSwitchProps) {
+function ToggleSwitch({ value, onToggle, colors }: ToggleSwitchProps) {
   return (
     <Pressable
       onPress={onToggle}
-      style={[styles.toggle, value && styles.toggleOn]}
+      style={[
+        styles.toggle,
+        { backgroundColor: value ? colors.accent : colors.unitToggleBg },
+      ]}
       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
     >
-      <View style={[styles.knob, value && styles.knobOn]} />
+      <View style={[styles.knob, { backgroundColor: colors.accentText }, value && styles.knobOn]} />
     </Pressable>
   );
 }
@@ -27,6 +33,7 @@ interface PermCardProps {
   emoji: string;
   enabled: boolean;
   onToggle: () => void;
+  colors: ReturnType<typeof useOnboardingColors>;
 }
 
 function PermCard({
@@ -36,17 +43,18 @@ function PermCard({
   emoji,
   enabled,
   onToggle,
+  colors,
 }: PermCardProps) {
   return (
-    <View style={styles.permCard}>
+    <View style={[styles.permCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
       <View style={[styles.permIconWrap, { backgroundColor: accentColor }]}>
         <Text style={styles.permEmoji}>{emoji}</Text>
       </View>
       <View style={styles.permText}>
-        <Text style={styles.permTitle}>{title}</Text>
-        <Text style={styles.permSub}>{subtitle}</Text>
+        <Text style={[styles.permTitle, { color: colors.text }]}>{title}</Text>
+        <Text style={[styles.permSub, { color: colors.secondary }]}>{subtitle}</Text>
       </View>
-      <ToggleSwitch value={enabled} onToggle={onToggle} />
+      <ToggleSwitch value={enabled} onToggle={onToggle} colors={colors} />
     </View>
   );
 }
@@ -64,26 +72,28 @@ export function PermissionsStep({
   onBack,
   onContinue,
 }: PermissionsStepProps) {
-  const [health, setHealth] = useState(permissions?.health ?? false);
-  const [location, setLocation] = useState(permissions?.location ?? false);
-  const [notifications, setNotifications] = useState(
-    permissions?.notifications ?? false
-  );
+  const colors = useOnboardingColors();
+  const shared = useMemo(() => makeOnboardingStyles(colors), [colors]);
 
-  const toggle = (key: keyof OnboardingPermissions, val: boolean) => {
-    const updated = { health, location, notifications, [key]: !val };
-    if (key === "health") setHealth(!val);
-    if (key === "location") setLocation(!val);
-    if (key === "notifications") setNotifications(!val);
-    onPermissionsChange(updated);
+  const health = permissions?.health ?? false;
+  const location = permissions?.location ?? false;
+  const notifications = permissions?.notifications ?? false;
+
+  const toggle = (key: keyof OnboardingPermissions) => {
+    onPermissionsChange({
+      health,
+      location,
+      notifications,
+      [key]: !permissions?.[key],
+    });
   };
 
   return (
-    <View style={styles.screen}>
+    <View style={shared.screen}>
       <OnboardingTopBar progress={0.8} onBack={onBack} />
-      <View style={styles.body}>
-        <Text style={styles.heading}>Almost there</Text>
-        <Text style={styles.subheading}>
+      <View style={shared.body}>
+        <Text style={shared.heading}>Almost there</Text>
+        <Text style={shared.subheading}>
           Enable these to get the most out of Gear Fitness.
         </Text>
         <View style={styles.cards}>
@@ -93,7 +103,8 @@ export function PermissionsStep({
             accentColor="#FFEEF1"
             emoji="❤️"
             enabled={health}
-            onToggle={() => toggle("health", health)}
+            onToggle={() => toggle("health")}
+            colors={colors}
           />
           <PermCard
             title="Location"
@@ -101,7 +112,8 @@ export function PermissionsStep({
             accentColor="#E8F1FC"
             emoji="📍"
             enabled={location}
-            onToggle={() => toggle("location", location)}
+            onToggle={() => toggle("location")}
+            colors={colors}
           />
           <PermCard
             title="Notifications"
@@ -109,53 +121,35 @@ export function PermissionsStep({
             accentColor="#FFF4E0"
             emoji="🔔"
             enabled={notifications}
-            onToggle={() => toggle("notifications", notifications)}
+            onToggle={() => toggle("notifications")}
+            colors={colors}
           />
         </View>
       </View>
-      <View style={styles.footer}>
-        <TouchableOpacity onPress={onContinue} activeOpacity={0.8} style={styles.continueBtn}>
-          <Text style={styles.continueBtnText}>Continue</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={onContinue} style={styles.skip}>
-          <Text style={styles.skipText}>Skip for now</Text>
-        </TouchableOpacity>
+      <View style={shared.footer}>
+        <Pressable
+          onPress={onContinue}
+          style={({ pressed }) => [shared.continueBtn, pressed && styles.pressed]}
+        >
+          <Text style={shared.continueBtnText}>Continue</Text>
+        </Pressable>
+        <Pressable onPress={onContinue} style={styles.skip}>
+          <Text style={[styles.skipText, { color: colors.secondary }]}>Skip for now</Text>
+        </Pressable>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  body: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 22,
-  },
-  heading: {
-    fontSize: 32,
-    fontWeight: "700",
-    color: "#0D0D0D",
-    letterSpacing: -1,
-    lineHeight: 36,
-    marginBottom: 5,
-  },
-  subheading: {
-    fontSize: 14,
-    color: "#8E8E93",
-    lineHeight: 21,
-    marginBottom: 24,
-  },
   cards: {
     flex: 1,
     gap: 12,
   },
   permCard: {
     flex: 1,
-    backgroundColor: "#fff",
     borderRadius: 24,
     borderWidth: 1.5,
-    borderColor: "rgba(0,0,0,0.1)",
     paddingHorizontal: 20,
     paddingVertical: 18,
     flexDirection: "row",
@@ -179,11 +173,9 @@ const styles = StyleSheet.create({
   permTitle: {
     fontSize: 15,
     fontWeight: "600",
-    color: "#0D0D0D",
   },
   permSub: {
     fontSize: 13,
-    color: "#8E8E93",
     marginTop: 2,
     lineHeight: 18,
   },
@@ -191,19 +183,14 @@ const styles = StyleSheet.create({
     width: 46,
     height: 27,
     borderRadius: 999,
-    backgroundColor: "rgba(0,0,0,0.14)",
     padding: 3,
     justifyContent: "center",
     flexShrink: 0,
-  },
-  toggleOn: {
-    backgroundColor: "#000",
   },
   knob: {
     width: 21,
     height: 21,
     borderRadius: 10.5,
-    backgroundColor: "#fff",
     shadowColor: "#000",
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -212,30 +199,14 @@ const styles = StyleSheet.create({
   knobOn: {
     alignSelf: "flex-end",
   },
-  footer: {
-    paddingHorizontal: 24,
-    paddingBottom: 44,
-    paddingTop: 10,
-  },
-  continueBtn: {
-    height: 60,
-    borderRadius: 999,
-    backgroundColor: "#000",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  continueBtnText: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#fff",
-    letterSpacing: -0.2,
-  },
   skip: {
     paddingVertical: 12,
     alignItems: "center",
   },
   skipText: {
     fontSize: 14,
-    color: "#8E8E93",
+  },
+  pressed: {
+    opacity: 0.75,
   },
 });

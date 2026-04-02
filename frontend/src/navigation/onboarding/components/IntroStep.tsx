@@ -1,35 +1,74 @@
-import React from "react";
-import { View, Text, StyleSheet, Image, TouchableOpacity } from "react-native";
+import React, { useMemo } from "react";
+import { View, Text, StyleSheet, Image, Pressable, useColorScheme } from "react-native";
+import { useOnboardingColors } from "./useOnboardingColors";
+import { makeOnboardingStyles } from "./makeOnboardingStyles";
+
+const gearLogo = require("../../../../assets/GearLogo288.png");
+const gearLogoInverse = require("../../../../assets/GearLogoInverse288.png");
 
 interface IntroStepProps {
   onGetStarted: () => void;
+  onGoogleSignIn?: () => void;
 }
 
-export function IntroStep({ onGetStarted }: IntroStepProps) {
+export function IntroStep({ onGetStarted, onGoogleSignIn }: IntroStepProps) {
+  const isDark = useColorScheme() === "dark";
+  const colors = useOnboardingColors();
+  const shared = useMemo(() => makeOnboardingStyles(colors), [colors]);
+
   return (
-    <View style={styles.container}>
+    <View style={shared.screen}>
       <View style={styles.heroSection}>
-        <View style={styles.logoBox}>
+      <View style={[styles.logoBox, { backgroundColor: colors.screenBg }]}>
           <Image
-            source={require("../../../../assets/GearLogo.png")}
+            source={isDark ? gearLogo : gearLogoInverse}
             style={styles.logoImage}
             resizeMode="contain"
+            fadeDuration={0}
           />
         </View>
-        <Text style={styles.heading}>Ready to hop{"\n"}on Gear?</Text>
-        <Text style={styles.subheading}>
+        <Text style={[shared.heading, styles.centeredHeading]}>
+          Ready to hop{"\n"}on Gear?
+        </Text>
+        <Text style={[shared.subheading, styles.centeredSub]}>
           Your fitness journey starts here. Let's set up your profile in under
           a minute.
         </Text>
       </View>
-      <View style={styles.footer}>
-        <TouchableOpacity onPress={onGetStarted} activeOpacity={0.8} style={styles.getStartedBtn}>
-          <Text style={styles.getStartedBtnText}>Get Started</Text>
-        </TouchableOpacity>
-        <Text style={styles.terms}>
+      <View style={[shared.footer, styles.footerGap]}>
+        <Pressable
+          onPress={onGetStarted}
+          style={({ pressed }) => [shared.continueBtn, pressed && styles.pressed]}
+        >
+          <Text style={shared.continueBtnText}>Get Started</Text>
+        </Pressable>
+        <View style={styles.dividerRow}>
+          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+          <Text style={[styles.dividerText, { color: colors.secondary }]}>or sign in with</Text>
+          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+        </View>
+        <View style={styles.iconRow}>
+          <Pressable onPress={onGoogleSignIn} style={[styles.iconBtn, { backgroundColor: colors.accent }]}>
+            <Image
+              source={{ uri: "https://www.gstatic.com/marketing-cms/assets/images/d5/dc/cfe9ce8b4425b410b49b7f2dd3f3/g.webp=s96-fcrop64=1,00000000ffffffff-rw" }}
+              style={styles.iconLogo}
+            />
+          </Pressable>
+          <Pressable style={[styles.iconBtn, { backgroundColor: colors.accent }]}>
+            <Image
+              source={{ uri: colors.isDark
+                ? "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Apple_logo_black.svg/1280px-Apple_logo_black.svg.png"
+                : "https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/Apple_logo_white.svg/1280px-Apple_logo_white.svg.png?_=20220821122232"
+              }}
+              style={styles.appleLogo}
+              resizeMode="contain"
+            />
+          </Pressable>
+        </View>
+        <Text style={[styles.terms, { color: colors.secondary }]}>
           By continuing you agree to our{" "}
-          <Text style={styles.termsLink}>Terms</Text> and{" "}
-          <Text style={styles.termsLink}>Privacy Policy</Text>
+          <Text style={[styles.termsLink, { color: colors.text }]}>Terms</Text> and{" "}
+          <Text style={[styles.termsLink, { color: colors.text }]}>Privacy Policy</Text>
         </Text>
       </View>
     </View>
@@ -37,73 +76,85 @@ export function IntroStep({ onGetStarted }: IntroStepProps) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
   heroSection: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 36,
-    textAlign: "center",
   },
   logoBox: {
-    width: 72,
-    height: 72,
+    width: 144,
+    height: 144,
     borderRadius: 26,
-    backgroundColor: "#000",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 32,
+    overflow: "hidden",
   },
   logoImage: {
-    width: 44,
-    height: 44,
+    width: 144,
+    height: 144,
   },
-  heading: {
+  centeredHeading: {
     fontSize: 36,
-    fontWeight: "700",
-    color: "#000",
     letterSpacing: -1.2,
     lineHeight: 40,
     marginBottom: 14,
     textAlign: "center",
   },
-  subheading: {
+  centeredSub: {
     fontSize: 15,
-    color: "#8E8E93",
     lineHeight: 24,
     maxWidth: 260,
     textAlign: "center",
+    marginBottom: 0,
   },
-  footer: {
-    paddingHorizontal: 24,
-    paddingBottom: 44,
-    paddingTop: 10,
-    gap: 14,
+  footerGap: {
+    gap: 12,
+  },
+  dividerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  dividerLine: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+  },
+  dividerText: {
+    fontSize: 13,
+  },
+  iconRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 16,
+  },
+  iconBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconLogo: {
+    width: 22,
+    height: 22,
+  },
+  appleLogo: {
+    width: 26,
+    height: 26,
+    marginTop: -3,
   },
   terms: {
     textAlign: "center",
     fontSize: 12,
-    color: "#8E8E93",
     lineHeight: 18,
     paddingHorizontal: 8,
   },
   termsLink: {
-    color: "#000",
     fontWeight: "600",
   },
-  getStartedBtn: {
-    height: 60,
-    borderRadius: 999,
-    backgroundColor: "#000",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  getStartedBtnText: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#fff",
-    letterSpacing: -0.2,
+  pressed: {
+    opacity: 0.75,
   },
 });

@@ -1,17 +1,16 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
   StyleSheet,
   Pressable,
-  Modal,
-  TouchableWithoutFeedback,
-  TouchableOpacity,
-  Animated,
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import { Height, Weight, DOB } from "../types";
 import { OnboardingTopBar } from "./OnboardingTopBar";
+import { PickerSheet } from "./PickerSheet";
+import { useOnboardingColors } from "./useOnboardingColors";
+import { makeOnboardingStyles } from "./makeOnboardingStyles";
 
 // ─── Helpers ───────────────────────────────────────────────────
 function calcAge(year: number, month: number, day: number): number {
@@ -23,19 +22,19 @@ function calcAge(year: number, month: number, day: number): number {
 }
 
 function formatHeight(h?: Height): string {
-  if (!h) return "5' 11\"";
+  if (!h) return "—";
   if (h.unit === "ft_in") return `${h.ft}' ${h.inch}"`;
   return `${h.cm} cm`;
 }
 
 function formatWeight(w?: Weight): string {
-  if (!w) return "165 lbs";
+  if (!w) return "—";
   return `${w.value} ${w.unit}`;
 }
 
 function formatDOB(dob?: DOB): { age: string; date: string } {
   const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  if (!dob) return { age: "25", date: "May 26, 2000" };
+  if (!dob) return { age: "—", date: "Not set" };
   const age = calcAge(dob.year, dob.month, dob.day);
   return { age: `${age}`, date: `${MONTHS_SHORT[dob.month]} ${dob.day}, ${dob.year}` };
 }
@@ -60,8 +59,6 @@ const CM_VALUES = Array.from({ length: 121 }, (_, i) => i + 100);
 const LB_VALUES = Array.from({ length: 301 }, (_, i) => i + 50);
 const KG_VALUES = Array.from({ length: 201 }, (_, i) => i + 20);
 
-const SHEET_TRANSLATE_CLOSED = 500;
-
 interface AboutYouStepProps {
   height?: Height;
   weight?: Weight;
@@ -83,48 +80,12 @@ export function AboutYouStep({
   onBack,
   onContinue,
 }: AboutYouStepProps) {
+  const colors = useOnboardingColors();
+  const shared = useMemo(() => makeOnboardingStyles(colors), [colors]);
+
   const [htSheet, setHtSheet] = useState(false);
   const [wtSheet, setWtSheet] = useState(false);
   const [bdSheet, setBdSheet] = useState(false);
-
-  // ─── Per-sheet animation values ───────────────────────────
-  const htBackdrop = useRef(new Animated.Value(0)).current;
-  const htSlide    = useRef(new Animated.Value(SHEET_TRANSLATE_CLOSED)).current;
-  const wtBackdrop = useRef(new Animated.Value(0)).current;
-  const wtSlide    = useRef(new Animated.Value(SHEET_TRANSLATE_CLOSED)).current;
-  const bdBackdrop = useRef(new Animated.Value(0)).current;
-  const bdSlide    = useRef(new Animated.Value(SHEET_TRANSLATE_CLOSED)).current;
-
-  // ─── Animation helpers ────────────────────────────────────
-  const animOpen = (backdrop: Animated.Value, slide: Animated.Value) => {
-    backdrop.setValue(0);
-    slide.setValue(SHEET_TRANSLATE_CLOSED);
-    Animated.parallel([
-      Animated.timing(backdrop, { toValue: 1, duration: 220, useNativeDriver: true }),
-      Animated.spring(slide, { toValue: 0, damping: 22, stiffness: 220, useNativeDriver: true }),
-    ]).start();
-  };
-
-  const animClose = (
-    backdrop: Animated.Value,
-    slide: Animated.Value,
-    done: () => void
-  ) => {
-    Animated.parallel([
-      Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
-      Animated.timing(slide, { toValue: SHEET_TRANSLATE_CLOSED, duration: 220, useNativeDriver: true }),
-    ]).start(() => done());
-  };
-
-  // ─── Open handlers ────────────────────────────────────────
-  const openHt = () => { setHtSheet(true); animOpen(htBackdrop, htSlide); };
-  const openWt = () => { setWtSheet(true); animOpen(wtBackdrop, wtSlide); };
-  const openBd = () => { setBdSheet(true); animOpen(bdBackdrop, bdSlide); };
-
-  // ─── Close handlers ──────────────────────────────────────
-  const closeHt = (cb?: () => void) => animClose(htBackdrop, htSlide, () => { setHtSheet(false); cb?.(); });
-  const closeWt = (cb?: () => void) => animClose(wtBackdrop, wtSlide, () => { setWtSheet(false); cb?.(); });
-  const closeBd = (cb?: () => void) => animClose(bdBackdrop, bdSlide, () => { setBdSheet(false); cb?.(); });
 
   // ─── Height local state ────────────────────────────────────
   const [htUnit, setHtUnit] = useState<"ft_in" | "cm">(
@@ -146,17 +107,19 @@ export function AboutYouStep({
   const [bdYear,  setBdYear]  = useState(dob?.year ?? 2000);
 
   // ─── Done handlers ────────────────────────────────────────
-  const doneHeight = () =>
-    closeHt(() => {
-      onHeightChange(
-        htUnit === "ft_in"
-          ? { unit: "ft_in", ft: htFt, inch: htIn }
-          : { unit: "cm", cm: htCm }
-      );
-    });
+  const doneHeight = () => {
+    onHeightChange(
+      htUnit === "ft_in"
+        ? { unit: "ft_in", ft: htFt, inch: htIn }
+        : { unit: "cm", cm: htCm }
+    );
+    setHtSheet(false);
+  };
 
-  const doneWeight = () =>
-    closeWt(() => onWeightChange({ unit: wtUnit, value: wtVal }));
+  const doneWeight = () => {
+    onWeightChange({ unit: wtUnit, value: wtVal });
+    setWtSheet(false);
+  };
 
   const handleBdMonthChange = (month: number) => {
     setBdMonth(month);
@@ -170,218 +133,190 @@ export function AboutYouStep({
     if (bdDay > max) setBdDay(max);
   };
 
-  const doneDOB = () =>
-    closeBd(() => onDobChange({ year: bdYear, month: bdMonth, day: bdDay }));
+  const doneDOB = () => {
+    onDobChange({ year: bdYear, month: bdMonth, day: bdDay });
+    setBdSheet(false);
+  };
 
   const { age, date } = formatDOB(dob);
 
+  const unitToggle = (
+    active: string,
+    options: { label: string; value: string }[],
+    onChange: (v: string) => void
+  ) => (
+    <View style={[styles.unitToggle, { backgroundColor: colors.unitToggleBg }]}>
+      {options.map((opt) => (
+        <Pressable
+          key={opt.value}
+          onPress={() => onChange(opt.value)}
+          style={[
+            styles.unitBtn,
+            active === opt.value && { backgroundColor: colors.unitBtnActiveBg },
+          ]}
+        >
+          <Text style={[
+            styles.unitBtnText,
+            { color: active === opt.value ? colors.text : colors.secondary },
+          ]}>
+            {opt.label}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+
   return (
-    <View style={styles.screen}>
+    <View style={shared.screen}>
       <OnboardingTopBar progress={0.4} onBack={onBack} />
-      <View style={styles.body}>
-        <Text style={styles.heading}>About you</Text>
-        <Text style={styles.subheading}>
+      <View style={shared.body}>
+        <Text style={shared.heading}>About you</Text>
+        <Text style={shared.subheading}>
           Helps us personalise your calorie goals and workout intensity.
         </Text>
         <View style={styles.cardsWrap}>
-          <Pressable style={styles.bigCard} onPress={openHt}>
-            <Text style={styles.cardLabel}>HEIGHT</Text>
-            <Text style={styles.cardValue}>{formatHeight(height)}</Text>
-            <Text style={styles.tapHint}>Tap to change</Text>
+          <Pressable
+            style={[styles.bigCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}
+            onPress={() => setHtSheet(true)}
+          >
+            <Text style={[styles.cardLabel, { color: colors.secondary }]}>HEIGHT</Text>
+            <Text style={[styles.cardValue, { color: colors.text }]}>{formatHeight(height)}</Text>
+            <Text style={[styles.tapHint, { color: colors.secondary }]}>Tap to change</Text>
           </Pressable>
-          <Pressable style={styles.bigCard} onPress={openWt}>
-            <Text style={styles.cardLabel}>WEIGHT</Text>
-            <Text style={styles.cardValue}>{formatWeight(weight)}</Text>
-            <Text style={styles.tapHint}>Tap to change</Text>
+          <Pressable
+            style={[styles.bigCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}
+            onPress={() => setWtSheet(true)}
+          >
+            <Text style={[styles.cardLabel, { color: colors.secondary }]}>WEIGHT</Text>
+            <Text style={[styles.cardValue, { color: colors.text }]}>{formatWeight(weight)}</Text>
+            <Text style={[styles.tapHint, { color: colors.secondary }]}>Tap to change</Text>
           </Pressable>
-          <Pressable style={styles.bigCard} onPress={openBd}>
-            <Text style={styles.cardLabel}>AGE</Text>
-            <Text style={styles.cardValue}>{age}</Text>
-            <Text style={styles.cardSub}>{date}</Text>
-            <Text style={styles.tapHint}>Tap to change</Text>
+          <Pressable
+            style={[styles.bigCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}
+            onPress={() => setBdSheet(true)}
+          >
+            <Text style={[styles.cardLabel, { color: colors.secondary }]}>AGE</Text>
+            <Text style={[styles.cardValue, { color: colors.text }]}>{age}</Text>
+            {dob && <Text style={[styles.cardSub, { color: colors.secondary }]}>{date}</Text>}
+            <Text style={[styles.tapHint, { color: colors.secondary }]}>Tap to change</Text>
           </Pressable>
         </View>
       </View>
-      <View style={styles.footer}>
-        <TouchableOpacity onPress={onContinue} activeOpacity={0.8} style={styles.continueBtn}>
-          <Text style={styles.continueBtnText}>Continue</Text>
-        </TouchableOpacity>
+      <View style={shared.footer}>
+        <Pressable
+          onPress={onContinue}
+          style={({ pressed }) => [shared.continueBtn, pressed && styles.pressed]}
+        >
+          <Text style={shared.continueBtnText}>Continue</Text>
+        </Pressable>
       </View>
 
-      {/* ── Height Sheet ─────────────────────────────────────── */}
-      <Modal visible={htSheet} transparent animationType="none" onRequestClose={() => closeHt()}>
-        <TouchableWithoutFeedback onPress={() => closeHt()}>
-          <Animated.View style={[{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }, styles.dim, { opacity: htBackdrop }]} />
-        </TouchableWithoutFeedback>
-        <Animated.View style={[styles.sheet, { transform: [{ translateY: htSlide }] }]}>
-          <View style={styles.sheetHandle} />
-          <View style={styles.sheetTop}>
-            <Text style={styles.sheetTitle}>Your height</Text>
-            <TouchableOpacity onPress={doneHeight}>
-              <Text style={styles.doneText}>Done</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.unitToggle}>
-            <TouchableOpacity
-              onPress={() => setHtUnit("ft_in")}
-              style={[styles.unitBtn, htUnit === "ft_in" && styles.unitBtnActive]}
-            >
-              <Text style={[styles.unitBtnText, htUnit === "ft_in" && styles.unitBtnTextActive]}>
-                ft / in
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setHtUnit("cm")}
-              style={[styles.unitBtn, htUnit === "cm" && styles.unitBtnActive]}
-            >
-              <Text style={[styles.unitBtnText, htUnit === "cm" && styles.unitBtnTextActive]}>
-                cm
-              </Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.pickerRow}>
-            {htUnit === "ft_in" ? (
-              <>
-                <Picker selectedValue={htFt} onValueChange={setHtFt} style={styles.picker} itemStyle={styles.pickerItem}>
-                  {FT_VALUES.map((v) => <Picker.Item key={v} label={`${v} ft`} value={v} />)}
-                </Picker>
-                <Picker selectedValue={htIn} onValueChange={setHtIn} style={styles.picker} itemStyle={styles.pickerItem}>
-                  {IN_VALUES.map((v) => <Picker.Item key={v} label={`${v} in`} value={v} />)}
-                </Picker>
-              </>
-            ) : (
-              <Picker selectedValue={htCm} onValueChange={setHtCm} style={[styles.picker, { flex: 1 }]} itemStyle={styles.pickerItem}>
-                {CM_VALUES.map((v) => <Picker.Item key={v} label={`${v} cm`} value={v} />)}
+      {/* ── Height Sheet ─────────────────────────────────── */}
+      <PickerSheet
+        visible={htSheet}
+        title="Your height"
+        colors={colors}
+        onClose={() => setHtSheet(false)}
+        onDone={doneHeight}
+        unitToggle={unitToggle(
+          htUnit,
+          [{ label: "ft / in", value: "ft_in" }, { label: "cm", value: "cm" }],
+          (v) => setHtUnit(v as "ft_in" | "cm")
+        )}
+      >
+        <View style={styles.pickerRow}>
+          {htUnit === "ft_in" ? (
+            <>
+              <Picker selectedValue={htFt} onValueChange={setHtFt} style={styles.picker} itemStyle={[styles.pickerItem, { color: colors.text }]}>
+                {FT_VALUES.map((v) => <Picker.Item key={v} label={`${v} ft`} value={v} />)}
               </Picker>
-            )}
-          </View>
-          <TouchableOpacity onPress={doneHeight} style={styles.sheetDoneBtn}>
-            <Text style={styles.sheetDoneBtnText}>Done</Text>
-          </TouchableOpacity>
-        </Animated.View>
-      </Modal>
+              <Picker selectedValue={htIn} onValueChange={setHtIn} style={styles.picker} itemStyle={[styles.pickerItem, { color: colors.text }]}>
+                {IN_VALUES.map((v) => <Picker.Item key={v} label={`${v} in`} value={v} />)}
+              </Picker>
+            </>
+          ) : (
+            <Picker selectedValue={htCm} onValueChange={setHtCm} style={[styles.picker, { flex: 1 }]} itemStyle={[styles.pickerItem, { color: colors.text }]}>
+              {CM_VALUES.map((v) => <Picker.Item key={v} label={`${v} cm`} value={v} />)}
+            </Picker>
+          )}
+        </View>
+      </PickerSheet>
 
-      {/* ── Weight Sheet ─────────────────────────────────────── */}
-      <Modal visible={wtSheet} transparent animationType="none" onRequestClose={() => closeWt()}>
-        <TouchableWithoutFeedback onPress={() => closeWt()}>
-          <Animated.View style={[{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }, styles.dim, { opacity: wtBackdrop }]} />
-        </TouchableWithoutFeedback>
-        <Animated.View style={[styles.sheet, { transform: [{ translateY: wtSlide }] }]}>
-          <View style={styles.sheetHandle} />
-          <View style={styles.sheetTop}>
-            <Text style={styles.sheetTitle}>Your weight</Text>
-            <TouchableOpacity onPress={doneWeight}>
-              <Text style={styles.doneText}>Done</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.unitToggle}>
-            <TouchableOpacity
-              onPress={() => { setWtUnit("lbs"); setWtVal(165); }}
-              style={[styles.unitBtn, wtUnit === "lbs" && styles.unitBtnActive]}
-            >
-              <Text style={[styles.unitBtnText, wtUnit === "lbs" && styles.unitBtnTextActive]}>lbs</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => { setWtUnit("kg"); setWtVal(75); }}
-              style={[styles.unitBtn, wtUnit === "kg" && styles.unitBtnActive]}
-            >
-              <Text style={[styles.unitBtnText, wtUnit === "kg" && styles.unitBtnTextActive]}>kg</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.pickerRow}>
-            <Picker selectedValue={wtVal} onValueChange={setWtVal} style={[styles.picker, { flex: 1 }]} itemStyle={styles.pickerItem}>
-              {(wtUnit === "lbs" ? LB_VALUES : KG_VALUES).map((v) => (
-                <Picker.Item key={v} label={`${v} ${wtUnit}`} value={v} />
-              ))}
-            </Picker>
-          </View>
-          <TouchableOpacity onPress={doneWeight} style={styles.sheetDoneBtn}>
-            <Text style={styles.sheetDoneBtnText}>Done</Text>
-          </TouchableOpacity>
-        </Animated.View>
-      </Modal>
+      {/* ── Weight Sheet ─────────────────────────────────── */}
+      <PickerSheet
+        visible={wtSheet}
+        title="Your weight"
+        colors={colors}
+        onClose={() => setWtSheet(false)}
+        onDone={doneWeight}
+        unitToggle={unitToggle(
+          wtUnit,
+          [{ label: "lbs", value: "lbs" }, { label: "kg", value: "kg" }],
+          (v) => {
+            setWtUnit(v as "lbs" | "kg");
+            setWtVal(v === "kg" ? 75 : 165);
+          }
+        )}
+      >
+        <View style={styles.pickerRow}>
+          <Picker selectedValue={wtVal} onValueChange={setWtVal} style={[styles.picker, { flex: 1 }]} itemStyle={[styles.pickerItem, { color: colors.text }]}>
+            {(wtUnit === "lbs" ? LB_VALUES : KG_VALUES).map((v) => (
+              <Picker.Item key={v} label={`${v} ${wtUnit}`} value={v} />
+            ))}
+          </Picker>
+        </View>
+      </PickerSheet>
 
-      {/* ── DOB Sheet ────────────────────────────────────────── */}
-      <Modal visible={bdSheet} transparent animationType="none" onRequestClose={() => closeBd()}>
-        <TouchableWithoutFeedback onPress={() => closeBd()}>
-          <Animated.View style={[{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }, styles.dim, { opacity: bdBackdrop }]} />
-        </TouchableWithoutFeedback>
-        <Animated.View style={[styles.sheet, { transform: [{ translateY: bdSlide }] }]}>
-          <View style={styles.sheetHandle} />
-          <View style={styles.sheetTop}>
-            <Text style={styles.sheetTitle}>Date of birth</Text>
-            <TouchableOpacity onPress={doneDOB}>
-              <Text style={styles.doneText}>Done</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.pickerRow}>
-            <Picker
-              selectedValue={bdMonth}
-              onValueChange={handleBdMonthChange}
-              style={[styles.picker, { flex: 1.4 }]}
-              itemStyle={styles.pickerItem}
-            >
-              {DOB_MONTHS.map((m, i) => <Picker.Item key={i} label={m} value={i} />)}
-            </Picker>
-            <Picker
-              selectedValue={bdDay}
-              onValueChange={setBdDay}
-              style={[styles.picker, { flex: 0.8 }]}
-              itemStyle={styles.pickerItem}
-            >
-              {Array.from({ length: getDaysInMonth(bdMonth, bdYear) }, (_, i) => i + 1).map((d) => (
-                <Picker.Item key={d} label={`${d}`} value={d} />
-              ))}
-            </Picker>
-            <Picker
-              selectedValue={bdYear}
-              onValueChange={handleBdYearChange}
-              style={[styles.picker, { flex: 1.1 }]}
-              itemStyle={styles.pickerItem}
-            >
-              {DOB_YEARS.map((y) => <Picker.Item key={y} label={`${y}`} value={y} />)}
-            </Picker>
-          </View>
-          <TouchableOpacity onPress={doneDOB} style={styles.sheetDoneBtn}>
-            <Text style={styles.sheetDoneBtnText}>Done</Text>
-          </TouchableOpacity>
-        </Animated.View>
-      </Modal>
+      {/* ── DOB Sheet ────────────────────────────────────── */}
+      <PickerSheet
+        visible={bdSheet}
+        title="Date of birth"
+        colors={colors}
+        onClose={() => setBdSheet(false)}
+        onDone={doneDOB}
+      >
+        <View style={styles.pickerRow}>
+          <Picker
+            selectedValue={bdMonth}
+            onValueChange={handleBdMonthChange}
+            style={[styles.picker, { flex: 1.4 }]}
+            itemStyle={[styles.pickerItem, { color: colors.text }]}
+          >
+            {DOB_MONTHS.map((m, i) => <Picker.Item key={i} label={m} value={i} />)}
+          </Picker>
+          <Picker
+            selectedValue={bdDay}
+            onValueChange={setBdDay}
+            style={[styles.picker, { flex: 0.8 }]}
+            itemStyle={[styles.pickerItem, { color: colors.text }]}
+          >
+            {Array.from({ length: getDaysInMonth(bdMonth, bdYear) }, (_, i) => i + 1).map((d) => (
+              <Picker.Item key={d} label={`${d}`} value={d} />
+            ))}
+          </Picker>
+          <Picker
+            selectedValue={bdYear}
+            onValueChange={handleBdYearChange}
+            style={[styles.picker, { flex: 1.1 }]}
+            itemStyle={[styles.pickerItem, { color: colors.text }]}
+          >
+            {DOB_YEARS.map((y) => <Picker.Item key={y} label={`${y}`} value={y} />)}
+          </Picker>
+        </View>
+      </PickerSheet>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  body: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 22,
-  },
-  heading: {
-    fontSize: 32,
-    fontWeight: "700",
-    color: "#0D0D0D",
-    letterSpacing: -1,
-    lineHeight: 36,
-    marginBottom: 5,
-  },
-  subheading: {
-    fontSize: 14,
-    color: "#8E8E93",
-    lineHeight: 21,
-    marginBottom: 24,
-  },
   cardsWrap: {
     flex: 1,
     gap: 10,
   },
   bigCard: {
     flex: 1,
-    backgroundColor: "#fff",
     borderRadius: 28,
     borderWidth: 1.5,
-    borderColor: "rgba(0,0,0,0.1)",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 12,
@@ -391,92 +326,29 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     letterSpacing: 0.7,
-    color: "#8E8E93",
     marginBottom: 5,
     textTransform: "uppercase",
   },
   cardValue: {
     fontSize: 48,
     fontWeight: "700",
-    color: "#0D0D0D",
     letterSpacing: -2,
     lineHeight: 52,
   },
   cardSub: {
     fontSize: 13,
-    color: "#8E8E93",
     marginTop: 4,
   },
   tapHint: {
     fontSize: 12,
-    color: "#8E8E93",
     marginTop: 5,
   },
-  footer: {
-    paddingHorizontal: 24,
-    paddingBottom: 44,
-    paddingTop: 10,
+  pressed: {
+    opacity: 0.75,
   },
-  continueBtn: {
-    height: 60,
-    borderRadius: 999,
-    backgroundColor: "#000",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  continueBtnText: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#fff",
-    letterSpacing: -0.2,
-  },
-  // ── Sheet ─────────────────────────────────────────────────
-  dim: {
-    backgroundColor: "rgba(0,0,0,0.4)",
-  },
-  sheet: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    paddingBottom: 40,
-  },
-  sheetHandle: {
-    width: 40,
-    height: 4,
-    backgroundColor: "rgba(0,0,0,0.12)",
-    borderRadius: 99,
-    alignSelf: "center",
-    marginTop: 12,
-    marginBottom: 4,
-  },
-  sheetTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(0,0,0,0.1)",
-  },
-  sheetTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#0D0D0D",
-  },
-  doneText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#0D0D0D",
-  },
+  // ── Unit toggle ───────────────────────────────────────────
   unitToggle: {
     flexDirection: "row",
-    marginHorizontal: 16,
-    marginTop: 10,
-    backgroundColor: "rgba(0,0,0,0.07)",
     borderRadius: 999,
     padding: 3,
   },
@@ -486,21 +358,11 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: "center",
   },
-  unitBtnActive: {
-    backgroundColor: "#fff",
-    shadowColor: "#000",
-    shadowOpacity: 0.12,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
-  },
   unitBtnText: {
     fontSize: 13,
     fontWeight: "500",
-    color: "#8E8E93",
   },
-  unitBtnTextActive: {
-    color: "#0D0D0D",
-  },
+  // ── Pickers ───────────────────────────────────────────────
   pickerRow: {
     flexDirection: "row",
     height: 216,
@@ -510,21 +372,6 @@ const styles = StyleSheet.create({
     height: 216,
   },
   pickerItem: {
-    color: "#0D0D0D",
     fontSize: 18,
-  },
-  sheetDoneBtn: {
-    marginHorizontal: 16,
-    marginTop: 10,
-    height: 56,
-    borderRadius: 999,
-    backgroundColor: "#000",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  sheetDoneBtnText: {
-    color: "#fff",
-    fontSize: 17,
-    fontWeight: "700",
   },
 });

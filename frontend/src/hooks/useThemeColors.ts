@@ -24,5 +24,12 @@ export function useThemeColors() {
     positionBg: isDark ? "#3A3A3C" : "#E5E5EA",
     tint: "#007AFF",
     danger: "#FF3B30",
+    // Onboarding-specific tokens
+    accent: isDark ? "#fff" : "#000",
+    accentText: isDark ? "#000" : "#fff",
+    unitToggleBg: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.07)",
+    unitBtnActiveBg: isDark ? "#2C2C2E" : "#fff",
+    photoBg: isDark ? "#3A3A3C" : "#E5E5EA",
+    trackBg: isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.12)",
   };
 }

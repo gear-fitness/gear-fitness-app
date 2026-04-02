@@ -1,6 +1,7 @@
 import React from "react";
 import { View, StyleSheet } from "react-native";
 import { BackButton } from "../../../components/BackButton";
+import { useOnboardingColors } from "./useOnboardingColors";
 
 interface OnboardingTopBarProps {
   progress: number; // 0..1
@@ -8,11 +9,12 @@ interface OnboardingTopBarProps {
 }
 
 export function OnboardingTopBar({ progress, onBack }: OnboardingTopBarProps) {
+  const colors = useOnboardingColors();
   return (
     <View style={styles.topbar}>
-      <BackButton onPress={onBack} color="#0D0D0D" size={26} />
-      <View style={styles.trackWrap}>
-        <View style={[styles.fill, { width: `${progress * 100}%` }]} />
+      <BackButton onPress={onBack} color={colors.text} size={26} />
+      <View style={[styles.trackWrap, { backgroundColor: colors.trackBg }]}>
+        <View style={[styles.fill, { width: `${progress * 100}%`, backgroundColor: colors.accent }]} />
       </View>
     </View>
   );
@@ -30,13 +32,11 @@ const styles = StyleSheet.create({
   trackWrap: {
     flex: 1,
     height: 4,
-    backgroundColor: "rgba(0,0,0,0.12)",
     borderRadius: 99,
     overflow: "hidden",
   },
   fill: {
     height: "100%",
-    backgroundColor: "#0D0D0D",
     borderRadius: 99,
   },
 });

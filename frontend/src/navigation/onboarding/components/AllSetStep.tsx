@@ -1,12 +1,14 @@
-import React from "react";
+import React, { useMemo } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   ActivityIndicator,
 } from "react-native";
 import { OnboardingTopBar } from "./OnboardingTopBar";
+import { useOnboardingColors } from "./useOnboardingColors";
+import { makeOnboardingStyles } from "./makeOnboardingStyles";
 
 interface AllSetStepProps {
   onSignIn: () => void;
@@ -15,38 +17,39 @@ interface AllSetStepProps {
 }
 
 export function AllSetStep({ onSignIn, onBack, isLoading = false }: AllSetStepProps) {
+  const colors = useOnboardingColors();
+  const shared = useMemo(() => makeOnboardingStyles(colors), [colors]);
+
   return (
-    <View style={styles.screen}>
+    <View style={shared.screen}>
       <OnboardingTopBar progress={1} onBack={onBack} />
       <View style={styles.heroSection}>
-        <View style={styles.iconBox}>
-          <Text style={styles.checkEmoji}>✓</Text>
+        <View style={[styles.iconBox, { backgroundColor: colors.accent }]}>
+          <Text style={[styles.checkEmoji, { color: colors.accentText }]}>✓</Text>
         </View>
-        <Text style={styles.heading}>You're all set.</Text>
-        <Text style={styles.subheading}>
+        <Text style={[shared.heading, styles.centeredHeading]}>You're all set.</Text>
+        <Text style={[shared.subheading, styles.centeredSub]}>
           Save your profile by signing in — it only takes a second.
         </Text>
       </View>
-      <View style={styles.footer}>
-        <TouchableOpacity
+      <View style={shared.footer}>
+        <Pressable
           onPress={onSignIn}
-          activeOpacity={0.8}
           disabled={isLoading}
-          style={styles.signInBtn}
+          style={({ pressed }) => [shared.continueBtn, pressed && styles.pressed, isLoading && shared.continueBtnDisabled]}
         >
           {isLoading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={colors.accentText} />
           ) : (
-            <Text style={styles.signInBtnText}>Sign in with Google</Text>
+            <Text style={shared.continueBtnText}>Sign in with Google</Text>
           )}
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
   heroSection: {
     flex: 1,
     alignItems: "center",
@@ -57,48 +60,28 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 32,
-    backgroundColor: "#000",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 24,
   },
   checkEmoji: {
     fontSize: 44,
-    color: "#fff",
     fontWeight: "700",
   },
-  heading: {
+  centeredHeading: {
     fontSize: 34,
-    fontWeight: "700",
-    color: "#000",
     letterSpacing: -1,
     marginBottom: 10,
     textAlign: "center",
   },
-  subheading: {
+  centeredSub: {
     fontSize: 15,
-    color: "#8E8E93",
     lineHeight: 24,
     maxWidth: 240,
     textAlign: "center",
+    marginBottom: 0,
   },
-  footer: {
-    paddingHorizontal: 24,
-    paddingBottom: 44,
-    paddingTop: 0,
-    gap: 10,
-  },
-  signInBtn: {
-    height: 60,
-    borderRadius: 999,
-    backgroundColor: "#000",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  signInBtnText: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#fff",
-    letterSpacing: -0.2,
+  pressed: {
+    opacity: 0.75,
   },
 });

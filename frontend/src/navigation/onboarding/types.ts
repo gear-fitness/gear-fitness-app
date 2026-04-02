@@ -1,5 +1,7 @@
 export type OnboardingStep = 0 | 1 | 2 | 3 | 4 | 5;
 
+export const TOTAL_STEPS = 5;
+
 export type Gender = "male" | "female" | "non_binary" | "prefer_not_to_say";
 
 export type HeightFtIn = { unit: "ft_in"; ft: number; inch: number };

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -7,11 +7,12 @@ import {
   Pressable,
   Image,
   Alert,
-  TouchableOpacity,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { OnboardingProfile } from "../types";
 import { OnboardingTopBar } from "./OnboardingTopBar";
+import { useOnboardingColors } from "./useOnboardingColors";
+import { makeOnboardingStyles } from "./makeOnboardingStyles";
 
 interface ProfileStepProps {
   profile?: OnboardingProfile;
@@ -26,6 +27,9 @@ export function ProfileStep({
   onBack,
   onContinue,
 }: ProfileStepProps) {
+  const colors = useOnboardingColors();
+  const shared = useMemo(() => makeOnboardingStyles(colors), [colors]);
+
   const [name, setName] = useState(profile?.name ?? "");
   const [username, setUsername] = useState(profile?.username ?? "");
   const [photoUri, setPhotoUri] = useState(profile?.photoUri);
@@ -73,57 +77,63 @@ export function ProfileStep({
     .join("")
     .toUpperCase();
 
+  const canContinue = name.trim().length > 0;
+
   return (
-    <View style={styles.screen}>
+    <View style={shared.screen}>
       <OnboardingTopBar progress={0.6} onBack={onBack} />
-      <View style={styles.body}>
-        <Text style={styles.heading}>Create your profile</Text>
-        <Text style={styles.subheading}>
+      <View style={shared.body}>
+        <Text style={shared.heading}>Create your profile</Text>
+        <Text style={shared.subheading}>
           This is how others will find and recognise you on Gear.
         </Text>
         <View style={styles.photoWrap}>
           <Pressable
-            style={[styles.photoCircle, photoUri ? styles.photoCircleHasPhoto : undefined]}
+            style={[
+              styles.photoCircle,
+              { backgroundColor: colors.photoBg, borderColor: colors.dashedBorder },
+              photoUri ? styles.photoCircleHasPhoto : undefined,
+            ]}
             onPress={pickPhoto}
           >
             {photoUri ? (
               <Image source={{ uri: photoUri }} style={styles.photoImage} />
             ) : initials ? (
-              <Text style={styles.initials}>{initials}</Text>
+              <Text style={[styles.initials, { color: colors.secondary }]}>{initials}</Text>
             ) : (
               <Text style={styles.photoPlaceholder}>📷</Text>
             )}
-            <View style={styles.photoBadge}>
-              <Text style={styles.photoBadgeText}>+</Text>
+            <View style={[styles.photoBadge, { backgroundColor: colors.accent, borderColor: colors.surface }]}>
+              <Text style={[styles.photoBadgeText, { color: colors.accentText }]}>+</Text>
             </View>
           </Pressable>
           <Pressable onPress={pickPhoto}>
-            <Text style={styles.photoLabel}>
+            <Text style={[styles.photoLabel, { color: colors.secondary }]}>
               {photoUri ? "Change photo" : "Add photo"}
             </Text>
           </Pressable>
         </View>
-        <View style={styles.inputGroup}>
-          <View style={styles.inputRow}>
-            <Text style={styles.inputLabel}>Name</Text>
+        <View style={[styles.inputGroup, { backgroundColor: colors.cardBg }]}>
+          <View style={[styles.inputRow, { backgroundColor: colors.cardBg }]}>
+            <Text style={[styles.inputLabel, { color: colors.text }]}>Name</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: colors.inputText }]}
               placeholder="Your name"
-              placeholderTextColor="#C7C7CC"
+              placeholderTextColor={colors.handle}
               value={name}
               onChangeText={handleNameChange}
               autoComplete="off"
               autoCorrect={false}
             />
           </View>
-          <View style={styles.divider} />
-          <View style={styles.inputRow}>
-            <Text style={styles.inputLabel}>Username</Text>
-            <Text style={styles.atSign}>@</Text>
+          <View style={[styles.divider, { backgroundColor: colors.separator }]} />
+          <View style={[styles.inputRow, { backgroundColor: colors.cardBg }]}>
+            <Text style={[styles.inputLabel, { color: colors.text }]}>Username</Text>
+            <Text style={[styles.atSign, { color: colors.handle }]}>@</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: colors.inputText }]}
               placeholder="yourhandle"
-              placeholderTextColor="#C7C7CC"
+              placeholderTextColor={colors.handle}
               value={username}
               onChangeText={handleUsernameChange}
               autoCapitalize="none"
@@ -133,36 +143,20 @@ export function ProfileStep({
           </View>
         </View>
       </View>
-      <View style={styles.footer}>
-        <TouchableOpacity onPress={onContinue} activeOpacity={0.8} style={styles.continueBtn}>
-          <Text style={styles.continueBtnText}>Continue</Text>
-        </TouchableOpacity>
+      <View style={shared.footer}>
+        <Pressable
+          onPress={onContinue}
+          disabled={!canContinue}
+          style={[shared.continueBtn, !canContinue && shared.continueBtnDisabled]}
+        >
+          <Text style={shared.continueBtnText}>Continue</Text>
+        </Pressable>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  body: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 22,
-  },
-  heading: {
-    fontSize: 32,
-    fontWeight: "700",
-    color: "#0D0D0D",
-    letterSpacing: -1,
-    lineHeight: 36,
-    marginBottom: 5,
-  },
-  subheading: {
-    fontSize: 14,
-    color: "#8E8E93",
-    lineHeight: 21,
-    marginBottom: 24,
-  },
   photoWrap: {
     alignItems: "center",
     marginBottom: 28,
@@ -171,9 +165,7 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: "#E5E5EA",
     borderWidth: 2,
-    borderColor: "rgba(0,0,0,0.18)",
     borderStyle: "dashed",
     alignItems: "center",
     justifyContent: "center",
@@ -182,7 +174,6 @@ const styles = StyleSheet.create({
   },
   photoCircleHasPhoto: {
     borderStyle: "solid",
-    borderColor: "rgba(0,0,0,0.1)",
   },
   photoImage: {
     width: 96,
@@ -192,7 +183,6 @@ const styles = StyleSheet.create({
   initials: {
     fontSize: 32,
     fontWeight: "700",
-    color: "#8E8E93",
   },
   photoPlaceholder: {
     fontSize: 28,
@@ -205,14 +195,11 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: "#000",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2.5,
-    borderColor: "#F2F2F7",
   },
   photoBadgeText: {
-    color: "#fff",
     fontSize: 16,
     fontWeight: "700",
     lineHeight: 18,
@@ -221,10 +208,8 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 13,
     fontWeight: "500",
-    color: "#8E8E93",
   },
   inputGroup: {
-    backgroundColor: "#fff",
     borderRadius: 20,
     overflow: "hidden",
   },
@@ -233,47 +218,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 16,
     height: 52,
-    backgroundColor: "#fff",
   },
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: "rgba(0,0,0,0.1)",
     marginLeft: 16,
   },
   inputLabel: {
     fontSize: 15,
     fontWeight: "500",
-    color: "#0D0D0D",
     minWidth: 96,
   },
   atSign: {
     fontSize: 15,
-    color: "#C7C7CC",
     marginRight: 2,
   },
   input: {
     flex: 1,
     fontSize: 15,
-    color: "#3C3C43",
     textAlign: "right",
     height: "100%",
-  },
-  footer: {
-    paddingHorizontal: 24,
-    paddingBottom: 44,
-    paddingTop: 10,
-  },
-  continueBtn: {
-    height: 60,
-    borderRadius: 999,
-    backgroundColor: "#000",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  continueBtnText: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#fff",
-    letterSpacing: -0.2,
   },
 });
