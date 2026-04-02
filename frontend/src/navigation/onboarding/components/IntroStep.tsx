@@ -1,6 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, Image } from "react-native";
-import { GlassPrimaryButton } from "./GlassPrimaryButton";
+import { View, Text, StyleSheet, Image, TouchableOpacity } from "react-native";
 
 interface IntroStepProps {
   onGetStarted: () => void;
@@ -24,7 +23,9 @@ export function IntroStep({ onGetStarted }: IntroStepProps) {
         </Text>
       </View>
       <View style={styles.footer}>
-        <GlassPrimaryButton label="Get Started" onPress={onGetStarted} />
+        <TouchableOpacity onPress={onGetStarted} activeOpacity={0.8} style={styles.getStartedBtn}>
+          <Text style={styles.getStartedBtnText}>Get Started</Text>
+        </TouchableOpacity>
         <Text style={styles.terms}>
           By continuing you agree to our{" "}
           <Text style={styles.termsLink}>Terms</Text> and{" "}
@@ -91,5 +92,18 @@ const styles = StyleSheet.create({
   termsLink: {
     color: "#000",
     fontWeight: "600",
+  },
+  getStartedBtn: {
+    height: 60,
+    borderRadius: 999,
+    backgroundColor: "#000",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  getStartedBtnText: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#fff",
+    letterSpacing: -0.2,
   },
 });

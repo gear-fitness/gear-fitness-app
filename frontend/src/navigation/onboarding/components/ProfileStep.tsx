@@ -7,10 +7,10 @@ import {
   Pressable,
   Image,
   Alert,
+  TouchableOpacity,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { OnboardingProfile } from "../types";
-import { GlassPrimaryButton } from "./GlassPrimaryButton";
 import { OnboardingTopBar } from "./OnboardingTopBar";
 
 interface ProfileStepProps {
@@ -42,6 +42,15 @@ export function ProfileStep({
   };
 
   const pickPhoto = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        "Photo Access Required",
+        "Please allow photo library access in Settings to choose a profile photo.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -125,7 +134,9 @@ export function ProfileStep({
         </View>
       </View>
       <View style={styles.footer}>
-        <GlassPrimaryButton label="Continue" onPress={onContinue} />
+        <TouchableOpacity onPress={onContinue} activeOpacity={0.8} style={styles.continueBtn}>
+          <Text style={styles.continueBtnText}>Continue</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -251,5 +262,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 44,
     paddingTop: 10,
+  },
+  continueBtn: {
+    height: 60,
+    borderRadius: 999,
+    backgroundColor: "#000",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  continueBtnText: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#fff",
+    letterSpacing: -0.2,
   },
 });

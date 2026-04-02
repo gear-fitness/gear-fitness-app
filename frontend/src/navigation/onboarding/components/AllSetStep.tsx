@@ -1,14 +1,20 @@
 import React from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+} from "react-native";
 import { OnboardingTopBar } from "./OnboardingTopBar";
-import { GlassPrimaryButton } from "./GlassPrimaryButton";
 
 interface AllSetStepProps {
   onSignIn: () => void;
   onBack: () => void;
+  isLoading?: boolean;
 }
 
-export function AllSetStep({ onSignIn, onBack }: AllSetStepProps) {
+export function AllSetStep({ onSignIn, onBack, isLoading = false }: AllSetStepProps) {
   return (
     <View style={styles.screen}>
       <OnboardingTopBar progress={1} onBack={onBack} />
@@ -22,7 +28,18 @@ export function AllSetStep({ onSignIn, onBack }: AllSetStepProps) {
         </Text>
       </View>
       <View style={styles.footer}>
-        <GlassPrimaryButton label="Sign in with Google" onPress={onSignIn} />
+        <TouchableOpacity
+          onPress={onSignIn}
+          activeOpacity={0.8}
+          disabled={isLoading}
+          style={styles.signInBtn}
+        >
+          {isLoading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.signInBtnText}>Sign in with Google</Text>
+          )}
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -70,5 +87,18 @@ const styles = StyleSheet.create({
     paddingBottom: 44,
     paddingTop: 0,
     gap: 10,
+  },
+  signInBtn: {
+    height: 60,
+    borderRadius: 999,
+    backgroundColor: "#000",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  signInBtnText: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#fff",
+    letterSpacing: -0.2,
   },
 });

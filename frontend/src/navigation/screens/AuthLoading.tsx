@@ -17,11 +17,13 @@ export function AuthLoadingScreen() {
   const { isLoading, isAuthenticated, authError, retryAuth } = useAuth();
 
   useEffect(() => {
+    const isMounted = { current: true };
     if (!isLoading && !authError) {
       if (isAuthenticated) {
         navigation.reset({ index: 0, routes: [{ name: "HomeTabs" }] });
       } else {
         hasSeenOnboarding().then((seen) => {
+          if (!isMounted.current) return;
           navigation.reset({
             index: 0,
             routes: [{ name: seen ? "Login" : "Onboarding" }],
@@ -29,6 +31,7 @@ export function AuthLoadingScreen() {
         });
       }
     }
+    return () => { isMounted.current = false; };
   }, [isLoading, isAuthenticated, authError, navigation]);
 
   // Show error state with retry option

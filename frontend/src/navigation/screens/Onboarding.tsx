@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, StyleSheet } from "react-native";
+import { View, StyleSheet, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import {
@@ -36,13 +36,16 @@ export function OnboardingScreen() {
 
   const [draft, setDraft] = useState<OnboardingDraft>(defaultDraft());
   const [hydrated, setHydrated] = useState(false);
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
   // ─── Hydrate saved draft on mount ───────────────────────────
   useEffect(() => {
-    loadOnboardingDraft().then((saved) => {
-      if (saved) setDraft(saved);
-      setHydrated(true);
-    });
+    loadOnboardingDraft()
+      .then((saved) => {
+        if (saved) setDraft(saved);
+        setHydrated(true);
+      })
+      .catch(() => setHydrated(true));
   }, []);
 
   // ─── Persist draft whenever it changes (after hydration) ────
@@ -67,12 +70,14 @@ export function OnboardingScreen() {
   );
 
   // ─── Step navigation ─────────────────────────────────────────
-  const goTo = (step: OnboardingStep) => updateDraft({ step });
-  const goBack = () => goTo(Math.max(0, draft.step - 1) as OnboardingStep);
-  const goNext = () => goTo(Math.min(5, draft.step + 1) as OnboardingStep);
+  const goTo = useCallback((step: OnboardingStep) => updateDraft({ step }), [updateDraft]);
+  const goBack = useCallback(() => goTo(Math.max(0, draft.step - 1) as OnboardingStep), [goTo, draft.step]);
+  const goNext = useCallback(() => goTo(Math.min(5, draft.step + 1) as OnboardingStep), [goTo, draft.step]);
 
   // ─── Final sign-in CTA ───────────────────────────────────────
   const handleSignIn = async () => {
+    if (isSigningIn) return;
+    setIsSigningIn(true);
     try {
       const response = await GoogleSignin.signIn();
       if (isSuccessResponse(response)) {
@@ -82,6 +87,8 @@ export function OnboardingScreen() {
         const { token, refreshToken } = await loginWithGoogle(idToken);
         await login(token, refreshToken);
 
+        // TODO: send draft profile data to backend (gender, height, weight, dob, username, photo)
+
         await markOnboardingSeen();
         await clearOnboardingDraft();
 
@@ -89,6 +96,13 @@ export function OnboardingScreen() {
       }
     } catch (error) {
       console.error("Sign-in error during onboarding:", error);
+      Alert.alert(
+        "Sign-in Failed",
+        "Something went wrong signing in with Google. Please try again.",
+        [{ text: "OK" }]
+      );
+    } finally {
+      setIsSigningIn(false);
     }
   };
 
@@ -144,6 +158,7 @@ export function OnboardingScreen() {
         <AllSetStep
           onSignIn={handleSignIn}
           onBack={goBack}
+          isLoading={isSigningIn}
         />
       )}
     </View>

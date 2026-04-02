@@ -1,7 +1,6 @@
 import React from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import { View, Text, StyleSheet, Pressable, TouchableOpacity } from "react-native";
 import { Gender } from "../types";
-import { GlassPrimaryButton } from "./GlassPrimaryButton";
 import { OnboardingTopBar } from "./OnboardingTopBar";
 
 const GENDERS: { value: Gender; label: string; hint?: string }[] = [
@@ -69,7 +68,9 @@ export function GenderStep({
         </View>
       </View>
       <View style={styles.footer}>
-        <GlassPrimaryButton label="Continue" onPress={onContinue} />
+        <TouchableOpacity onPress={onContinue} activeOpacity={0.8} style={styles.continueBtn}>
+          <Text style={styles.continueBtnText}>Continue</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -146,5 +147,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 44,
     paddingTop: 10,
+  },
+  continueBtn: {
+    height: 60,
+    borderRadius: 999,
+    backgroundColor: "#000",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  continueBtnText: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#fff",
+    letterSpacing: -0.2,
   },
 });

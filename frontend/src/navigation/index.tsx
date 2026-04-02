@@ -120,7 +120,7 @@ const RootStack = createNativeStackNavigator({
     },
     Onboarding: {
       screen: OnboardingScreen,
-      options: { headerShown: false },
+      options: { headerShown: false, gestureEnabled: false },
     },
     HomeTabs: {
       screen: HomeTabs,
