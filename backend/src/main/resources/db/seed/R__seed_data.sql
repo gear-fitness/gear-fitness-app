@@ -28,44 +28,43 @@ VALUES
     ('650e8400-e29b-41d4-a716-446655440014', 'Incline Bench Press', 'Upper chest focused pressing movement.'),
     ('650e8400-e29b-41d4-a716-446655440015', 'Romanian Deadlift', 'Hip hinge movement targeting hamstrings and glutes.');
 
--- Insert Exercise Body Parts (PRIMARY, SECONDARY, STABILIZER)
+-- Insert Exercise Body Parts (PRIMARY, SECONDARY only)
 INSERT INTO exercise_body_part (exercise_id, body_part, target_type)
 VALUES
-    -- Bench Press: chest primary, triceps/shoulders secondary, core stabilizer
+    -- Bench Press: chest primary, triceps/shoulders secondary
     ('650e8400-e29b-41d4-a716-446655440001', 'CHEST', 'PRIMARY'),
     ('650e8400-e29b-41d4-a716-446655440001', 'TRICEPS', 'SECONDARY'),
     ('650e8400-e29b-41d4-a716-446655440001', 'SHOULDERS', 'SECONDARY'),
-    ('650e8400-e29b-41d4-a716-446655440001', 'CORE', 'STABILIZER'),
 
-    -- Squat: quads/glutes primary, hamstrings secondary, core stabilizer
+    -- Squat: quads primary, glutes/hamstrings/core secondary
     ('650e8400-e29b-41d4-a716-446655440002', 'QUADS', 'PRIMARY'),
-    ('650e8400-e29b-41d4-a716-446655440002', 'GLUTES', 'PRIMARY'),
+    ('650e8400-e29b-41d4-a716-446655440002', 'GLUTES', 'SECONDARY'),
     ('650e8400-e29b-41d4-a716-446655440002', 'HAMSTRINGS', 'SECONDARY'),
-    ('650e8400-e29b-41d4-a716-446655440002', 'CORE', 'STABILIZER'),
+    ('650e8400-e29b-41d4-a716-446655440002', 'CORE', 'SECONDARY'),
 
-    -- Deadlift: back/hamstrings primary, glutes/quads secondary, forearms/core stabilizer
+    -- Deadlift: back primary, hamstrings/glutes/quads/forearms/core secondary
     ('650e8400-e29b-41d4-a716-446655440003', 'BACK', 'PRIMARY'),
-    ('650e8400-e29b-41d4-a716-446655440003', 'HAMSTRINGS', 'PRIMARY'),
+    ('650e8400-e29b-41d4-a716-446655440003', 'HAMSTRINGS', 'SECONDARY'),
     ('650e8400-e29b-41d4-a716-446655440003', 'GLUTES', 'SECONDARY'),
     ('650e8400-e29b-41d4-a716-446655440003', 'QUADS', 'SECONDARY'),
-    ('650e8400-e29b-41d4-a716-446655440003', 'FOREARMS', 'STABILIZER'),
-    ('650e8400-e29b-41d4-a716-446655440003', 'CORE', 'STABILIZER'),
+    ('650e8400-e29b-41d4-a716-446655440003', 'FOREARMS', 'SECONDARY'),
+    ('650e8400-e29b-41d4-a716-446655440003', 'CORE', 'SECONDARY'),
 
-    -- Overhead Press: shoulders primary, triceps secondary, core stabilizer
+    -- Overhead Press: shoulders primary, triceps/core secondary
     ('650e8400-e29b-41d4-a716-446655440004', 'SHOULDERS', 'PRIMARY'),
     ('650e8400-e29b-41d4-a716-446655440004', 'TRICEPS', 'SECONDARY'),
-    ('650e8400-e29b-41d4-a716-446655440004', 'CORE', 'STABILIZER'),
+    ('650e8400-e29b-41d4-a716-446655440004', 'CORE', 'SECONDARY'),
 
-    -- Barbell Row: back primary, biceps secondary, forearms/core stabilizer
+    -- Barbell Row: back primary, biceps/forearms/core secondary
     ('650e8400-e29b-41d4-a716-446655440005', 'BACK', 'PRIMARY'),
     ('650e8400-e29b-41d4-a716-446655440005', 'BICEPS', 'SECONDARY'),
-    ('650e8400-e29b-41d4-a716-446655440005', 'FOREARMS', 'STABILIZER'),
-    ('650e8400-e29b-41d4-a716-446655440005', 'CORE', 'STABILIZER'),
+    ('650e8400-e29b-41d4-a716-446655440005', 'FOREARMS', 'SECONDARY'),
+    ('650e8400-e29b-41d4-a716-446655440005', 'CORE', 'SECONDARY'),
 
-    -- Pull Up: back primary, biceps secondary, forearms stabilizer
+    -- Pull Up: back primary, biceps/forearms secondary
     ('650e8400-e29b-41d4-a716-446655440006', 'BACK', 'PRIMARY'),
     ('650e8400-e29b-41d4-a716-446655440006', 'BICEPS', 'SECONDARY'),
-    ('650e8400-e29b-41d4-a716-446655440006', 'FOREARMS', 'STABILIZER'),
+    ('650e8400-e29b-41d4-a716-446655440006', 'FOREARMS', 'SECONDARY'),
 
     -- Dumbbell Curl: biceps primary, forearms secondary
     ('650e8400-e29b-41d4-a716-446655440007', 'BICEPS', 'PRIMARY'),
@@ -80,34 +79,34 @@ VALUES
     ('650e8400-e29b-41d4-a716-446655440009', 'QUADS', 'PRIMARY'),
     ('650e8400-e29b-41d4-a716-446655440009', 'GLUTES', 'SECONDARY'),
 
-    -- Lat Pulldown: back primary, biceps secondary, forearms stabilizer
+    -- Lat Pulldown: back primary, biceps/forearms secondary
     ('650e8400-e29b-41d4-a716-446655440010', 'BACK', 'PRIMARY'),
     ('650e8400-e29b-41d4-a716-446655440010', 'BICEPS', 'SECONDARY'),
-    ('650e8400-e29b-41d4-a716-446655440010', 'FOREARMS', 'STABILIZER'),
+    ('650e8400-e29b-41d4-a716-446655440010', 'FOREARMS', 'SECONDARY'),
 
-    -- Leg Curl: hamstrings primary, calves stabilizer
+    -- Leg Curl: hamstrings primary, calves secondary
     ('650e8400-e29b-41d4-a716-446655440011', 'HAMSTRINGS', 'PRIMARY'),
-    ('650e8400-e29b-41d4-a716-446655440011', 'CALVES', 'STABILIZER'),
+    ('650e8400-e29b-41d4-a716-446655440011', 'CALVES', 'SECONDARY'),
 
     -- Calf Raise: calves primary
     ('650e8400-e29b-41d4-a716-446655440012', 'CALVES', 'PRIMARY'),
 
-    -- Plank: core primary, shoulders stabilizer
+    -- Plank: core primary, shoulders secondary
     ('650e8400-e29b-41d4-a716-446655440013', 'CORE', 'PRIMARY'),
-    ('650e8400-e29b-41d4-a716-446655440013', 'SHOULDERS', 'STABILIZER'),
+    ('650e8400-e29b-41d4-a716-446655440013', 'SHOULDERS', 'SECONDARY'),
 
-    -- Incline Bench Press: chest primary, shoulders/triceps secondary, core stabilizer
+    -- Incline Bench Press: chest primary, shoulders/triceps/core secondary
     ('650e8400-e29b-41d4-a716-446655440014', 'CHEST', 'PRIMARY'),
     ('650e8400-e29b-41d4-a716-446655440014', 'SHOULDERS', 'SECONDARY'),
     ('650e8400-e29b-41d4-a716-446655440014', 'TRICEPS', 'SECONDARY'),
-    ('650e8400-e29b-41d4-a716-446655440014', 'CORE', 'STABILIZER'),
+    ('650e8400-e29b-41d4-a716-446655440014', 'CORE', 'SECONDARY'),
 
-    -- Romanian Deadlift: hamstrings/glutes primary, back secondary, forearms/core stabilizer
+    -- Romanian Deadlift: hamstrings primary, glutes/back/forearms/core secondary
     ('650e8400-e29b-41d4-a716-446655440015', 'HAMSTRINGS', 'PRIMARY'),
-    ('650e8400-e29b-41d4-a716-446655440015', 'GLUTES', 'PRIMARY'),
+    ('650e8400-e29b-41d4-a716-446655440015', 'GLUTES', 'SECONDARY'),
     ('650e8400-e29b-41d4-a716-446655440015', 'BACK', 'SECONDARY'),
-    ('650e8400-e29b-41d4-a716-446655440015', 'FOREARMS', 'STABILIZER'),
-    ('650e8400-e29b-41d4-a716-446655440015', 'CORE', 'STABILIZER');
+    ('650e8400-e29b-41d4-a716-446655440015', 'FOREARMS', 'SECONDARY'),
+    ('650e8400-e29b-41d4-a716-446655440015', 'CORE', 'SECONDARY');
 
 -- Insert Workouts for Bryant
 INSERT INTO workout (workout_id, name, date_performed, duration_min, created_at, user_id)
@@ -155,7 +154,6 @@ VALUES
 -- Insert Body Tags for workouts
 INSERT INTO workout_body_tags (workout_id, body_tag)
 VALUES
-    -- Bryant's workouts
     ('750e8400-e29b-41d4-a716-446655440001', 'CHEST'),
     ('750e8400-e29b-41d4-a716-446655440001', 'TRICEPS'),
     ('750e8400-e29b-41d4-a716-446655440002', 'LEGS'),
@@ -183,16 +181,13 @@ VALUES
     ('750e8400-e29b-41d4-a716-446655440025', 'SHOULDERS'),
     ('750e8400-e29b-41d4-a716-446655440026', 'LEGS'),
     ('750e8400-e29b-41d4-a716-446655440027', 'BACK'),
-    -- Max's workouts
     ('750e8400-e29b-41d4-a716-446655440004', 'CHEST'),
     ('750e8400-e29b-41d4-a716-446655440004', 'SHOULDERS'),
     ('750e8400-e29b-41d4-a716-446655440005', 'LEGS'),
-    -- Kobe's workouts
     ('750e8400-e29b-41d4-a716-446655440006', 'FULL_BODY'),
     ('750e8400-e29b-41d4-a716-446655440007', 'SHOULDERS'),
     ('750e8400-e29b-41d4-a716-446655440007', 'BICEPS'),
     ('750e8400-e29b-41d4-a716-446655440007', 'TRICEPS'),
-    -- Alton's workouts
     ('750e8400-e29b-41d4-a716-446655440008', 'CHEST'),
     ('750e8400-e29b-41d4-a716-446655440008', 'SHOULDERS'),
     ('750e8400-e29b-41d4-a716-446655440009', 'BACK'),
@@ -421,4 +416,4 @@ VALUES
     ('550e8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440002', 'ACCEPTED', NOW() - INTERVAL '85 days', NOW() - INTERVAL '85 days'),
     ('550e8400-e29b-41d4-a716-446655440004', '550e8400-e29b-41d4-a716-446655440001', 'ACCEPTED', NOW() - INTERVAL '75 days', NOW() - INTERVAL '75 days'),
     ('550e8400-e29b-41d4-a716-446655440004', '550e8400-e29b-41d4-a716-446655440002', 'ACCEPTED', NOW() - INTERVAL '65 days', NOW() - INTERVAL '65 days'),
-('550e8400-e29b-41d4-a716-446655440004', '550e8400-e29b-41d4-a716-446655440003', 'PENDING', NOW() - INTERVAL '5 days', NULL);
+    ('550e8400-e29b-41d4-a716-446655440004', '550e8400-e29b-41d4-a716-446655440003', 'PENDING', NOW() - INTERVAL '5 days', NULL);

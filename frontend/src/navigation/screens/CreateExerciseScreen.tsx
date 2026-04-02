@@ -36,22 +36,14 @@ const BODY_PARTS = [
   "OTHER",
 ];
 
-const TARGET_CYCLE: Array<BodyPartDTO["targetType"]> = [
-  "PRIMARY",
-  "SECONDARY",
-  "STABILIZER",
-];
-
-const TARGET_COLORS: Record<BodyPartDTO["targetType"], string> = {
+const TARGET_COLORS = {
   PRIMARY: "#007AFF",
   SECONDARY: "#5856D6",
-  STABILIZER: "#8E8E93",
 };
 
-const TARGET_LABELS: Record<BodyPartDTO["targetType"], string> = {
+const TARGET_LABELS = {
   PRIMARY: "P",
   SECONDARY: "S",
-  STABILIZER: "ST",
 };
 
 export function CreateExerciseScreen() {
@@ -80,9 +72,11 @@ export function CreateExerciseScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const getTargetType = (bp: string): BodyPartDTO["targetType"] | null => {
+  const hasPrimary = bodyParts.some((bp) => bp.targetType === "PRIMARY");
+
+  const getTargetType = (bp: string): "PRIMARY" | "SECONDARY" | null => {
     const found = bodyParts.find((b) => b.bodyPart === bp);
-    return found ? found.targetType : null;
+    return found ? (found.targetType as "PRIMARY" | "SECONDARY") : null;
   };
 
   const cycleBodyPart = (bp: string) => {
@@ -96,28 +90,19 @@ export function CreateExerciseScreen() {
         { bodyPart: bp, targetType: defaultType },
       ]);
     } else if (current === "PRIMARY") {
-      // PRIMARY → can only cycle to SECONDARY (not allowed to have two primaries)
+      // PRIMARY → SECONDARY
       setBodyParts((prev) =>
         prev.map((b) =>
-          b.bodyPart === bp ? { ...b, targetType: "SECONDARY" } : b,
-        ),
-      );
-    } else if (current === "SECONDARY") {
-      // SECONDARY → STABILIZER
-      setBodyParts((prev) =>
-        prev.map((b) =>
-          b.bodyPart === bp ? { ...b, targetType: "STABILIZER" } : b,
+          b.bodyPart === bp ? { ...b, targetType: "SECONDARY" as const } : b,
         ),
       );
     } else {
-      // STABILIZER → remove (unless it's the last one)
+      // SECONDARY → remove (unless it's the last one)
       if (bodyParts.length > 1) {
         setBodyParts((prev) => prev.filter((b) => b.bodyPart !== bp));
       }
     }
   };
-
-  const hasPrimary = bodyParts.some((bp) => bp.targetType === "PRIMARY");
 
   const handleSave = async () => {
     const trimmed = name.trim();
@@ -223,7 +208,7 @@ export function CreateExerciseScreen() {
             Body Parts
           </Text>
           <Text style={[styles.hint, { color: colors.subtle }]}>
-            Tap to cycle: Primary → Secondary → Stabilizer → Remove
+            Tap to add. First selection is Primary. Tap again to cycle.
           </Text>
           <View style={styles.chipWrap}>
             {BODY_PARTS.map((bp) => {
@@ -268,19 +253,28 @@ export function CreateExerciseScreen() {
 
           {/* Legend */}
           <View style={styles.legendRow}>
-            {TARGET_CYCLE.map((type) => (
-              <View key={type} style={styles.legendItem}>
-                <View
-                  style={[
-                    styles.legendDot,
-                    { backgroundColor: TARGET_COLORS[type] },
-                  ]}
-                />
-                <Text style={[styles.legendText, { color: colors.subtle }]}>
-                  {type.charAt(0) + type.slice(1).toLowerCase()}
-                </Text>
-              </View>
-            ))}
+            <View style={styles.legendItem}>
+              <View
+                style={[
+                  styles.legendDot,
+                  { backgroundColor: TARGET_COLORS.PRIMARY },
+                ]}
+              />
+              <Text style={[styles.legendText, { color: colors.subtle }]}>
+                Primary
+              </Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View
+                style={[
+                  styles.legendDot,
+                  { backgroundColor: TARGET_COLORS.SECONDARY },
+                ]}
+              />
+              <Text style={[styles.legendText, { color: colors.subtle }]}>
+                Secondary
+              </Text>
+            </View>
           </View>
 
           {/* Validation hint */}

@@ -1,6 +1,6 @@
 -- V3__exercise_multi_body_parts.sql
 -- Migrate from single body_part column on exercise to a many-to-many join table
--- supporting PRIMARY, SECONDARY, and STABILIZER target types.
+-- supporting PRIMARY, and SECONDARY
 
 -- 1. Create the join table
 CREATE TABLE exercise_body_part (
@@ -22,7 +22,7 @@ CREATE TABLE exercise_body_part (
         )),
 
     CONSTRAINT exercise_body_part_target_type_check
-        CHECK (target_type IN ('PRIMARY','SECONDARY','STABILIZER'))
+        CHECK (target_type IN ('PRIMARY','SECONDARY'))
 );
 
 CREATE INDEX idx_exercise_body_part_exercise_id ON exercise_body_part(exercise_id);

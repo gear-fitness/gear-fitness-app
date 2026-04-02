@@ -21,7 +21,7 @@ export interface ExerciseSet {
 
 export interface BodyPartDTO {
   bodyPart: string;
-  targetType: "PRIMARY" | "SECONDARY" | "STABILIZER";
+  targetType: "PRIMARY" | "SECONDARY";
 }
 
 export interface ExerciseSession {

@@ -20,7 +20,6 @@ public class ExerciseBodyPart {
   public enum TargetType {
     PRIMARY,
     SECONDARY,
-    STABILIZER,
   }
 
   @Enumerated(EnumType.STRING)
