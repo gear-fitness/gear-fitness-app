@@ -15,6 +15,11 @@ import { getAllExercises } from "../../api/exerciseService";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { ExerciseSearchBar } from "../../components/ExerciseSearchBar";
 import { ExerciseCard } from "../../components/ExerciseCard";
+import {
+  getAllBodyPartNames,
+  getPrimaryBodyPart,
+  matchesBodyPart,
+} from "../../utils/exerciseUtils";
 
 export function ExerciseList() {
   useTrackTab("ExerciseList");
@@ -48,7 +53,9 @@ export function ExerciseList() {
   }, []);
 
   const bodyParts = useMemo(() => {
-    const parts = new Set(exercises.map((ex) => ex.bodyPart.toUpperCase()));
+    const parts = new Set(
+      exercises.flatMap((ex) => getAllBodyPartNames(ex.bodyParts)),
+    );
     return Array.from(parts).sort();
   }, [exercises]);
 
@@ -59,17 +66,17 @@ export function ExerciseList() {
       const matchesSearch =
         !query ||
         ex.name.toLowerCase().includes(query) ||
-        ex.bodyPart.toLowerCase().includes(query);
+        ex.bodyParts.some((bp) => bp.bodyPart.toLowerCase().includes(query));
 
-      const matchesBodyPart =
-        !selectedBodyPart || ex.bodyPart.toUpperCase() === selectedBodyPart;
+      const matchesFilter =
+        !selectedBodyPart || matchesBodyPart(ex.bodyParts, selectedBodyPart);
 
-      return matchesSearch && matchesBodyPart;
+      return matchesSearch && matchesFilter;
     });
 
     const grouped: Record<string, any[]> = {};
     filtered.forEach((ex) => {
-      const key = ex.bodyPart.toUpperCase();
+      const key = getPrimaryBodyPart(ex.bodyParts);
       if (!grouped[key]) grouped[key] = [];
       grouped[key].push(ex);
     });

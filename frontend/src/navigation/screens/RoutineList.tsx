@@ -15,11 +15,12 @@ import { Routine } from "../../api/types";
 import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
 import { formatDay } from "../../utils/days";
 import { useThemedHeader } from "../../hooks/useThemedHeader";
+import { getPrimaryBodyPart } from "../../utils/exerciseUtils";
 
 function getBodyPartsSummary(routine: Routine): string {
   const parts = routine.exercises
     .map((e) => {
-      const bp = e.bodyPart.toLowerCase();
+      const bp = getPrimaryBodyPart(e.bodyParts).toLowerCase();
       return bp.charAt(0).toUpperCase() + bp.slice(1);
     })
     .filter((v, i, arr) => arr.indexOf(v) === i);

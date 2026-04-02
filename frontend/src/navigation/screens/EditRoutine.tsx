@@ -22,6 +22,7 @@ import { BackButton } from "../../components/BackButton";
 import { DAYS, DAY_FULL, DAY_SHORT } from "../../utils/days";
 import { useThemeColors } from "../../hooks/useThemeColors";
 import { useExerciseList } from "../../hooks/useExerciseList";
+import { formatPrimaryBodyParts } from "../../utils/exerciseUtils";
 
 export function EditRoutine({
   route,
@@ -107,7 +108,7 @@ export function EditRoutine({
       if (!query) return true;
       return (
         ex.name.toLowerCase().includes(query) ||
-        ex.bodyPart.toLowerCase().includes(query)
+        ex.bodyParts.some((bp) => bp.bodyPart.toLowerCase().includes(query))
       );
     });
   }, [allExercises, searchQuery, selectedExerciseIds]);
@@ -132,7 +133,7 @@ export function EditRoutine({
         routineExerciseId: `new-${exercise.exerciseId}`,
         exerciseId: exercise.exerciseId,
         exerciseName: exercise.name,
-        bodyPart: exercise.bodyPart,
+        bodyParts: exercise.bodyParts,
         position: nextPosition,
       },
     ]);
@@ -175,7 +176,7 @@ export function EditRoutine({
                 <Text
                   style={[styles.selectedSubtitle, { color: colors.secondary }]}
                 >
-                  {item.bodyPart}
+                  {formatPrimaryBodyParts(item.bodyParts)}
                 </Text>
               </View>
               <TouchableOpacity
@@ -304,7 +305,7 @@ export function EditRoutine({
               <Text
                 style={[styles.selectedSubtitle, { color: colors.secondary }]}
               >
-                {item.bodyPart}
+                {formatPrimaryBodyParts(item.bodyParts)}
               </Text>
             </View>
             <Text style={[styles.addText, { color: colors.text }]}>+</Text>

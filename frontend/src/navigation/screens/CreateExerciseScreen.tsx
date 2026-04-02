@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { createExercise } from "../../api/exerciseService";
+import { BodyPartDTO, createExercise } from "../../api/exerciseService";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "..";
@@ -36,6 +36,24 @@ const BODY_PARTS = [
   "OTHER",
 ];
 
+const TARGET_CYCLE: Array<BodyPartDTO["targetType"]> = [
+  "PRIMARY",
+  "SECONDARY",
+  "STABILIZER",
+];
+
+const TARGET_COLORS: Record<BodyPartDTO["targetType"], string> = {
+  PRIMARY: "#007AFF",
+  SECONDARY: "#5856D6",
+  STABILIZER: "#8E8E93",
+};
+
+const TARGET_LABELS: Record<BodyPartDTO["targetType"], string> = {
+  PRIMARY: "P",
+  SECONDARY: "S",
+  STABILIZER: "ST",
+};
+
 export function CreateExerciseScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -56,13 +74,59 @@ export function CreateExerciseScreen() {
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [bodyPart, setBodyPart] = useState("CHEST");
+  const [bodyParts, setBodyParts] = useState<BodyPartDTO[]>([
+    { bodyPart: "CHEST", targetType: "PRIMARY" },
+  ]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const getTargetType = (bp: string): BodyPartDTO["targetType"] | null => {
+    const found = bodyParts.find((b) => b.bodyPart === bp);
+    return found ? found.targetType : null;
+  };
+
+  const cycleBodyPart = (bp: string) => {
+    const current = getTargetType(bp);
+
+    if (current === null) {
+      // Not selected → add as PRIMARY if none exists, otherwise SECONDARY
+      const defaultType = hasPrimary ? "SECONDARY" : "PRIMARY";
+      setBodyParts((prev) => [
+        ...prev,
+        { bodyPart: bp, targetType: defaultType },
+      ]);
+    } else if (current === "PRIMARY") {
+      // PRIMARY → can only cycle to SECONDARY (not allowed to have two primaries)
+      setBodyParts((prev) =>
+        prev.map((b) =>
+          b.bodyPart === bp ? { ...b, targetType: "SECONDARY" } : b,
+        ),
+      );
+    } else if (current === "SECONDARY") {
+      // SECONDARY → STABILIZER
+      setBodyParts((prev) =>
+        prev.map((b) =>
+          b.bodyPart === bp ? { ...b, targetType: "STABILIZER" } : b,
+        ),
+      );
+    } else {
+      // STABILIZER → remove (unless it's the last one)
+      if (bodyParts.length > 1) {
+        setBodyParts((prev) => prev.filter((b) => b.bodyPart !== bp));
+      }
+    }
+  };
+
+  const hasPrimary = bodyParts.some((bp) => bp.targetType === "PRIMARY");
 
   const handleSave = async () => {
     const trimmed = name.trim();
     if (!trimmed) return;
+
+    if (!hasPrimary) {
+      setError("At least one body part must be PRIMARY.");
+      return;
+    }
 
     setSaving(true);
     setError(null);
@@ -72,7 +136,7 @@ export function CreateExerciseScreen() {
       const created = await createExercise({
         name: trimmed,
         description: description.trim() || null,
-        bodyPart,
+        bodyParts,
       });
 
       if (startWorkout) {
@@ -85,6 +149,7 @@ export function CreateExerciseScreen() {
             workoutExerciseId,
             exerciseId: created.exerciseId,
             name: created.name,
+            bodyParts: created.bodyParts,
             sets: [],
           },
         });
@@ -153,38 +218,77 @@ export function CreateExerciseScreen() {
             ]}
           />
 
-          {/* Body Part */}
+          {/* Body Parts */}
           <Text style={[styles.label, { color: colors.subtle }]}>
-            Body Part
+            Body Parts
+          </Text>
+          <Text style={[styles.hint, { color: colors.subtle }]}>
+            Tap to cycle: Primary → Secondary → Stabilizer → Remove
           </Text>
           <View style={styles.chipWrap}>
             {BODY_PARTS.map((bp) => {
-              const selected = bodyPart === bp;
+              const targetType = getTargetType(bp);
+              const isSelected = targetType !== null;
+              const chipColor = isSelected
+                ? TARGET_COLORS[targetType]
+                : colors.inputBg;
+              const borderColor = isSelected
+                ? TARGET_COLORS[targetType]
+                : colors.border;
+
               return (
                 <TouchableOpacity
                   key={bp}
-                  onPress={() => setBodyPart(bp)}
+                  onPress={() => cycleBodyPart(bp)}
                   style={[
                     styles.chip,
-                    {
-                      backgroundColor: selected ? "#007AFF" : colors.inputBg,
-                      borderColor: selected ? "#007AFF" : colors.border,
-                    },
+                    { backgroundColor: chipColor, borderColor },
                   ]}
                 >
                   <Text
                     style={{
-                      color: selected ? "#fff" : colors.text,
+                      color: isSelected ? "#fff" : colors.text,
                       fontSize: 13,
-                      fontWeight: selected ? "600" : "400",
+                      fontWeight: isSelected ? "600" : "400",
                     }}
                   >
                     {bp}
                   </Text>
+                  {isSelected && (
+                    <View style={styles.targetBadge}>
+                      <Text style={styles.targetBadgeText}>
+                        {TARGET_LABELS[targetType]}
+                      </Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
               );
             })}
           </View>
+
+          {/* Legend */}
+          <View style={styles.legendRow}>
+            {TARGET_CYCLE.map((type) => (
+              <View key={type} style={styles.legendItem}>
+                <View
+                  style={[
+                    styles.legendDot,
+                    { backgroundColor: TARGET_COLORS[type] },
+                  ]}
+                />
+                <Text style={[styles.legendText, { color: colors.subtle }]}>
+                  {type.charAt(0) + type.slice(1).toLowerCase()}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Validation hint */}
+          {!hasPrimary && bodyParts.length > 0 && (
+            <Text style={styles.warning}>
+              At least one body part must be Primary
+            </Text>
+          )}
 
           {/* Error */}
           {error && <Text style={styles.error}>{error}</Text>}
@@ -200,11 +304,13 @@ export function CreateExerciseScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             onPress={handleSave}
-            disabled={!name.trim() || saving}
+            disabled={!name.trim() || saving || !hasPrimary}
             style={[
               styles.footerButton,
-              { opacity: name.trim() && !saving ? 1 : 0.4 },
-              { backgroundColor: "#1E90FF" },
+              {
+                opacity: name.trim() && !saving && hasPrimary ? 1 : 0.4,
+                backgroundColor: "#1E90FF",
+              },
             ]}
           >
             <Text style={styles.buttonText}>
@@ -231,6 +337,10 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     marginTop: 16,
   },
+  hint: {
+    fontSize: 12,
+    marginBottom: 8,
+  },
   input: {
     borderWidth: 1,
     borderRadius: 10,
@@ -253,6 +363,45 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 16,
     borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  targetBadge: {
+    backgroundColor: "rgba(255,255,255,0.3)",
+    borderRadius: 8,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+  },
+  targetBadgeText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  legendRow: {
+    flexDirection: "row",
+    gap: 16,
+    marginTop: 12,
+  },
+  legendItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  legendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  legendText: {
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  warning: {
+    color: "#FF9500",
+    fontSize: 13,
+    marginTop: 12,
+    textAlign: "center",
   },
   error: {
     color: "#FF3B30",

@@ -13,13 +13,14 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { submitWorkout, WorkoutSubmission } from "../../api/workoutService";
 import { getCurrentLocalDateString } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getAllBodyPartNames } from "../../utils/exerciseUtils";
 
 export function WorkoutComplete() {
   useTrackTab("WorkoutComplete");
@@ -28,8 +29,17 @@ export function WorkoutComplete() {
   const navigation = useNavigation();
   const { exercises, seconds, reset } = useWorkoutTimer();
 
+  const initialBodyTags = useMemo(() => {
+    const tags = new Set(
+      exercises.flatMap((ex) =>
+        ex.bodyParts ? getAllBodyPartNames(ex.bodyParts) : [],
+      ),
+    );
+    return tags.size > 0 ? Array.from(tags) : ["FULL_BODY"];
+  }, [exercises]);
+
   const [workoutName, setWorkoutName] = useState("");
-  const [bodyTag, setBodyTag] = useState<string[]>(["FULL_BODY"]);
+  const [bodyTags, setBodyTags] = useState<string[]>(initialBodyTags);
   const [caption, setCaption] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -43,7 +53,7 @@ export function WorkoutComplete() {
     input: isDark ? "#2a2a2a" : "#fff",
   };
 
-  const bodyTags = [
+  const bodyTagsConst = [
     "FULL_BODY",
     "CHEST",
     "BACK",
@@ -59,7 +69,7 @@ export function WorkoutComplete() {
   ];
 
   const toggleBodyTag = (tag: string) => {
-    setBodyTag((prev) => {
+    setBodyTags((prev) => {
       if (prev.includes(tag)) {
         // Don't allow removing the last tag
         if (prev.length === 1) return prev;
@@ -88,7 +98,7 @@ export function WorkoutComplete() {
         name: workoutName,
         durationMin: Math.floor(seconds / 60),
         datePerformed: getCurrentLocalDateString(),
-        bodyTags: bodyTag, // Send all selected tags to backend
+        bodyTags: bodyTags, // Send all selected tags to backend
         exercises: exercises.map((ex) => ({
           exerciseId: ex.exerciseId,
           sets: ex.sets.map((set) => ({
@@ -221,14 +231,14 @@ export function WorkoutComplete() {
               showsHorizontalScrollIndicator={false}
               style={styles.tagScroll}
             >
-              {bodyTags.map((tag) => (
+              {bodyTagsConst.map((tag) => (
                 <TouchableOpacity
                   key={tag}
                   onPress={() => toggleBodyTag(tag)}
                   style={[
                     styles.tagButton,
                     {
-                      backgroundColor: bodyTag.includes(tag)
+                      backgroundColor: bodyTags.includes(tag)
                         ? "#007AFF"
                         : colors.card,
                       borderColor: colors.border,
@@ -238,7 +248,7 @@ export function WorkoutComplete() {
                   <Text
                     style={[
                       styles.tagText,
-                      { color: bodyTag.includes(tag) ? "#fff" : colors.text },
+                      { color: bodyTags.includes(tag) ? "#fff" : colors.text },
                     ]}
                   >
                     {tag.replace("_", " ")}
