@@ -2,13 +2,14 @@ import React from "react";
 import { StyleSheet, View, TouchableOpacity } from "react-native";
 import { Text } from "@react-navigation/elements";
 import { useColorScheme } from "react-native";
+import { BodyPartDTO } from "../api/exerciseService";
 
 interface ExerciseCardProps {
   exercise: {
     exerciseId: string;
     name: string;
     description?: string;
-    bodyPart: string;
+    bodyParts: BodyPartDTO[];
   };
   onPress: () => void;
   renderActions?: () => React.ReactNode;

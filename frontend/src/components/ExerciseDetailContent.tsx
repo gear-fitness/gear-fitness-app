@@ -28,6 +28,7 @@ import { SymbolView } from "expo-symbols";
 
 import { useWorkoutTimer, WorkoutSet } from "../context/WorkoutContext";
 import { useSwipeableDelete } from "../hooks/useSwipeableDelete";
+import { BodyPartDTO } from "../api/exerciseService";
 
 interface ExerciseDetailContentProps {
   exercise: {
@@ -36,6 +37,7 @@ interface ExerciseDetailContentProps {
     workoutExerciseId?: string;
     sets?: WorkoutSet[];
     note?: string;
+    bodyParts?: BodyPartDTO[];
   };
   onSummary: () => void;
   onAddExercise: () => void;
@@ -120,6 +122,7 @@ export const ExerciseDetailContent = forwardRef<
         workoutExerciseId: exercise.workoutExerciseId || Date.now().toString(),
         exerciseId: exercise.exerciseId,
         name: exercise.name,
+        bodyParts: exercise.bodyParts,
         sets: validSets,
         note: note.trim(),
       });
