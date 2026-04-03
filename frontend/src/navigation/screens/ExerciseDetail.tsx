@@ -1,5 +1,3 @@
-import { SafeAreaView } from "react-native-safe-area-context";
-import { KeyboardAvoidingView } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useEffect, useRef } from "react";
 
@@ -26,25 +24,18 @@ export function ExerciseDetail() {
 
   // Save before leaving screen
   useEffect(() => {
-    const unsubscribe = navigation.addListener('beforeRemove', () => {
+    const unsubscribe = navigation.addListener("beforeRemove", () => {
       contentRef.current?.save();
     });
     return unsubscribe;
   }, [navigation]);
 
   return (
-    <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior="padding"
-      >
-        <ExerciseDetailContent
-          ref={contentRef}
-          exercise={exercise}
-          onSummary={() => navigation.replace("WorkoutSummary")}
-          onAddExercise={() => navigation.replace("ExerciseSelect")}
-        />
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+    <ExerciseDetailContent
+      ref={contentRef}
+      exercise={exercise}
+      onSummary={() => navigation.replace("WorkoutSummary")}
+      onAddExercise={() => navigation.replace("ExerciseSelect")}
+    />
   );
 }

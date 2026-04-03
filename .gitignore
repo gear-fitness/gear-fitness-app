@@ -1,6 +1,7 @@
 .DS_Store
-.vscode/settings.json
 *.code-workspace
+node_modules/
+
 
 # Documentation files (keep README.md files visible)
 CLAUDE.md
@@ -10,3 +11,4 @@ BRANCH_CHANGES_SUMMARY.md
 DEVELOPMENT_TIMELINE.md
 DESIGN_SYSTEM_MIGRATION_PLAN.md
 backend/AUTHEXPLAINED.md
+RoutinesPlan.md

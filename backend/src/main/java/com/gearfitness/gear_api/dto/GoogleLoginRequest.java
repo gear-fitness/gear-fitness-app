@@ -8,5 +8,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class GoogleLoginRequest {
-    private String idToken;
+
+  private String idToken;
+  private String intent;
 }

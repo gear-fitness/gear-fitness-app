@@ -6,49 +6,49 @@ import { useNavigation, useTheme } from "@react-navigation/native";
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { loginWithGoogle } from "../../api/authService";
+import { AuthApiError, loginWithGoogle } from "../../api/authService";
 import { useAuth } from "../../context/AuthContext";
 
+/**
+ * @deprecated
+ * This screen is no longer registered in navigation.
+ * Use `OnboardingScreen` as the only unauthenticated entrypoint.
+ * Planned removal: next cleanup release after migration stabilizes.
+ */
 export function LoginScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation();
   const { colors } = useTheme();
   const { login } = useAuth();
   const handleGoogleSIgnIn = async () => {
     try {
-      console.log("Google Sign-In initiated");
       const respone = await GoogleSignin.signIn();
-      console.log("Google Sign-In successful:", respone);
       if (isSuccessResponse(respone)) {
-        const { idToken, user } = respone.data;
+        const { idToken } = respone.data;
 
         if (!idToken) {
           throw new Error("No ID token received from Google");
         }
 
-        const { token, newUser } = await loginWithGoogle(idToken);
+        const { token, refreshToken } = await loginWithGoogle(
+          idToken,
+          "sign_in",
+        );
 
-        // Store this token for future API calls
-        await login(token);
+        await login(token, refreshToken);
 
-        const { name, email, photo } = user;
-        console.log("User Info:", { name, email, photo });
-        console.log("Is new user:", newUser);
-
-        // Navigate to profile setup if new user, otherwise go to home
-        if (newUser) {
-          navigation.reset({
-            index: 0,
-            routes: [{ name: "SignUpProfile" }],
-          });
-        } else {
-          // Reset to HomeTabs to prevent back navigation to Login
-          navigation.reset({
-            index: 0,
-            routes: [{ name: "HomeTabs" }],
-          });
-        }
+        navigation.reset({
+          index: 0,
+          routes: [{ name: "HomeTabs" }],
+        });
       }
     } catch (error) {
+      if (error instanceof AuthApiError && error.code === "ACCOUNT_NOT_FOUND") {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: "Onboarding" }],
+        });
+        return;
+      }
       console.error("Google Sign-In error:", error);
     }
   };

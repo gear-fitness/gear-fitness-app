@@ -34,11 +34,8 @@ export function PR({ route }: Props) {
 
   useEffect(() => {
     const fetchPRs = async () => {
-      console.log("Fetching PRs for user:", userId);
-
       try {
         const data = await getUserPersonalRecords(userId);
-        console.log("PRs received:", data);
         setPrs(data);
         setLoading(false);
       } catch (err: any) {

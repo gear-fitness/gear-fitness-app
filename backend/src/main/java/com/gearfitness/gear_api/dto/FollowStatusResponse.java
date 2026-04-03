@@ -10,5 +10,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class FollowStatusResponse {
-    private boolean isFollowing;
+
+  private boolean isFollowing;
 }

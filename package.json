@@ -1,0 +1,13 @@
+{
+  "name": "gear-fitness",
+  "version": "1.0.0",
+  "description": "Gear Fitness monorepo tooling",
+  "private": true,
+  "scripts": {
+    "format": "prettier --write \"**/*.java\" \"**/*.ts\" \"**/*.tsx\"",
+    "format:check": "prettier --check \"**/*.java\" \"**/*.ts\" \"**/*.tsx\""
+  },
+  "devDependencies": {
+    "prettier-plugin-java": "^2.8.1"
+  }
+}

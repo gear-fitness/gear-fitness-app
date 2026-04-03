@@ -3,7 +3,7 @@
  * API calls for exercise data
  */
 
-import { getAuthHeader } from "../utils/auth";
+import apiClient from "./apiClient";
 
 export interface Exercise {
   exerciseId: string;
@@ -12,40 +12,64 @@ export interface Exercise {
   description: string;
 }
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL;
+export interface ExerciseSet {
+  setNumber: number;
+  reps: number;
+  weightLbs: number | null;
+  isPr: boolean;
+}
+
+export interface ExerciseSession {
+  workoutId: string;
+  workoutName: string;
+  datePerformed: string;
+  sets: ExerciseSet[];
+}
+
+export interface ExerciseHistory {
+  exerciseId: string;
+  exerciseName: string;
+  bodyPart: string;
+  totalSessions: number;
+  personalRecordLbs: number | null;
+  sessions: ExerciseSession[];
+}
 
 /**
  * Get all exercises
  */
 export async function getAllExercises(): Promise<Exercise[]> {
-  const authHeader = await getAuthHeader();
+  const { data } = await apiClient.get<Exercise[]>("/exercises");
+  return data ?? [];
+}
 
-  const response = await fetch(`${API_BASE_URL}/api/exercises`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      ...authHeader,
-    },
-  });
+/**
+ * Get exercise history for the authenticated user
+ */
+export async function getExerciseHistory(
+  exerciseId: string,
+): Promise<ExerciseHistory> {
+  const { data } = await apiClient.get<ExerciseHistory>(
+    `/exercises/${exerciseId}/history`,
+  );
+  return data;
+}
 
-  console.log("Response status:", response.status);
-  console.log("Response headers:", response.headers);
+/**
+ * Create a new exercise
+ */
+export async function createExercise(exerciseData: {
+  name: string;
+  description: string | null;
+  bodyPart: string;
+}): Promise<Exercise> {
+  const { data } = await apiClient.post<Exercise>("/exercises", exerciseData);
+  return data;
+}
 
-  if (!response.ok) {
-    throw new Error("Failed to fetch exercises");
-  }
-
-  const text = await response.text();
-  console.log("Response body:", text); // ← This will show you what's actually returned
-
-  if (!text) {
-    return [];
-  }
-
-  try {
-    return JSON.parse(text);
-  } catch (error) {
-    console.error("Failed to parse exercises JSON:", text);
-    throw new Error("Invalid JSON response from exercises API");
-  }
+/**
+ * Delete an exercise by ID
+ */
+export async function deleteExercise(exerciseId: string): Promise<void> {
+  await apiClient.delete(`/exercises/${exerciseId}`);
 }

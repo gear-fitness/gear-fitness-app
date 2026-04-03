@@ -1,25 +1,21 @@
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import {
+  BottomTabBar,
+  createBottomTabNavigator,
+} from "@react-navigation/bottom-tabs";
 import { HeaderButton } from "@react-navigation/elements";
 import {
   createStaticNavigation,
   StaticParamList,
 } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { Image } from "react-native";
+import { Image, View, Text } from "react-native";
 
 /* ICONS */
-import bell from "../assets/bell.png";
-import avatar from "../assets/avatar.png";
-import workout from "../assets/workout.png";
-import home from "../assets/home.png";
-import community from "../assets/community.png";
-import calendar from "../assets/calendar.png";
 import close from "../assets/close.png";
 
 /* SCREENS */
-import { Home } from "./screens/Home";
 import { Profile } from "./screens/Profile";
-import { Settings } from "./screens/Settings";
+import { SettingsNavigator } from "./SettingsNavigator";
 import { Social } from "./screens/Social";
 import { Workout } from "./screens/Workout";
 import { NotFound } from "./screens/NotFound";
@@ -30,86 +26,78 @@ import { ExerciseSelect } from "./screens/ExerciseSelect";
 import { ExerciseDetail } from "./screens/ExerciseDetail";
 import { WorkoutSummary } from "./screens/WorkoutSummary";
 import { WorkoutComplete } from "./screens/WorkoutComplete";
-import { LoginScreen } from "./screens/Login";
-import { SignUpProfileScreen } from "./screens/SignUpProfile";
-import { ExerciseChat } from "./screens/ExerciseChat";
+import { OnboardingScreen } from "./screens/Onboarding";
+import { WorkoutChat } from "./screens/WorkoutChat";
 import { AuthLoadingScreen } from "./screens/AuthLoading";
 import { CommentsScreen } from "../components/CommentsScreen";
+import { ExerciseList } from "./screens/ExerciseList";
+import { ExerciseHistory } from "./screens/ExerciseHistory";
+import { CreateExerciseScreen } from "./screens/CreateExerciseScreen";
+import { RoutineList } from "./screens/RoutineList";
+import { RoutineDetail } from "./screens/RoutineDetail";
+import { CreateRoutine } from "./screens/CreateRoutine";
+import { EditRoutine } from "./screens/EditRoutine";
+import { Platform } from "react-native";
 
 /* ---------------------- TABS ---------------------- */
 
+const majorVersionIOS = parseInt(Platform.Version, 10);
 const HomeTabs = createBottomTabNavigator({
-  initialRouteName: "Home",
+  initialRouteName: "Explore",
+  ...(majorVersionIOS >= 26 && { implementation: "native" }),
+  ...(majorVersionIOS < 26 && {
+    tabBar: (props) => (
+      <View
+        style={{
+          paddingTop: 8,
+          borderTopColor: "#00000020",
+          borderTopWidth: 1,
+        }}
+      >
+        <BottomTabBar {...props} />
+      </View>
+    ),
+  }),
   screenOptions: {
-    tabBarShowLabel: true,
     headerShown: false,
+    tabBarLabel: "",
+    ...(majorVersionIOS < 26 && {
+      tabBarStyle: {
+        borderTopWidth: 0,
+      },
+    }),
   },
   screens: {
-    Home: {
-      screen: Home,
-      options: {
-        title: "Home",
-        tabBarIcon: ({ color, size }) => (
-          <Image
-            source={home}
-            tintColor={color}
-            style={{ width: size, height: size }}
-          />
-        ),
-      },
-    },
-
-    Social: {
-      screen: Social,
-      options: {
-        headerShown: false,
-        title: "Social",
-        tabBarIcon: ({ color, size }) => (
-          <Image
-            source={community}
-            tintColor={color}
-            style={{ width: size, height: size }}
-          />
-        ),
-      },
-    },
-
     Workouts: {
       screen: Workout,
       options: {
-        tabBarIcon: ({ color, size }) => (
-          <Image
-            source={workout}
-            tintColor={color}
-            style={{ width: size, height: size }}
-          />
-        ),
+        tabBarIcon: { type: "sfSymbol", name: "dumbbell.fill" },
       },
     },
-
+    Explore: {
+      screen: Social,
+      options: {
+        headerShown: false,
+        tabBarIcon: { type: "sfSymbol", name: "magnifyingglass" },
+      },
+    },
     History: {
       screen: History,
       options: {
-        tabBarIcon: ({ color, size }) => (
-          <Image
-            source={calendar}
-            tintColor={color}
-            style={{ width: size, height: size }}
-          />
-        ),
+        tabBarIcon: { type: "sfSymbol", name: "calendar" },
       },
     },
-
     Profile: {
       screen: Profile,
       options: {
-        tabBarIcon: ({ color, size }) => (
-          <Image
-            source={avatar}
-            tintColor={color}
-            style={{ width: size, height: size }}
-          />
-        ),
+        tabBarIcon: { type: "sfSymbol", name: "person.fill" },
+      },
+    },
+    AiChat: {
+      screen: WorkoutChat,
+      options: {
+        ...(majorVersionIOS >= 26 && { tabBarSystemItem: "search" }),
+        tabBarIcon: { type: "sfSymbol", name: "sparkle" },
       },
     },
   },
@@ -125,24 +113,16 @@ const RootStack = createNativeStackNavigator({
       screen: AuthLoadingScreen,
       options: { headerShown: false },
     },
-    Login: {
-      screen: LoginScreen,
-      options: { headerShown: false },
-    },
-    SignUpProfile: {
-      screen: SignUpProfileScreen,
-      options: {
-        headerShown: true,
-        title: "Complete Profile",
-        headerBackVisible: false,
-      },
+    Onboarding: {
+      screen: OnboardingScreen,
+      options: { headerShown: false, gestureEnabled: false },
     },
     HomeTabs: {
       screen: HomeTabs,
       options: { headerShown: false },
     },
 
-    Settings: { screen: Settings, options: { headerBackTitle: "Profile" } },
+    Settings: { screen: SettingsNavigator, options: { headerShown: false } },
 
     UserProfile: {
       screen: Profile,
@@ -184,6 +164,15 @@ const RootStack = createNativeStackNavigator({
       }),
     },
 
+    CreateExercise: {
+      screen: CreateExerciseScreen,
+      options: {
+        title: "New Exercise",
+        presentation: "modal",
+        headerShown: true,
+      },
+    },
+
     /* MODAL 2 — EXERCISE DETAIL */
     ExerciseDetail: {
       screen: ExerciseDetail,
@@ -205,12 +194,6 @@ const RootStack = createNativeStackNavigator({
       },
     },
 
-    NotFound: {
-      screen: NotFound,
-      options: { title: "404" },
-      linking: { path: "*" },
-    },
-
     /* MODAL 4 — WORKOUT COMPLETE */
     WorkoutComplete: {
       screen: WorkoutComplete,
@@ -221,14 +204,10 @@ const RootStack = createNativeStackNavigator({
       },
     },
 
-    /* MODAL 5 — EXERCISE CHAT */
-    ExerciseChat: {
-      screen: ExerciseChat,
-      options: {
-        title: "Exercise Chat",
-        presentation: "modal",
-        headerShown: true,
-      },
+    NotFound: {
+      screen: NotFound,
+      options: { title: "404" },
+      linking: { path: "*" },
     },
     Comments: {
       screen: CommentsScreen,
@@ -237,6 +216,68 @@ const RootStack = createNativeStackNavigator({
         presentation: "modal",
         headerShown: true,
       },
+    },
+    ExerciseList: {
+      screen: ExerciseList,
+      options: {
+        title: "Exercises",
+        headerBackTitle: "Back",
+      },
+    },
+    ExerciseHistory: {
+      screen: ExerciseHistory,
+      options: {
+        title: "Exercise History",
+        headerBackTitle: "Back",
+      },
+    },
+
+    CreateRoutine: {
+      screen: CreateRoutine,
+      options: ({ theme }) => ({
+        headerShown: true,
+        headerShadowVisible: false,
+        headerStyle: { backgroundColor: theme.dark ? "#000" : "#fff" },
+        headerTintColor: theme.dark ? "#fff" : "#000",
+      }),
+    },
+
+    EditRoutine: {
+      screen: EditRoutine,
+      options: ({ theme }) => ({
+        headerShown: true,
+        title: "Edit Routine",
+        headerShadowVisible: false,
+        headerStyle: { backgroundColor: theme.dark ? "#000" : "#fff" },
+        headerTintColor: theme.dark ? "#fff" : "#000",
+      }),
+    },
+
+    RoutineList: {
+      screen: RoutineList,
+      options: ({ theme }) => ({
+        headerShown: true,
+        title: "Routines",
+        headerShadowVisible: false,
+        headerStyle: { backgroundColor: theme.dark ? "#000" : "#fff" },
+        headerTintColor: theme.dark ? "#fff" : "#000",
+        headerTitleStyle: {
+          color: theme.dark ? "#fff" : "#000",
+          fontWeight: "800" as const,
+          fontSize: 30,
+        },
+      }),
+    },
+
+    RoutineDetail: {
+      screen: RoutineDetail,
+      options: ({ theme }) => ({
+        title: "",
+        headerShown: true,
+        headerShadowVisible: false,
+        headerStyle: { backgroundColor: theme.dark ? "#000" : "#fff" },
+        headerTintColor: theme.dark ? "#fff" : "#000",
+      }),
     },
   },
 });
@@ -250,7 +291,7 @@ declare global {
   namespace ReactNavigation {
     interface RootParamList {
       AuthLoading: undefined;
-      Login: undefined;
+      Onboarding: undefined;
       HomeTabs: undefined;
       History: undefined;
       Settings: undefined;
@@ -259,27 +300,32 @@ declare global {
       WorkoutSummary: undefined;
       WorkoutComplete: undefined;
       ExerciseSelect: undefined;
+      ExerciseChat: undefined;
 
       ExerciseDetail: {
         exercise: {
+          workoutExerciseId?: string;
           exerciseId: string;
           name: string;
           sets?: any[];
         };
       };
 
-      ExerciseChat: {
-        exercise: {
-          exerciseId: string;
-          name: string;
-          bodyPart: string;
-          description: string;
-        };
-        greetingText: string;
-      };
+      CreateExercise:
+        | {
+            startWorkout?: boolean; // if true, navigate to ExerciseDetail after creation
+          }
+        | undefined;
 
       Comments: {
         postId: string;
+      };
+
+      CreateRoutine: { prefilledWorkoutId?: string } | undefined;
+      EditRoutine: { routine: import("../api/types").Routine };
+      RoutineList: undefined;
+      RoutineDetail: {
+        routineId: string;
       };
     }
   }

@@ -15,16 +15,21 @@ export interface WorkoutStats {
     Sat: number;
     Sun: number;
   };
+  workoutStreak: number;
+  workoutDaysCurrentWeek: number;
 }
 
 export interface UserProfile {
   userId: string;
   username: string;
+  displayName: string | null;
+  gender: string | null;
   email: string;
   weightLbs: number | null;
   heightInches: number | null;
   age: number | null;
   isPrivate: boolean;
+  profilePictureUrl: string | null;
   createdAt: string;
   workoutStats: WorkoutStats;
   followersCount: number;
@@ -32,9 +37,15 @@ export interface UserProfile {
   isFollowing: boolean | null;
 }
 
+export interface UsernameAvailabilityResponse {
+  available: boolean;
+  reason: string | null;
+}
+
 export interface FollowerUser {
   userId: string;
   username: string;
+  profilePictureUrl?: string | null;
 }
 
 export interface FollowersResponse {
@@ -108,4 +119,19 @@ export interface PersonalRecord {
   repsAtMaxWeight: number;
   dateAchieved: string | null;
   workoutName: string | null;
+}
+
+export interface RoutineExercise {
+  routineExerciseId: string;
+  exerciseName: string;
+  bodyPart: string;
+  position: number;
+  exerciseId: string;
+}
+
+export interface Routine {
+  routineId: string;
+  name: string;
+  scheduledDays: string[];
+  exercises: RoutineExercise[];
 }
