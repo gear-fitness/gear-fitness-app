@@ -169,7 +169,7 @@ export function OnboardingScreen() {
           Alert.alert(
             "Account Not Found",
             "No account exists for this Google account. Please sign up first.",
-            [{ text: "OK", onPress: () => goTo(1) }],
+            [{ text: "OK", onPress: () => goTo(0) }],
           );
           return;
         }
