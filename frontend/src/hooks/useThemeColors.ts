@@ -8,6 +8,7 @@ export function useThemeColors() {
     bg: isDark ? "#000" : "#fff",
     surface: isDark ? "#1C1C1E" : "#F2F2F7",
     text: isDark ? "#fff" : "#000",
+    inputText: isDark ? "#fff" : "#000",
     secondary: isDark ? "#999" : "#666",
     border: isDark ? "#3A3A3C" : "#D1D1D6",
     separator: isDark ? "#2C2C2E" : "#E5E5EA",

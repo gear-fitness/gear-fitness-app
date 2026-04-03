@@ -91,7 +91,7 @@ export function ProfileStep({
           <Pressable
             style={[
               styles.photoCircle,
-              { backgroundColor: colors.photoBg, borderColor: colors.dashedBorder },
+              { backgroundColor: colors.photoBg },
               photoUri ? styles.photoCircleHasPhoto : undefined,
             ]}
             onPress={pickPhoto}
@@ -103,7 +103,7 @@ export function ProfileStep({
             ) : (
               <Text style={styles.photoPlaceholder}>📷</Text>
             )}
-            <View style={[styles.photoBadge, { backgroundColor: colors.accent, borderColor: colors.surface }]}>
+            <View style={[styles.photoBadge, { backgroundColor: colors.accent }]}>
               <Text style={[styles.photoBadgeText, { color: colors.accentText }]}>+</Text>
             </View>
           </Pressable>
@@ -165,11 +165,9 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    borderWidth: 2,
-    borderStyle: "dashed",
+    borderWidth: 0,
     alignItems: "center",
     justifyContent: "center",
-    overflow: "hidden",
     position: "relative",
   },
   photoCircleHasPhoto: {
@@ -190,14 +188,13 @@ const styles = StyleSheet.create({
   },
   photoBadge: {
     position: "absolute",
-    bottom: 0,
-    right: 0,
+    bottom: -4,
+    right: -4,
     width: 28,
     height: 28,
     borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 2.5,
   },
   photoBadgeText: {
     fontSize: 16,

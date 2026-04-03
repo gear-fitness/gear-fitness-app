@@ -29,6 +29,7 @@ export function makeOnboardingStyles(c: ThemeColors) {
       paddingHorizontal: 24,
       paddingBottom: 44,
       paddingTop: 10,
+      gap: 12,
     },
     continueBtn: {
       height: 60,

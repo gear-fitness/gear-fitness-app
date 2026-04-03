@@ -76,9 +76,6 @@ export function PickerSheet({
         <View style={s.handle} />
         <View style={s.header}>
           <Text style={s.title}>{title}</Text>
-          <Pressable onPress={handleDone} hitSlop={8}>
-            <Text style={s.doneLink}>Done</Text>
-          </Pressable>
         </View>
         {unitToggle && <View style={s.unitToggleWrap}>{unitToggle}</View>}
         {children}

@@ -6,5 +6,6 @@ export function useOnboardingColors() {
     ...c,
     screenBg: c.isDark ? c.bg : c.surface,
     cardBg: c.isDark ? c.surface : c.bg,
+    inputText: c.inputText,
   };
 }
