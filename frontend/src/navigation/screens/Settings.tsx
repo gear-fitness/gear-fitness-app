@@ -230,7 +230,11 @@ export function Settings() {
         disabled={uploading}
         activeOpacity={0.8}
       >
-        <AvatarWithCameraOverlay size={88} uploading={uploading} style={styles.avatarWrap}>
+        <AvatarWithCameraOverlay
+          size={88}
+          uploading={uploading}
+          style={styles.avatarWrap}
+        >
           <Avatar
             username={user.username}
             profilePictureUrl={user.profilePictureUrl}

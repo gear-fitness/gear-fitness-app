@@ -30,7 +30,11 @@ export function GenderStep({
         <Text style={shared.subheading}>
           This helps us calculate accurate calorie and macro goals.
         </Text>
-        <GenderCardList selected={selected} onSelect={onSelect} colors={colors} />
+        <GenderCardList
+          selected={selected}
+          onSelect={onSelect}
+          colors={colors}
+        />
       </View>
       <View style={shared.footer}>
         <Pressable

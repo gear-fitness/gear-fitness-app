@@ -60,7 +60,9 @@ export function SettingsSectionContainer({
           : null;
 
   return (
-    <View style={[styles.sectionContainer, { backgroundColor: cardColor }, radius]}>
+    <View
+      style={[styles.sectionContainer, { backgroundColor: cardColor }, radius]}
+    >
       {children}
       {position !== "last" && position !== "single" ? (
         <View style={[styles.separator, { backgroundColor: separatorColor }]} />
@@ -95,9 +97,15 @@ export function SettingsValueCell({
         <Text style={[styles.label, { color: textColor }]}>{label}</Text>
         <View style={styles.right}>
           {!!value && (
-            <Text style={[styles.value, { color: secondaryTextColor }]}>{value}</Text>
+            <Text style={[styles.value, { color: secondaryTextColor }]}>
+              {value}
+            </Text>
           )}
-          {showArrow ? <Text style={[styles.chevron, { color: secondaryTextColor }]}>›</Text> : null}
+          {showArrow ? (
+            <Text style={[styles.chevron, { color: secondaryTextColor }]}>
+              ›
+            </Text>
+          ) : null}
         </View>
       </TouchableOpacity>
     </SettingsSectionContainer>
@@ -148,8 +156,14 @@ export function SettingsDestructiveCell({
       separatorColor={separatorColor}
       position={position}
     >
-      <TouchableOpacity onPress={onPress} activeOpacity={0.65} style={styles.rowCenter}>
-        <Text style={[styles.destructiveText, { color: destructiveColor }]}>{title}</Text>
+      <TouchableOpacity
+        onPress={onPress}
+        activeOpacity={0.65}
+        style={styles.rowCenter}
+      >
+        <Text style={[styles.destructiveText, { color: destructiveColor }]}>
+          {title}
+        </Text>
       </TouchableOpacity>
     </SettingsSectionContainer>
   );

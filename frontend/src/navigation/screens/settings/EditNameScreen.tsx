@@ -29,7 +29,13 @@ export function EditNameScreen() {
     if (!trimmed || saving) return;
     setSaving(true);
     try {
-      await updateUserProfile(undefined, undefined, undefined, undefined, trimmed);
+      await updateUserProfile(
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        trimmed,
+      );
       await refreshUser();
       navigation.goBack();
     } catch {

@@ -38,7 +38,9 @@ export function EditHeightScreen() {
 
   const [sheetVisible, setSheetVisible] = useState(false);
   const [height, setHeight] = useState<Height | undefined>(
-    initialInches ? { unit: "ft_in", ft: initialFt, inch: initialIn } : undefined,
+    initialInches
+      ? { unit: "ft_in", ft: initialFt, inch: initialIn }
+      : undefined,
   );
   const [htUnit, setHtUnit] = useState<"ft_in" | "cm">("ft_in");
   const [htFt, setHtFt] = useState(initialFt);
