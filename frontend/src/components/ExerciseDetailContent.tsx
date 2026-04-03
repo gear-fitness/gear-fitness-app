@@ -26,10 +26,7 @@ import { useNavigation } from "@react-navigation/native";
 import stopwatch from "../assets/stopwatch.png";
 import { SymbolView } from "expo-symbols";
 
-import {
-  useWorkoutTimer,
-  WorkoutSet,
-} from "../context/WorkoutContext";
+import { useWorkoutTimer, WorkoutSet } from "../context/WorkoutContext";
 import { useSwipeableDelete } from "../hooks/useSwipeableDelete";
 
 interface ExerciseDetailContentProps {

@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class AuthService {
+
   private static final String INTENT_SIGN_IN = "sign_in";
   private static final String INTENT_SIGN_UP = "sign_up";
   private static final String ACCOUNT_NOT_FOUND = "ACCOUNT_NOT_FOUND";
@@ -47,7 +48,10 @@ public class AuthService {
     boolean userExists = userRepository.existsByEmail(email);
     String normalizedIntent = normalizeIntent(intent);
 
-    if (!INTENT_SIGN_IN.equals(normalizedIntent) && !INTENT_SIGN_UP.equals(normalizedIntent)) {
+    if (
+      !INTENT_SIGN_IN.equals(normalizedIntent) &&
+      !INTENT_SIGN_UP.equals(normalizedIntent)
+    ) {
       return AuthResponse.builder()
         .errorCode(INVALID_AUTH_INTENT)
         .error("Invalid auth intent. Must be sign_in or sign_up.")
@@ -57,23 +61,27 @@ public class AuthService {
     if (INTENT_SIGN_IN.equals(normalizedIntent) && !userExists) {
       return AuthResponse.builder()
         .errorCode(ACCOUNT_NOT_FOUND)
-        .error("No account exists for this Google account. Please sign up first.")
+        .error(
+          "No account exists for this Google account. Please sign up first."
+        )
         .build();
     }
 
     if (INTENT_SIGN_UP.equals(normalizedIntent) && userExists) {
       return AuthResponse.builder()
         .errorCode(ACCOUNT_ALREADY_EXISTS)
-        .error("An account already exists for this Google account. Please sign in.")
+        .error(
+          "An account already exists for this Google account. Please sign in."
+        )
         .build();
     }
 
     AppUser user = userExists
       ? userRepository
-        .findByEmail(email)
-        .orElseThrow(() ->
-          new RuntimeException("User not found after existence check")
-        )
+          .findByEmail(email)
+          .orElseThrow(() ->
+            new RuntimeException("User not found after existence check")
+          )
       : createNewUser(email, name);
 
     // Generate JWT token

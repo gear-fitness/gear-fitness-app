@@ -1,10 +1,5 @@
 import React, { useState, useMemo } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-} from "react-native";
+import { View, Text, StyleSheet, Pressable } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import { Height, Weight, DOB } from "../types";
 import { OnboardingTopBar } from "./OnboardingTopBar";
@@ -26,10 +21,26 @@ function formatWeight(w?: Weight): string {
 }
 
 function formatDOB(dob?: DOB): { age: string; date: string } {
-  const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const MONTHS_SHORT = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
   if (!dob) return { age: "—", date: "Not set" };
   const age = calcAge(dob.year, dob.month, dob.day);
-  return { age: `${age}`, date: `${MONTHS_SHORT[dob.month]} ${dob.day}, ${dob.year}` };
+  return {
+    age: `${age}`,
+    date: `${MONTHS_SHORT[dob.month]} ${dob.day}, ${dob.year}`,
+  };
 }
 
 function getDaysInMonth(month: number, year: number): number {
@@ -38,8 +49,18 @@ function getDaysInMonth(month: number, year: number): number {
 
 // ─── DOB picker data ───────────────────────────────────────────
 const DOB_MONTHS = [
-  "January","February","March","April","May","June",
-  "July","August","September","October","November","December",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 const DOB_YEARS = Array.from({ length: 80 }, (_, i) => 2007 - i);
 
@@ -82,7 +103,7 @@ export function AboutYouStep({
 
   // ─── Height local state ────────────────────────────────────
   const [htUnit, setHtUnit] = useState<"ft_in" | "cm">(
-    height?.unit === "cm" ? "cm" : "ft_in"
+    height?.unit === "cm" ? "cm" : "ft_in",
   );
   const [htFt, setHtFt] = useState(height?.unit === "ft_in" ? height.ft : 5);
   const [htIn, setHtIn] = useState(height?.unit === "ft_in" ? height.inch : 11);
@@ -90,21 +111,21 @@ export function AboutYouStep({
 
   // ─── Weight local state ────────────────────────────────────
   const [wtUnit, setWtUnit] = useState<"lbs" | "kg">(
-    weight?.unit === "kg" ? "kg" : "lbs"
+    weight?.unit === "kg" ? "kg" : "lbs",
   );
   const [wtVal, setWtVal] = useState(weight ? weight.value : 165);
 
   // ─── DOB local state ──────────────────────────────────────
   const [bdMonth, setBdMonth] = useState(dob?.month ?? 4);
-  const [bdDay,   setBdDay]   = useState(dob?.day ?? 26);
-  const [bdYear,  setBdYear]  = useState(dob?.year ?? 2000);
+  const [bdDay, setBdDay] = useState(dob?.day ?? 26);
+  const [bdYear, setBdYear] = useState(dob?.year ?? 2000);
 
   // ─── Done handlers ────────────────────────────────────────
   const doneHeight = () => {
     onHeightChange(
       htUnit === "ft_in"
         ? { unit: "ft_in", ft: htFt, inch: htIn }
-        : { unit: "cm", cm: htCm }
+        : { unit: "cm", cm: htCm },
     );
     setHtSheet(false);
   };
@@ -136,7 +157,7 @@ export function AboutYouStep({
   const unitToggle = (
     active: string,
     options: { label: string; value: string }[],
-    onChange: (v: string) => void
+    onChange: (v: string) => void,
   ) => (
     <View style={[styles.unitToggle, { backgroundColor: colors.unitToggleBg }]}>
       {options.map((opt) => (
@@ -148,10 +169,12 @@ export function AboutYouStep({
             active === opt.value && { backgroundColor: colors.unitBtnActiveBg },
           ]}
         >
-          <Text style={[
-            styles.unitBtnText,
-            { color: active === opt.value ? colors.text : colors.secondary },
-          ]}>
+          <Text
+            style={[
+              styles.unitBtnText,
+              { color: active === opt.value ? colors.text : colors.secondary },
+            ]}
+          >
             {opt.label}
           </Text>
         </Pressable>
@@ -169,36 +192,70 @@ export function AboutYouStep({
         </Text>
         <View style={styles.cardsWrap}>
           <Pressable
-            style={[styles.bigCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}
+            style={[
+              styles.bigCard,
+              { backgroundColor: colors.cardBg, borderColor: colors.border },
+            ]}
             onPress={() => setHtSheet(true)}
           >
-            <Text style={[styles.cardLabel, { color: colors.secondary }]}>HEIGHT</Text>
-            <Text style={[styles.cardValue, { color: colors.text }]}>{formatHeight(height)}</Text>
-            <Text style={[styles.tapHint, { color: colors.secondary }]}>Tap to change</Text>
+            <Text style={[styles.cardLabel, { color: colors.secondary }]}>
+              HEIGHT
+            </Text>
+            <Text style={[styles.cardValue, { color: colors.text }]}>
+              {formatHeight(height)}
+            </Text>
+            <Text style={[styles.tapHint, { color: colors.secondary }]}>
+              Tap to change
+            </Text>
           </Pressable>
           <Pressable
-            style={[styles.bigCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}
+            style={[
+              styles.bigCard,
+              { backgroundColor: colors.cardBg, borderColor: colors.border },
+            ]}
             onPress={() => setWtSheet(true)}
           >
-            <Text style={[styles.cardLabel, { color: colors.secondary }]}>WEIGHT</Text>
-            <Text style={[styles.cardValue, { color: colors.text }]}>{formatWeight(weight)}</Text>
-            <Text style={[styles.tapHint, { color: colors.secondary }]}>Tap to change</Text>
+            <Text style={[styles.cardLabel, { color: colors.secondary }]}>
+              WEIGHT
+            </Text>
+            <Text style={[styles.cardValue, { color: colors.text }]}>
+              {formatWeight(weight)}
+            </Text>
+            <Text style={[styles.tapHint, { color: colors.secondary }]}>
+              Tap to change
+            </Text>
           </Pressable>
           <Pressable
-            style={[styles.bigCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}
+            style={[
+              styles.bigCard,
+              { backgroundColor: colors.cardBg, borderColor: colors.border },
+            ]}
             onPress={() => setBdSheet(true)}
           >
-            <Text style={[styles.cardLabel, { color: colors.secondary }]}>AGE</Text>
-            <Text style={[styles.cardValue, { color: colors.text }]}>{age}</Text>
-            {dob && <Text style={[styles.cardSub, { color: colors.secondary }]}>{date}</Text>}
-            <Text style={[styles.tapHint, { color: colors.secondary }]}>Tap to change</Text>
+            <Text style={[styles.cardLabel, { color: colors.secondary }]}>
+              AGE
+            </Text>
+            <Text style={[styles.cardValue, { color: colors.text }]}>
+              {age}
+            </Text>
+            {dob && (
+              <Text style={[styles.cardSub, { color: colors.secondary }]}>
+                {date}
+              </Text>
+            )}
+            <Text style={[styles.tapHint, { color: colors.secondary }]}>
+              Tap to change
+            </Text>
           </Pressable>
         </View>
       </View>
       <View style={shared.footer}>
         <Pressable
           onPress={onContinue}
-          style={({ pressed }) => [shared.continueBtn, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            shared.continueBtn,
+            pressed && styles.pressed,
+          ]}
         >
           <Text style={shared.continueBtnText}>Continue</Text>
         </Pressable>
@@ -213,23 +270,47 @@ export function AboutYouStep({
         onDone={doneHeight}
         unitToggle={unitToggle(
           htUnit,
-          [{ label: "ft / in", value: "ft_in" }, { label: "cm", value: "cm" }],
-          (v) => setHtUnit(v as "ft_in" | "cm")
+          [
+            { label: "ft / in", value: "ft_in" },
+            { label: "cm", value: "cm" },
+          ],
+          (v) => setHtUnit(v as "ft_in" | "cm"),
         )}
       >
         <View style={styles.pickerRow}>
           {htUnit === "ft_in" ? (
             <>
-              <Picker selectedValue={htFt} onValueChange={setHtFt} style={styles.picker} itemStyle={[styles.pickerItem, { color: colors.text }]}>
-                {FT_VALUES.map((v) => <Picker.Item key={v} label={`${v} ft`} value={v} />)}
+              <Picker
+                selectedValue={htFt}
+                onValueChange={setHtFt}
+                style={styles.picker}
+                itemStyle={[styles.pickerItem, { color: colors.text }]}
+              >
+                {FT_VALUES.map((v) => (
+                  <Picker.Item key={v} label={`${v} ft`} value={v} />
+                ))}
               </Picker>
-              <Picker selectedValue={htIn} onValueChange={setHtIn} style={styles.picker} itemStyle={[styles.pickerItem, { color: colors.text }]}>
-                {IN_VALUES.map((v) => <Picker.Item key={v} label={`${v} in`} value={v} />)}
+              <Picker
+                selectedValue={htIn}
+                onValueChange={setHtIn}
+                style={styles.picker}
+                itemStyle={[styles.pickerItem, { color: colors.text }]}
+              >
+                {IN_VALUES.map((v) => (
+                  <Picker.Item key={v} label={`${v} in`} value={v} />
+                ))}
               </Picker>
             </>
           ) : (
-            <Picker selectedValue={htCm} onValueChange={setHtCm} style={[styles.picker, { flex: 1 }]} itemStyle={[styles.pickerItem, { color: colors.text }]}>
-              {CM_VALUES.map((v) => <Picker.Item key={v} label={`${v} cm`} value={v} />)}
+            <Picker
+              selectedValue={htCm}
+              onValueChange={setHtCm}
+              style={[styles.picker, { flex: 1 }]}
+              itemStyle={[styles.pickerItem, { color: colors.text }]}
+            >
+              {CM_VALUES.map((v) => (
+                <Picker.Item key={v} label={`${v} cm`} value={v} />
+              ))}
             </Picker>
           )}
         </View>
@@ -244,15 +325,23 @@ export function AboutYouStep({
         onDone={doneWeight}
         unitToggle={unitToggle(
           wtUnit,
-          [{ label: "lbs", value: "lbs" }, { label: "kg", value: "kg" }],
+          [
+            { label: "lbs", value: "lbs" },
+            { label: "kg", value: "kg" },
+          ],
           (v) => {
             setWtUnit(v as "lbs" | "kg");
             setWtVal(v === "kg" ? 75 : 165);
-          }
+          },
         )}
       >
         <View style={styles.pickerRow}>
-          <Picker selectedValue={wtVal} onValueChange={setWtVal} style={[styles.picker, { flex: 1 }]} itemStyle={[styles.pickerItem, { color: colors.text }]}>
+          <Picker
+            selectedValue={wtVal}
+            onValueChange={setWtVal}
+            style={[styles.picker, { flex: 1 }]}
+            itemStyle={[styles.pickerItem, { color: colors.text }]}
+          >
             {(wtUnit === "lbs" ? LB_VALUES : KG_VALUES).map((v) => (
               <Picker.Item key={v} label={`${v} ${wtUnit}`} value={v} />
             ))}
@@ -275,7 +364,9 @@ export function AboutYouStep({
             style={[styles.picker, { flex: 1.4 }]}
             itemStyle={[styles.pickerItem, { color: colors.text }]}
           >
-            {DOB_MONTHS.map((m, i) => <Picker.Item key={i} label={m} value={i} />)}
+            {DOB_MONTHS.map((m, i) => (
+              <Picker.Item key={i} label={m} value={i} />
+            ))}
           </Picker>
           <Picker
             selectedValue={bdDay}
@@ -283,7 +374,10 @@ export function AboutYouStep({
             style={[styles.picker, { flex: 0.8 }]}
             itemStyle={[styles.pickerItem, { color: colors.text }]}
           >
-            {Array.from({ length: getDaysInMonth(bdMonth, bdYear) }, (_, i) => i + 1).map((d) => (
+            {Array.from(
+              { length: getDaysInMonth(bdMonth, bdYear) },
+              (_, i) => i + 1,
+            ).map((d) => (
               <Picker.Item key={d} label={`${d}`} value={d} />
             ))}
           </Picker>
@@ -293,7 +387,9 @@ export function AboutYouStep({
             style={[styles.picker, { flex: 1.1 }]}
             itemStyle={[styles.pickerItem, { color: colors.text }]}
           >
-            {DOB_YEARS.map((y) => <Picker.Item key={y} label={`${y}`} value={y} />)}
+            {DOB_YEARS.map((y) => (
+              <Picker.Item key={y} label={`${y}`} value={y} />
+            ))}
           </Picker>
         </View>
       </PickerSheet>

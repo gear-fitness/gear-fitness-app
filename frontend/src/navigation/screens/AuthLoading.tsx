@@ -28,7 +28,9 @@ export function AuthLoadingScreen() {
         });
       }
     }
-    return () => { isMounted.current = false; };
+    return () => {
+      isMounted.current = false;
+    };
   }, [isLoading, isAuthenticated, authError, navigation]);
 
   // Show error state with retry option

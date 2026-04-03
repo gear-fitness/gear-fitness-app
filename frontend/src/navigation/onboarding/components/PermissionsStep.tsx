@@ -22,7 +22,13 @@ function ToggleSwitch({ value, onToggle, colors }: ToggleSwitchProps) {
       ]}
       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
     >
-      <View style={[styles.knob, { backgroundColor: colors.accentText }, value && styles.knobOn]} />
+      <View
+        style={[
+          styles.knob,
+          { backgroundColor: colors.accentText },
+          value && styles.knobOn,
+        ]}
+      />
     </Pressable>
   );
 }
@@ -47,13 +53,20 @@ function PermCard({
   colors,
 }: PermCardProps) {
   return (
-    <View style={[styles.permCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
+    <View
+      style={[
+        styles.permCard,
+        { backgroundColor: colors.cardBg, borderColor: colors.border },
+      ]}
+    >
       <View style={[styles.permIconWrap, { backgroundColor: accentColor }]}>
         <Text style={styles.permEmoji}>{emoji}</Text>
       </View>
       <View style={styles.permText}>
         <Text style={[styles.permTitle, { color: colors.text }]}>{title}</Text>
-        <Text style={[styles.permSub, { color: colors.secondary }]}>{subtitle}</Text>
+        <Text style={[styles.permSub, { color: colors.secondary }]}>
+          {subtitle}
+        </Text>
       </View>
       <ToggleSwitch value={enabled} onToggle={onToggle} colors={colors} />
     </View>
@@ -165,12 +178,17 @@ export function PermissionsStep({
       <View style={shared.footer}>
         <Pressable
           onPress={onContinue}
-          style={({ pressed }) => [shared.continueBtn, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            shared.continueBtn,
+            pressed && styles.pressed,
+          ]}
         >
           <Text style={shared.continueBtnText}>Continue</Text>
         </Pressable>
         <Pressable onPress={onContinue} style={styles.skip}>
-          <Text style={[styles.skipText, { color: colors.secondary }]}>Skip for now</Text>
+          <Text style={[styles.skipText, { color: colors.secondary }]}>
+            Skip for now
+          </Text>
         </Pressable>
       </View>
     </View>

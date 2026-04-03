@@ -44,24 +44,53 @@ export function GenderStep({
                 key={g.value}
                 style={[
                   styles.card,
-                  { backgroundColor: colors.cardBg, borderColor: colors.border },
-                  isSelected && { backgroundColor: colors.accent, borderColor: colors.accent },
+                  {
+                    backgroundColor: colors.cardBg,
+                    borderColor: colors.border,
+                  },
+                  isSelected && {
+                    backgroundColor: colors.accent,
+                    borderColor: colors.accent,
+                  },
                 ]}
                 onPress={() => onSelect(g.value)}
               >
                 <View style={styles.cardText}>
-                  <Text style={[styles.cardName, { color: isSelected ? colors.accentText : colors.text }]}>
+                  <Text
+                    style={[
+                      styles.cardName,
+                      { color: isSelected ? colors.accentText : colors.text },
+                    ]}
+                  >
                     {g.label}
                   </Text>
                   {g.hint && (
-                    <Text style={[styles.cardHint, { color: isSelected ? (colors.isDark ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.6)") : colors.secondary }]}>
+                    <Text
+                      style={[
+                        styles.cardHint,
+                        {
+                          color: isSelected
+                            ? colors.isDark
+                              ? "rgba(0,0,0,0.5)"
+                              : "rgba(255,255,255,0.6)"
+                            : colors.secondary,
+                        },
+                      ]}
+                    >
                       {g.hint}
                     </Text>
                   )}
                 </View>
                 {isSelected && (
-                  <View style={[styles.checkCircle, { backgroundColor: colors.accentText }]}>
-                    <Text style={[styles.checkmark, { color: colors.accent }]}>✓</Text>
+                  <View
+                    style={[
+                      styles.checkCircle,
+                      { backgroundColor: colors.accentText },
+                    ]}
+                  >
+                    <Text style={[styles.checkmark, { color: colors.accent }]}>
+                      ✓
+                    </Text>
                   </View>
                 )}
               </Pressable>

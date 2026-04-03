@@ -38,8 +38,17 @@ export function PickerSheet({
       backdrop.setValue(0);
       slide.setValue(SHEET_TRANSLATE_CLOSED);
       Animated.parallel([
-        Animated.timing(backdrop, { toValue: 1, duration: 220, useNativeDriver: true }),
-        Animated.spring(slide, { toValue: 0, damping: 22, stiffness: 220, useNativeDriver: true }),
+        Animated.timing(backdrop, {
+          toValue: 1,
+          duration: 220,
+          useNativeDriver: true,
+        }),
+        Animated.spring(slide, {
+          toValue: 0,
+          damping: 22,
+          stiffness: 220,
+          useNativeDriver: true,
+        }),
       ]).start();
     }
   }, [visible]);
@@ -53,8 +62,16 @@ export function PickerSheet({
 
   const animateOut = (onComplete: () => void) => {
     Animated.parallel([
-      Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
-      Animated.timing(slide, { toValue: SHEET_TRANSLATE_CLOSED, duration: 220, useNativeDriver: true }),
+      Animated.timing(backdrop, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slide, {
+        toValue: SHEET_TRANSLATE_CLOSED,
+        duration: 220,
+        useNativeDriver: true,
+      }),
     ]).start(() => onComplete());
   };
 
@@ -64,9 +81,16 @@ export function PickerSheet({
   const s = makeStyles(colors);
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={handleClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
+      onRequestClose={handleClose}
+    >
       <Pressable style={StyleSheet.absoluteFill} onPress={handleClose}>
-        <Animated.View style={[StyleSheet.absoluteFill, s.dim, { opacity: backdrop }]} />
+        <Animated.View
+          style={[StyleSheet.absoluteFill, s.dim, { opacity: backdrop }]}
+        />
       </Pressable>
       <Animated.View style={[s.sheet, { transform: [{ translateY: slide }] }]}>
         <View style={s.handle} />

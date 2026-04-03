@@ -21,7 +21,9 @@ export async function markOnboardingSeen(): Promise<void> {
   }
 }
 
-export async function saveOnboardingDraft(draft: OnboardingDraft): Promise<void> {
+export async function saveOnboardingDraft(
+  draft: OnboardingDraft,
+): Promise<void> {
   try {
     await AsyncStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
   } catch {

@@ -1,5 +1,12 @@
 import React, { useMemo } from "react";
-import { View, Text, StyleSheet, Image, Pressable, useColorScheme } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  Pressable,
+  useColorScheme,
+} from "react-native";
 import { useOnboardingColors } from "./useOnboardingColors";
 import { makeOnboardingStyles } from "./makeOnboardingStyles";
 import { GOOGLE_LOGO_URI, appleBrandLogoUri } from "../socialAuthUris";
@@ -32,30 +39,41 @@ export function IntroStep({ onGetStarted, onGoogleSignIn }: IntroStepProps) {
           Ready to hop{"\n"}on Gear?
         </Text>
         <Text style={[shared.subheading, styles.centeredSub]}>
-          Your fitness journey starts here. Let's set up your profile in under
-          a minute.
+          Your fitness journey starts here. Let's set up your profile in under a
+          minute.
         </Text>
       </View>
       <View style={[shared.footer, styles.footerGap]}>
         <Pressable
           onPress={onGetStarted}
-          style={({ pressed }) => [shared.continueBtn, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            shared.continueBtn,
+            pressed && styles.pressed,
+          ]}
         >
           <Text style={shared.continueBtnText}>Get Started</Text>
         </Pressable>
         <View style={styles.dividerRow}>
-          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-          <Text style={[styles.dividerText, { color: colors.secondary }]}>or sign in with</Text>
-          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+          <View
+            style={[styles.dividerLine, { backgroundColor: colors.border }]}
+          />
+          <Text style={[styles.dividerText, { color: colors.secondary }]}>
+            or sign in with
+          </Text>
+          <View
+            style={[styles.dividerLine, { backgroundColor: colors.border }]}
+          />
         </View>
         <View style={styles.iconRow}>
-          <Pressable onPress={onGoogleSignIn} style={[styles.iconBtn, { backgroundColor: colors.accent }]}>
-            <Image
-              source={{ uri: GOOGLE_LOGO_URI }}
-              style={styles.iconLogo}
-            />
+          <Pressable
+            onPress={onGoogleSignIn}
+            style={[styles.iconBtn, { backgroundColor: colors.accent }]}
+          >
+            <Image source={{ uri: GOOGLE_LOGO_URI }} style={styles.iconLogo} />
           </Pressable>
-          <Pressable style={[styles.iconBtn, { backgroundColor: colors.accent }]}>
+          <Pressable
+            style={[styles.iconBtn, { backgroundColor: colors.accent }]}
+          >
             <Image
               source={{ uri: appleBrandLogoUri(colors.isDark) }}
               style={styles.appleLogo}
@@ -65,8 +83,11 @@ export function IntroStep({ onGetStarted, onGoogleSignIn }: IntroStepProps) {
         </View>
         <Text style={[styles.terms, { color: colors.secondary }]}>
           By continuing you agree to our{" "}
-          <Text style={[styles.termsLink, { color: colors.text }]}>Terms</Text> and{" "}
-          <Text style={[styles.termsLink, { color: colors.text }]}>Privacy Policy</Text>
+          <Text style={[styles.termsLink, { color: colors.text }]}>Terms</Text>{" "}
+          and{" "}
+          <Text style={[styles.termsLink, { color: colors.text }]}>
+            Privacy Policy
+          </Text>
         </Text>
       </View>
     </View>

@@ -14,7 +14,12 @@ export function OnboardingTopBar({ progress, onBack }: OnboardingTopBarProps) {
     <View style={styles.topbar}>
       <BackButton onPress={onBack} color={colors.text} size={26} />
       <View style={[styles.trackWrap, { backgroundColor: colors.trackBg }]}>
-        <View style={[styles.fill, { width: `${progress * 100}%`, backgroundColor: colors.accent }]} />
+        <View
+          style={[
+            styles.fill,
+            { width: `${progress * 100}%`, backgroundColor: colors.accent },
+          ]}
+        />
       </View>
     </View>
   );
