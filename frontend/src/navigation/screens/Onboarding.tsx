@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { View, StyleSheet, Alert, Appearance } from "react-native";
-
-const initialBg = Appearance.getColorScheme() === "dark" ? "#000" : "#F2F2F7";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CommonActions, useNavigation } from "@react-navigation/native";
 import {
@@ -34,6 +32,9 @@ import { AboutYouStep } from "../onboarding/components/AboutYouStep";
 import { ProfileStep } from "../onboarding/components/ProfileStep";
 import { PermissionsStep } from "../onboarding/components/PermissionsStep";
 import { AllSetStep } from "../onboarding/components/AllSetStep";
+import { calcAge } from "../onboarding/calcAge";
+
+const initialBg = Appearance.getColorScheme() === "dark" ? "#000" : "#F2F2F7";
 
 const STEP_COMPONENTS = [
   IntroStep, GenderStep, AboutYouStep, ProfileStep, PermissionsStep, AllSetStep,
@@ -43,14 +44,6 @@ const defaultDraft = (): OnboardingDraft => ({
   step: 0,
   updatedAt: new Date().toISOString(),
 });
-
-function calcAge(year: number, month: number, day: number): number {
-  const today = new Date();
-  let age = today.getFullYear() - year;
-  const m = today.getMonth() - month;
-  if (m < 0 || (m === 0 && today.getDate() < day)) age--;
-  return Math.max(0, age);
-}
 
 export function OnboardingScreen() {
   const navigation = useNavigation();
@@ -224,9 +217,14 @@ export function OnboardingScreen() {
       { permissions: draft.permissions, onPermissionsChange: (p: OnboardingPermissions) => updateDraft({ permissions: p }), ...base, onContinue: goNext },
       { onSignIn: handleGoogleSignUpNew, ...base, isLoading: isSigningIn },
     ] as const;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    draft,
+    draft.step,
+    draft.gender,
+    draft.height,
+    draft.weight,
+    draft.dob,
+    draft.profile,
+    draft.permissions,
     goBack,
     goNext,
     updateDraft,

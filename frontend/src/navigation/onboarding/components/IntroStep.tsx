@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { View, Text, StyleSheet, Image, Pressable, useColorScheme } from "react-native";
 import { useOnboardingColors } from "./useOnboardingColors";
 import { makeOnboardingStyles } from "./makeOnboardingStyles";
+import { GOOGLE_LOGO_URI, appleBrandLogoUri } from "../socialAuthUris";
 
 const gearLogo = require("../../../../assets/GearLogo288.png");
 const gearLogoInverse = require("../../../../assets/GearLogoInverse288.png");
@@ -19,7 +20,7 @@ export function IntroStep({ onGetStarted, onGoogleSignIn }: IntroStepProps) {
   return (
     <View style={shared.screen}>
       <View style={styles.heroSection}>
-      <View style={[styles.logoBox, { backgroundColor: colors.screenBg }]}>
+        <View style={[styles.logoBox, { backgroundColor: colors.screenBg }]}>
           <Image
             source={isDark ? gearLogo : gearLogoInverse}
             style={styles.logoImage}
@@ -50,16 +51,13 @@ export function IntroStep({ onGetStarted, onGoogleSignIn }: IntroStepProps) {
         <View style={styles.iconRow}>
           <Pressable onPress={onGoogleSignIn} style={[styles.iconBtn, { backgroundColor: colors.accent }]}>
             <Image
-              source={{ uri: "https://www.gstatic.com/marketing-cms/assets/images/d5/dc/cfe9ce8b4425b410b49b7f2dd3f3/g.webp=s96-fcrop64=1,00000000ffffffff-rw" }}
+              source={{ uri: GOOGLE_LOGO_URI }}
               style={styles.iconLogo}
             />
           </Pressable>
           <Pressable style={[styles.iconBtn, { backgroundColor: colors.accent }]}>
             <Image
-              source={{ uri: colors.isDark
-                ? "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Apple_logo_black.svg/1280px-Apple_logo_black.svg.png"
-                : "https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/Apple_logo_white.svg/1280px-Apple_logo_white.svg.png?_=20220821122232"
-              }}
+              source={{ uri: appleBrandLogoUri(colors.isDark) }}
               style={styles.appleLogo}
               resizeMode="contain"
             />

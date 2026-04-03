@@ -51,19 +51,15 @@ export function PickerSheet({
     };
   }, []);
 
-  const handleClose = () => {
+  const animateOut = (onComplete: () => void) => {
     Animated.parallel([
       Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
       Animated.timing(slide, { toValue: SHEET_TRANSLATE_CLOSED, duration: 220, useNativeDriver: true }),
-    ]).start(() => onClose());
+    ]).start(() => onComplete());
   };
 
-  const handleDone = () => {
-    Animated.parallel([
-      Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
-      Animated.timing(slide, { toValue: SHEET_TRANSLATE_CLOSED, duration: 220, useNativeDriver: true }),
-    ]).start(() => onDone());
-  };
+  const handleClose = () => animateOut(onClose);
+  const handleDone = () => animateOut(onDone);
 
   const s = makeStyles(colors);
 

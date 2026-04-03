@@ -11,16 +11,9 @@ import { OnboardingTopBar } from "./OnboardingTopBar";
 import { PickerSheet } from "./PickerSheet";
 import { useOnboardingColors } from "./useOnboardingColors";
 import { makeOnboardingStyles } from "./makeOnboardingStyles";
+import { calcAge } from "../calcAge";
 
 // ─── Helpers ───────────────────────────────────────────────────
-function calcAge(year: number, month: number, day: number): number {
-  const today = new Date();
-  let age = today.getFullYear() - year;
-  const m = today.getMonth() - month;
-  if (m < 0 || (m === 0 && today.getDate() < day)) age--;
-  return Math.max(0, age);
-}
-
 function formatHeight(h?: Height): string {
   if (!h) return "—";
   if (h.unit === "ft_in") return `${h.ft}' ${h.inch}"`;
