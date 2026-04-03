@@ -62,16 +62,29 @@ export function CommentsScreen() {
     }
   };
 
-  const formatTimeAgo = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  const formatTimeAgo = (dateString?: string) => {
+    if (!dateString) return "Just now";
 
-    if (seconds < 60) return "just now";
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-    if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
-    return `${Math.floor(seconds / 604800)}w ago`;
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "Just now";
+
+    const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(seconds / 3600);
+    const days = Math.floor(seconds / 86400);
+
+    if (seconds < 60) return "Just now";
+    if (minutes < 60) return `${minutes}m`;
+    if (hours < 24) return `${hours}h`;
+    if (days < 7) return `${days}d`;
+
+    return date.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year:
+        date.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
+    });
   };
 
   const renderComment = ({ item }: { item: Comment }) => (

@@ -22,6 +22,12 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AuthService {
 
+  private static final String INTENT_SIGN_IN = "sign_in";
+  private static final String INTENT_SIGN_UP = "sign_up";
+  private static final String ACCOUNT_NOT_FOUND = "ACCOUNT_NOT_FOUND";
+  private static final String ACCOUNT_ALREADY_EXISTS = "ACCOUNT_ALREADY_EXISTS";
+  private static final String INVALID_AUTH_INTENT = "INVALID_AUTH_INTENT";
+
   private final AppUserRepository userRepository;
   private final GoogleTokenVerifier googleTokenVerifier;
   private final JwtService jwtService;
@@ -31,7 +37,7 @@ public class AuthService {
   private Long refreshExpiration;
 
   @Transactional
-  public AuthResponse authenticateWithGoogle(String idToken)
+  public AuthResponse authenticateWithGoogle(String idToken, String intent)
     throws GeneralSecurityException, IOException {
     // Verify the Google token
     GoogleIdToken.Payload payload = googleTokenVerifier.verify(idToken);
@@ -39,13 +45,44 @@ public class AuthService {
     String email = payload.getEmail();
     String name = (String) payload.get("name");
 
-    // Check if user exists
-    boolean isNewUser = !userRepository.existsByEmail(email);
+    boolean userExists = userRepository.existsByEmail(email);
+    String normalizedIntent = normalizeIntent(intent);
 
-    // Find or create user
-    AppUser user = userRepository
-      .findByEmail(email)
-      .orElseGet(() -> createNewUser(email, name));
+    if (
+      !INTENT_SIGN_IN.equals(normalizedIntent) &&
+      !INTENT_SIGN_UP.equals(normalizedIntent)
+    ) {
+      return AuthResponse.builder()
+        .errorCode(INVALID_AUTH_INTENT)
+        .error("Invalid auth intent. Must be sign_in or sign_up.")
+        .build();
+    }
+
+    if (INTENT_SIGN_IN.equals(normalizedIntent) && !userExists) {
+      return AuthResponse.builder()
+        .errorCode(ACCOUNT_NOT_FOUND)
+        .error(
+          "No account exists for this Google account. Please sign up first."
+        )
+        .build();
+    }
+
+    if (INTENT_SIGN_UP.equals(normalizedIntent) && userExists) {
+      return AuthResponse.builder()
+        .errorCode(ACCOUNT_ALREADY_EXISTS)
+        .error(
+          "An account already exists for this Google account. Please sign in."
+        )
+        .build();
+    }
+
+    AppUser user = userExists
+      ? userRepository
+          .findByEmail(email)
+          .orElseThrow(() ->
+            new RuntimeException("User not found after existence check")
+          )
+      : createNewUser(email, name);
 
     // Generate JWT token
     String jwtToken = jwtService.generateToken(
@@ -60,8 +97,15 @@ public class AuthService {
       .token(jwtToken)
       .refreshToken(refreshToken)
       .user(convertToDTO(user))
-      .newUser(isNewUser)
+      .newUser(!userExists)
       .build();
+  }
+
+  private String normalizeIntent(String intent) {
+    if (intent == null) {
+      return "";
+    }
+    return intent.trim().toLowerCase();
   }
 
   @Transactional
@@ -125,6 +169,7 @@ public class AuthService {
     AppUser newUser = AppUser.builder()
       .email(email)
       .username(username)
+      .displayName(name)
       .passwordHash("") // OAuth users don't have passwords
       .isPrivate(false)
       .weightLbs(null) // Temporary default - user will set in profile setup
@@ -166,6 +211,8 @@ public class AuthService {
     return UserDTO.builder()
       .userId(user.getUserId())
       .username(user.getUsername())
+      .displayName(user.getDisplayName())
+      .gender(user.getGender())
       .email(user.getEmail())
       .weightLbs(user.getWeightLbs())
       .heightInches(user.getHeightInches())

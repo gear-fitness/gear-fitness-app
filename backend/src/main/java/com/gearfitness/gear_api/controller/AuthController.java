@@ -21,13 +21,18 @@ public class AuthController {
   ) {
     try {
       AuthResponse response = authService.authenticateWithGoogle(
-        request.getIdToken()
+        request.getIdToken(),
+        request.getIntent()
       );
+      if (response.getError() != null) {
+        return ResponseEntity.badRequest().body(response);
+      }
       return ResponseEntity.ok(response);
     } catch (Exception e) {
       return ResponseEntity.badRequest().body(
         AuthResponse.builder()
           .error("Authentication failed: " + e.getMessage())
+          .errorCode("AUTH_FAILED")
           .build()
       );
     }

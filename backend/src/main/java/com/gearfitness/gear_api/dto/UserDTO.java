@@ -15,6 +15,8 @@ public class UserDTO {
 
   private UUID userId;
   private String username;
+  private String displayName;
+  private String gender;
   private String email;
   private Integer weightLbs;
   private Integer heightInches;

@@ -30,6 +30,12 @@ public class AppUser {
   @Column(nullable = false, unique = true)
   private String username;
 
+  @Column(name = "display_name")
+  private String displayName;
+
+  @Column
+  private String gender;
+
   @Column
   private Integer weightLbs;
 

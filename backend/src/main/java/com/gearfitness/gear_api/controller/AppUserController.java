@@ -3,6 +3,7 @@ package com.gearfitness.gear_api.controller;
 import com.gearfitness.gear_api.dto.UpdateUserProfileRequest;
 import com.gearfitness.gear_api.dto.UserDTO;
 import com.gearfitness.gear_api.dto.UserProfileDTO;
+import com.gearfitness.gear_api.dto.UsernameAvailabilityResponse;
 import com.gearfitness.gear_api.entity.AppUser;
 import com.gearfitness.gear_api.repository.AppUserRepository;
 import com.gearfitness.gear_api.security.JwtService;
@@ -159,6 +160,13 @@ public class AppUserController {
       return ResponseEntity.ok(List.of());
     }
     return ResponseEntity.ok(userService.searchUsersByUsername(q.trim()));
+  }
+
+  @GetMapping("/username-availability")
+  public ResponseEntity<UsernameAvailabilityResponse> checkUsernameAvailability(
+    @RequestParam String username
+  ) {
+    return ResponseEntity.ok(userService.getUsernameAvailability(username));
   }
 
   /**

@@ -16,13 +16,21 @@ export function AuthLoadingScreen() {
   const { isLoading, isAuthenticated, authError, retryAuth } = useAuth();
 
   useEffect(() => {
+    const isMounted = { current: true };
     if (!isLoading && !authError) {
-      // Auth initialization complete without error
-      navigation.reset({
-        index: 0,
-        routes: [{ name: isAuthenticated ? "HomeTabs" : "Login" }],
-      });
+      if (isAuthenticated) {
+        navigation.reset({ index: 0, routes: [{ name: "HomeTabs" }] });
+      } else {
+        if (!isMounted.current) return;
+        navigation.reset({
+          index: 0,
+          routes: [{ name: "Onboarding" }],
+        });
+      }
     }
+    return () => {
+      isMounted.current = false;
+    };
   }, [isLoading, isAuthenticated, authError, navigation]);
 
   // Show error state with retry option
@@ -49,11 +57,11 @@ export function AuthLoadingScreen() {
         <TouchableOpacity
           style={styles.loginButton}
           onPress={() =>
-            navigation.reset({ index: 0, routes: [{ name: "Login" }] })
+            navigation.reset({ index: 0, routes: [{ name: "Onboarding" }] })
           }
         >
           <Text style={[styles.loginText, { color: colors.primary }]}>
-            Go to Login
+            Go to Onboarding
           </Text>
         </TouchableOpacity>
       </View>

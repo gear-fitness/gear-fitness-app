@@ -16,4 +16,5 @@ public class AuthResponse {
   private UserDTO user;
   private boolean newUser;
   private String error;
+  private String errorCode;
 }

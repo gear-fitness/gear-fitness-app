@@ -1,5 +1,6 @@
 import React from "react";
-import { TouchableOpacity, Text, StyleSheet } from "react-native";
+import { TouchableOpacity, StyleSheet } from "react-native";
+import { SymbolView } from "expo-symbols";
 
 interface BackButtonProps {
   onPress: () => void;
@@ -12,7 +13,7 @@ const CONTAINER_SIZE = 36;
 export function BackButton({
   onPress,
   color = "#fff",
-  size = 28,
+  size = 22,
 }: BackButtonProps) {
   return (
     <TouchableOpacity
@@ -21,9 +22,7 @@ export function BackButton({
       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       activeOpacity={0.5}
     >
-      <Text style={{ color, fontSize: size, includeFontPadding: false }}>
-        ←
-      </Text>
+      <SymbolView name="chevron.backward" size={size} tintColor={color} />
     </TouchableOpacity>
   );
 }

@@ -150,7 +150,7 @@ export function FeedPostCard({ post, onOpenComments }: Props) {
                 {formatDate(post.datePerformed)}
               </Text>
             </View>
-            {post.durationMin && (
+            {post.durationMin != null && post.durationMin > 0 && (
               <View style={styles.metaItem}>
                 <Ionicons name="time-outline" size={16} color={colors.text} />
                 <Text
@@ -163,7 +163,7 @@ export function FeedPostCard({ post, onOpenComments }: Props) {
                 </Text>
               </View>
             )}
-            {post.bodyTags?.length > 0 && (
+            {Array.isArray(post.bodyTags) && post.bodyTags.length > 0 && (
               <View style={styles.metaItem}>
                 <Ionicons
                   name="fitness-outline"
