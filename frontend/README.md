@@ -22,4 +22,9 @@ npm install
 npm start
 ```
 
+If you install any packages you will need to do a development build: 
+```bash
+npx eas build --platform ios --profile development
+```
+
 ![Image](https://media1.tenor.com/m/lZmRtXcNlScAAAAd/rizzler-boom-rizzler-dance.gif)

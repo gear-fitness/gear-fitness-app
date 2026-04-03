@@ -9,6 +9,6 @@ export function useTrackTab(tabName: string) {
   useFocusEffect(
     useCallback(() => {
       setActiveTab(tabName);
-    }, [tabName, setActiveTab])
+    }, [tabName, setActiveTab]),
   );
 }

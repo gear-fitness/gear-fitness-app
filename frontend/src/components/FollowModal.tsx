@@ -43,7 +43,7 @@ export function FollowModal({ visible, onClose, onSuccess }: Props) {
       console.error("Error following user:", error);
       Alert.alert(
         "Error",
-        error instanceof Error ? error.message : "Failed to follow user"
+        error instanceof Error ? error.message : "Failed to follow user",
       );
     } finally {
       setLoading(false);
@@ -66,7 +66,9 @@ export function FollowModal({ visible, onClose, onSuccess }: Props) {
         <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
           {/* Header */}
           <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Follow User</Text>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
+              Follow User
+            </Text>
             <TouchableOpacity onPress={handleClose}>
               <Ionicons name="close" size={24} color={colors.text} />
             </TouchableOpacity>
@@ -83,7 +85,7 @@ export function FollowModal({ visible, onClose, onSuccess }: Props) {
             <TextInput
               style={[styles.input, { color: colors.text }]}
               placeholder="Enter username"
-              placeholderTextColor={colors.text + '80'}
+              placeholderTextColor={colors.text + "80"}
               value={username}
               onChangeText={setUsername}
               autoCapitalize="none"
@@ -97,13 +99,23 @@ export function FollowModal({ visible, onClose, onSuccess }: Props) {
           {/* Buttons */}
           <View style={styles.buttonContainer}>
             <TouchableOpacity
-              style={[styles.button, styles.cancelButton, { backgroundColor: colors.border }]}
+              style={[
+                styles.button,
+                styles.cancelButton,
+                { backgroundColor: colors.border },
+              ]}
               onPress={handleClose}
             >
-              <Text style={[styles.cancelButtonText, { color: colors.text }]}>Cancel</Text>
+              <Text style={[styles.cancelButtonText, { color: colors.text }]}>
+                Cancel
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.button, styles.followButton, { backgroundColor: colors.primary }]}
+              style={[
+                styles.button,
+                styles.followButton,
+                { backgroundColor: colors.primary },
+              ]}
               onPress={handleFollow}
               disabled={loading}
             >

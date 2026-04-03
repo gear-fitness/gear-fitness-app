@@ -6,5 +6,6 @@ import lombok.Data;
 @Data
 @AllArgsConstructor
 public class ChatResponseDTO {
-    private String response;
+
+  private String response;
 }

@@ -8,5 +8,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CreateCommentRequest {
-    private String body;
+
+  private String body;
 }
