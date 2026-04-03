@@ -7,6 +7,16 @@ import { PickerSheet } from "./PickerSheet";
 import { useOnboardingColors } from "./useOnboardingColors";
 import { makeOnboardingStyles } from "./makeOnboardingStyles";
 import { calcAge } from "../calcAge";
+import {
+  FT_VALUES,
+  IN_VALUES,
+  CM_VALUES,
+  LB_VALUES,
+  KG_VALUES,
+  DOB_MONTHS,
+  DOB_MONTHS_SHORT,
+  DOB_YEARS,
+} from "../pickerConstants";
 
 // ─── Helpers ───────────────────────────────────────────────────
 function formatHeight(h?: Height): string {
@@ -21,57 +31,17 @@ function formatWeight(w?: Weight): string {
 }
 
 function formatDOB(dob?: DOB): { age: string; date: string } {
-  const MONTHS_SHORT = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
   if (!dob) return { age: "—", date: "Not set" };
   const age = calcAge(dob.year, dob.month, dob.day);
   return {
     age: `${age}`,
-    date: `${MONTHS_SHORT[dob.month]} ${dob.day}, ${dob.year}`,
+    date: `${DOB_MONTHS_SHORT[dob.month]} ${dob.day}, ${dob.year}`,
   };
 }
 
 function getDaysInMonth(month: number, year: number): number {
   return new Date(year, month + 1, 0).getDate();
 }
-
-// ─── DOB picker data ───────────────────────────────────────────
-const DOB_MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-const DOB_YEARS = Array.from({ length: 80 }, (_, i) => 2007 - i);
-
-// ─── Height picker data ────────────────────────────────────────
-const FT_VALUES = [3, 4, 5, 6, 7];
-const IN_VALUES = Array.from({ length: 12 }, (_, i) => i);
-const CM_VALUES = Array.from({ length: 121 }, (_, i) => i + 100);
-
-// ─── Weight picker data ────────────────────────────────────────
-const LB_VALUES = Array.from({ length: 301 }, (_, i) => i + 50);
-const KG_VALUES = Array.from({ length: 201 }, (_, i) => i + 20);
 
 interface AboutYouStepProps {
   height?: Height;

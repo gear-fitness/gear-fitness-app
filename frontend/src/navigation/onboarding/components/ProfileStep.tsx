@@ -14,6 +14,7 @@ import { OnboardingProfile } from "../types";
 import { OnboardingTopBar } from "./OnboardingTopBar";
 import { useOnboardingColors } from "./useOnboardingColors";
 import { makeOnboardingStyles } from "./makeOnboardingStyles";
+import { AvatarWithCameraOverlay } from "../../../components/AvatarWithCameraOverlay";
 
 interface ProfileStepProps {
   profile?: OnboardingProfile;
@@ -157,24 +158,17 @@ export function ProfileStep({
             ]}
             onPress={pickPhoto}
           >
-            {photoUri ? (
-              <Image source={{ uri: photoUri }} style={styles.photoImage} />
-            ) : initials ? (
-              <Text style={[styles.initials, { color: colors.secondary }]}>
-                {initials}
-              </Text>
-            ) : (
-              <Text style={styles.photoPlaceholder}>📷</Text>
-            )}
-            <View
-              style={[styles.photoBadge, { backgroundColor: colors.accent }]}
-            >
-              <Text
-                style={[styles.photoBadgeText, { color: colors.accentText }]}
-              >
-                +
-              </Text>
-            </View>
+            <AvatarWithCameraOverlay size={96}>
+              {photoUri ? (
+                <Image source={{ uri: photoUri }} style={styles.photoImage} />
+              ) : initials ? (
+                <Text style={[styles.initials, { color: colors.secondary }]}>
+                  {initials}
+                </Text>
+              ) : (
+                <Text style={styles.photoPlaceholder}>📷</Text>
+              )}
+            </AvatarWithCameraOverlay>
           </Pressable>
           <Pressable onPress={pickPhoto}>
             <Text style={[styles.photoLabel, { color: colors.secondary }]}>
@@ -251,7 +245,6 @@ const styles = StyleSheet.create({
     borderWidth: 0,
     alignItems: "center",
     justifyContent: "center",
-    position: "relative",
   },
   photoCircleHasPhoto: {
     borderStyle: "solid",
@@ -268,21 +261,6 @@ const styles = StyleSheet.create({
   photoPlaceholder: {
     fontSize: 28,
     opacity: 0.4,
-  },
-  photoBadge: {
-    position: "absolute",
-    bottom: -4,
-    right: -4,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  photoBadgeText: {
-    fontSize: 16,
-    fontWeight: "700",
-    lineHeight: 18,
   },
   photoLabel: {
     marginTop: 10,

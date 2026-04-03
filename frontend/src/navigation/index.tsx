@@ -15,7 +15,7 @@ import close from "../assets/close.png";
 
 /* SCREENS */
 import { Profile } from "./screens/Profile";
-import { Settings } from "./screens/Settings";
+import { SettingsNavigator } from "./SettingsNavigator";
 import { Social } from "./screens/Social";
 import { Workout } from "./screens/Workout";
 import { NotFound } from "./screens/NotFound";
@@ -122,7 +122,7 @@ const RootStack = createNativeStackNavigator({
       options: { headerShown: false },
     },
 
-    Settings: { screen: Settings, options: { headerBackTitle: "Profile" } },
+    Settings: { screen: SettingsNavigator, options: { headerShown: false } },
 
     UserProfile: {
       screen: Profile,
