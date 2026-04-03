@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UsernameAvailabilityResponse {
+
   private boolean available;
   private String reason;
 }

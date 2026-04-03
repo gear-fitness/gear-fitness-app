@@ -29,7 +29,10 @@ export function LoginScreen() {
           throw new Error("No ID token received from Google");
         }
 
-        const { token, refreshToken } = await loginWithGoogle(idToken, "sign_in");
+        const { token, refreshToken } = await loginWithGoogle(
+          idToken,
+          "sign_in",
+        );
 
         await login(token, refreshToken);
 

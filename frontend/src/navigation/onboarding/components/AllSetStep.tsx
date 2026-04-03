@@ -1,11 +1,5 @@
 import React, { useMemo } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  Image,
-} from "react-native";
+import { View, Text, StyleSheet, Pressable, Image } from "react-native";
 import { OnboardingTopBar } from "./OnboardingTopBar";
 import { useOnboardingColors } from "./useOnboardingColors";
 import { makeOnboardingStyles } from "./makeOnboardingStyles";
@@ -17,7 +11,11 @@ interface AllSetStepProps {
   isLoading?: boolean;
 }
 
-export function AllSetStep({ onSignIn, onBack, isLoading = false }: AllSetStepProps) {
+export function AllSetStep({
+  onSignIn,
+  onBack,
+  isLoading = false,
+}: AllSetStepProps) {
   const colors = useOnboardingColors();
   const shared = useMemo(() => makeOnboardingStyles(colors), [colors]);
 
@@ -26,9 +24,13 @@ export function AllSetStep({ onSignIn, onBack, isLoading = false }: AllSetStepPr
       <OnboardingTopBar progress={1} onBack={onBack} />
       <View style={styles.heroSection}>
         <View style={[styles.iconBox, { backgroundColor: colors.accent }]}>
-          <Text style={[styles.checkEmoji, { color: colors.accentText }]}>✓</Text>
+          <Text style={[styles.checkEmoji, { color: colors.accentText }]}>
+            ✓
+          </Text>
         </View>
-        <Text style={[shared.heading, styles.centeredHeading]}>You're all set.</Text>
+        <Text style={[shared.heading, styles.centeredHeading]}>
+          You're all set.
+        </Text>
         <Text style={[shared.subheading, styles.centeredSub]}>
           Save your profile by signing up — it only takes a second.
         </Text>
@@ -37,7 +39,11 @@ export function AllSetStep({ onSignIn, onBack, isLoading = false }: AllSetStepPr
         <Pressable
           onPress={onSignIn}
           disabled={isLoading}
-          style={({ pressed }) => [shared.continueBtn, pressed && styles.pressed, isLoading && shared.continueBtnDisabled]}
+          style={({ pressed }) => [
+            shared.continueBtn,
+            pressed && styles.pressed,
+            isLoading && shared.continueBtnDisabled,
+          ]}
         >
           <View style={styles.btnContent}>
             <Image
@@ -48,7 +54,10 @@ export function AllSetStep({ onSignIn, onBack, isLoading = false }: AllSetStepPr
           </View>
         </Pressable>
         <Pressable
-          style={({ pressed }) => [shared.continueBtn, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            shared.continueBtn,
+            pressed && styles.pressed,
+          ]}
         >
           <View style={styles.btnContent}>
             <Image

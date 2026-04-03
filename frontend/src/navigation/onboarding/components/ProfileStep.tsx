@@ -57,7 +57,7 @@ export function ProfileStep({
       Alert.alert(
         "Photo Access Required",
         "Please allow photo library access in Settings to choose a profile photo.",
-        [{ text: "OK" }]
+        [{ text: "OK" }],
       );
       return;
     }
@@ -117,7 +117,9 @@ export function ProfileStep({
       } catch {
         if (availabilityRequestId.current !== requestId) return;
         setUsernameStatus("error");
-        setUsernameMessage("Could not verify username right now. Please try again.");
+        setUsernameMessage(
+          "Could not verify username right now. Please try again.",
+        );
       }
     }, 450);
 
@@ -158,12 +160,20 @@ export function ProfileStep({
             {photoUri ? (
               <Image source={{ uri: photoUri }} style={styles.photoImage} />
             ) : initials ? (
-              <Text style={[styles.initials, { color: colors.secondary }]}>{initials}</Text>
+              <Text style={[styles.initials, { color: colors.secondary }]}>
+                {initials}
+              </Text>
             ) : (
               <Text style={styles.photoPlaceholder}>📷</Text>
             )}
-            <View style={[styles.photoBadge, { backgroundColor: colors.accent }]}>
-              <Text style={[styles.photoBadgeText, { color: colors.accentText }]}>+</Text>
+            <View
+              style={[styles.photoBadge, { backgroundColor: colors.accent }]}
+            >
+              <Text
+                style={[styles.photoBadgeText, { color: colors.accentText }]}
+              >
+                +
+              </Text>
             </View>
           </Pressable>
           <Pressable onPress={pickPhoto}>
@@ -174,7 +184,9 @@ export function ProfileStep({
         </View>
         <View style={[styles.inputGroup, { backgroundColor: colors.cardBg }]}>
           <View style={[styles.inputRow, { backgroundColor: colors.cardBg }]}>
-            <Text style={[styles.inputLabel, { color: colors.text }]}>Name</Text>
+            <Text style={[styles.inputLabel, { color: colors.text }]}>
+              Name
+            </Text>
             <TextInput
               style={[styles.input, { color: colors.inputText }]}
               placeholder="Your name"
@@ -185,9 +197,13 @@ export function ProfileStep({
               autoCorrect={false}
             />
           </View>
-          <View style={[styles.divider, { backgroundColor: colors.separator }]} />
+          <View
+            style={[styles.divider, { backgroundColor: colors.separator }]}
+          />
           <View style={[styles.inputRow, { backgroundColor: colors.cardBg }]}>
-            <Text style={[styles.inputLabel, { color: colors.text }]}>Username</Text>
+            <Text style={[styles.inputLabel, { color: colors.text }]}>
+              Username
+            </Text>
             <Text style={[styles.atSign, { color: colors.handle }]}>@</Text>
             <TextInput
               style={[styles.input, { color: colors.inputText }]}
@@ -211,7 +227,10 @@ export function ProfileStep({
         <Pressable
           onPress={onContinue}
           disabled={!canContinue}
-          style={[shared.continueBtn, !canContinue && shared.continueBtnDisabled]}
+          style={[
+            shared.continueBtn,
+            !canContinue && shared.continueBtnDisabled,
+          ]}
         >
           <Text style={shared.continueBtnText}>Continue</Text>
         </Pressable>

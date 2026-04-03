@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import { View, StyleSheet, Alert, Appearance } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CommonActions, useNavigation } from "@react-navigation/native";
@@ -8,8 +14,15 @@ import {
 } from "@react-native-google-signin/google-signin";
 
 import {
-  OnboardingDraft, OnboardingStep, Gender, Height, Weight, DOB,
-  OnboardingProfile, OnboardingPermissions, TOTAL_STEPS,
+  OnboardingDraft,
+  OnboardingStep,
+  Gender,
+  Height,
+  Weight,
+  DOB,
+  OnboardingProfile,
+  OnboardingPermissions,
+  TOTAL_STEPS,
 } from "../onboarding/types";
 import {
   clearOnboardingDraft,
@@ -37,7 +50,12 @@ import { calcAge } from "../onboarding/calcAge";
 const initialBg = Appearance.getColorScheme() === "dark" ? "#000" : "#F2F2F7";
 
 const STEP_COMPONENTS = [
-  IntroStep, GenderStep, AboutYouStep, ProfileStep, PermissionsStep, AllSetStep,
+  IntroStep,
+  GenderStep,
+  AboutYouStep,
+  ProfileStep,
+  PermissionsStep,
+  AllSetStep,
 ] as const;
 
 const defaultDraft = (): OnboardingDraft => ({
@@ -76,29 +94,36 @@ export function OnboardingScreen() {
         saveOnboardingDraft(stamped);
       }, 600);
     },
-    [hydrated]
+    [hydrated],
   );
 
   const updateDraft = useCallback(
     (partial: Partial<OnboardingDraft>) => {
       setDraft((prev) => {
-        const next = { ...prev, ...partial, updatedAt: new Date().toISOString() };
+        const next = {
+          ...prev,
+          ...partial,
+          updatedAt: new Date().toISOString(),
+        };
         persistDraft(next);
         return next;
       });
     },
-    [persistDraft]
+    [persistDraft],
   );
 
   // ─── Step navigation ─────────────────────────────────────────
-  const goTo = useCallback((step: OnboardingStep) => updateDraft({ step }), [updateDraft]);
+  const goTo = useCallback(
+    (step: OnboardingStep) => updateDraft({ step }),
+    [updateDraft],
+  );
   const goBack = useCallback(
     () => goTo(Math.max(0, draft.step - 1) as OnboardingStep),
-    [goTo, draft.step]
+    [goTo, draft.step],
   );
   const goNext = useCallback(
     () => goTo(Math.min(TOTAL_STEPS, draft.step + 1) as OnboardingStep),
-    [goTo, draft.step]
+    [goTo, draft.step],
   );
 
   const syncOnboardingProfile = async () => {
@@ -106,16 +131,18 @@ export function OnboardingScreen() {
     try {
       const h = draft.height;
       const w = draft.weight;
-      const heightInches = h?.unit === "ft_in"
-        ? h.ft * 12 + h.inch
-        : h?.unit === "cm"
-        ? Math.round(h.cm / 2.54)
-        : null;
-      const weightLbs = w?.unit === "lbs"
-        ? w.value
-        : w?.unit === "kg"
-        ? Math.round(w.value * 2.205)
-        : null;
+      const heightInches =
+        h?.unit === "ft_in"
+          ? h.ft * 12 + h.inch
+          : h?.unit === "cm"
+            ? Math.round(h.cm / 2.54)
+            : null;
+      const weightLbs =
+        w?.unit === "lbs"
+          ? w.value
+          : w?.unit === "kg"
+            ? Math.round(w.value * 2.205)
+            : null;
       const age = draft.dob
         ? calcAge(draft.dob.year, draft.dob.month, draft.dob.day)
         : null;
@@ -186,7 +213,7 @@ export function OnboardingScreen() {
       Alert.alert(
         "Sign-in Failed",
         "Something went wrong signing in with Google. Please try again.",
-        [{ text: "OK" }]
+        [{ text: "OK" }],
       );
     } finally {
       setIsSigningIn(false);
@@ -202,7 +229,12 @@ export function OnboardingScreen() {
     const base = { onBack: goBack };
     return [
       { onGetStarted: goNext, onGoogleSignIn: handleGoogleSignInExisting },
-      { selected: draft.gender, onSelect: (g: Gender) => updateDraft({ gender: g }), ...base, onContinue: goNext },
+      {
+        selected: draft.gender,
+        onSelect: (g: Gender) => updateDraft({ gender: g }),
+        ...base,
+        onContinue: goNext,
+      },
       {
         height: draft.height,
         weight: draft.weight,
@@ -213,8 +245,19 @@ export function OnboardingScreen() {
         ...base,
         onContinue: goNext,
       },
-      { profile: draft.profile, onProfileChange: (p: OnboardingProfile) => updateDraft({ profile: p }), ...base, onContinue: goNext },
-      { permissions: draft.permissions, onPermissionsChange: (p: OnboardingPermissions) => updateDraft({ permissions: p }), ...base, onContinue: goNext },
+      {
+        profile: draft.profile,
+        onProfileChange: (p: OnboardingProfile) => updateDraft({ profile: p }),
+        ...base,
+        onContinue: goNext,
+      },
+      {
+        permissions: draft.permissions,
+        onPermissionsChange: (p: OnboardingPermissions) =>
+          updateDraft({ permissions: p }),
+        ...base,
+        onContinue: goNext,
+      },
       { onSignIn: handleGoogleSignUpNew, ...base, isLoading: isSigningIn },
     ] as const;
   }, [
@@ -242,7 +285,10 @@ export function OnboardingScreen() {
     <View
       style={[
         styles.container,
-        { backgroundColor: colors.screenBg ?? initialBg, paddingTop: insets.top },
+        {
+          backgroundColor: colors.screenBg ?? initialBg,
+          paddingTop: insets.top,
+        },
       ]}
     >
       <CurrentStep {...currentProps} />

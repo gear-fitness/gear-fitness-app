@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class AppUserService {
+
   private static final int MIN_USERNAME_LENGTH = 3;
   private static final String USERNAME_REGEX = "^[a-z0-9._]+$";
 
@@ -419,7 +420,9 @@ public class AppUserService {
     if (!normalizedUsername.matches(USERNAME_REGEX)) {
       return UsernameAvailabilityResponse.builder()
         .available(false)
-        .reason("Username can only contain lowercase letters, numbers, dots, and underscores")
+        .reason(
+          "Username can only contain lowercase letters, numbers, dots, and underscores"
+        )
         .build();
     }
 

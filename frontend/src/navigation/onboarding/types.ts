@@ -15,7 +15,7 @@ export type Weight = WeightLbs | WeightKg;
 export interface DOB {
   year: number;
   month: number; // 0-indexed (0=Jan)
-  day: number;   // 1-indexed
+  day: number; // 1-indexed
 }
 
 export interface OnboardingProfile {
