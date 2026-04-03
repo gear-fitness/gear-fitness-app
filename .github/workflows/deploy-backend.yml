@@ -57,6 +57,6 @@ jobs:
           aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           application_name: Gear Fitness
           environment_name: gear-fitness-env
-          version_label: ${{ github.SHA }}
+          version_label: ${{ github.SHA }}-${{ github.run_number }}
           region: us-west-2
           deployment_package: gear-api-0.0.1-SNAPSHOT.jar
