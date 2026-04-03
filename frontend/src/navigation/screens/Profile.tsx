@@ -216,6 +216,7 @@ export function Profile() {
   // Profile Header Component
   const ProfileHeader = () => {
     if (!profile) return null;
+    const primaryName = profile.displayName?.trim() || profile.username;
 
     return (
       <View style={styles.container}>
@@ -245,7 +246,7 @@ export function Profile() {
             )}
 
             <View>
-              <Text style={styles.username}>{profile.username}</Text>
+              <Text style={styles.username}>{primaryName}</Text>
               <Text style={styles.handle}>@{profile.username}</Text>
 
               {isOtherUser && (

@@ -12,6 +12,8 @@ import lombok.NoArgsConstructor;
 public class UpdateUserProfileRequest {
 
   private String username; // Optional - only if user wants to change it
+  private String displayName; // Optional
+  private String gender; // Optional
   private Integer weightLbs; // Optional
   private Integer heightInches; // Optional
   private Integer age; // Optional

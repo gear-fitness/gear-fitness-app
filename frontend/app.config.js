@@ -67,6 +67,7 @@ export default {
       ],
       "expo-secure-store",
       "expo-notifications",
+      "@react-native-community/datetimepicker",
       [
         "expo-image-picker",
         {
