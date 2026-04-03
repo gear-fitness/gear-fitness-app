@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - "server/**"
+      - "backend/**"
   workflow_dispatch:
 
 jobs:
@@ -25,18 +25,18 @@ jobs:
 
       - name: Build with Gradle
         run: |
-          cd server
+          cd backend
           chmod +x gradlew
           ./gradlew clean build -x test
 
       - name: Debug Build Output
-        run: ls -la server/build/libs/
+        run: ls -la backend/build/libs/
 
       - name: Archive production artifacts
         uses: actions/upload-artifact@v4
         with:
           name: packaged-application
-          path: server/build/libs/gear-api-0.0.1-SNAPSHOT.jar
+          path: backend/build/libs/gear-api-0.0.1-SNAPSHOT.jar
 
   deploy:
     needs: build
