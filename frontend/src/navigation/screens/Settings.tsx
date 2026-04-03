@@ -25,7 +25,7 @@ export function Settings() {
             await logout();
             navigation.reset({
               index: 0,
-              routes: [{ name: "Login" }],
+              routes: [{ name: "Onboarding" }],
             });
           } catch (error) {
             console.error("Logout error:", error);

@@ -9,7 +9,6 @@ import {
 } from "react-native";
 import { useNavigation, useTheme } from "@react-navigation/native";
 import { useAuth } from "../../context/AuthContext";
-import { hasSeenOnboarding } from "../onboarding/storage";
 
 export function AuthLoadingScreen() {
   const { colors, dark } = useTheme();
@@ -22,12 +21,10 @@ export function AuthLoadingScreen() {
       if (isAuthenticated) {
         navigation.reset({ index: 0, routes: [{ name: "HomeTabs" }] });
       } else {
-        hasSeenOnboarding().then((seen) => {
-          if (!isMounted.current) return;
-          navigation.reset({
-            index: 0,
-            routes: [{ name: seen ? "Login" : "Onboarding" }],
-          });
+        if (!isMounted.current) return;
+        navigation.reset({
+          index: 0,
+          routes: [{ name: "Onboarding" }],
         });
       }
     }
@@ -58,11 +55,11 @@ export function AuthLoadingScreen() {
         <TouchableOpacity
           style={styles.loginButton}
           onPress={() =>
-            navigation.reset({ index: 0, routes: [{ name: "Login" }] })
+            navigation.reset({ index: 0, routes: [{ name: "Onboarding" }] })
           }
         >
           <Text style={[styles.loginText, { color: colors.primary }]}>
-            Go to Login
+            Go to Onboarding
           </Text>
         </TouchableOpacity>
       </View>

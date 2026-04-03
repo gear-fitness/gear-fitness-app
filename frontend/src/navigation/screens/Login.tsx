@@ -6,9 +6,15 @@ import { useNavigation, useTheme } from "@react-navigation/native";
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { loginWithGoogle } from "../../api/authService";
+import { AuthApiError, loginWithGoogle } from "../../api/authService";
 import { useAuth } from "../../context/AuthContext";
 
+/**
+ * @deprecated
+ * This screen is no longer registered in navigation.
+ * Use `OnboardingScreen` as the only unauthenticated entrypoint.
+ * Planned removal: next cleanup release after migration stabilizes.
+ */
 export function LoginScreen() {
   const navigation = useNavigation();
   const { colors } = useTheme();
@@ -23,7 +29,7 @@ export function LoginScreen() {
           throw new Error("No ID token received from Google");
         }
 
-        const { token, refreshToken } = await loginWithGoogle(idToken);
+        const { token, refreshToken } = await loginWithGoogle(idToken, "sign_in");
 
         await login(token, refreshToken);
 
@@ -33,6 +39,13 @@ export function LoginScreen() {
         });
       }
     } catch (error) {
+      if (error instanceof AuthApiError && error.code === "ACCOUNT_NOT_FOUND") {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: "Onboarding" }],
+        });
+        return;
+      }
       console.error("Google Sign-In error:", error);
     }
   };

@@ -19,6 +19,8 @@ public class UserProfileDTO {
   // Basic user information (from UserDTO)
   private UUID userId;
   private String username;
+  private String displayName;
+  private String gender;
   private String email;
   private Integer weightLbs;
   private Integer heightInches;

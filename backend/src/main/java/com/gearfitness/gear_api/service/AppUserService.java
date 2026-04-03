@@ -3,6 +3,7 @@ package com.gearfitness.gear_api.service;
 import com.gearfitness.gear_api.dto.UpdateUserProfileRequest;
 import com.gearfitness.gear_api.dto.UserDTO;
 import com.gearfitness.gear_api.dto.UserProfileDTO;
+import com.gearfitness.gear_api.dto.UsernameAvailabilityResponse;
 import com.gearfitness.gear_api.dto.WorkoutStatsDTO;
 import com.gearfitness.gear_api.entity.AppUser;
 import com.gearfitness.gear_api.entity.Follow;
@@ -24,6 +25,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class AppUserService {
+  private static final int MIN_USERNAME_LENGTH = 3;
+  private static final String USERNAME_REGEX = "^[a-z0-9._]+$";
 
   private final AppUserRepository userRepository;
   private final WorkoutRepository workoutRepository;
@@ -73,6 +76,14 @@ public class AppUserService {
         throw new RuntimeException("Username already taken");
       }
       user.setUsername(request.getUsername());
+    }
+
+    if (request.getDisplayName() != null) {
+      user.setDisplayName(request.getDisplayName());
+    }
+
+    if (request.getGender() != null) {
+      user.setGender(request.getGender());
     }
 
     // Update other fields if provided
@@ -159,6 +170,8 @@ public class AppUserService {
     return UserProfileDTO.builder()
       .userId(user.getUserId())
       .username(user.getUsername())
+      .displayName(user.getDisplayName())
+      .gender(user.getGender())
       .email(user.getEmail())
       .weightLbs(user.getWeightLbs())
       .heightInches(user.getHeightInches())
@@ -364,6 +377,8 @@ public class AppUserService {
     return UserDTO.builder()
       .userId(user.getUserId())
       .username(user.getUsername())
+      .displayName(user.getDisplayName())
+      .gender(user.getGender())
       .email(user.getEmail())
       .weightLbs(user.getWeightLbs())
       .heightInches(user.getHeightInches())
@@ -383,5 +398,35 @@ public class AppUserService {
       .stream()
       .map(this::convertToDTO)
       .toList();
+  }
+
+  public UsernameAvailabilityResponse getUsernameAvailability(String username) {
+    if (username == null || username.trim().isEmpty()) {
+      return UsernameAvailabilityResponse.builder()
+        .available(false)
+        .reason("Username is required")
+        .build();
+    }
+
+    String normalizedUsername = username.trim().toLowerCase();
+    if (normalizedUsername.length() < MIN_USERNAME_LENGTH) {
+      return UsernameAvailabilityResponse.builder()
+        .available(false)
+        .reason("Username must be at least 3 characters")
+        .build();
+    }
+
+    if (!normalizedUsername.matches(USERNAME_REGEX)) {
+      return UsernameAvailabilityResponse.builder()
+        .available(false)
+        .reason("Username can only contain lowercase letters, numbers, dots, and underscores")
+        .build();
+    }
+
+    boolean taken = userRepository.existsByUsername(normalizedUsername);
+    return UsernameAvailabilityResponse.builder()
+      .available(!taken)
+      .reason(taken ? "Username is already taken" : null)
+      .build();
   }
 }

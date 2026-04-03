@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import { Alert, View, Text, StyleSheet, Pressable } from "react-native";
+import * as Notifications from "expo-notifications";
 import { OnboardingPermissions } from "../types";
 import { OnboardingTopBar } from "./OnboardingTopBar";
 import { useOnboardingColors } from "./useOnboardingColors";
@@ -79,13 +80,48 @@ export function PermissionsStep({
   const location = permissions?.location ?? false;
   const notifications = permissions?.notifications ?? false;
 
-  const toggle = (key: keyof OnboardingPermissions) => {
-    onPermissionsChange({
-      health,
-      location,
-      notifications,
-      [key]: !permissions?.[key],
-    });
+  const toggle = async (key: keyof OnboardingPermissions) => {
+    if (key === "notifications") {
+      if (notifications) {
+        onPermissionsChange({
+          health,
+          location,
+          notifications: false,
+        });
+        return;
+      }
+
+      const { status } = await Notifications.requestPermissionsAsync();
+      const granted = status === "granted";
+      onPermissionsChange({
+        health,
+        location,
+        notifications: granted,
+      });
+      if (!granted) {
+        Alert.alert(
+          "Notifications Disabled",
+          "Enable notifications in Settings to receive workout reminders.",
+        );
+      }
+      return;
+    }
+
+    if (key === "health" || key === "location") {
+      const nextValue = !permissions?.[key];
+      onPermissionsChange({
+        health,
+        location,
+        notifications,
+        [key]: nextValue,
+      });
+      if (nextValue) {
+        Alert.alert(
+          "Permission Setup Pending",
+          `${key === "health" ? "Apple Health" : "Location"} permission prompts will be enabled in a follow-up update.`,
+        );
+      }
+    }
   };
 
   return (

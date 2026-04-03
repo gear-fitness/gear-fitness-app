@@ -1,0 +1,5 @@
+ALTER TABLE app_user
+ADD COLUMN display_name VARCHAR(255);
+
+ALTER TABLE app_user
+ADD COLUMN gender VARCHAR(64);

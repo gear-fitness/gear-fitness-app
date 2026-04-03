@@ -22,6 +22,8 @@ export interface WorkoutStats {
 export interface UserProfile {
   userId: string;
   username: string;
+  displayName: string | null;
+  gender: string | null;
   email: string;
   weightLbs: number | null;
   heightInches: number | null;
@@ -33,6 +35,11 @@ export interface UserProfile {
   followersCount: number;
   followingCount: number;
   isFollowing: boolean | null;
+}
+
+export interface UsernameAvailabilityResponse {
+  available: boolean;
+  reason: string | null;
 }
 
 export interface FollowerUser {

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Alert,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import { checkUsernameAvailability } from "../../../api/userService";
 import { OnboardingProfile } from "../types";
 import { OnboardingTopBar } from "./OnboardingTopBar";
 import { useOnboardingColors } from "./useOnboardingColors";
@@ -33,6 +34,11 @@ export function ProfileStep({
   const [name, setName] = useState(profile?.name ?? "");
   const [username, setUsername] = useState(profile?.username ?? "");
   const [photoUri, setPhotoUri] = useState(profile?.photoUri);
+  const [usernameStatus, setUsernameStatus] = useState<
+    "idle" | "checking" | "available" | "taken" | "invalid" | "error"
+  >("idle");
+  const [usernameMessage, setUsernameMessage] = useState<string | null>(null);
+  const availabilityRequestId = useRef(0);
 
   const handleNameChange = (val: string) => {
     setName(val);
@@ -77,7 +83,60 @@ export function ProfileStep({
     .join("")
     .toUpperCase();
 
-  const canContinue = name.trim().length > 0;
+  const normalizedUsername = username.trim();
+
+  useEffect(() => {
+    const requestId = ++availabilityRequestId.current;
+    setUsernameMessage(null);
+
+    if (!normalizedUsername) {
+      setUsernameStatus("idle");
+      return;
+    }
+
+    if (normalizedUsername.length < 3) {
+      setUsernameStatus("invalid");
+      setUsernameMessage("Username must be at least 3 characters.");
+      return;
+    }
+
+    setUsernameStatus("checking");
+    const timer = setTimeout(async () => {
+      try {
+        const result = await checkUsernameAvailability(normalizedUsername);
+        if (availabilityRequestId.current !== requestId) return;
+
+        if (result.available) {
+          setUsernameStatus("available");
+          setUsernameMessage("Username is available.");
+          return;
+        }
+
+        setUsernameStatus("taken");
+        setUsernameMessage(result.reason ?? "Username is already taken.");
+      } catch {
+        if (availabilityRequestId.current !== requestId) return;
+        setUsernameStatus("error");
+        setUsernameMessage("Could not verify username right now. Please try again.");
+      }
+    }, 450);
+
+    return () => clearTimeout(timer);
+  }, [normalizedUsername]);
+
+  const canContinue =
+    name.trim().length > 0 &&
+    normalizedUsername.length >= 3 &&
+    usernameStatus === "available";
+
+  const statusColor =
+    usernameStatus === "available"
+      ? colors.accent
+      : usernameStatus === "checking"
+        ? colors.secondary
+        : usernameStatus === "idle"
+          ? colors.secondary
+          : "#FF453A";
 
   return (
     <View style={shared.screen}>
@@ -142,6 +201,11 @@ export function ProfileStep({
             />
           </View>
         </View>
+        {!!usernameMessage && (
+          <Text style={[styles.usernameStatusText, { color: statusColor }]}>
+            {usernameMessage}
+          </Text>
+        )}
       </View>
       <View style={shared.footer}>
         <Pressable
@@ -234,5 +298,10 @@ const styles = StyleSheet.create({
     fontSize: 15,
     textAlign: "right",
     height: "100%",
+  },
+  usernameStatusText: {
+    marginTop: 8,
+    fontSize: 12,
+    fontWeight: "500",
   },
 });
