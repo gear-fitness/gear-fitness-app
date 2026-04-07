@@ -55,4 +55,21 @@ public interface WorkoutRepository extends JpaRepository<Workout, UUID> {
    * Find all workouts for a user ordered by date (desc), then by creation time (desc)
    */
   List<Workout> findByUserOrderByDatePerformedDescCreatedAtDesc(AppUser user);
+
+  /**
+   * Check if a workout exists for a user on a specific date
+   */
+  boolean existsByUserAndDatePerformed(AppUser user, LocalDate datePerformed);
+
+  /**
+   * Find distinct workout dates for a user within a date range
+   */
+  @Query(
+    "SELECT DISTINCT w.datePerformed FROM Workout w WHERE w.user = :user AND w.datePerformed BETWEEN :start AND :end"
+  )
+  List<LocalDate> findDistinctDatesByUserAndDateBetween(
+    @Param("user") AppUser user,
+    @Param("start") LocalDate start,
+    @Param("end") LocalDate end
+  );
 }

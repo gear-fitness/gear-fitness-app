@@ -1,6 +1,12 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Text } from "@react-navigation/elements";
-import { StyleSheet, View, TouchableOpacity, Image } from "react-native";
+import {
+  StyleSheet,
+  View,
+  TouchableOpacity,
+  Image,
+  Alert,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   useNavigation,
@@ -16,6 +22,11 @@ import { useAuth } from "../../context/AuthContext";
 import { TodaysRoutines } from "../../components/TodaysRoutines";
 import { StartCountdownOverlay } from "../../components/StartCountdownOverlay";
 import { useStartCountdown } from "../../hooks/useStartCountdown";
+import { StreakDropdown } from "../../components/StreakDropdown";
+import {
+  streakService,
+  type StreakInfo,
+} from "../../api/streakService";
 
 export function Workout() {
   useTrackTab("Workouts");
@@ -36,14 +47,45 @@ export function Workout() {
     onComplete: () => navigation.navigate("ExerciseSelect"),
   });
 
-  // Refresh user profile (includes streak data) when screen comes into focus
+  const [streakDropdownVisible, setStreakDropdownVisible] = useState(false);
+  const [streakInfo, setStreakInfo] = useState<StreakInfo | null>(null);
+  const [streakLoading, setStreakLoading] = useState(false);
+
+  // Refresh user profile and streak info when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
       refreshUser();
+      streakService.getStreakInfo().then(setStreakInfo).catch(console.error);
     }, []),
   );
 
-  const streak = user?.workoutStats?.workoutStreak ?? 0;
+  const streak = streakInfo?.currentStreak ?? user?.workoutStats?.workoutStreak ?? 0;
+
+  const handleLogRestDay = async () => {
+    setStreakLoading(true);
+    try {
+      const updated = await streakService.logRestDay();
+      setStreakInfo(updated);
+      refreshUser();
+    } catch (e: any) {
+      Alert.alert("Error", e?.response?.data || "Could not log rest day");
+    } finally {
+      setStreakLoading(false);
+    }
+  };
+
+  const handleRestore = async () => {
+    setStreakLoading(true);
+    try {
+      const updated = await streakService.useRestoreToken();
+      setStreakInfo(updated);
+      refreshUser();
+    } catch (e: any) {
+      Alert.alert("Error", e?.response?.data || "Could not restore streak");
+    } finally {
+      setStreakLoading(false);
+    }
+  };
 
   useEffect(() => {
     navigation.setOptions({
@@ -83,7 +125,14 @@ export function Workout() {
       {/* Header - Always visible */}
       <View style={styles.headerContainer}>
         {/* Left: Streak Counter */}
-        <View style={styles.streakContainer}>
+        <TouchableOpacity
+          style={styles.streakContainer}
+          onPress={() => {
+            setStreakDropdownVisible(true);
+            streakService.getStreakInfo().then(setStreakInfo).catch(console.error);
+          }}
+          activeOpacity={0.7}
+        >
           <View style={styles.streakRow}>
             <View style={styles.streakShadowLayer1}>
               <View style={styles.streakShadowLayer2}>
@@ -101,7 +150,7 @@ export function Workout() {
           >
             DAY STREAK
           </Text>
-        </View>
+        </TouchableOpacity>
 
         {/* Right: Action Buttons */}
         <View style={styles.headerActions}>
@@ -275,6 +324,16 @@ export function Workout() {
           <TodaysRoutines />
         </View>
       )}
+
+      <StreakDropdown
+        visible={streakDropdownVisible}
+        onClose={() => setStreakDropdownVisible(false)}
+        streakInfo={streakInfo}
+        onLogRestDay={handleLogRestDay}
+        onRestore={handleRestore}
+        loading={streakLoading}
+        isDark={isDark}
+      />
 
       <StartCountdownOverlay
         visible={isCountdownVisible}
