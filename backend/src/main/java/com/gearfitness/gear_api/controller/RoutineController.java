@@ -112,13 +112,14 @@ public class RoutineController {
    */
   @GetMapping("/today")
   public ResponseEntity<List<RoutineDTO>> getTodaysRoutines(
-    @RequestHeader("Authorization") String authHeader
+    @RequestHeader("Authorization") String authHeader,
+    @RequestParam(required = false) String localDate
   ) {
     try {
       String token = authHeader.substring(7);
       UUID userId = jwtService.extractUserId(token);
 
-      List<RoutineDTO> routines = routineService.getTodaysRoutines(userId);
+      List<RoutineDTO> routines = routineService.getTodaysRoutines(userId, localDate);
       return ResponseEntity.ok(routines);
     } catch (Exception e) {
       e.printStackTrace();

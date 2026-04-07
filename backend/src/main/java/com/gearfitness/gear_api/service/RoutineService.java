@@ -139,8 +139,11 @@ public class RoutineService {
     return toRoutineDTO(routine);
   }
 
-  public List<RoutineDTO> getTodaysRoutines(UUID userId) {
-    DayOfWeek today = LocalDate.now().getDayOfWeek();
+  public List<RoutineDTO> getTodaysRoutines(UUID userId, String localDate) {
+    LocalDate date = (localDate != null && !localDate.isBlank())
+      ? LocalDate.parse(localDate)
+      : LocalDate.now();
+    DayOfWeek today = date.getDayOfWeek();
 
     return routineRepository
       .findByUser_UserIdOrderByCreatedAtDesc(userId)

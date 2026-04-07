@@ -53,7 +53,8 @@ public class AppUserController {
    */
   @GetMapping("/me/profile")
   public ResponseEntity<UserProfileDTO> getCurrentUserEnhancedProfile(
-    @RequestHeader("Authorization") String authHeader
+    @RequestHeader("Authorization") String authHeader,
+    @RequestParam(required = false) String localDate
   ) {
     try {
       String token = authHeader.substring(7); // Remove "Bearer " prefix
@@ -61,7 +62,8 @@ public class AppUserController {
 
       UserProfileDTO profile = userService.getEnhancedUserProfile(
         userId,
-        userId
+        userId,
+        localDate
       );
       return ResponseEntity.ok(profile);
     } catch (Exception e) {
@@ -99,7 +101,8 @@ public class AppUserController {
   @GetMapping("/{username}")
   public ResponseEntity<?> getUserByUsername(
     @PathVariable String username,
-    @RequestHeader(value = "Authorization", required = false) String authHeader
+    @RequestHeader(value = "Authorization", required = false) String authHeader,
+    @RequestParam(required = false) String localDate
   ) {
     try {
       UUID viewingUserId = null;
@@ -116,7 +119,8 @@ public class AppUserController {
 
       UserProfileDTO profile = userService.getEnhancedUserProfileByUsername(
         username,
-        viewingUserId
+        viewingUserId,
+        localDate
       );
       // TODO: Filter response based on privacy settings
       return ResponseEntity.ok(profile);
