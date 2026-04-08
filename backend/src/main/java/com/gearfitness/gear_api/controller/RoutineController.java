@@ -119,7 +119,10 @@ public class RoutineController {
       String token = authHeader.substring(7);
       UUID userId = jwtService.extractUserId(token);
 
-      List<RoutineDTO> routines = routineService.getTodaysRoutines(userId, localDate);
+      List<RoutineDTO> routines = routineService.getTodaysRoutines(
+        userId,
+        localDate
+      );
       return ResponseEntity.ok(routines);
     } catch (Exception e) {
       e.printStackTrace();

@@ -193,7 +193,10 @@ public class AppUserService {
   /**
    * Calculate workout statistics for a user
    */
-  private WorkoutStatsDTO calculateWorkoutStats(AppUser user, String localDate) {
+  private WorkoutStatsDTO calculateWorkoutStats(
+    AppUser user,
+    String localDate
+  ) {
     // Total workouts
     long totalWorkouts = workoutRepository.countByUser(user);
 
