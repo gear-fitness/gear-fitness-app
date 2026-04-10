@@ -2,6 +2,7 @@ import React, { useCallback, useLayoutEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -19,6 +20,7 @@ import { Routine, RoutineExercise } from "../../api/types";
 import { updateRoutine } from "../../api/routineService";
 import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
 import { BackButton } from "../../components/BackButton";
+import { ExerciseSearchBar } from "../../components/ExerciseSearchBar";
 import { DAYS, DAY_FULL, DAY_SHORT } from "../../utils/days";
 import { useThemeColors } from "../../hooks/useThemeColors";
 import { useExerciseList } from "../../hooks/useExerciseList";
@@ -201,83 +203,91 @@ export function EditRoutine({
     );
   };
 
-  const ListHeader = () => (
-    <View style={styles.listHeaderContent}>
-      <Text style={[styles.label, { color: colors.secondary }]}>
-        ROUTINE NAME
-      </Text>
-      <TextInput
-        style={[
-          styles.input,
-          {
-            backgroundColor: colors.inputBg,
-            color: colors.text,
-            borderColor: colors.border,
-          },
-        ]}
-        value={name}
-        onChangeText={setName}
-        placeholder="Routine name"
-        placeholderTextColor={colors.secondary}
-      />
+  return (
+    <ScrollView
+      style={[styles.flex, { backgroundColor: colors.bg }]}
+      contentContainerStyle={styles.scrollContent}
+      keyboardShouldPersistTaps="handled"
+    >
+      <View style={styles.listHeaderContent}>
+        <Text style={[styles.label, { color: colors.secondary }]}>
+          ROUTINE NAME
+        </Text>
+        <TextInput
+          style={[
+            styles.input,
+            {
+              backgroundColor: colors.inputBg,
+              color: colors.text,
+              borderColor: colors.border,
+            },
+          ]}
+          value={name}
+          onChangeText={setName}
+          placeholder="Routine name"
+          placeholderTextColor={colors.secondary}
+        />
 
-      <Text style={[styles.label, { color: colors.secondary }]}>
-        SCHEDULED DAYS
-      </Text>
-      <View style={styles.daysRow}>
-        {DAYS.map((day) => {
-          const active = selectedDays.includes(day);
-          return (
-            <TouchableOpacity
-              key={day}
-              style={[
-                styles.dayPill,
-                { backgroundColor: active ? colors.pillActive : colors.pill },
-              ]}
-              onPress={() => toggleDay(day)}
-            >
-              <Text
+        <Text style={[styles.label, { color: colors.secondary }]}>
+          SCHEDULED DAYS
+        </Text>
+        <View style={styles.daysRow}>
+          {DAYS.map((day) => {
+            const active = selectedDays.includes(day);
+            return (
+              <TouchableOpacity
+                key={day}
                 style={[
-                  styles.dayPillText,
-                  { color: active ? colors.pillActiveText : colors.text },
+                  styles.dayPill,
+                  { backgroundColor: active ? colors.pillActive : colors.pill },
                 ]}
+                onPress={() => toggleDay(day)}
               >
-                {day}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+                <Text
+                  style={[
+                    styles.dayPillText,
+                    { color: active ? colors.pillActiveText : colors.text },
+                  ]}
+                >
+                  {day}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <Text style={[styles.label, { color: colors.secondary }]}>
+          EXERCISES ({selectedExercises.length})
+        </Text>
+        {selectedExercises.length === 0 && (
+          <Text style={[styles.emptyHint, { color: colors.secondary }]}>
+            Add exercises from the list below.
+          </Text>
+        )}
       </View>
 
-      <Text style={[styles.label, { color: colors.secondary }]}>
-        EXERCISES ({selectedExercises.length})
-      </Text>
-      {selectedExercises.length === 0 && (
-        <Text style={[styles.emptyHint, { color: colors.secondary }]}>
-          Add exercises from the list below.
-        </Text>
-      )}
-    </View>
-  );
+      <DraggableFlatList
+        data={selectedExercises}
+        keyExtractor={(item) => item.routineExerciseId}
+        renderItem={renderExerciseItem}
+        onDragEnd={({ data }) => setSelectedExercises(data)}
+        activationDistance={10}
+        scrollEnabled={false}
+      />
 
-  const ListFooter = () => (
-    <View style={styles.listFooterContent}>
-      <Text style={[styles.label, { color: colors.secondary }]}>
+      <Text
+        style={[
+          styles.label,
+          styles.addExercisesLabel,
+          { color: colors.secondary },
+        ]}
+      >
         ADD EXERCISES
       </Text>
-      <TextInput
-        style={[
-          styles.input,
-          {
-            backgroundColor: colors.inputBg,
-            color: colors.text,
-            borderColor: colors.border,
-          },
-        ]}
-        value={searchQuery}
-        onChangeText={setSearchQuery}
+      <ExerciseSearchBar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
         placeholder="Search exercises..."
-        placeholderTextColor={colors.secondary}
       />
 
       {loadingExercises ? (
@@ -285,49 +295,35 @@ export function EditRoutine({
           <ActivityIndicator color="#007AFF" />
         </View>
       ) : (
-        filteredExercises.slice(0, 30).map((item) => (
-          <TouchableOpacity
-            key={item.exerciseId}
-            style={[
-              styles.availableRow,
-              {
-                borderBottomColor: colors.border,
-                backgroundColor: colors.surface,
-              },
-            ]}
-            onPress={() => addExercise(item)}
-          >
-            <View style={styles.selectedInfo}>
-              <Text style={[styles.selectedTitle, { color: colors.text }]}>
-                {item.name}
-              </Text>
-              <Text
-                style={[styles.selectedSubtitle, { color: colors.secondary }]}
-              >
-                {item.bodyPart}
-              </Text>
-            </View>
-            <Text style={[styles.addText, { color: colors.text }]}>+</Text>
-          </TouchableOpacity>
-        ))
+        <View style={styles.listFooterContent}>
+          {filteredExercises.slice(0, 30).map((item) => (
+            <TouchableOpacity
+              key={item.exerciseId}
+              style={[
+                styles.availableRow,
+                {
+                  borderBottomColor: colors.border,
+                  backgroundColor: colors.surface,
+                },
+              ]}
+              onPress={() => addExercise(item)}
+            >
+              <View style={styles.selectedInfo}>
+                <Text style={[styles.selectedTitle, { color: colors.text }]}>
+                  {item.name}
+                </Text>
+                <Text
+                  style={[styles.selectedSubtitle, { color: colors.secondary }]}
+                >
+                  {item.bodyPart}
+                </Text>
+              </View>
+              <Text style={[styles.addText, { color: colors.text }]}>+</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       )}
-      <View style={styles.bottomPad} />
-    </View>
-  );
-
-  return (
-    <View style={[styles.flex, { backgroundColor: colors.bg }]}>
-      <DraggableFlatList
-        data={selectedExercises}
-        keyExtractor={(item) => item.routineExerciseId}
-        renderItem={renderExerciseItem}
-        onDragEnd={({ data }) => setSelectedExercises(data)}
-        ListHeaderComponent={<ListHeader />}
-        ListFooterComponent={<ListFooter />}
-        contentContainerStyle={styles.listContent}
-        activationDistance={10}
-      />
-    </View>
+    </ScrollView>
   );
 }
 
@@ -341,9 +337,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   saveText: { fontSize: 22, fontWeight: "600", includeFontPadding: false },
-  listContent: { paddingBottom: 40 },
+  scrollContent: { paddingBottom: 40 },
   listHeaderContent: { paddingHorizontal: 16, paddingTop: 8 },
   listFooterContent: { paddingHorizontal: 16 },
+  addExercisesLabel: { paddingHorizontal: 16 },
   label: {
     fontSize: 12,
     fontWeight: "600",
@@ -398,5 +395,4 @@ const styles = StyleSheet.create({
   addText: { fontSize: 22, fontWeight: "300" },
   loadingWrap: { paddingVertical: 20, alignItems: "center" },
   emptyHint: { fontSize: 13, fontStyle: "italic", marginBottom: 4 },
-  bottomPad: { height: 40 },
 });
