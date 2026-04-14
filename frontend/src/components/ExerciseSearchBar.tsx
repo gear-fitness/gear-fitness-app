@@ -16,12 +16,16 @@ interface ExerciseSearchBarProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
   placeholder?: string;
+  onFocus?: () => void;
+  onBlur?: () => void;
 }
 
 export function ExerciseSearchBar({
   searchQuery,
   onSearchChange,
   placeholder = "Search exercises...",
+  onFocus,
+  onBlur,
 }: ExerciseSearchBarProps) {
   const isDark = useColorScheme() === "dark";
 
@@ -50,6 +54,8 @@ export function ExerciseSearchBar({
           placeholderTextColor={colors.subtle}
           value={searchQuery}
           onChangeText={onSearchChange}
+          onFocus={onFocus}
+          onBlur={onBlur}
           style={[styles.searchInput, { color: colors.text }]}
           returnKeyType="done"
           autoCorrect={false}

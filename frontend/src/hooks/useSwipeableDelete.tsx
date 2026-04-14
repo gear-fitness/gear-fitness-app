@@ -82,8 +82,9 @@ export function useSwipeableDelete({
       if (r) swipeRefs.current.set(id, r);
     },
     overshootRight: false,
-    rightThreshold: 40,
-    onSwipeableWillOpen: () => confirmDelete(id),
+    rightThreshold: 72,
+    dragOffsetFromLeftEdge: 24,
+    dragOffsetFromRightEdge: 24,
     renderRightActions: (
       prog: Animated.AnimatedInterpolation<number>,
       drag: Animated.AnimatedInterpolation<number>,

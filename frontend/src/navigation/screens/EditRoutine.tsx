@@ -1,7 +1,16 @@
-import React, { useCallback, useLayoutEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  LayoutChangeEvent,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -47,6 +56,8 @@ export function EditRoutine({
     useExerciseList();
   const [saving, setSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const scrollViewRef = useRef<ScrollView>(null);
+  const searchSectionY = useRef(0);
 
   const handleSave = useCallback(async () => {
     if (!name.trim()) {
@@ -140,6 +151,19 @@ export function EditRoutine({
     ]);
   };
 
+  const handleSearchSectionLayout = useCallback((event: LayoutChangeEvent) => {
+    searchSectionY.current = event.nativeEvent.layout.y;
+  }, []);
+
+  const handleSearchFocus = useCallback(() => {
+    requestAnimationFrame(() => {
+      scrollViewRef.current?.scrollTo({
+        y: Math.max(0, searchSectionY.current - 12),
+        animated: true,
+      });
+    });
+  }, []);
+
   const { getSwipeableProps } = useSwipeableDelete({
     onDelete: removeExercise,
     deleteTitle: "Remove Exercise",
@@ -204,126 +228,139 @@ export function EditRoutine({
   };
 
   return (
-    <ScrollView
-      style={[styles.flex, { backgroundColor: colors.bg }]}
-      contentContainerStyle={styles.scrollContent}
-      keyboardShouldPersistTaps="handled"
+    <KeyboardAvoidingView
+      style={styles.flex}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={10}
     >
-      <View style={styles.listHeaderContent}>
-        <Text style={[styles.label, { color: colors.secondary }]}>
-          ROUTINE NAME
-        </Text>
-        <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: colors.inputBg,
-              color: colors.text,
-              borderColor: colors.border,
-            },
-          ]}
-          value={name}
-          onChangeText={setName}
-          placeholder="Routine name"
-          placeholderTextColor={colors.secondary}
+      <ScrollView
+        ref={scrollViewRef}
+        style={[styles.flex, { backgroundColor: colors.bg }]}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.listHeaderContent}>
+          <Text style={[styles.label, { color: colors.secondary }]}>
+            ROUTINE NAME
+          </Text>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.inputBg,
+                color: colors.text,
+                borderColor: colors.border,
+              },
+            ]}
+            value={name}
+            onChangeText={setName}
+            placeholder="Routine name"
+            placeholderTextColor={colors.secondary}
+          />
+
+          <Text style={[styles.label, { color: colors.secondary }]}>
+            SCHEDULED DAYS
+          </Text>
+          <View style={styles.daysRow}>
+            {DAYS.map((day) => {
+              const active = selectedDays.includes(day);
+              return (
+                <TouchableOpacity
+                  key={day}
+                  style={[
+                    styles.dayPill,
+                    {
+                      backgroundColor: active ? colors.pillActive : colors.pill,
+                    },
+                  ]}
+                  onPress={() => toggleDay(day)}
+                >
+                  <Text
+                    style={[
+                      styles.dayPillText,
+                      { color: active ? colors.pillActiveText : colors.text },
+                    ]}
+                  >
+                    {day}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <Text style={[styles.label, { color: colors.secondary }]}>
+            EXERCISES ({selectedExercises.length})
+          </Text>
+          {selectedExercises.length === 0 && (
+            <Text style={[styles.emptyHint, { color: colors.secondary }]}>
+              Add exercises from the list below.
+            </Text>
+          )}
+        </View>
+
+        <DraggableFlatList
+          data={selectedExercises}
+          keyExtractor={(item) => item.routineExerciseId}
+          renderItem={renderExerciseItem}
+          onDragEnd={({ data }) => setSelectedExercises(data)}
+          activationDistance={20}
+          simultaneousHandlers={scrollViewRef}
+          scrollEnabled={false}
         />
 
-        <Text style={[styles.label, { color: colors.secondary }]}>
-          SCHEDULED DAYS
-        </Text>
-        <View style={styles.daysRow}>
-          {DAYS.map((day) => {
-            const active = selectedDays.includes(day);
-            return (
-              <TouchableOpacity
-                key={day}
-                style={[
-                  styles.dayPill,
-                  { backgroundColor: active ? colors.pillActive : colors.pill },
-                ]}
-                onPress={() => toggleDay(day)}
-              >
-                <Text
-                  style={[
-                    styles.dayPillText,
-                    { color: active ? colors.pillActiveText : colors.text },
-                  ]}
-                >
-                  {day}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        <Text style={[styles.label, { color: colors.secondary }]}>
-          EXERCISES ({selectedExercises.length})
-        </Text>
-        {selectedExercises.length === 0 && (
-          <Text style={[styles.emptyHint, { color: colors.secondary }]}>
-            Add exercises from the list below.
+        <View onLayout={handleSearchSectionLayout}>
+          <Text
+            style={[
+              styles.label,
+              styles.addExercisesLabel,
+              { color: colors.secondary },
+            ]}
+          >
+            ADD EXERCISES
           </Text>
+          <ExerciseSearchBar
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            onFocus={handleSearchFocus}
+            placeholder="Search exercises..."
+          />
+        </View>
+
+        {loadingExercises ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator color="#007AFF" />
+          </View>
+        ) : (
+          <View style={styles.listFooterContent}>
+            {filteredExercises.slice(0, 30).map((item) => (
+              <TouchableOpacity
+                key={item.exerciseId}
+                style={[
+                  styles.availableRow,
+                  {
+                    borderBottomColor: colors.border,
+                    backgroundColor: colors.surface,
+                  },
+                ]}
+                onPress={() => addExercise(item)}
+              >
+                <View style={styles.selectedInfo}>
+                  <Text style={[styles.selectedTitle, { color: colors.text }]}>
+                    {item.name}
+                  </Text>
+                  <Text
+                    style={[styles.selectedSubtitle, { color: colors.secondary }]}
+                  >
+                    {item.bodyPart}
+                  </Text>
+                </View>
+                <Text style={[styles.addText, { color: colors.text }]}>+</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         )}
-      </View>
-
-      <DraggableFlatList
-        data={selectedExercises}
-        keyExtractor={(item) => item.routineExerciseId}
-        renderItem={renderExerciseItem}
-        onDragEnd={({ data }) => setSelectedExercises(data)}
-        activationDistance={10}
-        scrollEnabled={false}
-      />
-
-      <Text
-        style={[
-          styles.label,
-          styles.addExercisesLabel,
-          { color: colors.secondary },
-        ]}
-      >
-        ADD EXERCISES
-      </Text>
-      <ExerciseSearchBar
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        placeholder="Search exercises..."
-      />
-
-      {loadingExercises ? (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator color="#007AFF" />
-        </View>
-      ) : (
-        <View style={styles.listFooterContent}>
-          {filteredExercises.slice(0, 30).map((item) => (
-            <TouchableOpacity
-              key={item.exerciseId}
-              style={[
-                styles.availableRow,
-                {
-                  borderBottomColor: colors.border,
-                  backgroundColor: colors.surface,
-                },
-              ]}
-              onPress={() => addExercise(item)}
-            >
-              <View style={styles.selectedInfo}>
-                <Text style={[styles.selectedTitle, { color: colors.text }]}>
-                  {item.name}
-                </Text>
-                <Text
-                  style={[styles.selectedSubtitle, { color: colors.secondary }]}
-                >
-                  {item.bodyPart}
-                </Text>
-              </View>
-              <Text style={[styles.addText, { color: colors.text }]}>+</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
