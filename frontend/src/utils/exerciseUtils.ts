@@ -41,3 +41,19 @@ export function formatPrimaryBodyParts(bodyParts: BodyPartDTO[]): string {
   }
   return primaries.join(", ") || "OTHER";
 }
+
+/** Format muscle group names for display — title case, comma-separated */
+export function formatMuscleGroups(input: BodyPartDTO[] | string[]): string {
+  const names =
+    input.length > 0 && typeof input[0] === "string"
+      ? (input as string[])
+      : (input as BodyPartDTO[]).map((bp) => bp.bodyPart);
+
+  if (names.length === 0) return "OTHER";
+
+  return names
+    .map(
+      (name) => name.charAt(0) + name.slice(1).toLowerCase().replace("_", " "),
+    )
+    .join(", ");
+}

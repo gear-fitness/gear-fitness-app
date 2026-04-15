@@ -17,24 +17,7 @@ import { BodyPartDTO, createExercise } from "../../api/exerciseService";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "..";
-
-const BODY_PARTS = [
-  "CHEST",
-  "BACK",
-  "SHOULDERS",
-  "BICEPS",
-  "TRICEPS",
-  "LEGS",
-  "QUADS",
-  "HAMSTRINGS",
-  "GLUTES",
-  "CALVES",
-  "CORE",
-  "TRAPS",
-  "FOREARMS",
-  "FULL_BODY",
-  "OTHER",
-];
+import { MUSCLE_GROUPS } from "../../constants/muscleGroups";
 
 const TARGET_COLORS = {
   PRIMARY: "#007AFF",
@@ -211,7 +194,7 @@ export function CreateExerciseScreen() {
             Tap to add. First selection is Primary. Tap again to cycle.
           </Text>
           <View style={styles.chipWrap}>
-            {BODY_PARTS.map((bp) => {
+            {MUSCLE_GROUPS.map((bp) => {
               const targetType = getTargetType(bp);
               const isSelected = targetType !== null;
               const chipColor = isSelected

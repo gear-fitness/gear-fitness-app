@@ -1,7 +1,7 @@
 package com.gearfitness.gear_api.dto;
 
-import com.gearfitness.gear_api.entity.Exercise.BodyPart;
 import com.gearfitness.gear_api.entity.ExerciseBodyPart.TargetType;
+import com.gearfitness.gear_api.entity.MuscleGroup;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -11,6 +11,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class BodyPartDTO {
 
-  private BodyPart bodyPart;
+  private MuscleGroup bodyPart;
   private TargetType targetType;
 }

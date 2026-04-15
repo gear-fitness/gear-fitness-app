@@ -24,7 +24,7 @@ public class ExerciseBodyPart {
 
   @Enumerated(EnumType.STRING)
   @Column(name = "body_part", nullable = false)
-  private Exercise.BodyPart bodyPart;
+  private MuscleGroup bodyPart;
 
   @Enumerated(EnumType.STRING)
   @Column(name = "target_type", nullable = false)

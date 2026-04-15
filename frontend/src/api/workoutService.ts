@@ -40,7 +40,7 @@ export interface WorkoutDetailResponse {
   name: string;
   datePerformed: string;
   durationMin: number;
-  bodyTag: string;
+  bodyTags: string[];
   exercises: Array<{
     workoutExerciseId: string;
     exerciseName: string;

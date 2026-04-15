@@ -9,6 +9,7 @@ import com.gearfitness.gear_api.dto.ExerciseSetDTO;
 import com.gearfitness.gear_api.entity.AppUser;
 import com.gearfitness.gear_api.entity.Exercise;
 import com.gearfitness.gear_api.entity.ExerciseBodyPart;
+import com.gearfitness.gear_api.entity.MuscleGroup;
 import com.gearfitness.gear_api.entity.WorkoutExercise;
 import com.gearfitness.gear_api.repository.ExerciseRepository;
 import com.gearfitness.gear_api.repository.WorkoutExerciseRepository;
@@ -48,9 +49,7 @@ public class ExerciseController {
   }
 
   @GetMapping("/filter")
-  public List<ExerciseDTO> getByBodyPart(
-    @RequestParam Exercise.BodyPart bodyPart
-  ) {
+  public List<ExerciseDTO> getByBodyPart(@RequestParam MuscleGroup bodyPart) {
     return exerciseRepo
       .findByBodyPart(bodyPart)
       .stream()

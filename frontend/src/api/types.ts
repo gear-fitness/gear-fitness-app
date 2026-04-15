@@ -104,7 +104,7 @@ export interface WorkoutDetail {
   name: string;
   datePerformed: string;
   durationMin: number | null;
-  bodyTag: string | null;
+  bodyTags: string[];
   exercises: WorkoutExercise[];
 }
 

@@ -57,7 +57,7 @@ public class Exercise {
   private Set<WorkoutExercise> workoutExercises = new HashSet<>();
 
   /** Returns the first PRIMARY body part, or falls back to any body part. */
-  public BodyPart getPrimaryBodyPart() {
+  public MuscleGroup getPrimaryBodyPart() {
     return bodyParts
       .stream()
       .filter(bp -> bp.getTargetType() == ExerciseBodyPart.TargetType.PRIMARY)
@@ -68,12 +68,12 @@ public class Exercise {
           .stream()
           .map(ExerciseBodyPart::getBodyPart)
           .findFirst()
-          .orElse(BodyPart.OTHER)
+          .orElse(MuscleGroup.OTHER)
       );
   }
 
   /** Returns all body parts with a given target type. */
-  public Set<BodyPart> getBodyPartsByType(
+  public Set<MuscleGroup> getBodyPartsByType(
     ExerciseBodyPart.TargetType targetType
   ) {
     return bodyParts
@@ -81,23 +81,5 @@ public class Exercise {
       .filter(bp -> bp.getTargetType() == targetType)
       .map(ExerciseBodyPart::getBodyPart)
       .collect(Collectors.toSet());
-  }
-
-  public enum BodyPart {
-    CHEST,
-    BACK,
-    SHOULDERS,
-    BICEPS,
-    TRICEPS,
-    LEGS,
-    QUADS,
-    HAMSTRINGS,
-    GLUTES,
-    CALVES,
-    CORE,
-    TRAPS,
-    FOREARMS,
-    FULL_BODY,
-    OTHER,
   }
 }

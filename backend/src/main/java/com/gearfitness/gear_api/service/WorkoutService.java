@@ -106,10 +106,10 @@ public class WorkoutService {
       .name(workout.getName())
       .datePerformed(workout.getDatePerformed())
       .durationMin(workout.getDurationMin())
-      .bodyTag(
-        workout.getBodyTags() != null && !workout.getBodyTags().isEmpty()
-          ? workout.getBodyTags().get(0).toString()
-          : null
+      .bodyTags(
+        workout.getBodyTags() != null
+          ? workout.getBodyTags().stream().map(Enum::name).toList()
+          : List.of()
       )
       .exercises(exercises)
       .build();

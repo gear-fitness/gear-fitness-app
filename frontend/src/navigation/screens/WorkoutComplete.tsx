@@ -21,6 +21,7 @@ import { getCurrentLocalDateString } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getAllBodyPartNames } from "../../utils/exerciseUtils";
+import { MUSCLE_GROUPS } from "../../constants/muscleGroups";
 
 export function WorkoutComplete() {
   useTrackTab("WorkoutComplete");
@@ -52,21 +53,6 @@ export function WorkoutComplete() {
     border: isDark ? "#333" : "#ccc",
     input: isDark ? "#2a2a2a" : "#fff",
   };
-
-  const bodyTagsConst = [
-    "FULL_BODY",
-    "CHEST",
-    "BACK",
-    "SHOULDERS",
-    "BICEPS",
-    "TRICEPS",
-    "LEGS",
-    "GLUTES",
-    "HAMSTRINGS",
-    "QUADS",
-    "CALVES",
-    "CORE",
-  ];
 
   const toggleBodyTag = (tag: string) => {
     setBodyTags((prev) => {
@@ -231,7 +217,7 @@ export function WorkoutComplete() {
               showsHorizontalScrollIndicator={false}
               style={styles.tagScroll}
             >
-              {bodyTagsConst.map((tag) => (
+              {MUSCLE_GROUPS.map((tag) => (
                 <TouchableOpacity
                   key={tag}
                   onPress={() => toggleBodyTag(tag)}

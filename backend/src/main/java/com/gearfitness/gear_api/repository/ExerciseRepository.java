@@ -1,6 +1,7 @@
 package com.gearfitness.gear_api.repository;
 
 import com.gearfitness.gear_api.entity.Exercise;
+import com.gearfitness.gear_api.entity.MuscleGroup;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,7 +13,7 @@ public interface ExerciseRepository extends JpaRepository<Exercise, UUID> {
     "SELECT DISTINCT e FROM Exercise e JOIN e.bodyParts bp " +
       "WHERE bp.bodyPart = :bodyPart"
   )
-  List<Exercise> findByBodyPart(@Param("bodyPart") Exercise.BodyPart bodyPart);
+  List<Exercise> findByBodyPart(@Param("bodyPart") MuscleGroup bodyPart);
 
   List<Exercise> findByUserIsNullOrUserUserId(UUID userId);
 }
