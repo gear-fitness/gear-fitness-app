@@ -98,25 +98,13 @@ public class StreakService {
 
     LocalDate today = LocalDate.now(ZoneOffset.UTC);
     LocalDate yesterday = today.minusDays(1);
+    LocalDate dayBeforeYesterday = today.minusDays(2);
 
-    // Check if yesterday is already covered — streak isn't broken
-    Set<LocalDate> yesterdayActivity = getActiveDays(
-      user,
-      yesterday,
-      yesterday
-    );
-    if (yesterdayActivity.contains(yesterday)) {
+    Set<LocalDate> window = getActiveDays(user, dayBeforeYesterday, yesterday);
+    if (window.contains(yesterday)) {
       throw new IllegalStateException("Streak is not broken");
     }
-
-    // Check that the day before yesterday was part of a streak
-    LocalDate dayBeforeYesterday = today.minusDays(2);
-    Set<LocalDate> priorActivity = getActiveDays(
-      user,
-      dayBeforeYesterday,
-      dayBeforeYesterday
-    );
-    if (!priorActivity.contains(dayBeforeYesterday)) {
+    if (!window.contains(dayBeforeYesterday)) {
       throw new IllegalStateException("No active streak to restore");
     }
 
@@ -146,8 +134,10 @@ public class StreakService {
 
     Set<LocalDate> activeDays = getActiveDays(user, lookbackStart, today);
 
+    // Allow the chain to start at yesterday when today isn't logged yet —
+    // today only counts as a break once the UTC day has actually ended.
+    LocalDate date = activeDays.contains(today) ? today : today.minusDays(1);
     int streak = 0;
-    LocalDate date = today;
     while (activeDays.contains(date)) {
       streak++;
       date = date.minusDays(1);
@@ -195,6 +185,18 @@ public class StreakService {
     activeDays.addAll(restDayDates);
     activeDays.addAll(restoredDates);
     return activeDays;
+  }
+
+  @Transactional(readOnly = true)
+  public boolean isRestoreAvailable(AppUser user) {
+    if (getRestoreTokensRemaining(user) <= 0) {
+      return false;
+    }
+    LocalDate today = LocalDate.now(ZoneOffset.UTC);
+    LocalDate yesterday = today.minusDays(1);
+    LocalDate dayBeforeYesterday = today.minusDays(2);
+    Set<LocalDate> window = getActiveDays(user, dayBeforeYesterday, yesterday);
+    return !window.contains(yesterday) && window.contains(dayBeforeYesterday);
   }
 
   private int getRestoreTokensRemaining(AppUser user) {
