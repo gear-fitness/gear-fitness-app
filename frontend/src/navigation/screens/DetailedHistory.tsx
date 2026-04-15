@@ -14,7 +14,7 @@ import { WorkoutDetail } from "../../api/types";
 import { parseLocalDate } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { useNavigation } from "@react-navigation/native";
-import { formatMuscleGroups } from "../../utils/exerciseUtils";
+import { formatMuscleGroups, renderBodyParts } from "../../utils/exerciseUtils";
 
 type RootStackParamList = {
   DetailedHistory: {
@@ -210,7 +210,7 @@ export function DetailedHistory({ route }: Props) {
               <Text
                 style={[styles.bodyPart, { color: isDark ? "#aaa" : "#666" }]}
               >
-                {formatMuscleGroups(exercise.bodyParts)}
+                {renderBodyParts(exercise.bodyParts, "grey", "#1877F2")}
               </Text>
               {exercise.note && (
                 <Text

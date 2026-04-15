@@ -3,6 +3,7 @@
  */
 
 import { BodyPartDTO } from "../api/exerciseService";
+import { Text } from "react-native";
 
 /** Get the first PRIMARY body part name (for section grouping) */
 export function getPrimaryBodyPart(bodyParts: BodyPartDTO[]): string {
@@ -56,4 +57,37 @@ export function formatMuscleGroups(input: BodyPartDTO[] | string[]): string {
       (name) => name.charAt(0) + name.slice(1).toLowerCase().replace("_", " "),
     )
     .join(", ");
+}
+
+/** Render body part names as Text with primary bolded */
+export function renderBodyParts(
+  bodyParts: BodyPartDTO[],
+  color: string,
+  primaryColor: string = color,
+): React.ReactNode {
+  const sorted = [...bodyParts].sort((a, b) => {
+    if (a.targetType === "PRIMARY" && b.targetType !== "PRIMARY") return -1;
+    if (a.targetType !== "PRIMARY" && b.targetType === "PRIMARY") return 1;
+    return 0;
+  });
+
+  return sorted.map((bp, i) => {
+    const isPrimary = bp.targetType === "PRIMARY";
+    const label =
+      bp.bodyPart.charAt(0) +
+      bp.bodyPart.slice(1).toLowerCase().replace("_", " ");
+    return (
+      <Text key={bp.bodyPart}>
+        <Text
+          style={{
+            fontWeight: isPrimary ? "700" : "400",
+            color: isPrimary ? primaryColor : color,
+          }}
+        >
+          {label}
+        </Text>
+        {i < sorted.length - 1 && <Text style={{ color }}>, </Text>}
+      </Text>
+    );
+  });
 }
