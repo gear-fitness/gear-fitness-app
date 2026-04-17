@@ -30,7 +30,7 @@ import { Avatar } from "../../components/Avatar";
 
 export function Profile() {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
+  const navigation = useNavigation() as any;
   const route = useRoute<any>();
   const { colors } = useTheme();
 
@@ -244,28 +244,34 @@ export function Profile() {
 
           <View style={styles.statsRow}>
             <Stat label="Workouts" value={profile.workoutStats.totalWorkouts} />
-            <Stat label="Followers" value={profile.followersCount} />
-            <Stat label="Following" value={profile.followingCount} />
-          </View>
-        </View>
-
-        <View style={styles.friendsSection}>
-          <Text style={styles.sectionTitle}>Friends</Text>
-
-          {followers.length === 0 ? (
-            <Text style={styles.muted}>No followers yet</Text>
-          ) : (
-            <View style={styles.friendsRow}>
-              {followers.slice(0, 5).map((f) => (
-                <Avatar
-                  key={f.userId}
-                  username={f.username}
-                  profilePictureUrl={f.profilePictureUrl}
-                  size={40}
-                />
-              ))}
+            <View style={{ flex: 1 }}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() =>
+                  navigation.navigate("FollowScreen", {
+                    initialTab: "followers",
+                    userId: profile.userId,
+                  })
+                }
+              >
+                <Stat label="Followers" value={profile.followersCount} />
+              </TouchableOpacity>
             </View>
-          )}
+
+            <View style={{ flex: 1 }}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() =>
+                  navigation.navigate("FollowScreen", {
+                    initialTab: "following",
+                    userId: profile.userId,
+                  })
+                }
+              >
+                <Stat label="Following" value={profile.followingCount} />
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
 
         <View style={styles.weekRow}>
@@ -437,17 +443,10 @@ const styles = StyleSheet.create({
   statLabel: { fontSize: 12, fontWeight: "600" },
   statValue: { color: "#777" },
 
-  friendsSection: { marginTop: 24 },
-
   sectionTitle: {
     fontSize: 16,
     fontWeight: "600",
     marginBottom: 8,
-  },
-
-  friendsRow: {
-    flexDirection: "row",
-    gap: 12,
   },
 
   weekRow: {

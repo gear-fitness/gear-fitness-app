@@ -37,6 +37,7 @@ import { RoutineList } from "./screens/RoutineList";
 import { RoutineDetail } from "./screens/RoutineDetail";
 import { CreateRoutine } from "./screens/CreateRoutine";
 import { EditRoutine } from "./screens/EditRoutine";
+import FollowScreen from "./screens/FollowScreen";
 import { Platform } from "react-native";
 
 /* ---------------------- TABS ---------------------- */
@@ -129,6 +130,13 @@ const RootStack = createNativeStackNavigator({
       options: {
         headerShown: false,
         gestureEnabled: true,
+      },
+    },
+
+    FollowScreen: {
+      screen: FollowScreen,
+      options: {
+        headerShown: false,
       },
     },
 
@@ -302,6 +310,10 @@ declare global {
       ExerciseSelect: undefined;
       ExerciseChat: undefined;
 
+      FollowScreen: {
+        initialTab: "followers" | "following";
+        userId: string;
+      };
       ExerciseDetail: {
         exercise: {
           workoutExerciseId?: string;
