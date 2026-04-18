@@ -178,8 +178,10 @@ const RootStack = createNativeStackNavigator({
       screen: ExerciseDetail,
       options: {
         title: "Exercise Detail",
-        presentation: "modal",
-        headerShown: true,
+        presentation: "fullScreenModal",
+        headerShown: false,
+        gestureEnabled: true,
+        gestureDirection: "vertical",
         headerBackTitle: "Back",
       },
     },

@@ -209,27 +209,14 @@ export function Workout() {
             {running ? "Tap the mini player below to continue" : "Timer paused"}
           </Text>
 
-          <View style={styles.shadowLayer1}>
-            <View style={styles.shadowLayer2}>
-              <TouchableOpacity
-                style={[
-                  styles.pillButton,
-                  { backgroundColor: isDark ? colors.card : "white" },
-                ]}
-                onPress={() => navigation.navigate("WorkoutSummary")}
-              >
-                <Text style={styles.playIcon}>▶</Text>
-                <Text
-                  style={[
-                    styles.pillButtonText,
-                    { color: isDark ? "#fff" : "#000" },
-                  ]}
-                >
-                  Continue Workout
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={styles.primaryButton}
+            onPress={() => navigation.navigate("WorkoutSummary")}
+          >
+            <Text style={styles.primaryButtonText}>Continue Workout</Text>
+            <Text style={styles.primaryButtonArrow}>→</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <View style={styles.bodyCenter}>
@@ -250,27 +237,18 @@ export function Workout() {
             You're on a roll! Keep the momentum going.
           </Text>
 
-          <View style={styles.shadowLayer1}>
-            <View style={styles.shadowLayer2}>
-              <TouchableOpacity
-                style={[
-                  styles.pillButton,
-                  { backgroundColor: isDark ? colors.card : "white" },
-                ]}
-                onPress={handleStartPress}
-              >
-                <Text style={styles.playIcon}>▶</Text>
-                <Text
-                  style={[
-                    styles.pillButtonText,
-                    { color: isDark ? "#fff" : "#000" },
-                  ]}
-                >
-                  Start Workout
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={[styles.primaryButton, styles.startButton]}
+            onPress={handleStartPress}
+          >
+            <Text style={[styles.primaryButtonPlay, styles.startButtonPlay]}>
+              ▶
+            </Text>
+            <Text style={[styles.primaryButtonText, styles.startButtonText]}>
+              Start Workout
+            </Text>
+          </TouchableOpacity>
 
           <TodaysRoutines />
         </View>
@@ -463,50 +441,57 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
 
-  // Shared pill button + glow
-  shadowLayer1: {
-    borderRadius: 999,
-    alignItems: "center",
-    shadowColor: "#007AFF",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 30,
-    elevation: 10,
-  },
-
-  shadowLayer2: {
-    borderRadius: 999,
-    alignItems: "center",
-    shadowColor: "#007AFF",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
-    elevation: 8,
-  },
-
-  pillButton: {
+  // Shared primary rectangle button
+  primaryButton: {
     width: 280,
     maxWidth: "90%",
-    height: 64,
-    borderRadius: 999,
+    height: 54,
+    borderRadius: 14,
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
+    gap: 10,
+    backgroundColor: "#007AFF",
     shadowColor: "#007AFF",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
     elevation: 6,
   },
 
-  playIcon: {
-    fontSize: 30,
-    color: "#007AFF",
-    marginRight: 12,
+  primaryButtonText: {
+    fontSize: 17,
+    fontWeight: "600",
+    letterSpacing: -0.2,
+    color: "#fff",
   },
 
-  pillButtonText: {
-    fontSize: 20,
+  primaryButtonArrow: {
+    fontSize: 17,
+    opacity: 0.8,
+    color: "#fff",
+  },
+
+  primaryButtonPlay: {
+    fontSize: 18,
+    color: "#fff",
+  },
+
+  startButton: {
+    width: "100%",
+    maxWidth: undefined,
+    height: 64,
+    borderRadius: 16,
+    gap: 12,
+  },
+
+  startButtonText: {
+    fontSize: 22,
     fontWeight: "700",
+    letterSpacing: -0.3,
+  },
+
+  startButtonPlay: {
+    fontSize: 24,
   },
 });

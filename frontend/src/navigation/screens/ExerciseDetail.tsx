@@ -1,4 +1,5 @@
 import { useNavigation, useRoute } from "@react-navigation/native";
+import { Header } from "@react-navigation/native-stack";
 import { useEffect, useRef } from "react";
 
 import { useWorkoutTimer } from "../../context/WorkoutContext";
