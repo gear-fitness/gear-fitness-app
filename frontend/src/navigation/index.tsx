@@ -145,8 +145,8 @@ const RootStack = createNativeStackNavigator({
       screen: DetailedHistory,
       options: {
         title: "Workout",
-        headerShown: true,
-        headerBackTitle: "Back",
+        headerShown: false,
+        gestureEnabled: true,
       },
     },
 

@@ -91,7 +91,7 @@ export function TodaysRoutines() {
             key={routine.routineId}
             style={[
               styles.todayCard,
-              { backgroundColor: isDark ? colors.card : "#F2F2F7" },
+              { backgroundColor: isDark ? colors.card : "#eff2f5" },
             ]}
           >
             <TouchableOpacity

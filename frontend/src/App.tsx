@@ -25,9 +25,18 @@ SplashScreen.preventAutoHideAsync();
 
 const prefix = createURL("/");
 
+const LightTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    background: "rgb(255, 255, 255)",
+    card: "#eff2f5",
+  },
+};
+
 export function App() {
   const colorScheme = useColorScheme();
-  const theme = colorScheme === "dark" ? DarkTheme : DefaultTheme;
+  const theme = colorScheme === "dark" ? DarkTheme : LightTheme;
 
   useEffect(() => {
     GoogleSignin.configure({
