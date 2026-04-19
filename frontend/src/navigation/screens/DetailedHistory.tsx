@@ -19,6 +19,10 @@ import { parseLocalDate } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { useNavigation, useTheme } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  GlassView,
+  isLiquidGlassAvailable,
+} from "expo-glass-effect";
 
 type RootStackParamList = {
   DetailedHistory: {
@@ -64,6 +68,8 @@ export function DetailedHistory({ route }: Props) {
   const textMuted: StyleProp<TextStyle> = { color: colors.text, opacity: 0.5 };
   const textFaint: StyleProp<TextStyle> = { color: colors.text, opacity: 0.4 };
 
+  const glassAvailable = isLiquidGlassAvailable();
+
   const backButton = (
     <TouchableOpacity
       accessibilityLabel="Back"
@@ -73,12 +79,19 @@ export function DetailedHistory({ route }: Props) {
         styles.backButton,
         {
           top: insets.top + 8,
-          backgroundColor: colors.background,
-          borderColor: colors.border,
+          backgroundColor: glassAvailable ? "transparent" : colors.background,
+          borderColor: glassAvailable ? "transparent" : colors.border,
         },
       ]}
     >
-      <Svg width={16} height={16} viewBox="0 0 16 16" fill="none">
+      {glassAvailable && (
+        <GlassView
+          style={[StyleSheet.absoluteFillObject, { borderRadius: 23 }]}
+          glassEffectStyle="regular"
+          isInteractive
+        />
+      )}
+      <Svg width={20} height={20} viewBox="0 0 16 16" fill="none">
         <Path
           d="M10 3l-5 5 5 5"
           stroke={colors.text}
@@ -90,7 +103,7 @@ export function DetailedHistory({ route }: Props) {
     </TouchableOpacity>
   );
 
-  const bodyPaddingTop = insets.top + 62;
+  const bodyPaddingTop = insets.top + 68;
 
   if (loading) {
     return (
@@ -402,12 +415,13 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 16,
     zIndex: 10,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
   },
   titleBlock: {
     paddingHorizontal: 20,
