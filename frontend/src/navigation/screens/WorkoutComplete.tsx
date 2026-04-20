@@ -11,12 +11,15 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
+  Image,
+  useWindowDimensions,
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
+import * as ImagePicker from "expo-image-picker";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { submitWorkout, WorkoutSubmission } from "../../api/workoutService";
 import { getCurrentLocalDateString } from "../../utils/date";
@@ -25,6 +28,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const ACCENT = "#007AFF";
 const DESTRUCTIVE = "#C93838";
+const MAX_PHOTOS = 4;
 
 type Theme = {
   bg: string;
@@ -65,13 +69,34 @@ export function WorkoutComplete() {
   const isDark = useColorScheme() === "dark";
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
+  const photoTileSize = Math.floor((screenWidth - 40 - 24) / 4);
   const { exercises, seconds, reset } = useWorkoutTimer();
 
   const [workoutName, setWorkoutName] = useState("");
   const [bodyTag, setBodyTag] = useState<string[]>(["FULL_BODY"]);
   const [caption, setCaption] = useState("");
+  const [photos, setPhotos] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSub = Keyboard.addListener(showEvent, () =>
+      setKeyboardVisible(true),
+    );
+    const hideSub = Keyboard.addListener(hideEvent, () =>
+      setKeyboardVisible(false),
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const t: Theme = isDark
     ? {
@@ -102,6 +127,35 @@ export function WorkoutComplete() {
     (n, ex) => n + ex.sets.filter((s) => s.reps && s.weight).length,
     0,
   );
+
+  const pickPhoto = async () => {
+    if (photos.length >= MAX_PHOTOS) return;
+    const { status } =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        "Photo Access Required",
+        "Please allow photo library access in Settings to attach photos.",
+        [{ text: "OK" }],
+      );
+      return;
+    }
+    const remaining = MAX_PHOTOS - photos.length;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: remaining > 1,
+      selectionLimit: remaining,
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets?.length) {
+      const uris = result.assets.map((a) => a.uri).slice(0, remaining);
+      setPhotos((prev) => [...prev, ...uris].slice(0, MAX_PHOTOS));
+    }
+  };
+
+  const removePhoto = (index: number) => {
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const toggleBodyTag = (tag: string) => {
     setBodyTag((prev) => {
@@ -274,7 +328,7 @@ export function WorkoutComplete() {
             value={workoutName}
             onChangeText={setWorkoutName}
             placeholder="e.g. Chest day"
-            placeholderTextColor={t.textFaint}
+            placeholderTextColor={t.textMuted}
             returnKeyType="done"
             onSubmitEditing={() => Keyboard.dismiss()}
             style={[
@@ -376,6 +430,77 @@ export function WorkoutComplete() {
           </View>
         </Section>
 
+        {/* Photos — tap-to-add tile + thumbnails */}
+        <Section label="Photos" hint={`${photos.length}/${MAX_PHOTOS}`} t={t}>
+          <View style={styles.photoGrid}>
+            {photos.map((uri, i) => (
+              <View
+                key={`${uri}-${i}`}
+                style={[
+                  styles.photoTile,
+                  {
+                    width: photoTileSize,
+                    height: photoTileSize,
+                    borderColor: t.border,
+                    backgroundColor: t.chipBg,
+                  },
+                ]}
+              >
+                <Image
+                  source={{ uri }}
+                  style={StyleSheet.absoluteFillObject}
+                  resizeMode="cover"
+                />
+                <TouchableOpacity
+                  accessibilityLabel="Remove photo"
+                  activeOpacity={0.7}
+                  onPress={() => removePhoto(i)}
+                  style={styles.photoRemove}
+                >
+                  <Svg width={10} height={10} viewBox="0 0 12 12" fill="none">
+                    <Path
+                      d="M3 3l6 6M9 3l-6 6"
+                      stroke="#fff"
+                      strokeWidth={1.5}
+                      strokeLinecap="round"
+                    />
+                  </Svg>
+                </TouchableOpacity>
+              </View>
+            ))}
+            {photos.length < MAX_PHOTOS && (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={pickPhoto}
+                style={[
+                  styles.photoAdd,
+                  {
+                    width: photoTileSize,
+                    height: photoTileSize,
+                    borderColor: t.chipBorder,
+                  },
+                ]}
+              >
+                <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+                  <Path
+                    d="M12 6v12M6 12h12"
+                    stroke={t.textMuted}
+                    strokeWidth={1.6}
+                    strokeLinecap="round"
+                  />
+                </Svg>
+                {photos.length === 0 && (
+                  <Text
+                    style={[styles.photoAddLabel, { color: t.textMuted }]}
+                  >
+                    Add photo
+                  </Text>
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
+        </Section>
+
         {/* Discard — tertiary destructive link */}
         <TouchableOpacity
           activeOpacity={0.5}
@@ -387,7 +512,8 @@ export function WorkoutComplete() {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Paired footer */}
+      {/* Paired footer — hidden while keyboard is open */}
+      {!keyboardVisible && (
       <View
         style={[
           styles.footerWrap,
@@ -433,7 +559,7 @@ export function WorkoutComplete() {
             ) : (
               <View style={styles.footerBtnContent}>
                 <Text style={[styles.footerBtnText, { color: "#fff" }]}>
-                  Save & post
+                  Post
                 </Text>
                 <Text style={styles.footerBtnArrow}>→</Text>
               </View>
@@ -441,6 +567,7 @@ export function WorkoutComplete() {
           </TouchableOpacity>
         </View>
       </View>
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -465,20 +592,29 @@ function Metric({
 function Section({
   label,
   required,
+  hint,
   children,
   t,
 }: {
   label: string;
   required?: boolean;
+  hint?: string | null;
   children: React.ReactNode;
   t: Theme;
 }) {
   return (
     <View style={styles.section}>
-      <Text style={[styles.sectionLabel, { color: t.textMuted }]}>
-        {label.toUpperCase()}
-        {required ? " *" : ""}
-      </Text>
+      <View style={styles.sectionLabelRow}>
+        <Text style={[styles.sectionLabel, { color: t.textMuted }]}>
+          {label.toUpperCase()}
+          {required ? " *" : ""}
+        </Text>
+        {hint ? (
+          <Text style={[styles.sectionHint, { color: t.textFaint }]}>
+            {hint}
+          </Text>
+        ) : null}
+      </View>
       {children}
     </View>
   );
@@ -537,17 +673,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 24,
   },
+  sectionLabelRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 8,
+    marginBottom: 6,
+  },
   sectionLabel: {
     fontSize: 12,
     fontWeight: "600",
     letterSpacing: 1.2,
-    marginBottom: 6,
+  },
+  sectionHint: {
+    fontSize: 12,
+    fontWeight: "400",
   },
   nameInput: {
     paddingTop: 10,
     paddingBottom: 12,
     paddingHorizontal: 0,
     fontSize: 22,
+    lineHeight: 26,
     fontWeight: "600",
     letterSpacing: -0.4,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -593,6 +739,42 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontVariant: ["tabular-nums"],
     marginLeft: 12,
+  },
+  photoGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 4,
+  },
+  photoTile: {
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: "hidden",
+    position: "relative",
+  },
+  photoRemove: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  photoAdd: {
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  photoAddLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    letterSpacing: 0.5,
   },
   captionCard: {
     borderRadius: 14,
