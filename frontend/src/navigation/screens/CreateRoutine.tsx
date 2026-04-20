@@ -25,6 +25,7 @@ import { DAYS, DAY_FULL } from "../../utils/days";
 import { useThemeColors } from "../../hooks/useThemeColors";
 import { useExerciseList } from "../../hooks/useExerciseList";
 import { useUserWorkouts } from "../../hooks/useUserWorkouts";
+import { renderBodyParts } from "../../utils/exerciseUtils";
 
 type Step = "details" | "source" | "scratch" | "workout";
 
@@ -168,7 +169,7 @@ export function CreateRoutine({
     return exercises.filter(
       (ex) =>
         ex.name.toLowerCase().includes(q) ||
-        ex.bodyPart.toLowerCase().includes(q),
+        ex.bodyParts.some((bp) => bp.bodyPart.toLowerCase().includes(q)),
     );
   }, [exercises, searchQuery]);
 
@@ -362,7 +363,11 @@ export function CreateRoutine({
                         { color: colors.secondary },
                       ]}
                     >
-                      {item.bodyPart}
+                      {renderBodyParts(
+                        item.bodyParts,
+                        colors.secondary,
+                        "#007AFF",
+                      )}
                     </Text>
                   </View>
                   {selected && (
