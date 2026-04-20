@@ -71,6 +71,7 @@ public class FollowService {
       .build();
 
     followRepository.save(follow);
+
     // Create follow notification
     Notification notification = Notification.builder()
       .recipient(followee)
@@ -95,9 +96,9 @@ public class FollowService {
     );
 
     return FollowResponse.builder()
-      .followeeId(followee.getUserId())
+      .followeeId(followeeId)
       .followeeUsername(followee.getUsername())
-      .status(status.name().toLowerCase())
+      .status(status.name())
       .message(
         status == Follow.FollowStatus.ACCEPTED
           ? "Now following " + followee.getUsername()
@@ -158,12 +159,17 @@ public class FollowService {
 
   /**
    * Get list of followers for a user
+   * Includes isFollowing flag relative to currentUserId
    */
   @Transactional(readOnly = true)
-  public List<FollowerDTO> getFollowers(UUID userId) {
+  public List<FollowerDTO> getFollowers(UUID userId, UUID currentUserId) {
     AppUser user = userRepository
       .findById(userId)
       .orElseThrow(() -> new RuntimeException("User not found"));
+
+    AppUser currentUser = userRepository
+      .findById(currentUserId)
+      .orElseThrow(() -> new RuntimeException("Current user not found"));
 
     return followRepository
       .findByFolloweeAndStatus(user, Follow.FollowStatus.ACCEPTED)
@@ -172,7 +178,12 @@ public class FollowService {
         new FollowerDTO(
           f.getFollower().getUserId(),
           f.getFollower().getUsername(),
-          f.getFollower().getProfilePictureUrl()
+          f.getFollower().getProfilePictureUrl(),
+          followRepository.existsByFollowerAndFolloweeAndStatus(
+            currentUser,
+            f.getFollower(),
+            Follow.FollowStatus.ACCEPTED
+          )
         )
       )
       .collect(Collectors.toList());
@@ -180,12 +191,17 @@ public class FollowService {
 
   /**
    * Get list of users that this user is following
+   * Includes isFollowing flag relative to currentUserId
    */
   @Transactional(readOnly = true)
-  public List<FollowerDTO> getFollowing(UUID userId) {
+  public List<FollowerDTO> getFollowing(UUID userId, UUID currentUserId) {
     AppUser user = userRepository
       .findById(userId)
       .orElseThrow(() -> new RuntimeException("User not found"));
+
+    AppUser currentUser = userRepository
+      .findById(currentUserId)
+      .orElseThrow(() -> new RuntimeException("Current user not found"));
 
     return followRepository
       .findByFollowerAndStatus(user, Follow.FollowStatus.ACCEPTED)
@@ -194,7 +210,12 @@ public class FollowService {
         new FollowerDTO(
           f.getFollowee().getUserId(),
           f.getFollowee().getUsername(),
-          f.getFollowee().getProfilePictureUrl()
+          f.getFollowee().getProfilePictureUrl(),
+          followRepository.existsByFollowerAndFolloweeAndStatus(
+            currentUser,
+            f.getFollowee(),
+            Follow.FollowStatus.ACCEPTED
+          )
         )
       )
       .collect(Collectors.toList());

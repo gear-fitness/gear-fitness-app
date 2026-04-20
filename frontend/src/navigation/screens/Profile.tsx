@@ -34,12 +34,12 @@ export function Profile() {
   const route = useRoute<any>();
   const { colors } = useTheme();
 
-  const usernameParam: string | undefined = route.params?.username;
-  const isOtherUser = !!usernameParam;
+  const { username } = (route.params || {}) as { username?: string };
+  const isOtherUser = !!username;
 
   useTrackTab(isOtherUser ? "UserProfile" : "Profile");
 
-  // State management
+  // State managementD
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [followers, setFollowers] = useState<FollowerUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,8 +59,8 @@ export function Profile() {
       setError(null);
 
       // Fetch profile data
-      const profileData = usernameParam
-        ? await getUserProfile(usernameParam)
+      const profileData = username
+        ? await getUserProfile(username)
         : await getCurrentUserProfile();
 
       setProfile(profileData);
@@ -86,7 +86,7 @@ export function Profile() {
         loadUserPosts(profileData);
       }
     });
-  }, [usernameParam]);
+  }, [username]);
 
   // Follow or unfollow user
   const handleFollowToggle = async () => {

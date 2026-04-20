@@ -46,6 +46,7 @@ export interface FollowerUser {
   userId: string;
   username: string;
   profilePictureUrl?: string | null;
+  isFollowing: boolean;
 }
 
 export interface FollowersResponse {
