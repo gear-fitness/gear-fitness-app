@@ -13,7 +13,8 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface StreakRestoreRepository
-  extends JpaRepository<StreakRestore, UUID> {
+  extends JpaRepository<StreakRestore, UUID>
+{
   long countByUserAndUsedAtBetween(
     AppUser user,
     LocalDateTime start,

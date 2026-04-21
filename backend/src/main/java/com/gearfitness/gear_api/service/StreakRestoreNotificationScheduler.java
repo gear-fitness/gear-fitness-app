@@ -1,13 +1,11 @@
 package com.gearfitness.gear_api.service;
 
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Service;
-
 import com.gearfitness.gear_api.entity.AppUser;
 import com.gearfitness.gear_api.repository.AppUserRepository;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
@@ -48,9 +46,6 @@ public class StreakRestoreNotificationScheduler {
         );
       }
     }
-    log.info(
-      "Streak restore scheduler finished: notified {} users",
-      notified
-    );
+    log.info("Streak restore scheduler finished: notified {} users", notified);
   }
 }

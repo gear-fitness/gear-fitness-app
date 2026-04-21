@@ -1,12 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Text } from "@react-navigation/elements";
-import {
-  StyleSheet,
-  View,
-  TouchableOpacity,
-  Image,
-  Alert,
-} from "react-native";
+import { StyleSheet, View, TouchableOpacity, Image, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   useNavigation,
@@ -23,10 +17,7 @@ import { TodaysRoutines } from "../../components/TodaysRoutines";
 import { StartCountdownOverlay } from "../../components/StartCountdownOverlay";
 import { useStartCountdown } from "../../hooks/useStartCountdown";
 import { StreakDropdown } from "../../components/StreakDropdown";
-import {
-  streakService,
-  type StreakInfo,
-} from "../../api/streakService";
+import { streakService, type StreakInfo } from "../../api/streakService";
 
 export function Workout() {
   useTrackTab("Workouts");
@@ -59,7 +50,8 @@ export function Workout() {
     }, []),
   );
 
-  const streak = streakInfo?.currentStreak ?? user?.workoutStats?.workoutStreak ?? 0;
+  const streak =
+    streakInfo?.currentStreak ?? user?.workoutStats?.workoutStreak ?? 0;
 
   const handleLogRestDay = async () => {
     setStreakLoading(true);
@@ -129,7 +121,10 @@ export function Workout() {
           style={styles.streakContainer}
           onPress={() => {
             setStreakDropdownVisible(true);
-            streakService.getStreakInfo().then(setStreakInfo).catch(console.error);
+            streakService
+              .getStreakInfo()
+              .then(setStreakInfo)
+              .catch(console.error);
           }}
           activeOpacity={0.7}
         >

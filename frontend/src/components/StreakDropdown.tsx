@@ -98,9 +98,7 @@ export function StreakDropdown({
             </Text>
 
             {/* Divider */}
-            <View
-              style={[styles.divider, { backgroundColor: dividerColor }]}
-            />
+            <View style={[styles.divider, { backgroundColor: dividerColor }]} />
 
             {/* Restore Tokens */}
             <View style={styles.tokenRow}>
@@ -118,9 +116,7 @@ export function StreakDropdown({
             </View>
 
             {/* Divider */}
-            <View
-              style={[styles.divider, { backgroundColor: dividerColor }]}
-            />
+            <View style={[styles.divider, { backgroundColor: dividerColor }]} />
 
             {/* Actions */}
             <View style={styles.actions}>

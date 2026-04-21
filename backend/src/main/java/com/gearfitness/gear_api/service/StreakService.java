@@ -91,9 +91,7 @@ public class StreakService {
       );
 
     if (getRestoreTokensRemaining(user) <= 0) {
-      throw new IllegalStateException(
-        "No restore tokens available this week"
-      );
+      throw new IllegalStateException("No restore tokens available this week");
     }
 
     LocalDate today = LocalDate.now(ZoneOffset.UTC);
@@ -166,11 +164,7 @@ public class StreakService {
     LocalDate end
   ) {
     List<LocalDate> workoutDates =
-      workoutRepository.findDistinctDatesByUserAndDateBetween(
-        user,
-        start,
-        end
-      );
+      workoutRepository.findDistinctDatesByUserAndDateBetween(user, start, end);
     List<LocalDate> restDayDates =
       restDayRepository.findDatesByUserAndDateBetween(user, start, end);
     List<LocalDate> restoredDates =
