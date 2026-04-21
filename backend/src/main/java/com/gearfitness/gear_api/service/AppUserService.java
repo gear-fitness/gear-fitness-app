@@ -227,7 +227,7 @@ public class AppUserService {
     );
 
     // Calculate streak (consecutive completed weeks with 5+ distinct workout days)
-    int workoutStreak = calculateWorkoutStreak(user, today);
+    int workoutStreak = calculateWorkoutStreak(user);
 
     // Count distinct workout days in the current week
     List<Workout> currentWeekWorkouts =
