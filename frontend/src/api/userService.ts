@@ -6,14 +6,19 @@ import {
   FollowResponse,
   UsernameAvailabilityResponse,
 } from "./types";
+import { getCurrentLocalDateString } from "../utils/date";
 
 export async function getCurrentUserProfile(): Promise<UserProfile> {
-  const { data } = await apiClient.get("/users/me/profile");
+  const { data } = await apiClient.get("/users/me/profile", {
+    params: { localDate: getCurrentLocalDateString() },
+  });
   return data;
 }
 
 export async function getUserProfile(username: string): Promise<UserProfile> {
-  const { data } = await apiClient.get(`/users/${username}`);
+  const { data } = await apiClient.get(`/users/${username}`, {
+    params: { localDate: getCurrentLocalDateString() },
+  });
   return data;
 }
 

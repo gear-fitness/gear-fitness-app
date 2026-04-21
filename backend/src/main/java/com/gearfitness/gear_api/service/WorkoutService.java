@@ -191,7 +191,8 @@ public class WorkoutService {
   public List<DailyVolumeDTO> getDailyVolume(
     UUID userId,
     int numberOfWeeks,
-    DayOfWeek weekStartDay
+    DayOfWeek weekStartDay,
+    String localDate
   ) {
     List<Workout> workouts = workoutRepository.findByUser_UserId(userId);
 
@@ -202,7 +203,10 @@ public class WorkoutService {
     // Calculate date range
     // Extend endDate to the end of the current week (Saturday) to ensure full week
     // is displayed
-    LocalDate endDate = LocalDate.now().with(
+    LocalDate referenceDate = (localDate != null && !localDate.isBlank())
+      ? LocalDate.parse(localDate)
+      : LocalDate.now();
+    LocalDate endDate = referenceDate.with(
       TemporalAdjusters.nextOrSame(DayOfWeek.SATURDAY)
     );
 
