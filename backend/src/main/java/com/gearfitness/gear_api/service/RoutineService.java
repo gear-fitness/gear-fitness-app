@@ -233,6 +233,7 @@ public class RoutineService {
             .getScheduledDays()
             .stream()
             .map(sd -> DayOfWeek.valueOf(sd.name()))
+            .sorted()
             .collect(Collectors.toList());
     dto.setScheduledDays(dtoDays);
 
