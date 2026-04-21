@@ -87,6 +87,7 @@ public class SocialFeedService {
       .postId(post.getPostId())
       .workoutId(post.getWorkout().getWorkoutId())
       .imageUrl(post.getImageUrl())
+      .photoUrls(post.getWorkout().getPhotoUrls())
       .caption(post.getCaption())
       .createdAt(post.getCreatedAt())
       .userId(post.getUser().getUserId())

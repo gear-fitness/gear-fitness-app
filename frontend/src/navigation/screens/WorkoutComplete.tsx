@@ -20,8 +20,13 @@ import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
-import { submitWorkout, WorkoutSubmission } from "../../api/workoutService";
+import {
+  submitWorkout,
+  uploadWorkoutPhoto,
+  WorkoutSubmission,
+} from "../../api/workoutService";
 import { getCurrentLocalDateString } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -188,6 +193,33 @@ export function WorkoutComplete() {
     setLoading(true);
 
     try {
+      let uploadedUrls: string[] = [];
+      if (photos.length > 0) {
+        try {
+          const compressed = await Promise.all(
+            photos.map((uri) =>
+              ImageManipulator.manipulateAsync(
+                uri,
+                [{ resize: { width: 1600 } }],
+                { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG },
+              ),
+            ),
+          );
+          const results = await Promise.all(
+            compressed.map((m) => uploadWorkoutPhoto(m.uri)),
+          );
+          uploadedUrls = results.map((r) => r.url);
+        } catch (uploadError) {
+          console.error("Failed to upload workout photos:", uploadError);
+          Alert.alert(
+            "Error",
+            "Failed to upload photos. Please try again.",
+          );
+          setLoading(false);
+          return;
+        }
+      }
+
       const submission: WorkoutSubmission = {
         name: workoutName,
         durationMin,
@@ -203,6 +235,10 @@ export function WorkoutComplete() {
         })),
         createPost,
         caption: createPost ? caption : undefined,
+        imageUrl: createPost && uploadedUrls.length > 0
+          ? uploadedUrls[0]
+          : undefined,
+        photoUrls: uploadedUrls,
       };
 
       await submitWorkout(submission);
