@@ -63,5 +63,7 @@ public class Post {
 
   @OneToMany(mappedBy = "post")
   @Builder.Default
+  @ToString.Exclude
+  @EqualsAndHashCode.Exclude
   private Set<Notification> notifications = new HashSet<>();
 }

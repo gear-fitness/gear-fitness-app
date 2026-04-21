@@ -26,6 +26,18 @@ export function CommentsScreen() {
   const [commenting, setCommenting] = useState(false);
   const [commentText, setCommentText] = useState("");
 
+  const [now, setNow] = useState(Date.now());
+
+  const [, forceUpdate] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      forceUpdate((n) => n + 1);
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     if (postId) {
       loadComments();

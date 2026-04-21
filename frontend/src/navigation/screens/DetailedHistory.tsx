@@ -14,6 +14,7 @@ import { WorkoutDetail } from "../../api/types";
 import { parseLocalDate } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { useNavigation } from "@react-navigation/native";
+import { formatTag } from "../../utils/formatTag";
 
 type RootStackParamList = {
   DetailedHistory: {
@@ -141,7 +142,7 @@ export function DetailedHistory({ route }: Props) {
                 { color: isDark ? "#1877F2" : "#1877F2" },
               ]}
             >
-              {workout.bodyTag}
+              {formatTag(workout.bodyTag)}
             </Text>
           )}
           <TouchableOpacity
