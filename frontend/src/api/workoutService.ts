@@ -21,6 +21,7 @@ export interface WorkoutSubmission {
   createPost?: boolean;
   caption?: string;
   imageUrl?: string;
+  photoUrls?: string[];
 }
 
 export interface ExerciseSubmission {
@@ -54,12 +55,32 @@ export interface WorkoutDetailResponse {
       isPr: boolean;
     }>;
   }>;
+  photoUrls: string[];
 }
 
 export async function submitWorkout(
   submission: WorkoutSubmission,
 ): Promise<WorkoutDetailResponse> {
   const { data } = await apiClient.post("/workouts/submit", submission);
+  return data;
+}
+
+/**
+ * Upload a single workout photo to S3. Returns the public S3 URL.
+ */
+export async function uploadWorkoutPhoto(
+  imageUri: string,
+): Promise<{ url: string }> {
+  const formData = new FormData();
+  formData.append("file", {
+    uri: imageUri,
+    type: "image/jpeg",
+    name: "workout-photo.jpg",
+  } as any);
+
+  const { data } = await apiClient.post("/workouts/photos", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
   return data;
 }
 

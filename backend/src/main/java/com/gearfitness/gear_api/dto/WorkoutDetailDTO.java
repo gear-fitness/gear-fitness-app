@@ -20,4 +20,5 @@ public class WorkoutDetailDTO {
   private Integer durationMin;
   private String bodyTag;
   private List<WorkoutExerciseDTO> exercises;
+  private List<String> photoUrls;
 }

@@ -4,6 +4,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
+  ScrollView,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  useWindowDimensions,
   StyleProp,
   TextStyle,
 } from "react-native";
@@ -28,7 +32,22 @@ export function FeedPostCard({ post }: Props) {
   const [likeCount, setLikeCount] = useState(post.likeCount);
   const [likedByUser, setLikedByUser] = useState(post.likedByCurrentUser);
   const [liking, setLiking] = useState(false);
+  const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+  const { width: screenWidth } = useWindowDimensions();
   const navigation = useNavigation();
+
+  const photos =
+    post.photoUrls && post.photoUrls.length > 0
+      ? post.photoUrls
+      : post.imageUrl
+        ? [post.imageUrl]
+        : [];
+  const photoWidth = screenWidth - 28;
+
+  const handlePhotoScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const index = Math.round(e.nativeEvent.contentOffset.x / photoWidth);
+    if (index !== activePhotoIndex) setActivePhotoIndex(index);
+  };
 
   const isOwnPost = post.username === user?.username;
 
@@ -146,12 +165,47 @@ export function FeedPostCard({ post }: Props) {
           });
         }}
       >
-        {post.imageUrl && (
-          <Image
-            source={{ uri: post.imageUrl }}
-            style={[styles.image, { borderColor: colors.border }]}
-            resizeMode="cover"
-          />
+        {photos.length > 0 && (
+          <View style={styles.carouselWrap}>
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={handlePhotoScroll}
+              scrollEnabled={photos.length > 1}
+            >
+              {photos.map((url, i) => (
+                <Image
+                  key={`${url}-${i}`}
+                  source={{ uri: url }}
+                  style={[
+                    styles.image,
+                    { width: photoWidth, borderColor: colors.border },
+                  ]}
+                  resizeMode="cover"
+                />
+              ))}
+            </ScrollView>
+            {photos.length > 1 && (
+              <View style={styles.dotsRow}>
+                {photos.map((_, i) => (
+                  <View
+                    key={i}
+                    style={[
+                      styles.dot,
+                      {
+                        backgroundColor:
+                          i === activePhotoIndex
+                            ? colors.text
+                            : colors.border,
+                        opacity: i === activePhotoIndex ? 0.9 : 0.5,
+                      },
+                    ]}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
         )}
 
         <View style={styles.titleBlock}>
@@ -267,12 +321,25 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontVariant: ["tabular-nums"],
   },
-  image: {
+  carouselWrap: {
     marginHorizontal: 14,
     marginBottom: 12,
+  },
+  image: {
     height: 220,
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
+  },
+  dotsRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 8,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   titleBlock: {
     paddingHorizontal: 16,
