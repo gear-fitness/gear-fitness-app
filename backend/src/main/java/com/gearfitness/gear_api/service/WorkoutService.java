@@ -37,6 +37,7 @@ public class WorkoutService {
   private final PostRepository postRepository;
   private final AppUserRepository appUserRepository;
   private final NotificationRepository notificationRepository;
+  private final StreakService streakService;
 
   @Transactional(readOnly = true)
   public List<Workout> getWorkoutsByUser(UUID userId) {
@@ -197,7 +198,8 @@ public class WorkoutService {
   public List<DailyVolumeDTO> getDailyVolume(
     UUID userId,
     int numberOfWeeks,
-    DayOfWeek weekStartDay
+    DayOfWeek weekStartDay,
+    String localDate
   ) {
     List<Workout> workouts = workoutRepository.findByUser_UserId(userId);
 
@@ -208,7 +210,10 @@ public class WorkoutService {
     // Calculate date range
     // Extend endDate to the end of the current week (Saturday) to ensure full week
     // is displayed
-    LocalDate endDate = LocalDate.now().with(
+    LocalDate referenceDate = (localDate != null && !localDate.isBlank())
+      ? LocalDate.parse(localDate)
+      : LocalDate.now();
+    LocalDate endDate = referenceDate.with(
       TemporalAdjusters.nextOrSame(DayOfWeek.SATURDAY)
     );
 
@@ -368,6 +373,9 @@ public class WorkoutService {
     // Save complete workout with exercises and sets
     workout = workoutRepository.save(workout);
 
+    // Update daily streak after workout submission
+    streakService.recalculateStreak(user);
+
     // Create post if requested
     if (Boolean.TRUE.equals(submission.getCreatePost())) {
       Post post = Post.builder()
@@ -408,5 +416,8 @@ public class WorkoutService {
 
     // Delete the workout - cascade will handle related entities
     workoutRepository.delete(workout);
+
+    // Recalculate streak after deletion
+    streakService.recalculateStreak(workout.getUser());
   }
 }

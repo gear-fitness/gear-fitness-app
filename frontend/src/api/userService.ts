@@ -4,15 +4,21 @@ import {
   FollowerUser,
   FollowStatusResponse,
   FollowResponse,
+  UsernameAvailabilityResponse,
 } from "./types";
+import { getCurrentLocalDateString } from "../utils/date";
 
 export async function getCurrentUserProfile(): Promise<UserProfile> {
-  const { data } = await apiClient.get("/users/me/profile");
+  const { data } = await apiClient.get("/users/me/profile", {
+    params: { localDate: getCurrentLocalDateString() },
+  });
   return data;
 }
 
 export async function getUserProfile(username: string): Promise<UserProfile> {
-  const { data } = await apiClient.get(`/users/${username}`);
+  const { data } = await apiClient.get(`/users/${username}`, {
+    params: { localDate: getCurrentLocalDateString() },
+  });
   return data;
 }
 
@@ -61,11 +67,17 @@ export async function updateUserProfile(
   heightInches?: number | null,
   weightLbs?: number | null,
   age?: number | null,
+  username?: string | null,
+  displayName?: string | null,
+  gender?: string | null,
 ): Promise<any> {
   const { data } = await apiClient.put("/users/me", {
     heightInches,
     weightLbs,
     age,
+    username,
+    displayName,
+    gender,
   });
   return data;
 }
@@ -73,6 +85,15 @@ export async function updateUserProfile(
 export async function searchUsers(query: string) {
   const { data } = await apiClient.get("/users/search", {
     params: { q: query },
+  });
+  return data;
+}
+
+export async function checkUsernameAvailability(
+  username: string,
+): Promise<UsernameAvailabilityResponse> {
+  const { data } = await apiClient.get("/users/username-availability", {
+    params: { username },
   });
   return data;
 }

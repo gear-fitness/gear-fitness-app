@@ -14,6 +14,7 @@ import { WorkoutDetail } from "../../api/types";
 import { parseLocalDate } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { useNavigation } from "@react-navigation/native";
+import { formatTag } from "../../utils/formatTag";
 import { formatMuscleGroups, renderBodyParts } from "../../utils/exerciseUtils";
 
 type RootStackParamList = {

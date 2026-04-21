@@ -8,6 +8,7 @@ export function useThemeColors() {
     bg: isDark ? "#000" : "#fff",
     surface: isDark ? "#1C1C1E" : "#F2F2F7",
     text: isDark ? "#fff" : "#000",
+    inputText: isDark ? "#fff" : "#000",
     secondary: isDark ? "#999" : "#666",
     border: isDark ? "#3A3A3C" : "#D1D1D6",
     separator: isDark ? "#2C2C2E" : "#E5E5EA",
@@ -24,5 +25,12 @@ export function useThemeColors() {
     positionBg: isDark ? "#3A3A3C" : "#E5E5EA",
     tint: "#007AFF",
     danger: "#FF3B30",
+    // Onboarding-specific tokens
+    accent: isDark ? "#fff" : "#000",
+    accentText: isDark ? "#000" : "#fff",
+    unitToggleBg: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.07)",
+    unitBtnActiveBg: isDark ? "#2C2C2E" : "#fff",
+    photoBg: isDark ? "#3A3A3C" : "#E5E5EA",
+    trackBg: isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.12)",
   };
 }

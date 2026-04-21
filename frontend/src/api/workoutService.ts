@@ -12,6 +12,7 @@ import {
   WorkoutDetail,
   PersonalRecord,
 } from "./types";
+import { getCurrentLocalDateString } from "../utils/date";
 
 export interface WorkoutSubmission {
   name: string;
@@ -74,7 +75,7 @@ export async function getWeeklyVolume(
   const { data } = await apiClient.get(
     `/workouts/user/${userId}/weekly-volume`,
     {
-      params: { weeks },
+      params: { weeks, localDate: getCurrentLocalDateString() },
     },
   );
   return data;
@@ -91,7 +92,7 @@ export async function getDailyVolume(
   const { data } = await apiClient.get(
     `/workouts/user/${userId}/daily-volume`,
     {
-      params: { weeks, weekStartDay },
+      params: { weeks, weekStartDay, localDate: getCurrentLocalDateString() },
     },
   );
   return data;

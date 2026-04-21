@@ -13,7 +13,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { deleteRoutine, getUserRoutines } from "../../api/routineService";
 import { Routine } from "../../api/types";
 import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
-import { formatDay } from "../../utils/days";
+import { formatDayAbbrev } from "../../utils/days";
 import { useThemedHeader } from "../../hooks/useThemedHeader";
 import { getPrimaryBodyPart } from "../../utils/exerciseUtils";
 
@@ -74,7 +74,9 @@ export function RoutineList() {
 
   const renderCard = ({ item, index }: { item: Routine; index: number }) => {
     const dayLabel =
-      item.scheduledDays.length > 0 ? formatDay(item.scheduledDays[0]) : "";
+      item.scheduledDays.length > 0
+        ? item.scheduledDays.map(formatDayAbbrev).join(", ")
+        : "";
     const bodyParts = getBodyPartsSummary(item);
 
     return (
@@ -96,7 +98,11 @@ export function RoutineList() {
             activeOpacity={0.7}
           >
             {dayLabel !== "" && (
-              <Text style={[styles.dayLabel, { color: colors.secondary }]}>
+              <Text
+                style={[styles.dayLabel, { color: colors.secondary }]}
+                numberOfLines={2}
+                ellipsizeMode="tail"
+              >
                 {dayLabel.toUpperCase()}
               </Text>
             )}

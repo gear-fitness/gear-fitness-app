@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useTheme } from "@react-navigation/native";
 import { FeedPost, socialFeedApi } from "../api/socialFeedApi";
 import { parseLocalDate } from "../utils/date";
+import { formatTag } from "../utils/formatTag";
 import { useAuth } from "../context/AuthContext";
 import { Avatar } from "./Avatar";
 interface Props {
@@ -150,7 +151,7 @@ export function FeedPostCard({ post, onOpenComments }: Props) {
                 {formatDate(post.datePerformed)}
               </Text>
             </View>
-            {post.durationMin && (
+            {post.durationMin != null && post.durationMin > 0 && (
               <View style={styles.metaItem}>
                 <Ionicons name="time-outline" size={16} color={colors.text} />
                 <Text
@@ -163,7 +164,7 @@ export function FeedPostCard({ post, onOpenComments }: Props) {
                 </Text>
               </View>
             )}
-            {post.bodyTags?.length > 0 && (
+            {Array.isArray(post.bodyTags) && post.bodyTags.length > 0 && (
               <View style={styles.metaItem}>
                 <Ionicons
                   name="fitness-outline"
@@ -176,7 +177,7 @@ export function FeedPostCard({ post, onOpenComments }: Props) {
                     { color: colors.text, opacity: 0.6 },
                   ]}
                 >
-                  {post.bodyTags.map(formatBodyTag).join(", ")}
+                  {post.bodyTags.map(formatTag).join(", ")}
                 </Text>
               </View>
             )}

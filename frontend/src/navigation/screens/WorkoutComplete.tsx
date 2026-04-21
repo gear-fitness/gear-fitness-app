@@ -20,6 +20,7 @@ import { submitWorkout, WorkoutSubmission } from "../../api/workoutService";
 import { getCurrentLocalDateString } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { formatTag } from "../../utils/formatTag";
 import { getAllBodyPartNames } from "../../utils/exerciseUtils";
 import { MUSCLE_GROUPS } from "../../constants/muscleGroups";
 
@@ -237,7 +238,7 @@ export function WorkoutComplete() {
                       { color: bodyTags.includes(tag) ? "#fff" : colors.text },
                     ]}
                   >
-                    {tag.replace("_", " ")}
+                    {formatTag(tag)}
                   </Text>
                 </TouchableOpacity>
               ))}

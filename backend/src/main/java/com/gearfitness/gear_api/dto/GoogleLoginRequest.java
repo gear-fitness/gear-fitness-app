@@ -10,4 +10,5 @@ import lombok.NoArgsConstructor;
 public class GoogleLoginRequest {
 
   private String idToken;
+  private String intent;
 }
