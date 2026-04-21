@@ -1,4 +1,3 @@
--- V3__exercise_multi_body_parts.sql
 -- Migrate from single body_part column on exercise to a many-to-many join table
 -- supporting PRIMARY, and SECONDARY
 

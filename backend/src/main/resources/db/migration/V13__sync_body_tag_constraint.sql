@@ -1,4 +1,3 @@
--- V11__sync_body_tag_constraint.sql
 -- Add TRAPS and FOREARMS to workout_body_tags CHECK constraint
 -- to match the full set of muscle groups used in exercise_body_part.
 
