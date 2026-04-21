@@ -36,6 +36,7 @@ public class WorkoutService {
   private final PostRepository postRepository;
   private final AppUserRepository appUserRepository;
   private final NotificationRepository notificationRepository;
+  private final StreakService streakService;
 
   @Transactional(readOnly = true)
   public List<Workout> getWorkoutsByUser(UUID userId) {
@@ -366,6 +367,9 @@ public class WorkoutService {
     // Save complete workout with exercises and sets
     workout = workoutRepository.save(workout);
 
+    // Update daily streak after workout submission
+    streakService.recalculateStreak(user);
+
     // Create post if requested
     if (Boolean.TRUE.equals(submission.getCreatePost())) {
       Post post = Post.builder()
@@ -406,5 +410,8 @@ public class WorkoutService {
 
     // Delete the workout - cascade will handle related entities
     workoutRepository.delete(workout);
+
+    // Recalculate streak after deletion
+    streakService.recalculateStreak(workout.getUser());
   }
 }

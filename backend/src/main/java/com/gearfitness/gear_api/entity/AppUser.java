@@ -2,6 +2,7 @@ package com.gearfitness.gear_api.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
@@ -60,6 +61,17 @@ public class AppUser {
 
   @Column(name = "expo_push_token")
   private String expoPushToken;
+
+  @Column(name = "current_streak", nullable = false)
+  @Builder.Default
+  private Integer currentStreak = 0;
+
+  @Column(name = "longest_streak", nullable = false)
+  @Builder.Default
+  private Integer longestStreak = 0;
+
+  @Column(name = "last_streak_date")
+  private LocalDate lastStreakDate;
 
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
