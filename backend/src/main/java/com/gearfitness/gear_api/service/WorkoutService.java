@@ -1,5 +1,6 @@
 package com.gearfitness.gear_api.service;
 
+import com.gearfitness.gear_api.dto.BodyPartDTO;
 import com.gearfitness.gear_api.dto.DailyVolumeDTO;
 import com.gearfitness.gear_api.dto.WeeklyVolumeDTO;
 import com.gearfitness.gear_api.dto.WorkoutDetailDTO;
@@ -88,7 +89,12 @@ public class WorkoutService {
         return new WorkoutExerciseDTO(
           we.getWorkoutExerciseId(),
           we.getExercise().getName(),
-          we.getExercise().getBodyPart().toString(),
+          we
+            .getExercise()
+            .getBodyParts()
+            .stream()
+            .map(bp -> new BodyPartDTO(bp.getBodyPart(), bp.getTargetType()))
+            .toList(),
           we.getPosition(),
           isOwner ? we.getNote() : null,
           sets
@@ -101,10 +107,10 @@ public class WorkoutService {
       .name(workout.getName())
       .datePerformed(workout.getDatePerformed())
       .durationMin(workout.getDurationMin())
-      .bodyTag(
-        workout.getBodyTags() != null && !workout.getBodyTags().isEmpty()
-          ? workout.getBodyTags().get(0).toString()
-          : null
+      .bodyTags(
+        workout.getBodyTags() != null
+          ? workout.getBodyTags().stream().map(Enum::name).toList()
+          : List.of()
       )
       .exercises(exercises)
       .build();

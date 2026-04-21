@@ -15,6 +15,7 @@ import { parseLocalDate } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { useNavigation } from "@react-navigation/native";
 import { formatTag } from "../../utils/formatTag";
+import { formatMuscleGroups, renderBodyParts } from "../../utils/exerciseUtils";
 
 type RootStackParamList = {
   DetailedHistory: {
@@ -135,14 +136,14 @@ export function DetailedHistory({ route }: Props) {
               workout.durationMin > 0 &&
               ` • ${workout.durationMin} min`}
           </Text>
-          {workout.bodyTag && (
+          {workout.bodyTags && workout.bodyTags.length > 0 && (
             <Text
               style={[
                 styles.bodyTag,
                 { color: isDark ? "#1877F2" : "#1877F2" },
               ]}
             >
-              {formatTag(workout.bodyTag)}
+              {formatMuscleGroups(workout.bodyTags)}
             </Text>
           )}
           <TouchableOpacity
@@ -210,7 +211,7 @@ export function DetailedHistory({ route }: Props) {
               <Text
                 style={[styles.bodyPart, { color: isDark ? "#aaa" : "#666" }]}
               >
-                {exercise.bodyPart}
+                {renderBodyParts(exercise.bodyParts, "grey", "#1877F2")}
               </Text>
               {exercise.note && (
                 <Text

@@ -4,6 +4,7 @@
  */
 
 import apiClient from "./apiClient";
+import { BodyPartDTO } from "./exerciseService";
 import {
   DailyVolumeData,
   WeeklyVolumeData,
@@ -40,11 +41,11 @@ export interface WorkoutDetailResponse {
   name: string;
   datePerformed: string;
   durationMin: number;
-  bodyTag: string;
+  bodyTags: string[];
   exercises: Array<{
     workoutExerciseId: string;
     exerciseName: string;
-    bodyPart: string;
+    bodyParts: BodyPartDTO[];
     position: number;
     note: string;
     sets: Array<{

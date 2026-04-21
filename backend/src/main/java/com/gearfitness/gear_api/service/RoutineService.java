@@ -1,5 +1,6 @@
 package com.gearfitness.gear_api.service;
 
+import com.gearfitness.gear_api.dto.BodyPartDTO;
 import com.gearfitness.gear_api.dto.CreateRoutineDTO;
 import com.gearfitness.gear_api.dto.CreateRoutineFromWorkoutDTO;
 import com.gearfitness.gear_api.dto.RoutineDTO;
@@ -247,7 +248,16 @@ public class RoutineService {
               RoutineExerciseDTO e = new RoutineExerciseDTO();
               e.setRoutineExerciseId(re.getRoutineExerciseId());
               e.setExerciseName(re.getExercise().getName());
-              e.setBodyPart(re.getExercise().getBodyPart().name());
+              e.setBodyParts(
+                re
+                  .getExercise()
+                  .getBodyParts()
+                  .stream()
+                  .map(bp ->
+                    new BodyPartDTO(bp.getBodyPart(), bp.getTargetType())
+                  )
+                  .toList()
+              );
               e.setPosition(re.getPosition());
               e.setExerciseId(re.getExercise().getExerciseId());
               return e;

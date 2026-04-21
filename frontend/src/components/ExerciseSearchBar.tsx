@@ -71,7 +71,6 @@ export function ExerciseSearchBar({
 const styles = StyleSheet.create({
   searchWrapper: {
     marginTop: 10,
-    paddingHorizontal: 20,
     marginBottom: 12,
   },
   searchContainer: {

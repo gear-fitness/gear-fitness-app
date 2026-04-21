@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import { AppState, AppStateStatus } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { BodyPartDTO } from "../api/exerciseService";
 
 export interface WorkoutSet {
   reps: string;
@@ -19,6 +20,7 @@ export interface WorkoutExercise {
   name: string;
   sets: WorkoutSet[];
   note?: string;
+  bodyParts?: BodyPartDTO[];
 }
 
 interface PersistedWorkoutState {
@@ -348,7 +350,11 @@ export function WorkoutTimerProvider({
   };
 
   const loadFromRoutine = async (
-    routineExercises: Array<{ exerciseId: string; name: string }>,
+    routineExercises: Array<{
+      exerciseId: string;
+      name: string;
+      bodyParts?: BodyPartDTO[];
+    }>,
   ): Promise<void> => {
     await clearPersistedState();
 
@@ -357,6 +363,7 @@ export function WorkoutTimerProvider({
         workoutExerciseId: `routine-${Date.now()}-${index}`,
         exerciseId: ex.exerciseId,
         name: ex.name,
+        bodyParts: ex.bodyParts,
         sets: [{ reps: "", weight: "" }],
       }),
     );
