@@ -13,7 +13,7 @@ public class WorkoutExerciseDTO {
 
   private UUID workoutExerciseId;
   private String exerciseName;
-  private String bodyPart;
+  private List<BodyPartDTO> bodyParts;
   private Integer position;
   private String note;
   private List<WorkoutSetDTO> sets;

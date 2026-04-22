@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -28,9 +29,13 @@ public class Exercise {
   @Column(nullable = false)
   private String name;
 
-  @Enumerated(EnumType.STRING)
-  @Column(name = "body_part", nullable = false)
-  private BodyPart bodyPart;
+  @ElementCollection(fetch = FetchType.EAGER)
+  @CollectionTable(
+    name = "exercise_body_part",
+    joinColumns = @JoinColumn(name = "exercise_id")
+  )
+  @Builder.Default
+  private Set<ExerciseBodyPart> bodyParts = new HashSet<>();
 
   @Column(columnDefinition = "TEXT")
   private String description;
@@ -51,21 +56,30 @@ public class Exercise {
   @EqualsAndHashCode.Exclude
   private Set<WorkoutExercise> workoutExercises = new HashSet<>();
 
-  public enum BodyPart {
-    CHEST,
-    BACK,
-    SHOULDERS,
-    BICEPS,
-    TRICEPS,
-    LEGS,
-    QUADS,
-    HAMSTRINGS,
-    GLUTES,
-    CALVES,
-    CORE,
-    TRAPS,
-    FOREARMS,
-    FULL_BODY,
-    OTHER,
+  /** Returns the first PRIMARY body part, or falls back to any body part. */
+  public MuscleGroup getPrimaryBodyPart() {
+    return bodyParts
+      .stream()
+      .filter(bp -> bp.getTargetType() == ExerciseBodyPart.TargetType.PRIMARY)
+      .map(ExerciseBodyPart::getBodyPart)
+      .findFirst()
+      .orElse(
+        bodyParts
+          .stream()
+          .map(ExerciseBodyPart::getBodyPart)
+          .findFirst()
+          .orElse(MuscleGroup.OTHER)
+      );
+  }
+
+  /** Returns all body parts with a given target type. */
+  public Set<MuscleGroup> getBodyPartsByType(
+    ExerciseBodyPart.TargetType targetType
+  ) {
+    return bodyParts
+      .stream()
+      .filter(bp -> bp.getTargetType() == targetType)
+      .map(ExerciseBodyPart::getBodyPart)
+      .collect(Collectors.toSet());
   }
 }

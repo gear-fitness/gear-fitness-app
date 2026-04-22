@@ -22,6 +22,12 @@ import { BackButton } from "../../components/BackButton";
 import { DAYS, DAY_FULL, DAY_SHORT } from "../../utils/days";
 import { useThemeColors } from "../../hooks/useThemeColors";
 import { useExerciseList } from "../../hooks/useExerciseList";
+import {
+  formatPrimaryBodyParts,
+  renderBodyParts,
+} from "../../utils/exerciseUtils";
+import { useExerciseFilter } from "../../hooks/useExerciseFilter";
+import { ExerciseFilterBar } from "../../components/ExerciseFilterBar";
 
 export function EditRoutine({
   route,
@@ -43,8 +49,19 @@ export function EditRoutine({
   );
   const { exercises: allExercises, loading: loadingExercises } =
     useExerciseList();
+
+  const {
+    searchQuery,
+    setSearchQuery,
+    selectedBodyPart,
+    setSelectedBodyPart,
+    bodyParts,
+    sections,
+  } = useExerciseFilter(allExercises);
+
+  const filteredExercises = sections.flatMap((s) => s.data);
+
   const [saving, setSaving] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
 
   const handleSave = useCallback(async () => {
     if (!name.trim()) {
@@ -100,27 +117,15 @@ export function EditRoutine({
     [selectedExercises],
   );
 
-  const filteredExercises = useMemo(() => {
-    const query = searchQuery.toLowerCase().trim();
-    return allExercises.filter((ex) => {
-      if (selectedExerciseIds.has(ex.exerciseId)) return false;
-      if (!query) return true;
-      return (
-        ex.name.toLowerCase().includes(query) ||
-        ex.bodyPart.toLowerCase().includes(query)
-      );
-    });
-  }, [allExercises, searchQuery, selectedExerciseIds]);
-
   const toggleDay = (day: string) => {
     setSelectedDays((prev) =>
       prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day],
     );
   };
 
-  const removeExercise = (exerciseId: string) => {
+  const removeExercise = (routineExerciseId: string) => {
     setSelectedExercises((prev) =>
-      prev.filter((ex) => ex.exerciseId !== exerciseId),
+      prev.filter((ex) => ex.routineExerciseId !== routineExerciseId),
     );
   };
 
@@ -129,10 +134,10 @@ export function EditRoutine({
     setSelectedExercises((prev) => [
       ...prev,
       {
-        routineExerciseId: `new-${exercise.exerciseId}`,
+        routineExerciseId: `new-${exercise.exerciseId}-${Date.now()}`,
         exerciseId: exercise.exerciseId,
         exerciseName: exercise.name,
-        bodyPart: exercise.bodyPart,
+        bodyParts: exercise.bodyParts,
         position: nextPosition,
       },
     ]);
@@ -154,7 +159,7 @@ export function EditRoutine({
     return (
       <ScaleDecorator activeScale={1.03}>
         <View style={styles.selectedRowWrapper}>
-          <Swipeable {...getSwipeableProps(item.exerciseId)}>
+          <Swipeable {...getSwipeableProps(item.routineExerciseId)}>
             <View
               style={[
                 styles.selectedRow,
@@ -175,7 +180,7 @@ export function EditRoutine({
                 <Text
                   style={[styles.selectedSubtitle, { color: colors.secondary }]}
                 >
-                  {item.bodyPart}
+                  {renderBodyParts(item.bodyParts, colors.secondary, "#007AFF")}
                 </Text>
               </View>
               <TouchableOpacity
@@ -265,50 +270,57 @@ export function EditRoutine({
       <Text style={[styles.label, { color: colors.secondary }]}>
         ADD EXERCISES
       </Text>
-      <TextInput
-        style={[
-          styles.input,
-          {
-            backgroundColor: colors.inputBg,
-            color: colors.text,
-            borderColor: colors.border,
-          },
-        ]}
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        placeholder="Search exercises..."
-        placeholderTextColor={colors.secondary}
+      <ExerciseFilterBar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        bodyParts={bodyParts}
+        selectedBodyPart={selectedBodyPart}
+        onSelectBodyPart={setSelectedBodyPart}
       />
 
       {loadingExercises ? (
         <View style={styles.loadingWrap}>
           <ActivityIndicator color="#007AFF" />
         </View>
-      ) : (
-        filteredExercises.slice(0, 30).map((item) => (
-          <TouchableOpacity
-            key={item.exerciseId}
-            style={[
-              styles.availableRow,
-              {
-                borderBottomColor: colors.border,
-                backgroundColor: colors.surface,
-              },
-            ]}
-            onPress={() => addExercise(item)}
-          >
-            <View style={styles.selectedInfo}>
-              <Text style={[styles.selectedTitle, { color: colors.text }]}>
-                {item.name}
-              </Text>
-              <Text
-                style={[styles.selectedSubtitle, { color: colors.secondary }]}
+      ) : filteredExercises.length === 0 ? null : (
+        sections.map((section) => (
+          <View key={section.title}>
+            <Text style={[styles.sectionHeader, { color: colors.secondary }]}>
+              {section.title}
+            </Text>
+            {section.data.slice(0, 30).map((item) => (
+              <TouchableOpacity
+                key={item.exerciseId}
+                style={[
+                  styles.availableRow,
+                  {
+                    borderBottomColor: colors.border,
+                    backgroundColor: colors.surface,
+                  },
+                ]}
+                onPress={() => addExercise(item)}
               >
-                {item.bodyPart}
-              </Text>
-            </View>
-            <Text style={[styles.addText, { color: colors.text }]}>+</Text>
-          </TouchableOpacity>
+                <View style={styles.selectedInfo}>
+                  <Text style={[styles.selectedTitle, { color: colors.text }]}>
+                    {item.name}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.selectedSubtitle,
+                      { color: colors.secondary },
+                    ]}
+                  >
+                    {renderBodyParts(
+                      item.bodyParts,
+                      colors.secondary,
+                      "#007AFF",
+                    )}
+                  </Text>
+                </View>
+                <Text style={[styles.addText, { color: colors.text }]}>+</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         ))
       )}
       <View style={styles.bottomPad} />
@@ -399,4 +411,11 @@ const styles = StyleSheet.create({
   loadingWrap: { paddingVertical: 20, alignItems: "center" },
   emptyHint: { fontSize: 13, fontStyle: "italic", marginBottom: 4 },
   bottomPad: { height: 40 },
+  sectionHeader: {
+    fontSize: 13,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    paddingVertical: 10,
+  },
 });
