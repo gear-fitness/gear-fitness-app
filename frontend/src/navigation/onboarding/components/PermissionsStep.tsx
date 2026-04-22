@@ -141,14 +141,14 @@ export function PermissionsStep({
     <View style={shared.screen}>
       <OnboardingTopBar progress={0.8} onBack={onBack} />
       <View style={shared.body}>
-        <Text style={shared.heading}>Almost there</Text>
+        <Text style={shared.heading}>First we need some permissions</Text>
         <Text style={shared.subheading}>
           Enable these to get the most out of Gear Fitness.
         </Text>
         <View style={styles.cards}>
           <PermCard
             title="Apple Health"
-            subtitle="Sync steps, heart rate, and workouts"
+            subtitle="Import your health data for personalized workouts"
             accentColor="#FFEEF1"
             emoji="❤️"
             enabled={health}
@@ -157,7 +157,7 @@ export function PermissionsStep({
           />
           <PermCard
             title="Location"
-            subtitle="GPS tracking for outdoor workouts"
+            subtitle="So we can see which gyms you visit and suggest nearby workout spots"
             accentColor="#E8F1FC"
             emoji="📍"
             enabled={location}
@@ -166,7 +166,7 @@ export function PermissionsStep({
           />
           <PermCard
             title="Notifications"
-            subtitle="Reminders for workouts and milestones"
+            subtitle="Get notified about posts"
             accentColor="#FFF4E0"
             emoji="🔔"
             enabled={notifications}

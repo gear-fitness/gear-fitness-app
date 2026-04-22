@@ -75,6 +75,26 @@ export default {
             "Allow Gear Fitness to access your photos to set a profile picture.",
         },
       ],
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          NSHealthShareUsageDescription:
+            "Gear Fitness reads your height, weight, and date of birth to personalize your workouts.",
+        },
+      ],
+      [
+        "expo-widgets",
+        {
+          widgets: [
+            {
+              name: "MyWidget",
+              displayName: "My Widget",
+              description: "A sample home screen widget",
+              supportedFamilies: ["systemSmall", "systemMedium", "systemLarge"],
+            },
+          ],
+        },
+      ],
     ],
     extra: {
       eas: {

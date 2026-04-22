@@ -157,9 +157,6 @@ export function AboutYouStep({
       <OnboardingTopBar progress={0.4} onBack={onBack} />
       <View style={shared.body}>
         <Text style={shared.heading}>About you</Text>
-        <Text style={shared.subheading}>
-          Helps us personalise your calorie goals and workout intensity.
-        </Text>
         <View style={styles.cardsWrap}>
           <Pressable
             style={[

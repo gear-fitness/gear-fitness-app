@@ -51,10 +51,10 @@ const initialBg = Appearance.getColorScheme() === "dark" ? "#000" : "#F2F2F7";
 
 const STEP_COMPONENTS = [
   IntroStep,
+  PermissionsStep,
   GenderStep,
   AboutYouStep,
   ProfileStep,
-  PermissionsStep,
   AllSetStep,
 ] as const;
 
