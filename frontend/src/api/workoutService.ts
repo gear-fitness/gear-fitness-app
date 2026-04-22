@@ -4,6 +4,7 @@
  */
 
 import apiClient from "./apiClient";
+import { BodyPartDTO } from "./exerciseService";
 import {
   DailyVolumeData,
   WeeklyVolumeData,
@@ -11,6 +12,7 @@ import {
   WorkoutDetail,
   PersonalRecord,
 } from "./types";
+import { getCurrentLocalDateString } from "../utils/date";
 
 export interface WorkoutSubmission {
   name: string;
@@ -39,11 +41,11 @@ export interface WorkoutDetailResponse {
   name: string;
   datePerformed: string;
   durationMin: number;
-  bodyTag: string;
+  bodyTags: string[];
   exercises: Array<{
     workoutExerciseId: string;
     exerciseName: string;
-    bodyPart: string;
+    bodyParts: BodyPartDTO[];
     position: number;
     note: string;
     sets: Array<{
@@ -73,7 +75,7 @@ export async function getWeeklyVolume(
   const { data } = await apiClient.get(
     `/workouts/user/${userId}/weekly-volume`,
     {
-      params: { weeks },
+      params: { weeks, localDate: getCurrentLocalDateString() },
     },
   );
   return data;
@@ -90,7 +92,7 @@ export async function getDailyVolume(
   const { data } = await apiClient.get(
     `/workouts/user/${userId}/daily-volume`,
     {
-      params: { weeks, weekStartDay },
+      params: { weeks, weekStartDay, localDate: getCurrentLocalDateString() },
     },
   );
   return data;
