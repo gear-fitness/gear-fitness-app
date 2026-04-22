@@ -31,7 +31,7 @@ import { getCurrentLocalDateString } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const ACCENT = "#007AFF";
+const ACCENT = "#111";
 const DESTRUCTIVE = "#C93838";
 const MAX_PHOTOS = 4;
 
@@ -387,7 +387,10 @@ export function WorkoutComplete() {
                   style={[
                     styles.tagButton,
                     active
-                      ? { backgroundColor: ACCENT, borderColor: ACCENT }
+                      ? {
+                          backgroundColor: isDark ? "#fff" : ACCENT,
+                          borderColor: isDark ? "#fff" : ACCENT,
+                        }
                       : {
                           backgroundColor: "transparent",
                           borderColor: t.chipBorder,
@@ -397,7 +400,13 @@ export function WorkoutComplete() {
                   <Text
                     style={[
                       styles.tagText,
-                      { color: active ? "#fff" : t.text },
+                      {
+                        color: active
+                          ? isDark
+                            ? "#000"
+                            : "#fff"
+                          : t.text,
+                      },
                     ]}
                   >
                     {tag.replace("_", " ")}
@@ -586,18 +595,37 @@ export function WorkoutComplete() {
           </TouchableOpacity>
           <TouchableOpacity
             activeOpacity={0.85}
-            style={[styles.footerBtn, { backgroundColor: ACCENT }]}
+            style={[
+              styles.footerBtn,
+              { backgroundColor: isDark ? "#fff" : ACCENT },
+            ]}
             onPress={() => handleSaveWorkout(true)}
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={isDark ? "#000" : "#fff"} />
             ) : (
               <View style={styles.footerBtnContent}>
-                <Text style={[styles.footerBtnText, { color: "#fff" }]}>
+                <Text
+                  style={[
+                    styles.footerBtnText,
+                    { color: isDark ? "#000" : "#fff" },
+                  ]}
+                >
                   Post
                 </Text>
-                <Text style={styles.footerBtnArrow}>→</Text>
+                <Text
+                  style={[
+                    styles.footerBtnArrow,
+                    {
+                      color: isDark
+                        ? "rgba(0,0,0,0.6)"
+                        : "rgba(255,255,255,0.6)",
+                    },
+                  ]}
+                >
+                  →
+                </Text>
               </View>
             )}
           </TouchableOpacity>
@@ -683,10 +711,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   heroTitle: {
-    fontSize: 32,
-    fontWeight: "700",
-    letterSpacing: -0.8,
-    lineHeight: 34,
+    fontFamily: Platform.select({ ios: "Georgia", default: "serif" }),
+    fontSize: 40,
+    fontWeight: "400",
+    letterSpacing: -0.4,
+    lineHeight: 48,
   },
   metricsRow: {
     flexDirection: "row",

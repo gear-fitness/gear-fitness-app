@@ -1,15 +1,16 @@
 import React, { useEffect } from "react";
-import { Text } from "@react-navigation/elements";
-import { StyleSheet, View, TouchableOpacity, Image } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import {
-  useNavigation,
-  useTheme,
-  useFocusEffect,
-} from "@react-navigation/native";
+  StyleSheet,
+  View,
+  TouchableOpacity,
+  Text,
+  Platform,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
+import Svg, { Path } from "react-native-svg";
 
-import stopwatch from "../../assets/stopwatch.png";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { useAuth } from "../../context/AuthContext";
@@ -17,26 +18,66 @@ import { TodaysRoutines } from "../../components/TodaysRoutines";
 import { StartCountdownOverlay } from "../../components/StartCountdownOverlay";
 import { useStartCountdown } from "../../hooks/useStartCountdown";
 
+const SERIF = Platform.select({
+  ios: "Georgia",
+  android: "serif",
+  default: "serif",
+});
+
+const QUOTES = [
+  "The only bad workout is the one that didn’t happen.",
+  "Discipline is choosing between what you want now and what you want most.",
+  "Strength doesn’t come from what you can do. It comes from overcoming what you couldn’t.",
+  "Small steps every day.",
+  "You don’t have to be extreme, just consistent.",
+  "Sweat now, shine later.",
+  "The body achieves what the mind believes.",
+  "Don’t count the days. Make the days count.",
+  "Train insane or remain the same.",
+  "Progress, not perfection.",
+  "Your only limit is you.",
+  "One more rep. One more set. One more day.",
+  "Rest, but never quit.",
+  "Be stronger than your excuses.",
+];
+
+function dailyQuote(): string {
+  const d = new Date();
+  const start = new Date(d.getFullYear(), 0, 0);
+  const day = Math.floor(
+    (d.getTime() - start.getTime()) / 86400000,
+  );
+  return QUOTES[day % QUOTES.length];
+}
+
+function formatTime(t: number): string {
+  return `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
+}
+
+function todayOverline(): string {
+  return new Date()
+    .toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
+    .toUpperCase();
+}
+
 export function Workout() {
   useTrackTab("Workouts");
 
   const navigation = useNavigation() as any;
-  const { colors } = useTheme();
   const scheme = useColorScheme();
   const isDark = scheme === "dark";
 
   const { user, refreshUser } = useAuth();
-  const { playerVisible, seconds, running, exercises } = useWorkoutTimer();
-  const {
-    isCountdownVisible,
-    countdownValue,
-    startCountdown,
-    cancelCountdown,
-  } = useStartCountdown({
-    onComplete: () => navigation.navigate("ExerciseSelect"),
-  });
+  const { playerVisible, seconds, exercises } = useWorkoutTimer();
+  const { isCountdownVisible, countdownValue, startCountdown, cancelCountdown } =
+    useStartCountdown({
+      onComplete: () => navigation.navigate("ExerciseSelect"),
+    });
 
-  // Refresh user profile (includes streak data) when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
       refreshUser();
@@ -44,215 +85,179 @@ export function Workout() {
   );
 
   const streak = user?.workoutStats?.workoutStreak ?? 0;
+  const inProgress = playerVisible;
 
   useEffect(() => {
     navigation.setOptions({
       tabBarStyle: isCountdownVisible ? { display: "none" } : undefined,
     });
-
     return () => {
       navigation.setOptions({ tabBarStyle: undefined });
     };
   }, [isCountdownVisible, navigation]);
 
-  const handleStartPress = () => {
-    startCountdown();
+  const t = isDark
+    ? {
+        bg: "#0a0a0a",
+        surface: "#141414",
+        text: "#fff",
+        textMuted: "rgba(255,255,255,0.55)",
+        textFaint: "rgba(255,255,255,0.4)",
+        border: "rgba(255,255,255,0.08)",
+      }
+    : {
+        bg: "#fafafa",
+        surface: "#fff",
+        text: "#000",
+        textMuted: "rgba(0,0,0,0.5)",
+        textFaint: "rgba(0,0,0,0.4)",
+        border: "rgba(0,0,0,0.08)",
+      };
+
+  const handlePrimaryPress = () => {
+    if (inProgress) {
+      navigation.navigate("WorkoutComplete");
+    } else {
+      startCountdown();
+    }
   };
 
-  const handleExercisesPress = () => {
-    navigation.navigate("ExerciseList");
-  };
-
-  const handleRoutinesPress = () => {
-    navigation.navigate("RoutineList");
-  };
-
-  const formatTime = (t: number) =>
-    `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(
-      2,
-      "0",
-    )}`;
+  const ctaLabel = inProgress ? "End Workout" : "Start Workout";
 
   return (
-    <SafeAreaView
-      style={[
-        styles.newContainer,
-        { backgroundColor: isDark ? "black" : "white" },
-      ]}
-    >
-      {/* Header - Always visible */}
-      <View style={styles.headerContainer}>
-        {/* Left: Streak Counter */}
-        <View style={styles.streakContainer}>
+    <SafeAreaView style={[styles.container, { backgroundColor: t.bg }]}>
+      {/* Header: streak + nav */}
+      <View style={styles.header}>
+        <View style={styles.streakBlock}>
           <View style={styles.streakRow}>
-            <View style={styles.streakShadowLayer1}>
-              <View style={styles.streakShadowLayer2}>
-                <Text style={styles.fireIcon}>🔥</Text>
-              </View>
-            </View>
-            <Text
-              style={[styles.streakNumber, { color: isDark ? "#fff" : "#000" }]}
-            >
+            <Svg width={42} height={46} viewBox="0 0 16 18" fill="none">
+              <Path
+                d="M8 1.5c.8 2.6 3 3.8 3 6.8 0 1.4-.7 2.6-1.8 3.3.4-.6.5-1.4.2-2.3-.3-1-1.1-1.6-1.4-2.6C7.2 9 6 10 6 11.7c0 .6.2 1.2.4 1.7C5.3 12.7 4.5 11.4 4.5 10c0-2.5 1.6-3.8 2.6-5.8.4-.8.7-1.8.9-2.7Z"
+                stroke="#FF6A1F"
+                strokeWidth={1.3}
+                strokeLinejoin="round"
+                fill="none"
+              />
+            </Svg>
+            <Text style={[styles.streakNumber, { color: t.text }]}>
               {streak}
             </Text>
           </View>
-          <Text
-            style={[styles.streakLabel, { color: isDark ? "#999" : "#666" }]}
-          >
-            DAY STREAK
+          <Text style={[styles.streakLabel, { color: t.textMuted }]}>
+            STREAK
           </Text>
         </View>
 
-        {/* Right: Action Buttons */}
-        <View style={styles.headerActions}>
-          <View style={styles.actionItem}>
-            <TouchableOpacity
-              style={[
-                styles.actionButton,
-                { backgroundColor: isDark ? colors.card : "white" },
-              ]}
-              onPress={handleExercisesPress}
-            >
-              <Text style={styles.exercisesIcon}>🏋️</Text>
-            </TouchableOpacity>
-            <Text
-              style={[styles.actionLabel, { color: isDark ? "#999" : "#666" }]}
-            >
-              Exercises
-            </Text>
-          </View>
+        <View style={styles.navRow}>
+          <TouchableOpacity
+            accessibilityLabel="Exercises"
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate("ExerciseList")}
+            style={[
+              styles.iconBtn,
+              {
+                backgroundColor: t.surface,
+                borderColor: t.border,
+                ...(isDark
+                  ? null
+                  : {
+                      shadowColor: "#000",
+                      shadowOpacity: 0.04,
+                      shadowRadius: 2,
+                      shadowOffset: { width: 0, height: 1 },
+                      elevation: 1,
+                    }),
+              },
+            ]}
+          >
+            <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+              <Path
+                d="M3 10v4M6 7v10M9 5v14M15 5v14M18 7v10M21 10v4"
+                stroke={t.text}
+                strokeWidth={1.6}
+                strokeLinecap="round"
+              />
+            </Svg>
+          </TouchableOpacity>
 
-          <View style={styles.actionItem}>
-            <TouchableOpacity
-              style={[
-                styles.actionButton,
-                { backgroundColor: isDark ? colors.card : "white" },
-              ]}
-              onPress={handleRoutinesPress}
-            >
-              <Text style={[styles.checkIcon, { color: "#007AFF" }]}>✓</Text>
-            </TouchableOpacity>
-            <Text
-              style={[styles.actionLabel, { color: isDark ? "#999" : "#666" }]}
-            >
-              Routines
-            </Text>
-          </View>
+          <TouchableOpacity
+            accessibilityLabel="Routines"
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate("RoutineList")}
+            style={[
+              styles.iconBtn,
+              {
+                backgroundColor: t.surface,
+                borderColor: t.border,
+                ...(isDark
+                  ? null
+                  : {
+                      shadowColor: "#000",
+                      shadowOpacity: 0.04,
+                      shadowRadius: 2,
+                      shadowOffset: { width: 0, height: 1 },
+                      elevation: 1,
+                    }),
+              },
+            ]}
+          >
+            <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+              <Path
+                d="M6 3h12v18l-6-4-6 4V3z"
+                stroke={t.text}
+                strokeWidth={1.6}
+                strokeLinejoin="round"
+                fill="none"
+              />
+            </Svg>
+          </TouchableOpacity>
         </View>
       </View>
 
-      {/* Body - Conditional */}
-      {playerVisible ? (
-        <View style={styles.bodyCenter}>
-          <Text
-            style={[
-              styles.workoutInProgressTitle,
-              { color: isDark ? "#fff" : "#000" },
-            ]}
-          >
-            Workout in Progress
+      {/* Hero: 50/50 split */}
+      <View style={styles.hero}>
+        {/* Top half — quote/timer centered */}
+        <View style={styles.topHalf}>
+          <Text style={[styles.overline, { color: t.textMuted }]}>
+            {inProgress ? "IN PROGRESS" : todayOverline()}
           </Text>
-
-          <View style={styles.timerContainer}>
-            <Image
-              source={stopwatch}
-              style={[
-                styles.timerIcon,
-                { tintColor: isDark ? "#fff" : "#000" },
-              ]}
-            />
+          {inProgress ? (
+            <View style={styles.elapsedBlock}>
+              <Text style={[styles.elapsedLabel, { color: t.textMuted }]}>
+                ELAPSED
+              </Text>
+              <Text style={[styles.elapsedTime, { color: t.text }]}>
+                {formatTime(seconds)}
+              </Text>
+            </View>
+          ) : (
             <Text
-              style={[styles.timerText, { color: isDark ? "#fff" : "#000" }]}
+              style={[styles.quote, { color: t.text, fontFamily: SERIF }]}
             >
-              {formatTime(seconds)}
+              {dailyQuote()}
             </Text>
-          </View>
-
-          <View style={styles.statsContainer}>
-            <View style={styles.statItem}>
-              <Text
-                style={[styles.statValue, { color: isDark ? "#fff" : "#000" }]}
-              >
-                {exercises.length}
-              </Text>
-              <Text
-                style={[styles.statLabel, { color: isDark ? "#999" : "#666" }]}
-              >
-                Exercises
-              </Text>
-            </View>
-
-            <View style={styles.statItem}>
-              <Text
-                style={[styles.statValue, { color: isDark ? "#fff" : "#000" }]}
-              >
-                {exercises.reduce(
-                  (sum, ex) =>
-                    sum + ex.sets.filter((s) => s.reps && s.weight).length,
-                  0,
-                )}
-              </Text>
-              <Text
-                style={[styles.statLabel, { color: isDark ? "#999" : "#666" }]}
-              >
-                Sets
-              </Text>
-            </View>
-          </View>
-
-          <Text
-            style={[
-              styles.instructionText,
-              { color: isDark ? "#999" : "#666" },
-            ]}
-          >
-            {running ? "Tap the mini player below to continue" : "Timer paused"}
-          </Text>
-
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={styles.primaryButton}
-            onPress={() => navigation.navigate("WorkoutSummary")}
-          >
-            <Text style={styles.primaryButtonText}>Continue Workout</Text>
-            <Text style={styles.primaryButtonArrow}>→</Text>
-          </TouchableOpacity>
+          )}
         </View>
-      ) : (
-        <View style={styles.bodyCenter}>
-          <Text
-            style={[
-              styles.motivationalHeading,
-              { color: isDark ? "#fff" : "#000" },
-            ]}
-          >
-            Ready to sweat?
-          </Text>
-          <Text
-            style={[
-              styles.motivationalSubtext,
-              { color: isDark ? "#999" : "#666" },
-            ]}
-          >
-            You're on a roll! Keep the momentum going.
-          </Text>
 
+        {/* Bottom half — CTA + routines */}
+        <View style={styles.bottomHalf}>
           <TouchableOpacity
-            activeOpacity={0.85}
-            style={[styles.primaryButton, styles.startButton]}
-            onPress={handleStartPress}
+            activeOpacity={0.7}
+            style={[styles.primaryCta, { borderColor: t.text }]}
+            onPress={handlePrimaryPress}
           >
-            <Text style={[styles.primaryButtonPlay, styles.startButtonPlay]}>
-              ▶
-            </Text>
-            <Text style={[styles.primaryButtonText, styles.startButtonText]}>
-              Start Workout
+            <Text style={[styles.primaryCtaText, { color: t.text }]}>
+              {ctaLabel}
             </Text>
           </TouchableOpacity>
 
-          <TodaysRoutines />
+          {!inProgress && (
+            <View style={styles.routinesWrap}>
+              <TodaysRoutines />
+            </View>
+          )}
         </View>
-      )}
+      </View>
 
       <StartCountdownOverlay
         visible={isCountdownVisible}
@@ -265,233 +270,127 @@ export function Workout() {
 }
 
 const styles = StyleSheet.create({
-  newContainer: {
+  container: {
     flex: 1,
-    paddingTop: 30,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
   },
 
-  // ── Header (always visible) ──────────────────────────
-  headerContainer: {
+  header: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 20,
+    paddingTop: 12,
+    paddingBottom: 14,
   },
 
-  // Streak
-  streakContainer: {
-    alignItems: "flex-start",
-  },
-
-  streakShadowLayer1: {
-    borderRadius: 20,
-    alignItems: "flex-start",
-    shadowColor: "#FF6B35",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-
-  streakShadowLayer2: {
-    borderRadius: 20,
-    alignItems: "flex-start",
-    shadowColor: "#FF6B35",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
+  streakBlock: {
+    alignItems: "center",
   },
 
   streakRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 4,
-  },
-
-  fireIcon: {
-    fontSize: 32,
-    marginRight: 4,
+    gap: 2,
   },
 
   streakNumber: {
-    fontSize: 30,
-    fontWeight: "800",
+    fontSize: 34,
+    fontWeight: "700",
+    letterSpacing: -0.6,
+    lineHeight: 34,
+    fontVariant: ["tabular-nums"],
   },
 
   streakLabel: {
     fontSize: 12,
     fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: 1.2,
+    marginTop: 6,
+    textAlign: "center",
   },
 
-  // Action buttons (Exercises + Routines)
-  headerActions: {
+  navRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 16,
+    gap: 8,
   },
 
-  actionItem: {
+  iconBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: StyleSheet.hairlineWidth,
     alignItems: "center",
-  },
-
-  actionButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
     justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
   },
 
-  exercisesIcon: {
-    fontSize: 22,
+  hero: {
+    flex: 1,
+    flexDirection: "column",
+    paddingBottom: 24,
   },
 
-  checkIcon: {
-    fontSize: 24,
-    fontWeight: "700",
-  },
-
-  actionLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    marginTop: 8,
-  },
-
-  // ── Body (conditional) ───────────────────────────────
-  bodyCenter: {
+  topHalf: {
     flex: 1,
     justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    marginTop: -80,
+    alignItems: "stretch",
   },
 
-  // Default state
-  motivationalHeading: {
-    fontSize: 34,
-    fontWeight: "700",
-    textAlign: "center",
-    marginBottom: 12,
-  },
-
-  motivationalSubtext: {
-    fontSize: 16,
-    textAlign: "center",
-    marginBottom: 48,
-    lineHeight: 22,
-  },
-  // Workout in progress state
-  workoutInProgressTitle: {
-    fontSize: 28,
-    fontWeight: "800",
-    marginBottom: 30,
-  },
-
-  timerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 40,
-  },
-
-  timerIcon: {
-    width: 32,
-    height: 32,
-    marginRight: 12,
-  },
-
-  timerText: {
-    fontSize: 48,
-    fontWeight: "700",
-  },
-
-  statsContainer: {
-    flexDirection: "row",
-    gap: 60,
-    marginBottom: 30,
-  },
-
-  statItem: {
-    alignItems: "center",
-  },
-
-  statValue: {
-    fontSize: 36,
-    fontWeight: "700",
-    marginBottom: 4,
-  },
-
-  statLabel: {
-    fontSize: 14,
+  overline: {
+    fontSize: 12,
     fontWeight: "600",
+    letterSpacing: 1.2,
+    marginBottom: 6,
+    textAlign: "center",
+  },
+
+  quote: {
+    fontSize: 32,
+    fontWeight: "400",
+    letterSpacing: -0.2,
+    lineHeight: 38,
+    textAlign: "center",
+  },
+
+  elapsedBlock: {
+    alignItems: "center",
+  },
+
+  elapsedLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 1.4,
     textTransform: "uppercase",
   },
 
-  instructionText: {
-    fontSize: 16,
-    textAlign: "center",
-    marginBottom: 30,
+  elapsedTime: {
+    marginTop: 10,
+    fontSize: 92,
+    fontWeight: "700",
+    letterSpacing: -3,
+    lineHeight: 92,
+    fontVariant: ["tabular-nums"],
   },
 
-  // Shared primary rectangle button
-  primaryButton: {
-    width: 280,
-    maxWidth: "90%",
+  bottomHalf: {
+    flex: 1,
+  },
+
+  primaryCta: {
     height: 54,
     borderRadius: 14,
-    flexDirection: "row",
-    justifyContent: "center",
+    borderWidth: 1.5,
+    backgroundColor: "transparent",
     alignItems: "center",
-    gap: 10,
-    backgroundColor: "#007AFF",
-    shadowColor: "#007AFF",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    elevation: 6,
+    justifyContent: "center",
   },
 
-  primaryButtonText: {
+  primaryCtaText: {
     fontSize: 17,
     fontWeight: "600",
     letterSpacing: -0.2,
-    color: "#fff",
   },
 
-  primaryButtonArrow: {
-    fontSize: 17,
-    opacity: 0.8,
-    color: "#fff",
-  },
-
-  primaryButtonPlay: {
-    fontSize: 18,
-    color: "#fff",
-  },
-
-  startButton: {
-    width: "100%",
-    maxWidth: undefined,
-    height: 64,
-    borderRadius: 16,
-    gap: 12,
-  },
-
-  startButtonText: {
-    fontSize: 22,
-    fontWeight: "700",
-    letterSpacing: -0.3,
-  },
-
-  startButtonPlay: {
-    fontSize: 24,
+  routinesWrap: {
+    marginTop: 8,
   },
 });
