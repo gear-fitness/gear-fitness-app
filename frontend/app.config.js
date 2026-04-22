@@ -75,6 +75,19 @@ export default {
             "Allow Gear Fitness to access your photos to set a profile picture.",
         },
       ],
+      [
+        "expo-widgets",
+        {
+          widgets: [
+            {
+              name: "FeaturedExerciseWidget",
+              displayName: "Featured Exercise",
+              description: "PR and recent sessions for your featured lift",
+              supportedFamilies: ["systemSmall"],
+            },
+          ],
+        },
+      ],
     ],
     extra: {
       eas: {
