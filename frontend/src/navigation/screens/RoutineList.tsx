@@ -15,6 +15,7 @@ import { Routine } from "../../api/types";
 import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
 import { formatDay } from "../../utils/days";
 import { useThemedHeader } from "../../hooks/useThemedHeader";
+import { useTrackTab } from "../../hooks/useTrackTab";
 
 function getBodyPartsSummary(routine: Routine): string {
   const parts = routine.exercises
@@ -29,6 +30,8 @@ function getBodyPartsSummary(routine: Routine): string {
 }
 
 export function RoutineList() {
+  useTrackTab("FollowScreen");
+
   const { navigation, colors } = useThemedHeader((c) => ({
     headerTitleStyle: {
       color: c.text,
