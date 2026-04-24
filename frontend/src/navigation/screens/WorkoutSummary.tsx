@@ -21,6 +21,8 @@ const ACCENT = "#007AFF";
 const DESTRUCTIVE = "#C93838";
 const LIVE = "#22B574";
 
+const SERIF = "LibreCaslonText_400Regular";
+
 type Theme = {
   bg: string;
   surface: string;
@@ -86,13 +88,11 @@ export function WorkoutSummary() {
       "0",
     )}`;
 
-  const today = new Date()
-    .toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    })
-    .toUpperCase();
+  const today = new Date().toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
 
   const totalSets = exercises.reduce(
     (n, ex) => n + ex.sets.filter((s) => s.reps && s.weight).length,
@@ -160,10 +160,14 @@ export function WorkoutSummary() {
               ]}
             />
             <Text style={[styles.overline, { color: t.textMuted }]}>
-              {running ? "IN PROGRESS" : "PAUSED"} · {today}
+              {running ? "IN PROGRESS" : "PAUSED"}
             </Text>
           </View>
-          <Text style={[styles.heroTitle, { color: t.text }]}>Workout</Text>
+          <Text
+            style={[styles.heroTitle, { color: t.text, fontFamily: SERIF }]}
+          >
+            {today}
+          </Text>
 
           <View style={styles.metricsRow}>
             <Metric label="Time" value={formatTime(seconds)} t={t} />
@@ -238,10 +242,7 @@ export function WorkoutSummary() {
                                 LAST SET
                               </Text>
                               <Text
-                                style={[
-                                  styles.lastSetValue,
-                                  { color: t.text },
-                                ]}
+                                style={[styles.lastSetValue, { color: t.text }]}
                               >
                                 {last.reps}×{last.weight}
                                 <Text
@@ -419,9 +420,9 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     fontSize: 32,
-    fontWeight: "700",
-    letterSpacing: -0.8,
-    lineHeight: 34,
+    fontWeight: "400",
+    letterSpacing: -0.2,
+    lineHeight: 38,
   },
   metricsRow: {
     flexDirection: "row",

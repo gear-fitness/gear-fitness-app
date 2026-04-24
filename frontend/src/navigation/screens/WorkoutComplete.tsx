@@ -135,8 +135,7 @@ export function WorkoutComplete() {
 
   const pickPhoto = async () => {
     if (photos.length >= MAX_PHOTOS) return;
-    const { status } =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
       Alert.alert(
         "Photo Access Required",
@@ -211,10 +210,7 @@ export function WorkoutComplete() {
           uploadedUrls = results.map((r) => r.url);
         } catch (uploadError) {
           console.error("Failed to upload workout photos:", uploadError);
-          Alert.alert(
-            "Error",
-            "Failed to upload photos. Please try again.",
-          );
+          Alert.alert("Error", "Failed to upload photos. Please try again.");
           setLoading(false);
           return;
         }
@@ -235,9 +231,8 @@ export function WorkoutComplete() {
         })),
         createPost,
         caption: createPost ? caption : undefined,
-        imageUrl: createPost && uploadedUrls.length > 0
-          ? uploadedUrls[0]
-          : undefined,
+        imageUrl:
+          createPost && uploadedUrls.length > 0 ? uploadedUrls[0] : undefined,
         photoUrls: uploadedUrls,
       };
 
@@ -401,11 +396,7 @@ export function WorkoutComplete() {
                     style={[
                       styles.tagText,
                       {
-                        color: active
-                          ? isDark
-                            ? "#000"
-                            : "#fff"
-                          : t.text,
+                        color: active ? (isDark ? "#000" : "#fff") : t.text,
                       },
                     ]}
                   >
@@ -421,9 +412,7 @@ export function WorkoutComplete() {
         <Section label={`Exercises (${exercises.length})`} t={t}>
           <View style={styles.exerciseList}>
             {exercises.map((ex) => {
-              const count = ex.sets.filter(
-                (s) => s.reps && s.weight,
-              ).length;
+              const count = ex.sets.filter((s) => s.reps && s.weight).length;
               return (
                 <View
                   key={ex.workoutExerciseId}
@@ -535,9 +524,7 @@ export function WorkoutComplete() {
                   />
                 </Svg>
                 {photos.length === 0 && (
-                  <Text
-                    style={[styles.photoAddLabel, { color: t.textMuted }]}
-                  >
+                  <Text style={[styles.photoAddLabel, { color: t.textMuted }]}>
                     Add photo
                   </Text>
                 )}
@@ -559,78 +546,78 @@ export function WorkoutComplete() {
 
       {/* Paired footer — hidden while keyboard is open */}
       {!keyboardVisible && (
-      <View
-        style={[
-          styles.footerWrap,
-          {
-            backgroundColor: t.bg,
-            paddingBottom: Math.max(insets.bottom, 12),
-          },
-        ]}
-      >
         <View
           style={[
-            styles.footerCard,
-            footerShadow,
+            styles.footerWrap,
             {
-              backgroundColor: t.surface,
-              borderColor: t.border,
-              borderWidth: isDark ? 1 : 0,
+              backgroundColor: t.bg,
+              paddingBottom: Math.max(insets.bottom, 12),
             },
           ]}
         >
-          <TouchableOpacity
-            activeOpacity={0.7}
-            style={styles.footerBtn}
-            onPress={() => handleSaveWorkout(false)}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color={t.text} />
-            ) : (
-              <Text style={[styles.footerBtnText, { color: t.text }]}>
-                Save
-              </Text>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            activeOpacity={0.85}
+          <View
             style={[
-              styles.footerBtn,
-              { backgroundColor: isDark ? "#fff" : ACCENT },
+              styles.footerCard,
+              footerShadow,
+              {
+                backgroundColor: t.surface,
+                borderColor: t.border,
+                borderWidth: isDark ? 1 : 0,
+              },
             ]}
-            onPress={() => handleSaveWorkout(true)}
-            disabled={loading}
           >
-            {loading ? (
-              <ActivityIndicator color={isDark ? "#000" : "#fff"} />
-            ) : (
-              <View style={styles.footerBtnContent}>
-                <Text
-                  style={[
-                    styles.footerBtnText,
-                    { color: isDark ? "#000" : "#fff" },
-                  ]}
-                >
-                  Post
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.footerBtn}
+              onPress={() => handleSaveWorkout(false)}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color={t.text} />
+              ) : (
+                <Text style={[styles.footerBtnText, { color: t.text }]}>
+                  Save
                 </Text>
-                <Text
-                  style={[
-                    styles.footerBtnArrow,
-                    {
-                      color: isDark
-                        ? "rgba(0,0,0,0.6)"
-                        : "rgba(255,255,255,0.6)",
-                    },
-                  ]}
-                >
-                  →
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={[
+                styles.footerBtn,
+                { backgroundColor: isDark ? "#fff" : ACCENT },
+              ]}
+              onPress={() => handleSaveWorkout(true)}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color={isDark ? "#000" : "#fff"} />
+              ) : (
+                <View style={styles.footerBtnContent}>
+                  <Text
+                    style={[
+                      styles.footerBtnText,
+                      { color: isDark ? "#000" : "#fff" },
+                    ]}
+                  >
+                    Post
+                  </Text>
+                  <Text
+                    style={[
+                      styles.footerBtnArrow,
+                      {
+                        color: isDark
+                          ? "rgba(0,0,0,0.6)"
+                          : "rgba(255,255,255,0.6)",
+                      },
+                    ]}
+                  >
+                    →
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
       )}
     </KeyboardAvoidingView>
   );
@@ -711,7 +698,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   heroTitle: {
-    fontFamily: Platform.select({ ios: "Georgia", default: "serif" }),
+    fontFamily: "LibreCaslonText_400Regular",
     fontSize: 40,
     fontWeight: "400",
     letterSpacing: -0.4,

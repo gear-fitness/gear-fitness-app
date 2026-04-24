@@ -1,11 +1,5 @@
 import React, { useEffect } from "react";
-import {
-  StyleSheet,
-  View,
-  TouchableOpacity,
-  Text,
-  Platform,
-} from "react-native";
+import { StyleSheet, View, TouchableOpacity, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
@@ -18,11 +12,7 @@ import { TodaysRoutines } from "../../components/TodaysRoutines";
 import { StartCountdownOverlay } from "../../components/StartCountdownOverlay";
 import { useStartCountdown } from "../../hooks/useStartCountdown";
 
-const SERIF = Platform.select({
-  ios: "Georgia",
-  android: "serif",
-  default: "serif",
-});
+const SERIF = "LibreCaslonText_400Regular";
 
 const QUOTES = [
   "The only bad workout is the one that didn’t happen.",

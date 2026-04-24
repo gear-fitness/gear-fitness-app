@@ -16,6 +16,12 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { WorkoutTimerProvider } from "./context/WorkoutContext";
 import { WorkoutPlayer } from "./components/WorkoutPlayer";
 import * as Notifications from "expo-notifications";
+import {
+  useFonts,
+  LibreCaslonText_400Regular,
+  LibreCaslonText_400Regular_Italic,
+  LibreCaslonText_700Bold,
+} from "@expo-google-fonts/libre-caslon-text";
 
 // Create navigation ref for use outside NavigationContainer
 export const navigationRef =
@@ -69,6 +75,12 @@ function AppContent({
   const [isNavigationReady, setIsNavigationReady] = React.useState(false);
   const { isLoading } = useAuth();
 
+  const [fontsLoaded] = useFonts({
+    LibreCaslonText_400Regular,
+    LibreCaslonText_400Regular_Italic,
+    LibreCaslonText_700Bold,
+  });
+
   const lastNotificationResponse = Notifications.useLastNotificationResponse();
 
   useEffect(() => {
@@ -110,11 +122,11 @@ function AppContent({
   }, [lastNotificationResponse]);
 
   useEffect(() => {
-    // Hide splash screen only when both navigation AND auth are ready
-    if (isNavigationReady && !isLoading) {
+    // Hide splash screen only when navigation, auth, and fonts are ready
+    if (isNavigationReady && !isLoading && fontsLoaded) {
       SplashScreen.hideAsync();
     }
-  }, [isNavigationReady, isLoading]);
+  }, [isNavigationReady, isLoading, fontsLoaded]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
