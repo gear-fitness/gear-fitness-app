@@ -51,10 +51,10 @@ const initialBg = Appearance.getColorScheme() === "dark" ? "#000" : "#F2F2F7";
 
 const STEP_COMPONENTS = [
   IntroStep,
-  PermissionsStep,
   GenderStep,
   AboutYouStep,
   ProfileStep,
+  PermissionsStep,
   AllSetStep,
 ] as const;
 
@@ -253,6 +253,10 @@ export function OnboardingScreen() {
       },
       {
         permissions: draft.permissions,
+        // PermissionsStep needs the current draft height/weight so it
+        // can push them into HealthKit when the user toggles Apple Health on.
+        height: draft.height,
+        weight: draft.weight,
         onPermissionsChange: (p: OnboardingPermissions) =>
           updateDraft({ permissions: p }),
         ...base,

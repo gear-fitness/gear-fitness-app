@@ -28,9 +28,11 @@ import { ActivityModal } from "../../components/ActivityModal";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
 import { feedRefresh } from "../../utils/feedRefreshFlag";
+import { useHealthKitForegroundSync } from "../../hooks/useHealthKitSync";
 
 export function Social() {
   useTrackTab("Social");
+  useHealthKitForegroundSync();
 
   const { colors } = useTheme();
   const navigation = useNavigation();

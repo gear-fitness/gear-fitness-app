@@ -80,6 +80,8 @@ export default {
         {
           NSHealthShareUsageDescription:
             "Gear Fitness reads your height, weight, and date of birth to personalize your workouts.",
+          NSHealthUpdateUsageDescription:
+            "Gear Fitness updates your height and weight in Apple Health when you change them in the app.",
         },
       ],
       [
