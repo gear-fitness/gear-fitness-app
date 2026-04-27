@@ -91,7 +91,7 @@ export default function FollowScreen() {
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
+  }, [userId]);
 
   const handleFollowToggle = async (user: FollowerUser) => {
     if (!user.userId) return;
@@ -105,7 +105,13 @@ export default function FollowScreen() {
         await followUserByUsername(user.username);
       }
 
-      await loadData();
+      const flip = (list: FollowerUser[]) =>
+        list.map((u) =>
+          u.userId === user.userId ? { ...u, isFollowing: !u.isFollowing } : u,
+        );
+
+      setFollowers((prev) => flip(prev));
+      setFollowing((prev) => flip(prev));
     } catch (e) {
       console.error("Failed to toggle follow", e);
       Alert.alert("Error", "Failed to update follow status");
