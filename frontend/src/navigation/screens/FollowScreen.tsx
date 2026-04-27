@@ -22,6 +22,7 @@ import {
 } from "../../api/userService";
 import { FollowerUser } from "../../api/types";
 import { Avatar } from "../../components/Avatar";
+import { useTrackTab } from "../../hooks/useTrackTab";
 
 type Tab = "followers" | "following";
 
@@ -115,6 +116,8 @@ export default function FollowScreen() {
 
   const currentList = activeTab === "followers" ? followers : following;
 
+  useTrackTab("FollowScreen");
+
   const renderItem = ({ item }: { item: FollowerUser }) => {
     const isToggling = togglingId === item.userId;
     const isCurrentUser = item.username === currentUsername;
@@ -182,7 +185,6 @@ export default function FollowScreen() {
       </Pressable>
     );
   };
-
   return (
     <View
       style={[
@@ -238,14 +240,7 @@ export default function FollowScreen() {
               >
                 {tab.charAt(0).toUpperCase() + tab.slice(1)}
               </Text>
-              {username ? (
-                <Text
-                  style={[styles.tabUsername, { color: c.secondary }]}
-                  numberOfLines={1}
-                >
-                  @{username}
-                </Text>
-              ) : null}
+
               {isActive && (
                 <View
                   style={[

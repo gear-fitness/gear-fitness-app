@@ -251,6 +251,7 @@ export function Profile() {
                   navigation.navigate("FollowScreen", {
                     initialTab: "followers",
                     userId: profile.userId,
+                    username: profile.username,
                   })
                 }
               >
@@ -265,6 +266,7 @@ export function Profile() {
                   navigation.navigate("FollowScreen", {
                     initialTab: "following",
                     userId: profile.userId,
+                    username: profile.username,
                   })
                 }
               >
