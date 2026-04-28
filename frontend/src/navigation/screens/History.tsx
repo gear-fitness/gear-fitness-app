@@ -5,7 +5,6 @@ import {
   FlatList,
   TouchableOpacity,
   TextInput,
-  Image,
   useColorScheme,
   Keyboard,
   KeyboardAvoidingView,
@@ -17,7 +16,6 @@ import { useTheme } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { Swipeable } from "react-native-gesture-handler";
-import weightlifter from "../../assets/weightlifter.png";
 import { useAuth } from "../../context/AuthContext";
 import { getUserWorkouts, deleteWorkout } from "../../api/workoutService";
 import { Workout } from "../../api/types";
@@ -30,7 +28,6 @@ type RootStackParamList = {
   HomeTabs: undefined;
   Profile: { user: string };
   Settings: undefined;
-  PR: { userId: string };
   DetailedHistory: {
     workoutId: string;
     caption?: string;
@@ -117,12 +114,6 @@ export function History() {
     "-" +
     String(today.getDate()).padStart(2, "0");
 
-  const handlePrPress = () => {
-    if (!user?.userId) return;
-    // Pass userId to PR screen
-    navigation.getParent()?.navigate("PR", { userId: user.userId });
-  };
-
   const filteredData = data.filter((item) => {
     const matchesSearch = item.name
       .toLowerCase()
@@ -197,7 +188,7 @@ export function History() {
               acc[date] = {
                 customStyles: {
                   container: {
-                    backgroundColor: "rgba(24, 119, 242, 0.15)",
+                    backgroundColor: isDarkMode ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)",
                     borderRadius: 16,
                   },
                   text: { color: colors.text },
@@ -208,7 +199,7 @@ export function History() {
 
             [formattedToday]: {
               customStyles: {
-                text: { color: "#1877F2", fontWeight: "700" },
+                text: { color: isDarkMode ? "#fff" : "#000", fontWeight: "700" },
               },
             },
 
@@ -218,11 +209,11 @@ export function History() {
                   [selectedDate]: {
                     customStyles: {
                       container: {
-                        backgroundColor: "#1877F2",
+                        backgroundColor: isDarkMode ? "#fff" : "#000",
                         borderRadius: 16,
                       },
                       text: {
-                        color: "#FFFFFF",
+                        color: isDarkMode ? "#000" : "#fff",
                         fontWeight: "600",
                       },
                     },
@@ -242,8 +233,8 @@ export function History() {
             dayTextColor: colors.text,
             monthTextColor: colors.text,
             textSectionTitleColor: colors.text,
-            todayTextColor: "#1877F2",
-            arrowColor: "#1877F2",
+            todayTextColor: isDarkMode ? "#fff" : "#000",
+            arrowColor: isDarkMode ? "#fff" : "#000",
             textDayFontFamily: "System",
             textMonthFontFamily: "System",
             textDayHeaderFontFamily: "System",
@@ -258,7 +249,6 @@ export function History() {
           hideExtraDays={true}
           enableSwipeMonths={true}
         />
-        {/* Search Bar + PR Button */}
         <View style={styles.searchContainer}>
           <TextInput
             style={[
@@ -276,12 +266,6 @@ export function History() {
             returnKeyType="done"
             onSubmitEditing={() => Keyboard.dismiss()}
           />
-          <TouchableOpacity
-            style={[styles.settingsButton, { backgroundColor: colors.primary }]}
-            onPress={handlePrPress}
-          >
-            <Image source={weightlifter} style={styles.settingsButtonIcon} />
-          </TouchableOpacity>
         </View>
         <FlatList
           data={filteredData}
@@ -358,28 +342,13 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   searchContainer: {
-    flexDirection: "row",
     paddingHorizontal: 20,
     paddingVertical: 10,
-    alignItems: "center",
-    gap: 10,
   },
   searchInput: {
-    flex: 1,
     borderWidth: 1,
     borderRadius: 10,
     padding: 12,
     fontSize: 16,
-  },
-  settingsButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  settingsButtonIcon: {
-    width: 24,
-    height: 24,
   },
 });

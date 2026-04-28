@@ -230,14 +230,14 @@ export function CreateRoutine({
           </View>
 
           <TouchableOpacity
-            style={[styles.primaryButton, submitting && styles.disabledButton]}
+            style={[styles.primaryButton, { borderColor: colors.text }, submitting && styles.disabledButton]}
             onPress={handleNextFromDetails}
             disabled={submitting}
           >
             {submitting ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.text} />
             ) : (
-              <Text style={styles.primaryButtonText}>
+              <Text style={[styles.primaryButtonText, { color: colors.text }]}>
                 {prefilledWorkoutId ? "Save Routine" : "Continue →"}
               </Text>
             )}
@@ -322,7 +322,7 @@ export function CreateRoutine({
             returnKeyType="search"
           />
           {selectedExerciseIds.length > 0 && (
-            <Text style={[styles.selectedCount, { color: "#007AFF" }]}>
+            <Text style={[styles.selectedCount, { color: colors.tint }]}>
               {selectedExerciseIds.length} selected
             </Text>
           )}
@@ -330,7 +330,7 @@ export function CreateRoutine({
 
         {exercisesLoading ? (
           <View style={styles.centered}>
-            <ActivityIndicator color="#007AFF" />
+            <ActivityIndicator color={colors.tint} />
           </View>
         ) : (
           <FlatList
@@ -366,8 +366,8 @@ export function CreateRoutine({
                     </Text>
                   </View>
                   {selected && (
-                    <View style={styles.positionBadge}>
-                      <Text style={styles.positionBadgeText}>
+                    <View style={[styles.positionBadge, { backgroundColor: colors.isDark ? "#fff" : "#000" }]}>
+                      <Text style={[styles.positionBadgeText, { color: colors.isDark ? "#000" : "#fff" }]}>
                         {posIndex + 1}
                       </Text>
                     </View>
@@ -387,14 +387,14 @@ export function CreateRoutine({
           ]}
         >
           <TouchableOpacity
-            style={[styles.primaryButton, submitting && styles.disabledButton]}
+            style={[styles.primaryButton, { borderColor: colors.text }, submitting && styles.disabledButton]}
             onPress={handleSubmitFromScratch}
             disabled={submitting}
           >
             {submitting ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.text} />
             ) : (
-              <Text style={styles.primaryButtonText}>Create Routine</Text>
+              <Text style={[styles.primaryButtonText, { color: colors.text }]}>Create Routine</Text>
             )}
           </TouchableOpacity>
         </SafeAreaView>
@@ -407,7 +407,7 @@ export function CreateRoutine({
     <View style={[styles.flex, { backgroundColor: colors.bg }]}>
       {workoutsLoading ? (
         <View style={styles.centered}>
-          <ActivityIndicator color="#007AFF" />
+          <ActivityIndicator color={colors.tint} />
         </View>
       ) : workouts.length === 0 ? (
         <View style={styles.centered}>
@@ -470,6 +470,7 @@ export function CreateRoutine({
         <TouchableOpacity
           style={[
             styles.primaryButton,
+            { borderColor: colors.text },
             (!selectedWorkoutId || submitting) && styles.disabledButton,
           ]}
           onPress={() =>
@@ -478,9 +479,9 @@ export function CreateRoutine({
           disabled={!selectedWorkoutId || submitting}
         >
           {submitting ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={colors.text} />
           ) : (
-            <Text style={styles.primaryButtonText}>Create Routine</Text>
+            <Text style={[styles.primaryButtonText, { color: colors.text }]}>Create Routine</Text>
           )}
         </TouchableOpacity>
       </SafeAreaView>
@@ -528,24 +529,21 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   primaryButton: {
-    backgroundColor: "#007AFF",
-    borderRadius: 999,
-    paddingVertical: 16,
+    height: 54,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    backgroundColor: "transparent",
     alignItems: "center",
+    justifyContent: "center",
     marginTop: 8,
-    shadowColor: "#007AFF",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
   },
   disabledButton: {
     opacity: 0.5,
   },
   primaryButtonText: {
-    color: "#fff",
     fontSize: 17,
-    fontWeight: "700",
+    fontWeight: "600",
+    letterSpacing: -0.2,
   },
   sourceSubtitle: {
     fontSize: 15,
@@ -613,13 +611,11 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: "#007AFF",
     justifyContent: "center",
     alignItems: "center",
     marginLeft: 12,
   },
   positionBadgeText: {
-    color: "#fff",
     fontSize: 13,
     fontWeight: "700",
     includeFontPadding: false,

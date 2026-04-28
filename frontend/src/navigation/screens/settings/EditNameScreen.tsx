@@ -76,7 +76,7 @@ export function EditNameScreen() {
           value={name}
           onChangeText={setName}
           placeholder="Full name"
-          placeholderTextColor={colors.secondary}
+          placeholderTextColor={colors.isDark ? "rgba(0,0,0,0.4)" : colors.secondary}
           autoFocus
           returnKeyType="done"
           onSubmitEditing={handleSave}

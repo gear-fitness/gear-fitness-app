@@ -37,6 +37,7 @@ const LightTheme = {
     ...DefaultTheme.colors,
     background: "#fafafa",
     card: "#fff",
+    primary: "#000",
   },
 };
 
@@ -46,6 +47,7 @@ const CustomDarkTheme = {
     ...DarkTheme.colors,
     background: "#0a0a0a",
     card: "#141414",
+    primary: "#fff",
   },
 };
 

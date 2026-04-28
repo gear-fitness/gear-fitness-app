@@ -32,7 +32,7 @@ export function ExerciseSelect() {
     subtle: isDark ? "#aaa" : "#666",
     border: isDark ? "#333" : "#e0e0e0",
     inputBg: isDark ? "#1c1c1e" : "#f5f5f5",
-    accent: "#007AFF",
+    accent: isDark ? "#fff" : "#000",
   };
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -139,7 +139,7 @@ export function ExerciseSelect() {
           <Text
             style={[
               styles.chipText,
-              { color: !selectedBodyPart ? "#fff" : colors.text },
+              { color: !selectedBodyPart ? (isDark ? "#000" : "#fff") : colors.text },
             ]}
           >
             All
@@ -164,7 +164,7 @@ export function ExerciseSelect() {
             <Text
               style={[
                 styles.chipText,
-                { color: selectedBodyPart === part ? "#fff" : colors.text },
+                { color: selectedBodyPart === part ? (isDark ? "#000" : "#fff") : colors.text },
               ]}
             >
               {part}

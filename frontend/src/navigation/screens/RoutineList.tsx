@@ -135,7 +135,7 @@ export function RoutineList() {
         style={[styles.container, { backgroundColor: colors.bg }]}
       >
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color={colors.isDark ? "#fff" : "#000"} />
         </View>
       </SafeAreaView>
     );

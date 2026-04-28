@@ -167,14 +167,14 @@ export function CreateExerciseScreen() {
                   style={[
                     styles.chip,
                     {
-                      backgroundColor: selected ? "#007AFF" : colors.inputBg,
-                      borderColor: selected ? "#007AFF" : colors.border,
+                      backgroundColor: selected ? (isDark ? "#fff" : "#000") : colors.inputBg,
+                      borderColor: selected ? (isDark ? "#fff" : "#000") : colors.border,
                     },
                   ]}
                 >
                   <Text
                     style={{
-                      color: selected ? "#fff" : colors.text,
+                      color: selected ? (isDark ? "#000" : "#fff") : colors.text,
                       fontSize: 13,
                       fontWeight: selected ? "600" : "400",
                     }}
@@ -204,10 +204,10 @@ export function CreateExerciseScreen() {
             style={[
               styles.footerButton,
               { opacity: name.trim() && !saving ? 1 : 0.4 },
-              { backgroundColor: "#1E90FF" },
+              { backgroundColor: isDark ? "#fff" : "#000" },
             ]}
           >
-            <Text style={styles.buttonText}>
+            <Text style={[styles.buttonText, { color: isDark ? "#000" : "#fff" }]}>
               {saving ? "Saving..." : "Save Exercise"}
             </Text>
           </TouchableOpacity>

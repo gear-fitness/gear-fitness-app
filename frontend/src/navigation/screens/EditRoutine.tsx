@@ -81,12 +81,16 @@ export function EditRoutine({
       ),
       headerRight: () => (
         <TouchableOpacity
+          accessibilityLabel="Save"
           onPress={handleSave}
           disabled={saving}
-          style={styles.saveButton}
+          style={[
+            styles.saveButton,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
         >
           {saving ? (
-            <ActivityIndicator size="small" color="#007AFF" />
+            <ActivityIndicator size="small" color={colors.text} />
           ) : (
             <Text style={[styles.saveText, { color: colors.text }]}>✓</Text>
           )}
@@ -282,7 +286,7 @@ export function EditRoutine({
 
       {loadingExercises ? (
         <View style={styles.loadingWrap}>
-          <ActivityIndicator color="#007AFF" />
+          <ActivityIndicator color={colors.isDark ? "#fff" : "#000"} />
         </View>
       ) : (
         filteredExercises.slice(0, 30).map((item) => (
@@ -334,9 +338,10 @@ export function EditRoutine({
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   saveButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: StyleSheet.hairlineWidth,
     justifyContent: "center",
     alignItems: "center",
   },

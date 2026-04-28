@@ -159,11 +159,11 @@ export function WorkoutChat() {
                 styles.messageBubble,
                 {
                   alignSelf: msg.isUser ? "flex-end" : "flex-start",
-                  backgroundColor: msg.isUser ? "#007AFF" : colors.card,
+                  backgroundColor: msg.isUser ? (isDark ? "#fff" : "#000") : colors.card,
                 },
               ]}
             >
-              <Text style={{ color: msg.isUser ? "#fff" : colors.text }}>
+              <Text style={{ color: msg.isUser ? (isDark ? "#000" : "#fff") : colors.text }}>
                 {msg.text}
               </Text>
             </View>

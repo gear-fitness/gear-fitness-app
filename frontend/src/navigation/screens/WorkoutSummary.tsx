@@ -17,7 +17,6 @@ import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
 import { useTrackTab } from "../../hooks/useTrackTab";
 
-const ACCENT = "#007AFF";
 const DESTRUCTIVE = "#C93838";
 const LIVE = "#22B574";
 
@@ -37,6 +36,7 @@ export function WorkoutSummary() {
   useTrackTab("WorkoutSummary");
 
   const isDark = useColorScheme() === "dark";
+  const ACCENT = isDark ? "#fff" : "#000";
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
 
@@ -357,7 +357,7 @@ export function WorkoutSummary() {
             onPress={start}
             style={[styles.resumeBtn, { backgroundColor: ACCENT }]}
           >
-            <Text style={styles.resumeText}>Resume</Text>
+            <Text style={[styles.resumeText, { color: isDark ? "#000" : "#fff" }]}>Resume</Text>
           </TouchableOpacity>
         )}
       </View>
