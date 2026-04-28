@@ -184,7 +184,7 @@ export function ProfileStep({
             <TextInput
               style={[styles.input, { color: colors.inputText }]}
               placeholder="Your name"
-              placeholderTextColor={colors.isDark ? "rgba(0,0,0,0.4)" : colors.handle}
+              placeholderTextColor={colors.handle}
               value={name}
               onChangeText={handleNameChange}
               autoComplete="off"
@@ -202,7 +202,7 @@ export function ProfileStep({
             <TextInput
               style={[styles.input, { color: colors.inputText }]}
               placeholder="yourhandle"
-              placeholderTextColor={colors.isDark ? "rgba(0,0,0,0.4)" : colors.handle}
+              placeholderTextColor={colors.handle}
               value={username}
               onChangeText={handleUsernameChange}
               autoCapitalize="none"

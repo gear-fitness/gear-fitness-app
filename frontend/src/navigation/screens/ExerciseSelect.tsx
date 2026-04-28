@@ -7,7 +7,10 @@ import {
   SectionList,
 } from "react-native";
 import React, { useState, useEffect, useMemo } from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
 
@@ -17,12 +20,14 @@ import { useTrackTab } from "../../hooks/useTrackTab";
 
 import { ExerciseSearchBar } from "../../components/ExerciseSearchBar";
 import { ExerciseCard } from "../../components/ExerciseCard";
+import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 
 export function ExerciseSelect() {
   useTrackTab("ExerciseSelect");
 
   const navigation = useNavigation();
   const { showPlayer, start } = useWorkoutTimer();
+  const insets = useSafeAreaInsets();
 
   const isDark = useColorScheme() === "dark";
 
@@ -110,6 +115,16 @@ export function ExerciseSelect() {
       style={[styles.container, { backgroundColor: colors.bg }]}
       edges={["bottom"]}
     >
+      <FloatingCloseButton />
+
+      <View style={{ height: insets.top + 8 + 40, marginBottom: 20 }}>
+        <View style={[styles.headerRow, { top: insets.top + 8 }]}>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>
+            Select Exercise
+          </Text>
+        </View>
+      </View>
+
       {/* Search Bar */}
       <ExerciseSearchBar
         searchQuery={searchQuery}
@@ -233,6 +248,20 @@ export function ExerciseSelect() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+
+  headerRow: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    letterSpacing: -0.3,
   },
 
   // Filter Chips

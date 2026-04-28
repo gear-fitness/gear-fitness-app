@@ -10,13 +10,13 @@ import {
 import { useTrackTab } from "../../hooks/useTrackTab";
 
 export function ExerciseDetail() {
-  useTrackTab("ExerciseDetail");
+  useTrackTab("ExerciseDetail", { isModal: true });
 
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const exercise = route.params.exercise;
 
-  const { start } = useWorkoutTimer();
+  const { start, exercises, setCurrentExercise } = useWorkoutTimer();
   const contentRef = useRef<ExerciseDetailContentRef>(null);
 
   useEffect(() => {
@@ -31,12 +31,25 @@ export function ExerciseDetail() {
     return unsubscribe;
   }, [navigation]);
 
+  const handleNextExercise = () => {
+    const currentIdx = exercises.findIndex(
+      (e) => e.workoutExerciseId === exercise.workoutExerciseId,
+    );
+    const next = currentIdx >= 0 ? exercises[currentIdx + 1] : undefined;
+    if (next) {
+      setCurrentExercise(next.workoutExerciseId);
+      navigation.replace("ExerciseDetail", { exercise: next });
+    } else {
+      navigation.replace("ExerciseSelect");
+    }
+  };
+
   return (
     <ExerciseDetailContent
       ref={contentRef}
       exercise={exercise}
       onSummary={() => navigation.replace("WorkoutSummary")}
-      onAddExercise={() => navigation.replace("ExerciseSelect")}
+      onAddExercise={handleNextExercise}
     />
   );
 }

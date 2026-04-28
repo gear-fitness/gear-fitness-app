@@ -18,7 +18,6 @@ import Svg, { Path } from "react-native-svg";
 import { useEffect, useState, useRef } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
@@ -30,6 +29,7 @@ import {
 import { getCurrentLocalDateString } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 
 const ACCENT = "#111";
 const DESTRUCTIVE = "#C93838";
@@ -124,8 +124,6 @@ export function WorkoutComplete() {
         chipBg: "rgba(0,0,0,0.05)",
         chipBorder: "rgba(0,0,0,0.22)",
       };
-
-  const glassAvailable = isLiquidGlassAvailable();
 
   const durationMin = Math.floor(seconds / 60);
   const totalSets = exercises.reduce(
@@ -280,38 +278,6 @@ export function WorkoutComplete() {
     );
   };
 
-  const closeButton = (
-    <TouchableOpacity
-      accessibilityLabel="Close"
-      onPress={() => navigation.goBack()}
-      activeOpacity={0.7}
-      style={[
-        styles.closeButton,
-        {
-          top: insets.top + 8,
-          backgroundColor: glassAvailable ? "transparent" : t.surface,
-          borderColor: glassAvailable ? "transparent" : t.border,
-        },
-      ]}
-    >
-      {glassAvailable && (
-        <GlassView
-          style={[StyleSheet.absoluteFillObject, { borderRadius: 20 }]}
-          glassEffectStyle="regular"
-          isInteractive
-        />
-      )}
-      <Svg width={14} height={14} viewBox="0 0 16 16" fill="none">
-        <Path
-          d="M4 4l8 8M12 4l-8 8"
-          stroke={t.text}
-          strokeWidth={1.6}
-          strokeLinecap="round"
-        />
-      </Svg>
-    </TouchableOpacity>
-  );
-
   const footerShadow = isDark
     ? null
     : {
@@ -328,7 +294,7 @@ export function WorkoutComplete() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={0}
     >
-      {closeButton}
+      <FloatingCloseButton />
 
       <ScrollView
         ref={scrollViewRef}
@@ -674,18 +640,6 @@ function Section({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  closeButton: {
-    position: "absolute",
-    left: 16,
-    zIndex: 10,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
   },
   heroBlock: {
     paddingHorizontal: 20,

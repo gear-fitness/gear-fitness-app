@@ -135,7 +135,7 @@ export function EditUsernameScreen() {
             value={username}
             onChangeText={handleChange}
             placeholder="yourhandle"
-            placeholderTextColor={colors.isDark ? "rgba(0,0,0,0.4)" : colors.secondary}
+            placeholderTextColor={colors.secondary}
             autoFocus
             autoCapitalize="none"
             autoCorrect={false}

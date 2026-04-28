@@ -2,16 +2,12 @@ import {
   BottomTabBar,
   createBottomTabNavigator,
 } from "@react-navigation/bottom-tabs";
-import { HeaderButton } from "@react-navigation/elements";
 import {
   createStaticNavigation,
   StaticParamList,
 } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { Image, View, Text } from "react-native";
-
-/* ICONS */
-import close from "../assets/close.png";
+import { View, Text } from "react-native";
 
 /* SCREENS */
 import { Profile } from "./screens/Profile";
@@ -153,23 +149,23 @@ const RootStack = createNativeStackNavigator({
     /* MODAL 1 — SELECT EXERCISE */
     ExerciseSelect: {
       screen: ExerciseSelect,
-      options: ({ navigation }) => ({
+      options: {
         title: "Select Exercise",
-        presentation: "modal",
-        headerRight: () => (
-          <HeaderButton onPress={navigation.goBack}>
-            <Image source={close} style={{ width: 15, height: 15 }} />
-          </HeaderButton>
-        ),
-      }),
+        presentation: "fullScreenModal",
+        headerShown: false,
+        gestureEnabled: true,
+        gestureDirection: "vertical",
+      },
     },
 
     CreateExercise: {
       screen: CreateExerciseScreen,
       options: {
         title: "New Exercise",
-        presentation: "modal",
-        headerShown: true,
+        presentation: "fullScreenModal",
+        headerShown: false,
+        gestureEnabled: true,
+        gestureDirection: "vertical",
       },
     },
 

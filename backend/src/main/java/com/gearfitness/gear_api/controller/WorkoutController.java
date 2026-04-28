@@ -44,7 +44,14 @@ public class WorkoutController {
             w.getWorkoutId(),
             w.getName(),
             w.getDatePerformed(),
-            w.getCreatedAt()
+            w.getCreatedAt(),
+            w.getDurationMin(),
+            w.getWorkoutExercises() == null
+              ? 0
+              : w.getWorkoutExercises().size(),
+            w.getBodyTags() == null
+              ? List.of()
+              : w.getBodyTags().stream().map(Enum::name).toList()
           )
         )
         .collect(Collectors.toList());
@@ -92,7 +99,14 @@ public class WorkoutController {
           saved.getWorkoutId(),
           saved.getName(),
           saved.getDatePerformed(),
-          saved.getCreatedAt()
+          saved.getCreatedAt(),
+          saved.getDurationMin(),
+          saved.getWorkoutExercises() == null
+            ? 0
+            : saved.getWorkoutExercises().size(),
+          saved.getBodyTags() == null
+            ? List.of()
+            : saved.getBodyTags().stream().map(Enum::name).toList()
         )
       );
     } catch (Exception e) {

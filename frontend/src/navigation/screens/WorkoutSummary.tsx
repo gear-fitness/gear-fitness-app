@@ -9,13 +9,13 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Swipeable } from "react-native-gesture-handler";
 import { useNavigation } from "@react-navigation/native";
-import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import Svg, { Path } from "react-native-svg";
 import React, { useState } from "react";
 
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
 import { useTrackTab } from "../../hooks/useTrackTab";
+import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 
 const DESTRUCTIVE = "#C93838";
 const LIVE = "#22B574";
@@ -33,7 +33,7 @@ type Theme = {
 };
 
 export function WorkoutSummary() {
-  useTrackTab("WorkoutSummary");
+  useTrackTab("WorkoutSummary", { isModal: true });
 
   const isDark = useColorScheme() === "dark";
   const ACCENT = isDark ? "#fff" : "#000";
@@ -80,8 +80,6 @@ export function WorkoutSummary() {
         chipBorder: "rgba(0,0,0,0.18)",
       };
 
-  const glassAvailable = isLiquidGlassAvailable();
-
   const formatTime = (s: number) =>
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(
       2,
@@ -111,37 +109,7 @@ export function WorkoutSummary() {
 
   return (
     <View style={[styles.container, { backgroundColor: t.bg }]}>
-      {/* Floating close */}
-      <TouchableOpacity
-        accessibilityLabel="Close"
-        onPress={() => navigation.goBack()}
-        activeOpacity={0.7}
-        style={[
-          styles.closeButton,
-          {
-            top: insets.top + 8,
-            backgroundColor: glassAvailable ? "transparent" : t.surface,
-            borderColor: glassAvailable ? "transparent" : t.border,
-          },
-        ]}
-      >
-        {glassAvailable && (
-          <GlassView
-            style={[StyleSheet.absoluteFillObject, { borderRadius: 20 }]}
-            glassEffectStyle="regular"
-            isInteractive
-          />
-        )}
-        <Svg width={16} height={16} viewBox="0 0 16 16" fill="none">
-          <Path
-            d="M4 6l4 4 4-4"
-            stroke={t.text}
-            strokeWidth={1.6}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </Svg>
-      </TouchableOpacity>
+      <FloatingCloseButton />
 
       <ScrollView
         contentContainerStyle={{
@@ -385,18 +353,6 @@ function Metric({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  closeButton: {
-    position: "absolute",
-    left: 16,
-    zIndex: 10,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
   },
   heroBlock: {
     paddingHorizontal: 20,

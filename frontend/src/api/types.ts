@@ -85,6 +85,9 @@ export interface Workout {
   name: string;
   datePerformed: string;
   createdAt: string;
+  durationMin: number | null;
+  exerciseCount: number;
+  bodyTags: string[];
 }
 
 export interface WorkoutSet {
