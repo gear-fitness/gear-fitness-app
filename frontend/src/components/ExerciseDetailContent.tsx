@@ -64,9 +64,55 @@ type ThemeColors = {
   primaryText: string;
   accent: string;
   accentText: string;
+  stepperBg: string;
+  stepperBorder: string;
 };
 
 type LoggedSet = WorkoutSet & { id: string };
+
+const BAR_WEIGHT = 45;
+const PLATE_OPTIONS = [45, 35, 25, 10, 5, 2.5];
+const PLATE_HEIGHTS: Record<string, number> = {
+  "45": 36,
+  "35": 32,
+  "25": 28,
+  "10": 22,
+  "5": 18,
+  "2.5": 14,
+};
+
+type PlateMode = "dual" | "single";
+
+function platesFromWeight(
+  weight: string,
+  mode: PlateMode,
+  bar: number,
+): number[] {
+  const divisor = mode === "single" ? 1 : 2;
+  let remaining = Math.max(0, (Number(weight || 0) - bar) / divisor);
+  const stack: number[] = [];
+  for (const p of PLATE_OPTIONS) {
+    while (remaining >= p - 0.0001) {
+      stack.push(p);
+      remaining -= p;
+    }
+  }
+  return stack;
+}
+
+function formatWeight(n: number): string {
+  if (!isFinite(n)) return "0";
+  return n % 1 === 0 ? String(n) : Number(n.toFixed(1)).toString();
+}
+
+function plateMath(bar: number, sideTotal: number, mode: PlateMode): string {
+  const sideStr = formatWeight(sideTotal);
+  if (bar > 0 && sideTotal > 0)
+    return mode === "single" ? `${bar} + ${sideStr}` : `${bar} + ${sideStr} × 2`;
+  if (bar > 0) return `${bar} bar`;
+  if (sideTotal > 0) return mode === "single" ? sideStr : `${sideStr} × 2`;
+  return "0";
+}
 
 export const ExerciseDetailContent = forwardRef<
   ExerciseDetailContentRef,
@@ -90,6 +136,8 @@ export const ExerciseDetailContent = forwardRef<
         primaryText: "#000",
         accent: "#0A84FF",
         accentText: "#fff",
+        stepperBg: "rgba(255,255,255,0.06)",
+        stepperBorder: "rgba(255,255,255,0.12)",
       }
     : {
         bg: "#fafafa",
@@ -103,6 +151,8 @@ export const ExerciseDetailContent = forwardRef<
         primaryText: "#fff",
         accent: "#007AFF",
         accentText: "#fff",
+        stepperBg: "#fff",
+        stepperBorder: "rgba(0,0,0,0.1)",
       };
 
   const formatTime = (t: number) =>
@@ -124,6 +174,54 @@ export const ExerciseDetailContent = forwardRef<
   const [expanded, setExpanded] = useState(false);
   const [showingTotal, setShowingTotal] = useState(false);
   const [exerciseSeconds, setExerciseSeconds] = useState(0);
+  const [platesEnabled, setPlatesEnabled] = useState(false);
+  const [platesOpen, setPlatesOpen] = useState(false);
+  const [plateMode, setPlateMode] = useState<PlateMode>("dual");
+  const [plateBarOn, setPlateBarOn] = useState(false);
+
+  const plateBar = plateBarOn ? BAR_WEIGHT : 0;
+  const plateMultiplier = plateMode === "single" ? 1 : 2;
+  const plateStack = platesFromWeight(currentWeight, plateMode, plateBar);
+  const plateSideTotal = plateStack.reduce((a, b) => a + b, 0);
+
+  const togglePlatesEnabled = () => {
+    const next = !platesEnabled;
+    setPlatesEnabled(next);
+    setPlatesOpen(next);
+    if (next) setCurrentWeight(formatWeight(plateBar));
+  };
+
+  const handleAddPlate = (p: number) => {
+    const next = Number(currentWeight || 0) + p * plateMultiplier;
+    setCurrentWeight(formatWeight(next));
+  };
+
+  const handlePopPlate = () => {
+    if (plateStack.length === 0) return;
+    const top = plateStack[plateStack.length - 1];
+    const next = Number(currentWeight || 0) - top * plateMultiplier;
+    setCurrentWeight(formatWeight(Math.max(plateBar, next)));
+  };
+
+  const handleClearPlates = () => {
+    setCurrentWeight(formatWeight(plateBar));
+  };
+
+  const handlePlateModeChange = (m: PlateMode) => {
+    if (m === plateMode) return;
+    const newMultiplier = m === "single" ? 1 : 2;
+    const next = plateBar + plateSideTotal * newMultiplier;
+    setPlateMode(m);
+    setCurrentWeight(formatWeight(next));
+  };
+
+  const handlePlateBarToggle = () => {
+    const nextBarOn = !plateBarOn;
+    const nextBar = nextBarOn ? BAR_WEIGHT : 0;
+    const next = nextBar + plateSideTotal * plateMultiplier;
+    setPlateBarOn(nextBarOn);
+    setCurrentWeight(formatWeight(next));
+  };
 
   useEffect(() => {
     const id = setInterval(
@@ -349,6 +447,47 @@ export const ExerciseDetailContent = forwardRef<
             colors={colors}
             allowDecimal
           />
+          <View
+            style={[
+              styles.heroDivider,
+              { backgroundColor: colors.border },
+            ]}
+          />
+          <PlateLoaderToggle
+            colors={colors}
+            enabled={platesEnabled}
+            open={platesOpen}
+            onToggleEnabled={togglePlatesEnabled}
+            onToggleOpen={() => setPlatesOpen((v) => !v)}
+            bar={plateBar}
+            sideTotal={plateSideTotal}
+            mode={plateMode}
+            stackCount={plateStack.length}
+          />
+          {platesEnabled && platesOpen && (
+            <>
+              <View
+                style={[
+                  styles.heroDivider,
+                  { backgroundColor: colors.border },
+                ]}
+              />
+              <PlateLoader
+                colors={colors}
+                isDark={isDark}
+                stack={plateStack}
+                sideTotal={plateSideTotal}
+                bar={plateBar}
+                barOn={plateBarOn}
+                mode={plateMode}
+                onAddPlate={handleAddPlate}
+                onPopPlate={handlePopPlate}
+                onClear={handleClearPlates}
+                onModeChange={handlePlateModeChange}
+                onBarToggle={handlePlateBarToggle}
+              />
+            </>
+          )}
         </View>
 
         <TouchableOpacity
@@ -686,6 +825,356 @@ function StackedSets({
           </Text>
         </TouchableOpacity>
       )}
+    </View>
+  );
+}
+
+function PlateToggleSwitch({
+  enabled,
+  colors,
+  onPress,
+}: {
+  enabled: boolean;
+  colors: ThemeColors;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      activeOpacity={0.8}
+      onPress={onPress}
+      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+      style={[
+        plateStyles.switchTrack,
+        { backgroundColor: enabled ? colors.text : colors.stepperBorder },
+      ]}
+    >
+      <View
+        style={[
+          plateStyles.switchThumb,
+          {
+            backgroundColor: enabled ? colors.bg : "#fff",
+            left: enabled ? 18 : 2,
+          },
+        ]}
+      />
+    </TouchableOpacity>
+  );
+}
+
+function PlateLoaderToggle({
+  colors,
+  enabled,
+  open,
+  onToggleEnabled,
+  onToggleOpen,
+  bar,
+  sideTotal,
+  mode,
+  stackCount,
+}: {
+  colors: ThemeColors;
+  enabled: boolean;
+  open: boolean;
+  onToggleEnabled: () => void;
+  onToggleOpen: () => void;
+  bar: number;
+  sideTotal: number;
+  mode: PlateMode;
+  stackCount: number;
+}) {
+  const summary = (() => {
+    if (!enabled) return null;
+    if (stackCount === 0 && bar === 0) return "Empty";
+    if (stackCount === 0) return `${bar} bar`;
+    return plateMath(bar, sideTotal, mode);
+  })();
+
+  return (
+    <View style={plateStyles.toggleRow}>
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={enabled ? onToggleOpen : onToggleEnabled}
+        style={plateStyles.toggleLabelArea}
+      >
+        <Text
+          style={[plateStyles.toggleOverline, { color: colors.textMuted }]}
+        >
+          PLATE LOADED
+        </Text>
+        {enabled && summary && (
+          <Text
+            style={[plateStyles.toggleSummary, { color: colors.textFaint }]}
+          >
+            {summary}
+          </Text>
+        )}
+      </TouchableOpacity>
+      <View style={plateStyles.toggleControls}>
+        {enabled && (
+          <SymbolView
+            name={open ? "chevron.up" : "chevron.down"}
+            tintColor={colors.textMuted}
+            size={12}
+          />
+        )}
+        <PlateToggleSwitch
+          enabled={enabled}
+          colors={colors}
+          onPress={onToggleEnabled}
+        />
+      </View>
+    </View>
+  );
+}
+
+function PlateLoader({
+  colors,
+  isDark,
+  stack,
+  sideTotal,
+  bar,
+  barOn,
+  mode,
+  onAddPlate,
+  onPopPlate,
+  onClear,
+  onModeChange,
+  onBarToggle,
+}: {
+  colors: ThemeColors;
+  isDark: boolean;
+  stack: number[];
+  sideTotal: number;
+  bar: number;
+  barOn: boolean;
+  mode: PlateMode;
+  onAddPlate: (p: number) => void;
+  onPopPlate: () => void;
+  onClear: () => void;
+  onModeChange: (m: PlateMode) => void;
+  onBarToggle: () => void;
+}) {
+  const reverseStack = [...stack].reverse();
+  const summary = plateMath(bar, sideTotal, mode);
+
+  return (
+    <View style={plateStyles.loader}>
+      <View
+        style={[
+          plateStyles.segmented,
+          {
+            backgroundColor: colors.stepperBg,
+            borderColor: colors.stepperBorder,
+          },
+        ]}
+      >
+        {(["dual", "single"] as PlateMode[]).map((m) => {
+          const active = mode === m;
+          return (
+            <TouchableOpacity
+              key={m}
+              onPress={() => onModeChange(m)}
+              activeOpacity={0.7}
+              style={[
+                plateStyles.segmentedItem,
+                active && {
+                  backgroundColor: colors.surface,
+                  shadowColor: isDark ? "#fff" : "#000",
+                  shadowOpacity: isDark ? 0.04 : 0.06,
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowRadius: 2,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  plateStyles.segmentedText,
+                  { color: active ? colors.text : colors.textMuted },
+                ]}
+              >
+                {m === "dual" ? "Dual side" : "Single side"}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      <View style={plateStyles.barRow}>
+        <Text style={[plateStyles.barRowLabel, { color: colors.text }]}>
+          Include bar
+          <Text style={{ color: colors.textFaint, fontWeight: "400" }}>
+            {"  "}
+            {barOn ? `+${BAR_WEIGHT}` : "—"}
+          </Text>
+        </Text>
+        <PlateToggleSwitch
+          enabled={barOn}
+          colors={colors}
+          onPress={onBarToggle}
+        />
+      </View>
+
+      <TouchableOpacity
+        activeOpacity={stack.length ? 0.7 : 1}
+        onPress={onPopPlate}
+        style={plateStyles.visual}
+      >
+        {mode === "dual" ? (
+          <>
+            <View style={plateStyles.visualSideLeft}>
+              {reverseStack.map((p, i) => (
+                <View
+                  key={`l${i}`}
+                  style={[
+                    plateStyles.plateBar,
+                    {
+                      height: PLATE_HEIGHTS[String(p)] ?? 22,
+                      backgroundColor: colors.text,
+                    },
+                  ]}
+                />
+              ))}
+            </View>
+            <View
+              style={[
+                plateStyles.visualBar,
+                { opacity: barOn ? 1 : 0.35 },
+              ]}
+            >
+              <View
+                style={[
+                  plateStyles.barCap,
+                  { backgroundColor: colors.textMuted },
+                ]}
+              />
+              <View
+                style={[
+                  plateStyles.barShaftDual,
+                  { backgroundColor: colors.text },
+                ]}
+              />
+              <View
+                style={[
+                  plateStyles.barCap,
+                  { backgroundColor: colors.textMuted },
+                ]}
+              />
+            </View>
+            <View style={plateStyles.visualSideRight}>
+              {stack.map((p, i) => (
+                <View
+                  key={`r${i}`}
+                  style={[
+                    plateStyles.plateBar,
+                    {
+                      height: PLATE_HEIGHTS[String(p)] ?? 22,
+                      backgroundColor: colors.text,
+                    },
+                  ]}
+                />
+              ))}
+            </View>
+          </>
+        ) : (
+          <>
+            <View style={plateStyles.visualSideLeftEmpty} />
+            <View
+              style={[
+                plateStyles.visualBar,
+                { opacity: barOn ? 1 : 0.35 },
+              ]}
+            >
+              <View
+                style={[
+                  plateStyles.pivotDot,
+                  { backgroundColor: colors.textMuted },
+                ]}
+              />
+              <View
+                style={[
+                  plateStyles.barShaftSingle,
+                  { backgroundColor: colors.text },
+                ]}
+              />
+              <View
+                style={[
+                  plateStyles.singleBarCap,
+                  { backgroundColor: colors.textMuted },
+                ]}
+              />
+            </View>
+            <View style={plateStyles.visualSideRight}>
+              {stack.map((p, i) => (
+                <View
+                  key={`s${i}`}
+                  style={[
+                    plateStyles.plateBar,
+                    {
+                      height: PLATE_HEIGHTS[String(p)] ?? 22,
+                      backgroundColor: colors.text,
+                    },
+                  ]}
+                />
+              ))}
+            </View>
+          </>
+        )}
+      </TouchableOpacity>
+
+      <View style={plateStyles.plateGrid}>
+        {[...PLATE_OPTIONS].reverse().map((p) => (
+          <TouchableOpacity
+            key={p}
+            onPress={() => onAddPlate(p)}
+            activeOpacity={0.7}
+            style={[
+              plateStyles.plateButton,
+              {
+                backgroundColor: colors.stepperBg,
+                borderColor: colors.stepperBorder,
+              },
+            ]}
+          >
+            <Text
+              style={[plateStyles.plateButtonText, { color: colors.text }]}
+            >
+              {p}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <View style={plateStyles.actionsRow}>
+        <TouchableOpacity onPress={onClear} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+          <Text
+            style={[plateStyles.actionText, { color: colors.textMuted }]}
+          >
+            Clear
+          </Text>
+        </TouchableOpacity>
+        <Text
+          style={[plateStyles.summaryText, { color: colors.textFaint }]}
+        >
+          {summary}
+        </Text>
+        <TouchableOpacity
+          onPress={onPopPlate}
+          disabled={stack.length === 0}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+        >
+          <Text
+            style={[
+              plateStyles.actionText,
+              {
+                color:
+                  stack.length === 0 ? colors.textFaint : colors.textMuted,
+              },
+            ]}
+          >
+            Remove last
+          </Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -1052,5 +1541,180 @@ const stackStyles = StyleSheet.create({
   },
   expandText: {
     fontSize: 12,
+  },
+});
+
+const plateStyles = StyleSheet.create({
+  toggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+  },
+  toggleLabelArea: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  toggleOverline: {
+    fontSize: 11,
+    fontWeight: "600",
+    letterSpacing: 1.2,
+  },
+  toggleSummary: {
+    fontSize: 12,
+    fontVariant: ["tabular-nums"],
+  },
+  toggleControls: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  switchTrack: {
+    width: 38,
+    height: 22,
+    borderRadius: 11,
+    position: "relative",
+  },
+  switchThumb: {
+    position: "absolute",
+    top: 2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 2,
+  },
+  loader: {
+    paddingHorizontal: 20,
+    paddingTop: 4,
+    paddingBottom: 16,
+  },
+  segmented: {
+    flexDirection: "row",
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 3,
+    marginBottom: 4,
+  },
+  segmentedItem: {
+    flex: 1,
+    height: 30,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  segmentedText: {
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: -0.1,
+  },
+  barRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 2,
+    paddingTop: 10,
+    paddingBottom: 14,
+  },
+  barRowLabel: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  visual: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    height: 44,
+  },
+  visualSideLeft: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 2,
+  },
+  visualSideRight: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    gap: 2,
+  },
+  visualSideLeftEmpty: {
+    flex: 1,
+  },
+  visualBar: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  barCap: {
+    width: 14,
+    height: 4,
+    borderRadius: 1,
+  },
+  barShaftDual: {
+    width: 36,
+    height: 8,
+    borderRadius: 2,
+  },
+  barShaftSingle: {
+    width: 60,
+    height: 6,
+    borderRadius: 1.5,
+  },
+  pivotDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  singleBarCap: {
+    width: 12,
+    height: 4,
+    borderRadius: 1,
+  },
+  plateBar: {
+    width: 6,
+    borderRadius: 1.5,
+  },
+  plateGrid: {
+    flexDirection: "row",
+    gap: 6,
+    marginTop: 12,
+  },
+  plateButton: {
+    flex: 1,
+    height: 38,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  plateButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    letterSpacing: -0.2,
+    fontVariant: ["tabular-nums"],
+  },
+  actionsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 10,
+  },
+  actionText: {
+    fontSize: 12,
+    fontWeight: "500",
+    paddingVertical: 4,
+  },
+  summaryText: {
+    fontSize: 11,
+    letterSpacing: 0.4,
+    fontVariant: ["tabular-nums"],
   },
 });
