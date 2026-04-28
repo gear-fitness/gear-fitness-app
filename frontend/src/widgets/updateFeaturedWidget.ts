@@ -1,7 +1,7 @@
 import {
   getExerciseHistory,
-  ExerciseHistory,
   ExerciseSession,
+  ExerciseHistory,
 } from "../api/exerciseService";
 import { getFeaturedExerciseId } from "./featuredExercise";
 import {
@@ -10,11 +10,10 @@ import {
   EMPTY_FEATURED_EXERCISE_PROPS,
 } from "./FeaturedExerciseWidget";
 
-// Unicode block characters, low to high
 const SPARK_CHARS = ["▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"];
 
 function buildSparkline(values: number[]): string {
-  if (values.length < 2) return "";
+  if (values.length < 2) return "—";
   const min = Math.min(...values);
   const max = Math.max(...values);
   const range = max - min;
@@ -50,39 +49,50 @@ function truncate(s: string, max: number): string {
 function buildWidgetProps(
   history: ExerciseHistory,
 ): FeaturedExerciseWidgetProps {
-  // sessions are returned newest-first per your existing code
   const chronological = [...history.sessions].reverse();
   const sessionMaxes = chronological.map(getSessionMax).filter((v) => v > 0);
-  const recentMaxes = sessionMaxes.slice(-8); // last 8 for sparkline
+  const recentMaxes = sessionMaxes.slice(-8);
   const mostRecent = history.sessions[0];
 
   return {
     exerciseName: truncate(history.exerciseName, 22),
-    bodyPart: history.bodyPart ?? "",
-    prLbs: history.personalRecordLbs ?? null,
+    bodyPart: history.bodyPart || "EXERCISE",
+    prLbs: history.personalRecordLbs ?? 0,
     lastSessionDate: mostRecent
       ? formatShortDate(mostRecent.datePerformed)
-      : null,
+      : "—",
     sparkline: buildSparkline(recentMaxes),
   };
 }
 
 /**
- * Pulls the user's featured exercise data and pushes it to the widget.
- * Safe to call opportunistically — if nothing's featured, shows empty state.
- * Swallows errors so a failed widget update never blocks app flow.
+ * Fetches the featured exercise's data and pushes it to the widget.
+ * Safe to call opportunistically — errors are swallowed.
  */
 export async function updateFeaturedWidget(): Promise<void> {
   try {
     const featuredId = await getFeaturedExerciseId();
-    if (featuredId == null) {
+    console.log("[widget] featuredId:", featuredId);
+
+    if (!featuredId) {
       FeaturedExerciseWidget.updateSnapshot(EMPTY_FEATURED_EXERCISE_PROPS);
       return;
     }
+
     const history = await getExerciseHistory(featuredId);
-    FeaturedExerciseWidget.updateSnapshot(buildWidgetProps(history));
+    console.log(
+      "[widget] fetched history:",
+      history.exerciseName,
+      history.totalSessions,
+      "sessions",
+    );
+
+    const props = buildWidgetProps(history);
+    console.log("[widget] built props:", JSON.stringify(props));
+
+    FeaturedExerciseWidget.updateSnapshot(props);
+    console.log("[widget] updateSnapshot succeeded");
   } catch (err) {
     console.warn("Failed to update featured exercise widget:", err);
-    // Don't rethrow — widget update failures shouldn't break the app
   }
 }

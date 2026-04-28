@@ -1,22 +1,21 @@
-import { Text, VStack, Spacer } from "@expo/ui/swift-ui";
+import { Text, VStack } from "@expo/ui/swift-ui";
 import { font, foregroundStyle, padding } from "@expo/ui/swift-ui/modifiers";
 import { createWidget, type WidgetEnvironment } from "expo-widgets";
 
 export type FeaturedExerciseWidgetProps = {
   exerciseName: string;
   bodyPart: string;
-  prLbs: number | null;
-  lastSessionDate: string | null; // "Nov 14" pre-formatted from app
-  sparkline: string; // e.g. "▂▃▅▄▇" — pre-built unicode string
+  prLbs: number;
+  lastSessionDate: string;
+  sparkline: string;
 };
 
-// Empty-state fallback shown when no featured exercise is set
-const EMPTY: FeaturedExerciseWidgetProps = {
-  exerciseName: "No exercise set",
-  bodyPart: "",
-  prLbs: null,
-  lastSessionDate: null,
-  sparkline: "",
+export const EMPTY_FEATURED_EXERCISE_PROPS: FeaturedExerciseWidgetProps = {
+  exerciseName: "Pick an exercise",
+  bodyPart: "GEAR FITNESS",
+  prLbs: 0,
+  lastSessionDate: "—",
+  sparkline: "—",
 };
 
 const FeaturedExerciseWidgetComponent = (
@@ -31,13 +30,13 @@ const FeaturedExerciseWidgetComponent = (
   const accentColor = "#007AFF";
   const prColor = "#FFD700";
 
-  const prDisplay = props.prLbs != null ? `${props.prLbs}` : "—";
+  const prDisplay = props.prLbs > 0 ? `${props.prLbs}` : "—";
 
   return (
     <VStack modifiers={[padding({ all: 4 })]}>
       <Text
         modifiers={[
-          font({ weight: "semibold", size: 11 }),
+          font({ weight: "bold", size: 10 }),
           foregroundStyle(accentColor),
         ]}
       >
@@ -53,8 +52,6 @@ const FeaturedExerciseWidgetComponent = (
         {props.exerciseName}
       </Text>
 
-      <Spacer />
-
       <Text
         modifiers={[
           font({ weight: "bold", size: 32 }),
@@ -63,28 +60,23 @@ const FeaturedExerciseWidgetComponent = (
       >
         {prDisplay}
       </Text>
+
       <Text
         modifiers={[
-          font({ weight: "medium", size: 10 }),
+          font({ weight: "regular", size: 10 }),
           foregroundStyle(subtleColor),
         ]}
       >
         PR (lbs)
       </Text>
 
-      <Spacer />
+      <Text modifiers={[font({ size: 14 }), foregroundStyle(accentColor)]}>
+        {props.sparkline}
+      </Text>
 
-      {props.sparkline.length > 0 && (
-        <Text modifiers={[font({ size: 16 }), foregroundStyle(accentColor)]}>
-          {props.sparkline}
-        </Text>
-      )}
-
-      {props.lastSessionDate && (
-        <Text modifiers={[font({ size: 10 }), foregroundStyle(subtleColor)]}>
-          Last: {props.lastSessionDate}
-        </Text>
-      )}
+      <Text modifiers={[font({ size: 10 }), foregroundStyle(subtleColor)]}>
+        Last: {props.lastSessionDate}
+      </Text>
     </VStack>
   );
 };
@@ -93,5 +85,3 @@ export const FeaturedExerciseWidget = createWidget(
   "FeaturedExerciseWidget",
   FeaturedExerciseWidgetComponent,
 );
-
-export { EMPTY as EMPTY_FEATURED_EXERCISE_PROPS };

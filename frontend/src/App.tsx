@@ -16,6 +16,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { WorkoutTimerProvider } from "./context/WorkoutContext";
 import { WorkoutPlayer } from "./components/WorkoutPlayer";
 import * as Notifications from "expo-notifications";
+import "./widgets/featuredExercise";
 
 // Create navigation ref for use outside NavigationContainer
 export const navigationRef =

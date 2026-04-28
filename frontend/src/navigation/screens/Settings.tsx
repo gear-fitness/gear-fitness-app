@@ -22,6 +22,7 @@ import {
   SettingsToggleCell,
   SettingsValueCell,
 } from "../../components/Settings/SettingsRow";
+import { FeaturedExerciseModal } from "../../components/FeaturedExerciseModal";
 
 const GENDER_LABELS: Record<string, string> = {
   male: "Male",
@@ -70,6 +71,7 @@ export function Settings() {
 
   const [isPrivate, setIsPrivate] = useState(user?.isPrivate ?? false);
   const [muteNotifications, setMuteNotifications] = useState(false);
+  const [widgetModalOpen, setWidgetModalOpen] = useState(false);
 
   const handleLogout = () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
@@ -198,6 +200,18 @@ export function Settings() {
           ],
         },
         {
+          key: "widget",
+          title: "Home Screen Widget",
+          data: [
+            {
+              id: "featured_exercise",
+              type: "value",
+              label: "Change Widget Exercise",
+              onPress: () => setWidgetModalOpen(true),
+            },
+          ],
+        },
+        {
           key: "account",
           data: [
             {
@@ -305,25 +319,33 @@ export function Settings() {
   };
 
   return (
-    <SectionList
-      style={[styles.container, { backgroundColor: themeColors.bg }]}
-      sections={sections}
-      keyExtractor={(item) => item.id}
-      renderItem={renderItem}
-      renderSectionHeader={({ section }) =>
-        section.title ? (
-          <Text style={[styles.sectionTitle, { color: themeColors.secondary }]}>
-            {section.title}
-          </Text>
-        ) : null
-      }
-      ListHeaderComponent={renderAvatarHeader}
-      stickySectionHeadersEnabled={false}
-      contentContainerStyle={{
-        paddingTop: 12,
-        paddingBottom: insets.bottom + 40,
-      }}
-    />
+    <>
+      <SectionList
+        style={[styles.container, { backgroundColor: themeColors.bg }]}
+        sections={sections}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
+        renderSectionHeader={({ section }) =>
+          section.title ? (
+            <Text
+              style={[styles.sectionTitle, { color: themeColors.secondary }]}
+            >
+              {section.title}
+            </Text>
+          ) : null
+        }
+        ListHeaderComponent={renderAvatarHeader}
+        stickySectionHeadersEnabled={false}
+        contentContainerStyle={{
+          paddingTop: 12,
+          paddingBottom: insets.bottom + 40,
+        }}
+      />
+      <FeaturedExerciseModal
+        visible={widgetModalOpen}
+        onClose={() => setWidgetModalOpen(false)}
+      />
+    </>
   );
 }
 
