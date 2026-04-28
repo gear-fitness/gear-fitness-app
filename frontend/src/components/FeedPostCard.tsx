@@ -26,7 +26,7 @@ interface Props {
 
 export function FeedPostCard({ post }: Props) {
   const { colors } = useTheme();
-  const cardBg = colors.background;
+  const cardBg = colors.card;
   const innerBg = colors.card;
   const { user } = useAuth();
   const [likeCount, setLikeCount] = useState(post.likeCount);
@@ -299,7 +299,11 @@ export function FeedPostCard({ post }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    marginHorizontal: 16,
+    marginBottom: 14,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: "hidden",
   },
   header: {
     paddingHorizontal: 16,

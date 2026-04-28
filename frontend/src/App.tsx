@@ -35,14 +35,23 @@ const LightTheme = {
   ...DefaultTheme,
   colors: {
     ...DefaultTheme.colors,
-    background: "rgb(255, 255, 255)",
-    card: "#eff2f5",
+    background: "#fafafa",
+    card: "#fff",
+  },
+};
+
+const CustomDarkTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background: "#0a0a0a",
+    card: "#141414",
   },
 };
 
 export function App() {
   const colorScheme = useColorScheme();
-  const theme = colorScheme === "dark" ? DarkTheme : LightTheme;
+  const theme = colorScheme === "dark" ? CustomDarkTheme : LightTheme;
 
   useEffect(() => {
     GoogleSignin.configure({
