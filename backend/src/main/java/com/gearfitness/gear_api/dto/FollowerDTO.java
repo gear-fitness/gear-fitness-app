@@ -6,28 +6,32 @@ public class FollowerDTO {
 
   public UUID userId;
   public String username;
+  private String displayName;
   public String profilePictureUrl;
   public boolean isFollowing;
 
-  public FollowerDTO(UUID userId, String username) {
+  public FollowerDTO(
+    UUID userId,
+    String username,
+    String displayName,
+    String profilePictureUrl
+  ) {
     this.userId = userId;
     this.username = username;
-  }
-
-  public FollowerDTO(UUID userId, String username, String profilePictureUrl) {
-    this.userId = userId;
-    this.username = username;
+    this.displayName = displayName;
     this.profilePictureUrl = profilePictureUrl;
   }
 
   public FollowerDTO(
     UUID userId,
     String username,
+    String displayName,
     String profilePictureUrl,
     boolean isFollowing
   ) {
     this.userId = userId;
     this.username = username;
+    this.displayName = displayName;
     this.profilePictureUrl = profilePictureUrl;
     this.isFollowing = isFollowing;
   }
@@ -42,6 +46,10 @@ public class FollowerDTO {
 
   public String getProfilePictureUrl() {
     return profilePictureUrl;
+  }
+
+  public String getDisplayName() {
+    return displayName;
   }
 
   public boolean isFollowing() {

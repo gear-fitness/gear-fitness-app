@@ -50,7 +50,7 @@ export default function FollowScreen() {
     border: isDark ? "#222" : "#e0e0e0",
     separator: isDark ? "#111" : "#f2f2f2",
     rowPressed: isDark ? "#111" : "#f5f5f5",
-    followBtn: "#0095f6",
+    followBtn: "#3a3a3a",
     followBtnText: "#fff",
     followingBorder: isDark ? "#3a3a3a" : "#dbdbdb",
     followingText: isDark ? "#fff" : "#000",

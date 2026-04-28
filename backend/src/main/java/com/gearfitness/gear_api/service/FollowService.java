@@ -178,6 +178,7 @@ public class FollowService {
         new FollowerDTO(
           f.getFollower().getUserId(),
           f.getFollower().getUsername(),
+          f.getFollower().getDisplayName(),
           f.getFollower().getProfilePictureUrl(),
           followRepository.existsByFollowerAndFolloweeAndStatus(
             currentUser,
@@ -210,6 +211,7 @@ public class FollowService {
         new FollowerDTO(
           f.getFollowee().getUserId(),
           f.getFollowee().getUsername(),
+          f.getFollowee().getDisplayName(),
           f.getFollowee().getProfilePictureUrl(),
           followRepository.existsByFollowerAndFolloweeAndStatus(
             currentUser,
@@ -237,6 +239,7 @@ public class FollowService {
         new FollowerDTO(
           f.getFollower().getUserId(),
           f.getFollower().getUsername(),
+          f.getFollower().getDisplayName(),
           f.getFollower().getProfilePictureUrl()
         )
       )
