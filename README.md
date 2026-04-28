@@ -1,6 +1,7 @@
 <img width="1916" height="818" alt="image" src="https://github.com/user-attachments/assets/13036473-e0c7-4126-8bd4-68a00067088d" />
 
 ---
+
 A comprehensive full-stack fitness tracking solution designed to help gym-goers maintain consistency, track progress, and optimize their workout routines.
 
 ## About
@@ -12,7 +13,7 @@ This project is being developed as part of our Fall 2025 Capstone class by:
 - **Alton Matovu**
 - **Max Lopez**
 
-As dedicated gym-goers ourselves, we experienced firsthand the challenges of maintaining effective workout routines and decided to build a solution that addresses the real pain points we and others face in the gym.
+As dedicated gym-goers ourselves, we experienced firsthand the challenges of maintaining effective workout routines and decided to build a solution that addresses the real pain points we and others face in the gymnasium.
 
 ## Problem Statement
 

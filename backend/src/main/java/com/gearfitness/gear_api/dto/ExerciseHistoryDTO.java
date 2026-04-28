@@ -12,7 +12,7 @@ public class ExerciseHistoryDTO {
 
   private UUID exerciseId;
   private String exerciseName;
-  private String bodyPart;
+  private List<BodyPartDTO> bodyParts;
   private Integer totalSessions;
   private BigDecimal personalRecordLbs;
   private List<ExerciseSessionDTO> sessions;

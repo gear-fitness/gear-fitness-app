@@ -50,7 +50,7 @@ public class Workout {
   @Column(name = "body_tag")
   @Enumerated(EnumType.STRING)
   @Builder.Default
-  private List<BodyTag> bodyTags = new ArrayList<>();
+  private List<MuscleGroup> bodyTags = new ArrayList<>();
 
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
@@ -79,20 +79,4 @@ public class Workout {
   @ToString.Exclude
   @EqualsAndHashCode.Exclude
   private Post post;
-
-  public enum BodyTag {
-    FULL_BODY,
-    CHEST,
-    BACK,
-    SHOULDERS,
-    BICEPS,
-    TRICEPS,
-    LEGS,
-    GLUTES,
-    HAMSTRINGS,
-    QUADS,
-    CALVES,
-    CORE,
-    OTHER,
-  }
 }
