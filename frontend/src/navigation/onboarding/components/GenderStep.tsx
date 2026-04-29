@@ -27,9 +27,6 @@ export function GenderStep({
       <OnboardingTopBar progress={0.2} onBack={onBack} />
       <View style={shared.body}>
         <Text style={shared.heading}>What's your gender?</Text>
-        <Text style={shared.subheading}>
-          This helps us calculate accurate calorie and macro goals.
-        </Text>
         <GenderCardList
           selected={selected}
           onSelect={onSelect}

@@ -10,6 +10,7 @@ import { PickerSheet } from "../../onboarding/components/PickerSheet";
 import { useOnboardingColors } from "../../onboarding/components/useOnboardingColors";
 import { makeOnboardingStyles } from "../../onboarding/components/makeOnboardingStyles";
 import { SettingsTopBar } from "../../../components/Settings/SettingsTopBar";
+import { syncOnboardingDataToHealthKit } from "../../../utils/healthKitSync";
 
 function toWeightLbs(w: Weight): number {
   if (w.unit === "lbs") return w.value;
@@ -48,6 +49,7 @@ export function EditWeightScreen() {
     try {
       await updateUserProfile(undefined, toWeightLbs(weight));
       await refreshUser();
+      syncOnboardingDataToHealthKit({ weight });
       navigation.goBack();
     } catch {
       Alert.alert("Error", "Failed to update weight. Please try again.");

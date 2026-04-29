@@ -14,6 +14,7 @@ import { PickerSheet } from "../../onboarding/components/PickerSheet";
 import { useOnboardingColors } from "../../onboarding/components/useOnboardingColors";
 import { makeOnboardingStyles } from "../../onboarding/components/makeOnboardingStyles";
 import { SettingsTopBar } from "../../../components/Settings/SettingsTopBar";
+import { syncOnboardingDataToHealthKit } from "../../../utils/healthKitSync";
 
 function toHeightInches(h: Height): number {
   if (h.unit === "ft_in") return h.ft * 12 + h.inch;
@@ -65,6 +66,7 @@ export function EditHeightScreen() {
     try {
       await updateUserProfile(toHeightInches(height));
       await refreshUser();
+      syncOnboardingDataToHealthKit({ height });
       navigation.goBack();
     } catch {
       Alert.alert("Error", "Failed to update height. Please try again.");
