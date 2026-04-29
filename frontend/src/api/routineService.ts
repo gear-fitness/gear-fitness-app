@@ -1,5 +1,6 @@
 import apiClient from "./apiClient";
 import { Routine } from "./types";
+import { getCurrentLocalDateString } from "../utils/date";
 
 export async function createRoutineFromWorkout(
   workoutId: string,
@@ -25,7 +26,9 @@ export async function getRoutineDetail(routineId: string): Promise<Routine> {
 }
 
 export async function getTodaysRoutines(): Promise<Routine[]> {
-  const { data } = await apiClient.get<Routine[]>("/routines/today");
+  const { data } = await apiClient.get<Routine[]>("/routines/today", {
+    params: { localDate: getCurrentLocalDateString() },
+  });
   return data;
 }
 

@@ -1,5 +1,6 @@
-import React, { useEffect } from "react";
-import { StyleSheet, View, TouchableOpacity, Text } from "react-native";
+import React, { useEffect, useState } from "react";
+import { Text } from "@react-navigation/elements";
+import { StyleSheet, View, TouchableOpacity, Image, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
@@ -11,6 +12,8 @@ import { useAuth } from "../../context/AuthContext";
 import { TodaysRoutines } from "../../components/TodaysRoutines";
 import { StartCountdownOverlay } from "../../components/StartCountdownOverlay";
 import { useStartCountdown } from "../../hooks/useStartCountdown";
+import { StreakDropdown } from "../../components/StreakDropdown";
+import { streakService, type StreakInfo } from "../../api/streakService";
 
 const SERIF = "LibreCaslonText_400Regular";
 
@@ -34,9 +37,7 @@ const QUOTES = [
 function dailyQuote(): string {
   const d = new Date();
   const start = new Date(d.getFullYear(), 0, 0);
-  const day = Math.floor(
-    (d.getTime() - start.getTime()) / 86400000,
-  );
+  const day = Math.floor((d.getTime() - start.getTime()) / 86400000);
   return QUOTES[day % QUOTES.length];
 }
 
@@ -62,21 +63,56 @@ export function Workout() {
   const isDark = scheme === "dark";
 
   const { user, refreshUser } = useAuth();
-  const { playerVisible, seconds, exercises } = useWorkoutTimer();
-  const { isCountdownVisible, countdownValue, startCountdown, cancelCountdown } =
-    useStartCountdown({
-      onComplete: () =>
-        navigation.navigate("WorkoutFlow", { screen: "ExerciseSelect" }),
-    });
+  const { playerVisible, seconds, running, exercises } = useWorkoutTimer();
+  const {
+    isCountdownVisible,
+    countdownValue,
+    startCountdown,
+    cancelCountdown,
+  } = useStartCountdown({
+    onComplete: () =>
+      navigation.navigate("WorkoutFlow", { screen: "ExerciseSelect" }),
+  });
+
+  const [streakDropdownVisible, setStreakDropdownVisible] = useState(false);
+  const [streakInfo, setStreakInfo] = useState<StreakInfo | null>(null);
+  const [streakLoading, setStreakLoading] = useState(false);
 
   useFocusEffect(
     React.useCallback(() => {
       refreshUser();
+      streakService.getStreakInfo().then(setStreakInfo).catch(console.error);
     }, []),
   );
 
   const streak = user?.workoutStats?.workoutStreak ?? 0;
   const inProgress = playerVisible;
+
+  const handleLogRestDay = async () => {
+    setStreakLoading(true);
+    try {
+      const updated = await streakService.logRestDay();
+      setStreakInfo(updated);
+      refreshUser();
+    } catch (e: any) {
+      Alert.alert("Error", e?.response?.data || "Could not log rest day");
+    } finally {
+      setStreakLoading(false);
+    }
+  };
+
+  const handleRestore = async () => {
+    setStreakLoading(true);
+    try {
+      const updated = await streakService.useRestoreToken();
+      setStreakInfo(updated);
+      refreshUser();
+    } catch (e: any) {
+      Alert.alert("Error", e?.response?.data || "Could not restore streak");
+    } finally {
+      setStreakLoading(false);
+    }
+  };
 
   useEffect(() => {
     navigation.setOptions({
@@ -119,7 +155,17 @@ export function Workout() {
     <SafeAreaView style={[styles.container, { backgroundColor: t.bg }]}>
       {/* Header: streak + nav */}
       <View style={styles.header}>
-        <View style={styles.streakBlock}>
+        <TouchableOpacity
+          style={styles.streakBlock}
+          onPress={() => {
+            setStreakDropdownVisible(true);
+            streakService
+              .getStreakInfo()
+              .then(setStreakInfo)
+              .catch(console.error);
+          }}
+          activeOpacity={0.7}
+        >
           <View style={styles.streakRow}>
             <Svg width={42} height={46} viewBox="0 0 16 18" fill="none">
               <Path
@@ -137,7 +183,7 @@ export function Workout() {
           <Text style={[styles.streakLabel, { color: t.textMuted }]}>
             STREAK
           </Text>
-        </View>
+        </TouchableOpacity>
 
         <View style={styles.navRow}>
           <TouchableOpacity
@@ -222,9 +268,7 @@ export function Workout() {
               </Text>
             </View>
           ) : (
-            <Text
-              style={[styles.quote, { color: t.text, fontFamily: SERIF }]}
-            >
+            <Text style={[styles.quote, { color: t.text, fontFamily: SERIF }]}>
               {dailyQuote()}
             </Text>
           )}
@@ -249,7 +293,15 @@ export function Workout() {
           )}
         </View>
       </View>
-
+      <StreakDropdown
+        visible={streakDropdownVisible}
+        onClose={() => setStreakDropdownVisible(false)}
+        streakInfo={streakInfo}
+        onLogRestDay={handleLogRestDay}
+        onRestore={handleRestore}
+        loading={streakLoading}
+        isDark={isDark}
+      />
       <StartCountdownOverlay
         visible={isCountdownVisible}
         countdownValue={countdownValue}

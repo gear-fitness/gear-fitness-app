@@ -116,13 +116,14 @@ public class AppUserService {
    */
   public UserProfileDTO getEnhancedUserProfile(
     UUID userId,
-    UUID viewingUserId
+    UUID viewingUserId,
+    String localDate
   ) {
     AppUser user = userRepository
       .findById(userId)
       .orElseThrow(() -> new RuntimeException("User not found"));
 
-    return buildEnhancedProfile(user, viewingUserId);
+    return buildEnhancedProfile(user, viewingUserId, localDate);
   }
 
   /**
@@ -131,13 +132,14 @@ public class AppUserService {
    */
   public UserProfileDTO getEnhancedUserProfileByUsername(
     String username,
-    UUID viewingUserId
+    UUID viewingUserId,
+    String localDate
   ) {
     AppUser user = userRepository
       .findByUsername(username)
       .orElseThrow(() -> new RuntimeException("User not found"));
 
-    return buildEnhancedProfile(user, viewingUserId);
+    return buildEnhancedProfile(user, viewingUserId, localDate);
   }
 
   /**
@@ -145,9 +147,10 @@ public class AppUserService {
    */
   private UserProfileDTO buildEnhancedProfile(
     AppUser user,
-    UUID viewingUserId
+    UUID viewingUserId,
+    String localDate
   ) {
-    WorkoutStatsDTO workoutStats = calculateWorkoutStats(user);
+    WorkoutStatsDTO workoutStats = calculateWorkoutStats(user, localDate);
     long followersCount = followRepository.countByFolloweeAndStatus(
       user,
       Follow.FollowStatus.ACCEPTED
@@ -191,12 +194,17 @@ public class AppUserService {
   /**
    * Calculate workout statistics for a user
    */
-  private WorkoutStatsDTO calculateWorkoutStats(AppUser user) {
+  private WorkoutStatsDTO calculateWorkoutStats(
+    AppUser user,
+    String localDate
+  ) {
     // Total workouts
     long totalWorkouts = workoutRepository.countByUser(user);
 
     // Get start and end of current week (Monday to Sunday)
-    LocalDate today = LocalDate.now();
+    LocalDate today = (localDate != null && !localDate.isBlank())
+      ? LocalDate.parse(localDate)
+      : LocalDate.now();
     LocalDate startOfWeek = today.with(
       TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)
     );
@@ -294,73 +302,11 @@ public class AppUserService {
   }
 
   /**
-   * Calculate workout streak
-   * Algorithm:
-   * 1. Walk backwards to see which week failed (less than 5 workouts in a week)
-   * 2. Count all distinct workout days from the Monday after that failed week through today.
-   *    If no week failed, count all distinct workout days ever.
+   * Returns the persisted daily streak value.
+   * Streak is recalculated by StreakService on workout submit, rest day log, and restore.
    */
   private int calculateWorkoutStreak(AppUser user) {
-    LocalDate today = LocalDate.now();
-    LocalDate currentWeekMonday = today.with(
-      TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)
-    );
-
-    // the most recent completed week that failed (< 5 distinct workout days)
-    LocalDate streakStartDate = null; // null means no failed week found — count everything
-    LocalDate checkWeekMonday = currentWeekMonday.minusWeeks(1);
-
-    while (true) {
-      LocalDate checkWeekSunday = checkWeekMonday.plusDays(6);
-      List<Workout> weekWorkouts =
-        workoutRepository.findByUserAndDatePerformedBetween(
-          user,
-          checkWeekMonday,
-          checkWeekSunday
-        );
-
-      long distinctDays = weekWorkouts
-        .stream()
-        .map(Workout::getDatePerformed)
-        .distinct()
-        .count();
-
-      if (distinctDays < 5) {
-        // This week failed — streak starts from the Monday after it
-        streakStartDate = checkWeekMonday.plusWeeks(1);
-        break;
-      }
-
-      // If no workouts at all in this week, we've gone past all user activity
-      if (weekWorkouts.isEmpty()) {
-        break;
-      }
-
-      checkWeekMonday = checkWeekMonday.minusWeeks(1);
-    }
-
-    // Count distinct workout days from streakStartDate through today
-    List<Workout> streakWorkouts;
-    if (streakStartDate != null) {
-      streakWorkouts = workoutRepository.findByUserAndDatePerformedBetween(
-        user,
-        streakStartDate,
-        today
-      );
-    } else {
-      // No failed week found — count all workouts up to today
-      streakWorkouts = workoutRepository.findByUserAndDatePerformedBetween(
-        user,
-        LocalDate.of(2000, 1, 1),
-        today
-      );
-    }
-
-    return (int) streakWorkouts
-      .stream()
-      .map(Workout::getDatePerformed)
-      .distinct()
-      .count();
+    return user.getCurrentStreak();
   }
 
   /**

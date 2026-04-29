@@ -1,6 +1,7 @@
 // src/main/java/com/gearfitness/gear_api/dto/WorkoutSubmissionDTO.java
 package com.gearfitness.gear_api.dto;
 
+import com.gearfitness.gear_api.entity.MuscleGroup;
 import com.gearfitness.gear_api.entity.Workout;
 import java.util.List;
 import java.util.UUID;
@@ -18,7 +19,7 @@ public class WorkoutSubmissionDTO {
   private String name;
   private Integer durationMin;
   private String datePerformed; // Optional - date in YYYY-MM-DD format from client
-  private List<Workout.BodyTag> bodyTags;
+  private List<MuscleGroup> bodyTags;
   private List<ExerciseSubmissionDTO> exercises;
 
   // Optional - for creating a post

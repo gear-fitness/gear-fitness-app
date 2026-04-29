@@ -1,5 +1,6 @@
 package com.gearfitness.gear_api.controller;
 
+import com.gearfitness.gear_api.dto.BodyPartDTO;
 import com.gearfitness.gear_api.dto.CreateExerciseRequest;
 import com.gearfitness.gear_api.dto.ExerciseDTO;
 import com.gearfitness.gear_api.dto.ExerciseHistoryDTO;
@@ -7,13 +8,17 @@ import com.gearfitness.gear_api.dto.ExerciseSessionDTO;
 import com.gearfitness.gear_api.dto.ExerciseSetDTO;
 import com.gearfitness.gear_api.entity.AppUser;
 import com.gearfitness.gear_api.entity.Exercise;
+import com.gearfitness.gear_api.entity.ExerciseBodyPart;
+import com.gearfitness.gear_api.entity.MuscleGroup;
 import com.gearfitness.gear_api.entity.WorkoutExercise;
 import com.gearfitness.gear_api.repository.ExerciseRepository;
 import com.gearfitness.gear_api.repository.WorkoutExerciseRepository;
 import com.gearfitness.gear_api.security.JwtService;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -39,32 +44,16 @@ public class ExerciseController {
     return exerciseRepo
       .findByUserIsNullOrUserUserId(userId)
       .stream()
-      .map(ex ->
-        new ExerciseDTO(
-          ex.getExerciseId(),
-          ex.getName(),
-          ex.getBodyPart(),
-          ex.getDescription()
-        )
-      )
+      .map(this::toDTO)
       .toList();
   }
 
   @GetMapping("/filter")
-  public List<ExerciseDTO> getByBodyPart(
-    @RequestParam Exercise.BodyPart bodyPart
-  ) {
+  public List<ExerciseDTO> getByBodyPart(@RequestParam MuscleGroup bodyPart) {
     return exerciseRepo
       .findByBodyPart(bodyPart)
       .stream()
-      .map(ex ->
-        new ExerciseDTO(
-          ex.getExerciseId(),
-          ex.getName(),
-          ex.getBodyPart(),
-          ex.getDescription()
-        )
-      )
+      .map(this::toDTO)
       .toList();
   }
 
@@ -118,25 +107,25 @@ public class ExerciseController {
         .max(BigDecimal::compareTo)
         .orElse(null);
 
-      // Get exercise info from first result, or look it up
-      String exerciseName;
-      String bodyPart;
+      Exercise exercise;
       if (!workoutExercises.isEmpty()) {
-        Exercise ex = workoutExercises.get(0).getExercise();
-        exerciseName = ex.getName();
-        bodyPart = ex.getBodyPart().name();
+        exercise = workoutExercises.get(0).getExercise();
       } else {
-        Exercise ex = exerciseRepo
+        exercise = exerciseRepo
           .findById(exerciseId)
           .orElseThrow(() -> new RuntimeException("Exercise not found"));
-        exerciseName = ex.getName();
-        bodyPart = ex.getBodyPart().name();
       }
+
+      List<BodyPartDTO> bodyPartDTOs = exercise
+        .getBodyParts()
+        .stream()
+        .map(bp -> new BodyPartDTO(bp.getBodyPart(), bp.getTargetType()))
+        .toList();
 
       ExerciseHistoryDTO dto = new ExerciseHistoryDTO(
         exerciseId,
-        exerciseName,
-        bodyPart,
+        exercise.getName(),
+        bodyPartDTOs,
         sessions.size(),
         pr,
         sessions
@@ -163,20 +152,22 @@ public class ExerciseController {
     AppUser user = new AppUser();
     user.setUserId(userId);
 
+    Set<ExerciseBodyPart> bodyParts = request
+      .getBodyParts()
+      .stream()
+      .map(bp -> new ExerciseBodyPart(bp.getBodyPart(), bp.getTargetType()))
+      .collect(Collectors.toSet());
+
     Exercise exercise = Exercise.builder()
-      .name(request.name())
-      .description(request.description())
-      .bodyPart(Exercise.BodyPart.valueOf(request.bodyPart()))
+      .name(request.getName())
+      .description(request.getDescription())
+      .bodyParts(bodyParts)
       .user(user)
       .build();
+
     Exercise saved = exerciseRepo.save(exercise);
 
-    return new ExerciseDTO(
-      saved.getExerciseId(),
-      saved.getName(),
-      saved.getBodyPart(),
-      saved.getDescription()
-    );
+    return toDTO(saved);
   }
 
   @DeleteMapping("/{exerciseId}")
@@ -201,5 +192,20 @@ public class ExerciseController {
 
     exerciseRepo.delete(exercise);
     return ResponseEntity.ok().build();
+  }
+
+  private ExerciseDTO toDTO(Exercise ex) {
+    List<BodyPartDTO> bodyPartDTOs = ex
+      .getBodyParts()
+      .stream()
+      .map(bp -> new BodyPartDTO(bp.getBodyPart(), bp.getTargetType()))
+      .toList();
+
+    return new ExerciseDTO(
+      ex.getExerciseId(),
+      ex.getName(),
+      bodyPartDTOs,
+      ex.getDescription()
+    );
   }
 }

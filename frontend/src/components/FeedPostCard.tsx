@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useTheme } from "@react-navigation/native";
 import { FeedPost, socialFeedApi } from "../api/socialFeedApi";
 import { parseLocalDate } from "../utils/date";
+import { formatTag } from "../utils/formatTag";
 import { useAuth } from "../context/AuthContext";
 import { Avatar } from "./Avatar";
 
@@ -195,9 +196,7 @@ export function FeedPostCard({ post }: Props) {
                       styles.dot,
                       {
                         backgroundColor:
-                          i === activePhotoIndex
-                            ? colors.text
-                            : colors.border,
+                          i === activePhotoIndex ? colors.text : colors.border,
                         opacity: i === activePhotoIndex ? 0.9 : 0.5,
                       },
                     ]}
@@ -236,7 +235,7 @@ export function FeedPostCard({ post }: Props) {
             <View style={styles.metric}>
               <Text style={[styles.metricLabel, textMuted]}>Muscles</Text>
               <Text style={[styles.musclesText, { color: colors.text }]}>
-                {post.bodyTags.map(formatBodyTag).join(", ")}
+                {post.bodyTags.map(formatTag).join(", ")}
               </Text>
             </View>
           )}
@@ -283,11 +282,7 @@ export function FeedPostCard({ post }: Props) {
             navigation.navigate("Comments", { postId: post.postId })
           }
         >
-          <Ionicons
-            name="chatbubble-outline"
-            size={24}
-            color={colors.text}
-          />
+          <Ionicons name="chatbubble-outline" size={24} color={colors.text} />
           <Text style={[styles.engagementText, { color: colors.text }]}>
             {post.commentCount}
           </Text>

@@ -8,7 +8,7 @@ import apiClient from "./apiClient";
 export interface Exercise {
   exerciseId: string;
   name: string;
-  bodyPart: string;
+  bodyParts: BodyPartDTO[];
   description: string;
 }
 
@@ -17,6 +17,11 @@ export interface ExerciseSet {
   reps: number;
   weightLbs: number | null;
   isPr: boolean;
+}
+
+export interface BodyPartDTO {
+  bodyPart: string;
+  targetType: "PRIMARY" | "SECONDARY";
 }
 
 export interface ExerciseSession {
@@ -29,7 +34,7 @@ export interface ExerciseSession {
 export interface ExerciseHistory {
   exerciseId: string;
   exerciseName: string;
-  bodyPart: string;
+  bodyParts: BodyPartDTO[];
   totalSessions: number;
   personalRecordLbs: number | null;
   sessions: ExerciseSession[];
@@ -61,7 +66,7 @@ export async function getExerciseHistory(
 export async function createExercise(exerciseData: {
   name: string;
   description: string | null;
-  bodyPart: string;
+  bodyParts: BodyPartDTO[];
 }): Promise<Exercise> {
   const { data } = await apiClient.post<Exercise>("/exercises", exerciseData);
   return data;

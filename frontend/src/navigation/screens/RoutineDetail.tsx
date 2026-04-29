@@ -18,6 +18,7 @@ import { formatDay } from "../../utils/days";
 import { useThemedHeader } from "../../hooks/useThemedHeader";
 import { StartCountdownOverlay } from "../../components/StartCountdownOverlay";
 import { useStartCountdown } from "../../hooks/useStartCountdown";
+import { formatPrimaryBodyParts } from "../../utils/exerciseUtils";
 
 export function RoutineDetail({
   route,
@@ -65,6 +66,7 @@ export function RoutineDetail({
         routine.exercises.map((ex) => ({
           exerciseId: ex.exerciseId,
           name: ex.exerciseName,
+          bodyParts: ex.bodyParts,
         })),
       );
       (navigation as any).navigate("WorkoutFlow", {
@@ -256,8 +258,7 @@ export function RoutineDetail({
                         { color: colors.secondary },
                       ]}
                     >
-                      {ex.bodyPart.charAt(0).toUpperCase() +
-                        ex.bodyPart.slice(1).toLowerCase()}
+                      {formatPrimaryBodyParts(ex.bodyParts)}
                     </Text>
                   </View>
                 </View>

@@ -3,6 +3,8 @@
  * These should match the backend DTOs
  */
 
+import { BodyPartDTO } from "./exerciseService";
+
 export interface WorkoutStats {
   totalWorkouts: number;
   workoutsThisWeek: number;
@@ -102,7 +104,7 @@ export interface WorkoutSet {
 export interface WorkoutExercise {
   workoutExerciseId: string;
   exerciseName: string;
-  bodyPart: string;
+  bodyParts: BodyPartDTO[];
   position: number;
   note: string | null;
   sets: WorkoutSet[];
@@ -113,7 +115,7 @@ export interface WorkoutDetail {
   name: string;
   datePerformed: string;
   durationMin: number | null;
-  bodyTag: string | null;
+  bodyTags: string[];
   exercises: WorkoutExercise[];
 }
 
@@ -128,7 +130,7 @@ export interface PersonalRecord {
 export interface RoutineExercise {
   routineExerciseId: string;
   exerciseName: string;
-  bodyPart: string;
+  bodyParts: BodyPartDTO[];
   position: number;
   exerciseId: string;
 }

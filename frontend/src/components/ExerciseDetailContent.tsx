@@ -32,6 +32,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import stopwatch from "../assets/stopwatch.png";
 import { useWorkoutTimer, WorkoutSet } from "../context/WorkoutContext";
 import { useSwipeableDelete } from "../hooks/useSwipeableDelete";
+import { BodyPartDTO } from "../api/exerciseService";
 
 interface ExerciseDetailContentProps {
   exercise: {
@@ -40,6 +41,7 @@ interface ExerciseDetailContentProps {
     workoutExerciseId?: string;
     sets?: WorkoutSet[];
     note?: string;
+    bodyParts?: BodyPartDTO[];
   };
   onSummary: () => void;
   onAddExercise: () => void;
@@ -108,7 +110,9 @@ function formatWeight(n: number): string {
 function plateMath(bar: number, sideTotal: number, mode: PlateMode): string {
   const sideStr = formatWeight(sideTotal);
   if (bar > 0 && sideTotal > 0)
-    return mode === "single" ? `${bar} + ${sideStr}` : `${bar} + ${sideStr} × 2`;
+    return mode === "single"
+      ? `${bar} + ${sideStr}`
+      : `${bar} + ${sideStr} × 2`;
   if (bar > 0) return `${bar} bar`;
   if (sideTotal > 0) return mode === "single" ? sideStr : `${sideStr} × 2`;
   return "0";
@@ -224,10 +228,7 @@ export const ExerciseDetailContent = forwardRef<
   };
 
   useEffect(() => {
-    const id = setInterval(
-      () => setExerciseSeconds((s) => s + 1),
-      1000,
-    );
+    const id = setInterval(() => setExerciseSeconds((s) => s + 1), 1000);
     return () => clearInterval(id);
   }, []);
 
@@ -245,8 +246,7 @@ export const ExerciseDetailContent = forwardRef<
   }, [exercises, exercise.workoutExerciseId]);
 
   const { getSwipeableProps } = useSwipeableDelete({
-    onDelete: (id) =>
-      setLoggedSets((prev) => prev.filter((s) => s.id !== id)),
+    onDelete: (id) => setLoggedSets((prev) => prev.filter((s) => s.id !== id)),
     deleteTitle: "Delete Set",
     deleteMessage: "Are you sure you want to delete this set?",
   });
@@ -262,10 +262,11 @@ export const ExerciseDetailContent = forwardRef<
     ];
     if (allSets.length > 0) {
       addExercise({
-        workoutExerciseId:
-          exercise.workoutExerciseId || Date.now().toString(),
+        workoutExerciseId: exercise.workoutExerciseId || Date.now().toString(),
         exerciseId: exercise.exerciseId,
         name: exercise.name,
+        bodyParts: exercise.bodyParts,
+
         sets: allSets,
         note: note.trim(),
       });
@@ -334,8 +335,7 @@ export const ExerciseDetailContent = forwardRef<
         { text: noteLabel, onPress: openNoteModal },
         {
           text: viewLabel,
-          onPress: () =>
-            navigation.navigate("ExerciseHistory", { exercise }),
+          onPress: () => navigation.navigate("ExerciseHistory", { exercise }),
         },
         { text: "Cancel", style: "cancel" },
       ]);
@@ -345,268 +345,261 @@ export const ExerciseDetailContent = forwardRef<
   return (
     <>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-      <View
-        style={[
-          styles.container,
-          { backgroundColor: colors.bg, paddingTop: insets.top },
-        ]}
-      >
-        <View style={styles.topBar}>
-          <TouchableOpacity
-            onPress={() => {
-              const parent = navigation.getParent();
-              if (parent) parent.goBack();
-              else navigation.goBack();
-            }}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={[styles.dismissButton, { backgroundColor: colors.chipBg }]}
-          >
-            <SymbolView
-              name="chevron.down"
-              tintColor={colors.text}
-              size={16}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() => setShowingTotal((v) => !v)}
-            style={styles.timerTap}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Image
-              source={stopwatch}
-              style={[styles.timerIcon, { tintColor: colors.text }]}
-            />
-            <Text style={[styles.timerText, { color: colors.text }]}>
-              {formatTime(timerValue)}
-            </Text>
-            {showingTotal && (
-              <Text
-                style={[styles.timerCaption, { color: colors.textMuted }]}
-              >
-                TOTAL
-              </Text>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={handleInfoPress}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={[styles.infoButton, { backgroundColor: colors.chipBg }]}
-          >
-            <SymbolView
-              name={note.trim() ? "ellipsis.circle.fill" : "ellipsis.circle"}
-              tintColor={colors.text}
-              size={18}
-            />
-          </TouchableOpacity>
-        </View>
-        <View style={[styles.divider, { borderBottomColor: colors.border }]} />
-
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          onScrollBeginDrag={Keyboard.dismiss}
-          showsVerticalScrollIndicator={false}
-        >
-        <View style={styles.header}>
-          <Text style={[styles.caption, { color: colors.textMuted }]}>
-            EXERCISE {exerciseNum} · SET {loggedSets.length + 1}
-          </Text>
-          <Text
-            style={[styles.title, { color: colors.text }]}
-            numberOfLines={2}
-          >
-            {exercise.name}
-          </Text>
-        </View>
-
         <View
           style={[
-            styles.heroCard,
-            {
-              backgroundColor: colors.surface,
-              borderColor: colors.border,
-              borderWidth: isDark ? 1 : 0,
-            },
+            styles.container,
+            { backgroundColor: colors.bg, paddingTop: insets.top },
           ]}
         >
-          <HeroInput
-            label="Reps"
-            value={currentReps}
-            onChangeText={setCurrentReps}
-            colors={colors}
-          />
-          <View
-            style={[
-              styles.heroDivider,
-              { backgroundColor: colors.border },
-            ]}
-          />
-          <HeroInput
-            label="Weight"
-            unit="lbs"
-            value={currentWeight}
-            onChangeText={setCurrentWeight}
-            colors={colors}
-            allowDecimal
-          />
-          <View
-            style={[
-              styles.heroDivider,
-              { backgroundColor: colors.border },
-            ]}
-          />
-          <PlateLoaderToggle
-            colors={colors}
-            enabled={platesEnabled}
-            open={platesOpen}
-            onToggleEnabled={togglePlatesEnabled}
-            onToggleOpen={() => setPlatesOpen((v) => !v)}
-            bar={plateBar}
-            sideTotal={plateSideTotal}
-            mode={plateMode}
-            stackCount={plateStack.length}
-          />
-          {platesEnabled && platesOpen && (
-            <>
-              <View
-                style={[
-                  styles.heroDivider,
-                  { backgroundColor: colors.border },
-                ]}
-              />
-              <PlateLoader
-                colors={colors}
-                isDark={isDark}
-                stack={plateStack}
-                sideTotal={plateSideTotal}
-                bar={plateBar}
-                barOn={plateBarOn}
-                mode={plateMode}
-                onAddPlate={handleAddPlate}
-                onPopPlate={handlePopPlate}
-                onClear={handleClearPlates}
-                onModeChange={handlePlateModeChange}
-                onBarToggle={handlePlateBarToggle}
-              />
-            </>
-          )}
-        </View>
-
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={handleLogSet}
-          disabled={!canLog}
-          style={[
-            styles.logButton,
-            {
-              backgroundColor: colors.accent,
-              opacity: canLog ? 1 : 0.4,
-            },
-          ]}
-        >
-          <Text style={[styles.logButtonText, { color: colors.accentText }]}>
-            Log set {loggedSets.length + 1}
-          </Text>
-          <Text
-            style={[styles.logButtonArrow, { color: colors.accentText }]}
-          >
-            →
-          </Text>
-        </TouchableOpacity>
-
-        <View style={styles.setsSection}>
-          <View style={styles.setsHeader}>
-            <Text style={[styles.caption, { color: colors.textMuted }]}>
-              SETS
-            </Text>
+          <View style={styles.topBar}>
             <TouchableOpacity
-              onPress={() => setExpanded((v) => !v)}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-              style={styles.setsToggle}
+              onPress={() => {
+                const parent = navigation.getParent();
+                if (parent) parent.goBack();
+                else navigation.goBack();
+              }}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={[styles.dismissButton, { backgroundColor: colors.chipBg }]}
             >
-              <Text style={[styles.setsCount, { color: colors.textMuted }]}>
-                {loggedSets.length} logged
+              <SymbolView
+                name="chevron.down"
+                tintColor={colors.text}
+                size={16}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => setShowingTotal((v) => !v)}
+              style={styles.timerTap}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Image
+                source={stopwatch}
+                style={[styles.timerIcon, { tintColor: colors.text }]}
+              />
+              <Text style={[styles.timerText, { color: colors.text }]}>
+                {formatTime(timerValue)}
               </Text>
-              <Text style={[styles.setsChevron, { color: colors.textMuted }]}>
-                {expanded ? "▴" : "▾"}
+              {showingTotal && (
+                <Text
+                  style={[styles.timerCaption, { color: colors.textMuted }]}
+                >
+                  TOTAL
+                </Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleInfoPress}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={[styles.infoButton, { backgroundColor: colors.chipBg }]}
+            >
+              <SymbolView
+                name={note.trim() ? "ellipsis.circle.fill" : "ellipsis.circle"}
+                tintColor={colors.text}
+                size={18}
+              />
+            </TouchableOpacity>
+          </View>
+          <View
+            style={[styles.divider, { borderBottomColor: colors.border }]}
+          />
+
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            onScrollBeginDrag={Keyboard.dismiss}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.header}>
+              <Text style={[styles.caption, { color: colors.textMuted }]}>
+                EXERCISE {exerciseNum} · SET {loggedSets.length + 1}
+              </Text>
+              <Text
+                style={[styles.title, { color: colors.text }]}
+                numberOfLines={2}
+              >
+                {exercise.name}
+              </Text>
+            </View>
+
+            <View
+              style={[
+                styles.heroCard,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                  borderWidth: isDark ? 1 : 0,
+                },
+              ]}
+            >
+              <HeroInput
+                label="Reps"
+                value={currentReps}
+                onChangeText={setCurrentReps}
+                colors={colors}
+              />
+              <View
+                style={[styles.heroDivider, { backgroundColor: colors.border }]}
+              />
+              <HeroInput
+                label="Weight"
+                unit="lbs"
+                value={currentWeight}
+                onChangeText={setCurrentWeight}
+                colors={colors}
+                allowDecimal
+              />
+              <View
+                style={[styles.heroDivider, { backgroundColor: colors.border }]}
+              />
+              <PlateLoaderToggle
+                colors={colors}
+                enabled={platesEnabled}
+                open={platesOpen}
+                onToggleEnabled={togglePlatesEnabled}
+                onToggleOpen={() => setPlatesOpen((v) => !v)}
+                bar={plateBar}
+                sideTotal={plateSideTotal}
+                mode={plateMode}
+                stackCount={plateStack.length}
+              />
+              {platesEnabled && platesOpen && (
+                <>
+                  <View
+                    style={[
+                      styles.heroDivider,
+                      { backgroundColor: colors.border },
+                    ]}
+                  />
+                  <PlateLoader
+                    colors={colors}
+                    isDark={isDark}
+                    stack={plateStack}
+                    sideTotal={plateSideTotal}
+                    bar={plateBar}
+                    barOn={plateBarOn}
+                    mode={plateMode}
+                    onAddPlate={handleAddPlate}
+                    onPopPlate={handlePopPlate}
+                    onClear={handleClearPlates}
+                    onModeChange={handlePlateModeChange}
+                    onBarToggle={handlePlateBarToggle}
+                  />
+                </>
+              )}
+            </View>
+
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={handleLogSet}
+              disabled={!canLog}
+              style={[
+                styles.logButton,
+                {
+                  backgroundColor: colors.accent,
+                  opacity: canLog ? 1 : 0.4,
+                },
+              ]}
+            >
+              <Text
+                style={[styles.logButtonText, { color: colors.accentText }]}
+              >
+                Log set {loggedSets.length + 1}
+              </Text>
+              <Text
+                style={[styles.logButtonArrow, { color: colors.accentText }]}
+              >
+                →
+              </Text>
+            </TouchableOpacity>
+
+            <View style={styles.setsSection}>
+              <View style={styles.setsHeader}>
+                <Text style={[styles.caption, { color: colors.textMuted }]}>
+                  SETS
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setExpanded((v) => !v)}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  style={styles.setsToggle}
+                >
+                  <Text style={[styles.setsCount, { color: colors.textMuted }]}>
+                    {loggedSets.length} logged
+                  </Text>
+                  <Text
+                    style={[styles.setsChevron, { color: colors.textMuted }]}
+                  >
+                    {expanded ? "▴" : "▾"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {loggedSets.length === 0 ? (
+                <Text style={[styles.empty, { color: colors.textFaint }]}>
+                  No sets logged yet
+                </Text>
+              ) : expanded ? (
+                <View>
+                  {[...loggedSets].reverse().map((item, index) => (
+                    <View key={item.id} style={styles.setRowWrapper}>
+                      <Swipeable
+                        {...getSwipeableProps(item.id)}
+                        activeOffsetX={[-15, 15]}
+                        failOffsetY={[-10, 10]}
+                      >
+                        <SetRow
+                          colors={colors}
+                          idx={loggedSets.length - 1 - index}
+                          reps={item.reps}
+                          weight={item.weight}
+                        />
+                      </Swipeable>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <StackedSets
+                  colors={colors}
+                  loggedSets={loggedSets}
+                  onExpand={() => setExpanded(true)}
+                />
+              )}
+            </View>
+          </ScrollView>
+
+          <View
+            style={[
+              styles.footerCard,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                borderWidth: isDark ? 1 : 0,
+              },
+            ]}
+          >
+            <TouchableOpacity
+              style={styles.footerSecondary}
+              onPress={() => handleSave(onSummary)}
+            >
+              <Text
+                style={[styles.footerSecondaryText, { color: colors.text }]}
+              >
+                Summary
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.footerPrimary, { backgroundColor: colors.accent }]}
+              onPress={() => handleSave(onAddExercise)}
+            >
+              <Text
+                style={[styles.footerPrimaryText, { color: colors.accentText }]}
+              >
+                Next exercise →
               </Text>
             </TouchableOpacity>
           </View>
-
-          {loggedSets.length === 0 ? (
-            <Text style={[styles.empty, { color: colors.textFaint }]}>
-              No sets logged yet
-            </Text>
-          ) : expanded ? (
-            <View>
-              {[...loggedSets].reverse().map((item, index) => (
-                <View key={item.id} style={styles.setRowWrapper}>
-                  <Swipeable
-                    {...getSwipeableProps(item.id)}
-                    activeOffsetX={[-15, 15]}
-                    failOffsetY={[-10, 10]}
-                  >
-                    <SetRow
-                      colors={colors}
-                      idx={loggedSets.length - 1 - index}
-                      reps={item.reps}
-                      weight={item.weight}
-                    />
-                  </Swipeable>
-                </View>
-              ))}
-            </View>
-          ) : (
-            <StackedSets
-              colors={colors}
-              loggedSets={loggedSets}
-              onExpand={() => setExpanded(true)}
-            />
-          )}
         </View>
-
-        </ScrollView>
-
-        <View
-          style={[
-            styles.footerCard,
-            {
-              backgroundColor: colors.surface,
-              borderColor: colors.border,
-              borderWidth: isDark ? 1 : 0,
-            },
-          ]}
-        >
-          <TouchableOpacity
-            style={styles.footerSecondary}
-            onPress={() => handleSave(onSummary)}
-          >
-            <Text
-              style={[styles.footerSecondaryText, { color: colors.text }]}
-            >
-              Summary
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.footerPrimary,
-              { backgroundColor: colors.accent },
-            ]}
-            onPress={() => handleSave(onAddExercise)}
-          >
-            <Text
-              style={[
-                styles.footerPrimaryText,
-                { color: colors.accentText },
-              ]}
-            >
-              Next exercise →
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
       </TouchableWithoutFeedback>
       {Platform.OS === "ios" && (
         <InputAccessoryView nativeID={inputAccessoryViewID}>
@@ -624,16 +617,11 @@ export const ExerciseDetailContent = forwardRef<
         animationType="fade"
         onRequestClose={() => setNoteModalVisible(false)}
       >
-        <TouchableWithoutFeedback
-          onPress={() => setNoteModalVisible(false)}
-        >
+        <TouchableWithoutFeedback onPress={() => setNoteModalVisible(false)}>
           <View style={styles.modalBackdrop}>
             <TouchableWithoutFeedback>
               <View
-                style={[
-                  styles.modalCard,
-                  { backgroundColor: colors.surface },
-                ]}
+                style={[styles.modalCard, { backgroundColor: colors.surface }]}
               >
                 <Text style={[styles.modalTitle, { color: colors.text }]}>
                   Note
@@ -822,9 +810,7 @@ function StackedSets({
       </View>
       {loggedSets.length > 1 && (
         <TouchableOpacity onPress={onExpand} style={stackStyles.expand}>
-          <Text
-            style={[stackStyles.expandText, { color: colors.textMuted }]}
-          >
+          <Text style={[stackStyles.expandText, { color: colors.textMuted }]}>
             ▾ Tap to expand
           </Text>
         </TouchableOpacity>
@@ -900,9 +886,7 @@ function PlateLoaderToggle({
         onPress={enabled ? onToggleOpen : onToggleEnabled}
         style={plateStyles.toggleLabelArea}
       >
-        <Text
-          style={[plateStyles.toggleOverline, { color: colors.textMuted }]}
-        >
+        <Text style={[plateStyles.toggleOverline, { color: colors.textMuted }]}>
           PLATE LOADED
         </Text>
         {enabled && summary && (
@@ -1040,10 +1024,7 @@ function PlateLoader({
               ))}
             </View>
             <View
-              style={[
-                plateStyles.visualBar,
-                { opacity: barOn ? 1 : 0.35 },
-              ]}
+              style={[plateStyles.visualBar, { opacity: barOn ? 1 : 0.35 }]}
             >
               <View
                 style={[
@@ -1083,10 +1064,7 @@ function PlateLoader({
           <>
             <View style={plateStyles.visualSideLeftEmpty} />
             <View
-              style={[
-                plateStyles.visualBar,
-                { opacity: barOn ? 1 : 0.35 },
-              ]}
+              style={[plateStyles.visualBar, { opacity: barOn ? 1 : 0.35 }]}
             >
               <View
                 style={[
@@ -1139,9 +1117,7 @@ function PlateLoader({
               },
             ]}
           >
-            <Text
-              style={[plateStyles.plateButtonText, { color: colors.text }]}
-            >
+            <Text style={[plateStyles.plateButtonText, { color: colors.text }]}>
               {p}
             </Text>
           </TouchableOpacity>
@@ -1149,16 +1125,15 @@ function PlateLoader({
       </View>
 
       <View style={plateStyles.actionsRow}>
-        <TouchableOpacity onPress={onClear} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-          <Text
-            style={[plateStyles.actionText, { color: colors.textMuted }]}
-          >
+        <TouchableOpacity
+          onPress={onClear}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+        >
+          <Text style={[plateStyles.actionText, { color: colors.textMuted }]}>
             Clear
           </Text>
         </TouchableOpacity>
-        <Text
-          style={[plateStyles.summaryText, { color: colors.textFaint }]}
-        >
+        <Text style={[plateStyles.summaryText, { color: colors.textFaint }]}>
           {summary}
         </Text>
         <TouchableOpacity
@@ -1170,8 +1145,7 @@ function PlateLoader({
             style={[
               plateStyles.actionText,
               {
-                color:
-                  stack.length === 0 ? colors.textFaint : colors.textMuted,
+                color: stack.length === 0 ? colors.textFaint : colors.textMuted,
               },
             ]}
           >

@@ -19,6 +19,10 @@ import {
   ExerciseHistory as ExerciseHistoryType,
   ExerciseSession,
 } from "../../api/exerciseService";
+import {
+  formatPrimaryBodyParts,
+  renderBodyParts,
+} from "../../utils/exerciseUtils";
 
 const CHART_HEIGHT = 200;
 const CHART_PADDING = { top: 24, right: 20, bottom: 30, left: 50 };
@@ -505,7 +509,7 @@ export function ExerciseHistory() {
             {history?.exerciseName || exercise.name}
           </Text>
           <Text style={[styles.bodyPart, { color: colors.accent }]}>
-            {history?.bodyPart || exercise.bodyPart}
+            {renderBodyParts(history.bodyParts, colors.subtle, colors.accent)}
           </Text>
         </View>
 

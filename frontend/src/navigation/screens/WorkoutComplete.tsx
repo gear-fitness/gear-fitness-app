@@ -15,7 +15,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
@@ -30,6 +30,12 @@ import { getCurrentLocalDateString } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
+import { formatTag } from "../../utils/formatTag";
+import { getAllBodyPartNames } from "../../utils/exerciseUtils";
+import { MUSCLE_GROUPS } from "../../constants/muscleGroups";
+
+export function WorkoutComplete() {
+  useTrackTab("WorkoutComplete");
 
 const ACCENT = "#111";
 const DESTRUCTIVE = "#C93838";
@@ -46,20 +52,7 @@ type Theme = {
   chipBorder: string;
 };
 
-const BODY_TAGS = [
-  "FULL_BODY",
-  "CHEST",
-  "BACK",
-  "SHOULDERS",
-  "BICEPS",
-  "TRICEPS",
-  "LEGS",
-  "GLUTES",
-  "HAMSTRINGS",
-  "QUADS",
-  "CALVES",
-  "CORE",
-];
+
 
 export function WorkoutComplete() {
   useTrackTab("WorkoutComplete");
@@ -71,8 +64,17 @@ export function WorkoutComplete() {
   const photoTileSize = Math.floor((screenWidth - 40 - 24) / 4);
   const { exercises, seconds, reset } = useWorkoutTimer();
 
+    const initialBodyTags = useMemo(() => {
+    const tags = new Set(
+      exercises.flatMap((ex) =>
+        ex.bodyParts ? getAllBodyPartNames(ex.bodyParts) : [],
+      ),
+    );
+    return tags.size > 0 ? Array.from(tags) : ["FULL_BODY"];
+  }, [exercises]);
+
   const [workoutName, setWorkoutName] = useState("");
-  const [bodyTag, setBodyTag] = useState<string[]>(["FULL_BODY"]);
+  const [bodyTags, setBodyTags] = useState<string[]>(initialBodyTags);
   const [caption, setCaption] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   const [loadingAction, setLoadingAction] = useState<"save" | "post" | null>(
@@ -156,7 +158,7 @@ export function WorkoutComplete() {
   };
 
   const toggleBodyTag = (tag: string) => {
-    setBodyTag((prev) => {
+    setBodyTags((prev) => {
       if (prev.includes(tag)) {
         if (prev.length === 1) return prev;
         return prev.filter((x) => x !== tag);
@@ -212,7 +214,7 @@ export function WorkoutComplete() {
         name: workoutName,
         durationMin,
         datePerformed: getCurrentLocalDateString(),
-        bodyTags: bodyTag,
+        bodyTags: bodyTags, // Send all selected tags to backend
         exercises: exercises.map((ex) => ({
           exerciseId: ex.exerciseId,
           sets: ex.sets.map((set) => ({
@@ -336,8 +338,8 @@ export function WorkoutComplete() {
         {/* Body tag */}
         <Section label="Body tag" required t={t}>
           <View style={styles.tagWrap}>
-            {BODY_TAGS.map((tag) => {
-              const active = bodyTag.includes(tag);
+            {MUSCLE_GROUPS.map((tag) => {
+              const active = bodyTags.includes(tag);
               return (
                 <TouchableOpacity
                   key={tag}
@@ -345,6 +347,12 @@ export function WorkoutComplete() {
                   onPress={() => toggleBodyTag(tag)}
                   style={[
                     styles.tagButton,
+                    {
+                      backgroundColor: bodyTags.includes(tag)
+                        ? "#007AFF"
+                        : colors.card,
+                      borderColor: colors.border,
+                    },
                     active
                       ? {
                           backgroundColor: isDark ? "#fff" : ACCENT,
@@ -359,12 +367,13 @@ export function WorkoutComplete() {
                   <Text
                     style={[
                       styles.tagText,
+                      { color: bodyTags.includes(tag) ? "#fff" : colors.text },
                       {
                         color: active ? (isDark ? "#000" : "#fff") : t.text,
                       },
                     ]}
                   >
-                    {tag.replace("_", " ")}
+                    {formatTag(tag)}
                   </Text>
                 </TouchableOpacity>
               );

@@ -202,14 +202,16 @@ public class WorkoutController {
   public ResponseEntity<List<DailyVolumeDTO>> getDailyVolume(
     @PathVariable UUID userId,
     @RequestParam(defaultValue = "2") int weeks,
-    @RequestParam(defaultValue = "SUNDAY") String weekStartDay
+    @RequestParam(defaultValue = "SUNDAY") String weekStartDay,
+    @RequestParam(required = false) String localDate
   ) {
     try {
       DayOfWeek startDay = DayOfWeek.valueOf(weekStartDay.toUpperCase());
       List<DailyVolumeDTO> dailyVolume = workoutService.getDailyVolume(
         userId,
         weeks,
-        startDay
+        startDay,
+        localDate
       );
       return ResponseEntity.ok(dailyVolume);
     } catch (IllegalArgumentException e) {

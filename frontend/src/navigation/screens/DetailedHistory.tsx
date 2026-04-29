@@ -17,12 +17,11 @@ import { getWorkoutDetails } from "../../api/workoutService";
 import { WorkoutDetail, WorkoutExercise, WorkoutSet } from "../../api/types";
 import { parseLocalDate } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
+import { formatTag } from "../../utils/formatTag";
+import { formatMuscleGroups, renderBodyParts } from "../../utils/exerciseUtils";
 import { useNavigation, useTheme } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  GlassView,
-  isLiquidGlassAvailable,
-} from "expo-glass-effect";
+import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 
 type RootStackParamList = {
   DetailedHistory: {
@@ -168,8 +167,7 @@ export function DetailedHistory({ route }: Props) {
     })
     .toUpperCase();
 
-  const hasDuration =
-    workout.durationMin != null && workout.durationMin > 0;
+  const hasDuration = workout.durationMin != null && workout.durationMin > 0;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -202,11 +200,11 @@ export function DetailedHistory({ route }: Props) {
                 {workout.exercises.length}
               </Text>
             </View>
-            {workout.bodyTag && (
+            {workout.bodyTags && workout.bodyTags.length > 0 && (
               <View style={[styles.metric, styles.metricWide]}>
                 <Text style={[styles.metricLabel, textMuted]}>Muscles</Text>
                 <Text style={[styles.musclesText, { color: colors.text }]}>
-                  {formatBodyTag(workout.bodyTag)}
+                  {formatMuscleGroups(workout.bodyTags)}
                 </Text>
               </View>
             )}
@@ -302,7 +300,8 @@ function ExerciseBlock({
     <View style={styles.exerciseBlock}>
       <View style={styles.exerciseHeader}>
         <Text style={[styles.exerciseOverline, textMuted]}>
-          EXERCISE {index} / {total} · {exercise.bodyPart.toUpperCase()}
+          EXERCISE {index} / {total} ·
+          {renderBodyParts(exercise.bodyParts, "grey", "#1877F2")}
         </Text>
         <Text style={[styles.exerciseName, { color: textColor }]}>
           {exercise.exerciseName}
