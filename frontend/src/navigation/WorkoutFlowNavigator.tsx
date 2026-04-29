@@ -23,6 +23,9 @@ export const WorkoutFlowNavigator = createNativeStackNavigator({
     },
     WorkoutComplete: {
       screen: WorkoutComplete,
+      options: {
+        animation: "slide_from_right",
+      },
     },
   },
 });

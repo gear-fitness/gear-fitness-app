@@ -260,7 +260,7 @@ export function WorkoutSummary() {
 
           <TouchableOpacity
             activeOpacity={0.7}
-            onPress={() => navigation.replace("ExerciseSelect")}
+            onPress={() => navigation.replace("ExerciseSelect", { returnTo: "WorkoutSummary" })}
             style={[styles.addExerciseBtn, { borderColor: t.chipBorder }]}
           >
             <Svg width={14} height={14} viewBox="0 0 16 16" fill="none">

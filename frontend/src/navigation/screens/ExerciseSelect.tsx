@@ -12,7 +12,7 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import { useColorScheme } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import { useExerciseList } from "../../hooks/useExerciseList";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { ExerciseListView } from "../../components/ExerciseListView";
@@ -27,6 +27,7 @@ export function ExerciseSelect() {
   useTrackTab("ExerciseSelect");
 
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const isDark = useColorScheme() === "dark";
   const { exercises } = useExerciseList();
   const { showPlayer, start } = useWorkoutTimer();
@@ -58,7 +59,24 @@ export function ExerciseSelect() {
 
   return (
     <View style={{ flex: 1, backgroundColor: isDark ? "#000" : "#fff" }}>
-      <FloatingCloseButton />
+      <FloatingCloseButton
+        direction="left"
+        accessibilityLabel="Back"
+        onPress={() => {
+          const returnTo = route.params?.returnTo;
+          if (returnTo === "ExerciseDetail") {
+            navigation.replace("ExerciseDetail", {
+              exercise: route.params.exercise,
+            });
+          } else if (returnTo === "WorkoutSummary") {
+            navigation.replace("WorkoutSummary");
+          } else {
+            const parent = navigation.getParent();
+            if (parent) parent.goBack();
+            else navigation.goBack();
+          }
+        }}
+      />
       <View style={{ flex: 1, paddingTop: insets.top + 60 }}>
         <ExerciseListView
           exercises={exercises}

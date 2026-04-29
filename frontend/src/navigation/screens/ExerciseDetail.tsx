@@ -40,7 +40,10 @@ export function ExerciseDetail() {
       setCurrentExercise(next.workoutExerciseId);
       navigation.replace("ExerciseDetail", { exercise: next });
     } else {
-      navigation.replace("ExerciseSelect");
+      navigation.replace("ExerciseSelect", {
+        returnTo: "ExerciseDetail",
+        exercise,
+      });
     }
   };
 
