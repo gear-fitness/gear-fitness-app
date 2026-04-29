@@ -1,11 +1,8 @@
 import React, { useCallback, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import {
-  useFocusEffect,
-  useNavigation,
-  useTheme,
-} from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
+import Svg, { Path } from "react-native-svg";
 import { getTodaysRoutines } from "../api/routineService";
 import { Routine } from "../api/types";
 import { useWorkoutTimer } from "../context/WorkoutContext";
@@ -14,7 +11,6 @@ import { StartCountdownOverlay } from "./StartCountdownOverlay";
 
 export function TodaysRoutines() {
   const navigation = useNavigation();
-  const { colors } = useTheme();
   const isDark = useColorScheme() === "dark";
   const { loadFromRoutine } = useWorkoutTimer();
   const [todaysRoutines, setTodaysRoutines] = useState<Routine[]>([]);
@@ -44,7 +40,9 @@ export function TodaysRoutines() {
             name: ex.exerciseName,
           })),
         );
-        (navigation as any).navigate("WorkoutSummary");
+        (navigation as any).navigate("WorkoutFlow", {
+          screen: "WorkoutSummary",
+        });
       } catch {
         // Ignore and keep user on current screen.
       }
@@ -72,61 +70,86 @@ export function TodaysRoutines() {
     startCountdown();
   };
 
+  const t = isDark
+    ? {
+        surface: "#141414",
+        text: "#fff",
+        textMuted: "rgba(255,255,255,0.55)",
+        textFaint: "rgba(255,255,255,0.4)",
+        border: "rgba(255,255,255,0.08)",
+      }
+    : {
+        surface: "#fff",
+        text: "#000",
+        textMuted: "rgba(0,0,0,0.5)",
+        textFaint: "rgba(0,0,0,0.4)",
+        border: "rgba(0,0,0,0.08)",
+      };
+
   return (
-    <View style={styles.todaySection}>
-      <Text
-        style={[styles.todaySectionTitle, { color: isDark ? "#999" : "#666" }]}
-      >
-        TODAY'S ROUTINES
-      </Text>
+    <View style={styles.section}>
+      <View style={styles.labelRow}>
+        <Text style={[styles.label, { color: t.textMuted }]}>
+          TODAY'S ROUTINES
+        </Text>
+        <Text style={[styles.labelCount, { color: t.textMuted }]}>
+          {todaysRoutines.length}{" "}
+          {todaysRoutines.length === 1 ? "scheduled" : "scheduled"}
+        </Text>
+      </View>
+
       {todaysRoutines.length === 0 ? (
-        <Text
-          style={[styles.emptyTodayText, { color: isDark ? "#999" : "#666" }]}
-        >
+        <Text style={[styles.emptyText, { color: t.textFaint }]}>
           No routines scheduled for today.
         </Text>
       ) : (
-        todaysRoutines.map((routine) => (
-          <View
-            key={routine.routineId}
-            style={[
-              styles.todayCard,
-              { backgroundColor: isDark ? colors.card : "#F2F2F7" },
-            ]}
-          >
-            <TouchableOpacity
-              style={styles.todayCardLeft}
-              onPress={() =>
-                (navigation as any).navigate("RoutineDetail", {
-                  routineId: routine.routineId,
-                })
-              }
+        <View style={styles.list}>
+          {todaysRoutines.map((routine) => (
+            <View
+              key={routine.routineId}
+              style={[
+                styles.card,
+                { backgroundColor: t.surface, borderColor: t.border },
+              ]}
             >
-              <Text
-                style={[
-                  styles.todayRoutineName,
-                  { color: isDark ? "#fff" : "#000" },
-                ]}
+              <TouchableOpacity
+                style={styles.cardLeft}
+                activeOpacity={0.7}
+                onPress={() =>
+                  (navigation as any).navigate("RoutineDetail", {
+                    routineId: routine.routineId,
+                  })
+                }
               >
-                {routine.name}
-              </Text>
-              <Text
-                style={[
-                  styles.todayRoutineCount,
-                  { color: isDark ? "#999" : "#666" },
-                ]}
+                <Text style={[styles.routineName, { color: t.text }]}>
+                  {routine.name}
+                </Text>
+                <Text style={[styles.routineCount, { color: t.textFaint }]}>
+                  {routine.exercises.length} exercises
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.startAffordance}
+                activeOpacity={0.7}
+                onPress={() => handleQuickStartPress(routine)}
               >
-                {routine.exercises.length} exercises
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.quickStartButton}
-              onPress={() => handleQuickStartPress(routine)}
-            >
-              <Text style={styles.quickStartText}>▶</Text>
-            </TouchableOpacity>
-          </View>
-        ))
+                <Text style={[styles.startLabel, { color: t.textMuted }]}>
+                  START
+                </Text>
+                <Svg width={10} height={12} viewBox="0 0 10 12" fill="none">
+                  <Path
+                    d="M3 2l5 4-5 4"
+                    stroke={t.text}
+                    strokeWidth={1.8}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </Svg>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
       )}
 
       <StartCountdownOverlay
@@ -140,49 +163,67 @@ export function TodaysRoutines() {
 }
 
 const styles = StyleSheet.create({
-  todaySection: {
+  section: {
     width: "100%",
-    marginTop: 32,
-    gap: 10,
+    marginTop: 20,
   },
-  todaySectionTitle: {
+  labelRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 2,
+    paddingTop: 6,
+    paddingBottom: 10,
+  },
+  label: {
     fontSize: 12,
     fontWeight: "600",
-    letterSpacing: 0.8,
+    letterSpacing: 1.2,
   },
-  emptyTodayText: {
+  labelCount: {
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  emptyText: {
     fontSize: 14,
+    paddingHorizontal: 2,
   },
-  todayCard: {
-    borderRadius: 14,
-    padding: 12,
+  list: {
+    gap: 6,
+  },
+  card: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    width: "100%",
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
   },
-  todayCardLeft: {
+  cardLeft: {
     flex: 1,
   },
-  todayRoutineName: {
+  routineName: {
     fontSize: 15,
-    fontWeight: "700",
+    fontWeight: "600",
+    letterSpacing: -0.2,
   },
-  todayRoutineCount: {
+  routineCount: {
     marginTop: 2,
     fontSize: 12,
   },
-  quickStartButton: {
-    backgroundColor: "#007AFF",
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: "center",
+  startAffordance: {
+    minWidth: 44,
+    height: 34,
+    paddingHorizontal: 6,
+    flexDirection: "row",
     alignItems: "center",
-    marginLeft: 10,
+    justifyContent: "flex-end",
+    gap: 6,
   },
-  quickStartText: {
-    color: "#fff",
-    fontSize: 18,
+  startLabel: {
+    fontSize: 10,
+    fontWeight: "600",
+    letterSpacing: 1.4,
   },
 });

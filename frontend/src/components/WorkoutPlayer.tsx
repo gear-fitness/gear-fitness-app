@@ -12,12 +12,32 @@ export const MINI_PLAYER_HEIGHT = 70;
 const ALLOWED_TABS = ["Home", "Social", "Workouts", "History", "Profile"];
 
 export function WorkoutPlayer() {
-  const { playerVisible, activeTab } = useWorkoutTimer();
+  const {
+    playerVisible,
+    activeTab,
+    lastModalScreen,
+    currentExerciseId,
+    exercises,
+  } = useWorkoutTimer();
   const insets = useSafeAreaInsets();
   const slideAnim = useRef(new Animated.Value(0)).current;
 
   const handleTap = () => {
-    navigationRef.current?.navigate("WorkoutSummary");
+    if (lastModalScreen === "ExerciseDetail" && currentExerciseId) {
+      const ex = exercises.find(
+        (e) => e.workoutExerciseId === currentExerciseId,
+      );
+      if (ex) {
+        navigationRef.current?.navigate("WorkoutFlow", {
+          screen: "ExerciseDetail",
+          params: { exercise: ex },
+        });
+        return;
+      }
+    }
+    navigationRef.current?.navigate("WorkoutFlow", {
+      screen: "WorkoutSummary",
+    });
   };
 
   // Check if we're on an allowed tab

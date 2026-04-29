@@ -47,7 +47,7 @@ import { PermissionsStep } from "../onboarding/components/PermissionsStep";
 import { AllSetStep } from "../onboarding/components/AllSetStep";
 import { calcAge } from "../onboarding/calcAge";
 
-const initialBg = Appearance.getColorScheme() === "dark" ? "#000" : "#F2F2F7";
+const initialBg = Appearance.getColorScheme() === "dark" ? "#000" : "#eff2f5";
 
 const STEP_COMPONENTS = [
   IntroStep,

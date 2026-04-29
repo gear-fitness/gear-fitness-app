@@ -23,6 +23,8 @@ export interface WorkoutExercise {
   bodyParts?: BodyPartDTO[];
 }
 
+export type LastModalScreen = "WorkoutSummary" | "ExerciseDetail" | null;
+
 interface PersistedWorkoutState {
   version: number;
   totalElapsedSeconds: number;
@@ -33,6 +35,7 @@ interface PersistedWorkoutState {
   playerVisible: boolean;
   currentExerciseId: string | null;
   activeTab: string;
+  lastModalScreen: LastModalScreen;
 }
 
 const WORKOUT_STATE_VERSION = 1;
@@ -63,6 +66,10 @@ interface WorkoutContextValue {
   activeTab: string;
   setActiveTab: (tab: string) => void;
 
+  // Last fullscreen modal the user viewed (for MiniPlayer return target)
+  lastModalScreen: LastModalScreen;
+  setLastModalScreen: (screen: LastModalScreen) => void;
+
   loadFromRoutine: (
     exercises: Array<{ exerciseId: string; name: string }>,
   ) => Promise<void>;
@@ -92,6 +99,7 @@ export function WorkoutTimerProvider({
 
   // Tab tracking
   const [activeTab, setActiveTab] = useState("Home"); // Default to Home tab
+  const [lastModalScreen, setLastModalScreen] = useState<LastModalScreen>(null);
 
   // Persistence state
   const [isRestoringState, setIsRestoringState] = useState(false);
@@ -114,6 +122,7 @@ export function WorkoutTimerProvider({
         playerVisible,
         currentExerciseId,
         activeTab,
+        lastModalScreen,
       };
 
       try {
@@ -182,6 +191,7 @@ export function WorkoutTimerProvider({
       setPlayerVisible(parsed.playerVisible);
       setCurrentExerciseId(parsed.currentExerciseId);
       setActiveTab(parsed.activeTab);
+      setLastModalScreen(parsed.lastModalScreen ?? null);
       restoreTimerState(parsed);
     } catch (error) {
       console.error("Failed to restore workout state:", error);
@@ -220,6 +230,7 @@ export function WorkoutTimerProvider({
     playerVisible,
     currentExerciseId,
     activeTab,
+    lastModalScreen,
     totalElapsedSeconds,
     isRestoringState,
   ]);
@@ -270,6 +281,7 @@ export function WorkoutTimerProvider({
     playerVisible,
     currentExerciseId,
     activeTab,
+    lastModalScreen,
   ]);
 
   // ---------------- EXERCISES LIST ----------------
@@ -332,6 +344,7 @@ export function WorkoutTimerProvider({
     setStartTimestamp(null);
     setTotalElapsedSeconds(0);
     setExercises([]);
+    setLastModalScreen(null);
     hidePlayer();
 
     // Clear persisted state
@@ -402,6 +415,8 @@ export function WorkoutTimerProvider({
         // Tab tracking
         activeTab,
         setActiveTab,
+        lastModalScreen,
+        setLastModalScreen,
         loadFromRoutine,
       }}
     >

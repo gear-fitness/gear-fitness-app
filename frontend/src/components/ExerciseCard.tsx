@@ -25,10 +25,10 @@ export function ExerciseCard({
 
   const colors = {
     text: isDark ? "#fff" : "#000",
-    subtle: isDark ? "#aaa" : "#666",
-    border: isDark ? "#333" : "#e0e0e0",
-    card: isDark ? "#1c1c1e" : "#fff",
-    accent: "#007AFF",
+    subtle: isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.5)",
+    border: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+    card: isDark ? "#141414" : "#fff",
+    accent: isDark ? "#fff" : "#000",
   };
 
   return (

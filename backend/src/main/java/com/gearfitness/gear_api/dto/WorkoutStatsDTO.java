@@ -1,5 +1,6 @@
 package com.gearfitness.gear_api.dto;
 
+import java.util.List;
 import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -43,4 +44,11 @@ public class WorkoutStatsDTO {
    * (incomplete) week. Helps show progress toward maintaining the streak.
    */
   private Integer workoutDaysCurrentWeek;
+
+  /**
+   * 35-day activity intensity ramp ending today (Sunday-first weeks).
+   * Index 0 = Sunday 4 weeks before this week's Sunday; index 34 = today.
+   * 0 = no workout, 1 = <30 min total, 2 = 30–60 min, 3 = >60 min.
+   */
+  private List<Integer> dailyActivity;
 }

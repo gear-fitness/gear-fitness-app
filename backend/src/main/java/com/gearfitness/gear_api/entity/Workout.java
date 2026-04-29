@@ -52,6 +52,16 @@ public class Workout {
   @Builder.Default
   private List<MuscleGroup> bodyTags = new ArrayList<>();
 
+  @ElementCollection(fetch = FetchType.EAGER)
+  @CollectionTable(
+    name = "workout_photo_url",
+    joinColumns = @JoinColumn(name = "workout_id")
+  )
+  @OrderColumn(name = "position")
+  @Column(name = "photo_url")
+  @Builder.Default
+  private List<String> photoUrls = new ArrayList<>();
+
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
   private LocalDateTime createdAt;
