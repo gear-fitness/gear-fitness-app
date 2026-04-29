@@ -10,6 +10,7 @@ import {
   useColorScheme,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import Svg, { Path } from "react-native-svg";
 import { getRoutineDetail, deleteRoutine } from "../../api/routineService";
 import { Routine } from "../../api/types";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
@@ -68,7 +69,9 @@ export function RoutineDetail({
           bodyParts: ex.bodyParts,
         })),
       );
-      (navigation as any).navigate("WorkoutSummary");
+      (navigation as any).navigate("WorkoutFlow", {
+        screen: "WorkoutSummary",
+      });
     } finally {
       setStarting(false);
     }
@@ -133,7 +136,7 @@ export function RoutineDetail({
           { backgroundColor: colors.bg },
         ]}
       >
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color={isDark ? "#fff" : "#000"} />
       </View>
     );
   }
@@ -167,13 +170,35 @@ export function RoutineDetail({
             {routine.name}
           </Text>
           <TouchableOpacity
-            style={styles.editButton}
+            accessibilityLabel="Edit"
+            activeOpacity={0.7}
+            style={[
+              styles.editButton,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.cardBorder,
+              },
+            ]}
             onPress={() =>
               routine &&
               (navigation as any).navigate("EditRoutine", { routine })
             }
           >
-            <Text style={styles.editButtonText}>Edit</Text>
+            <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+              <Path
+                d="M4 20h4l10-10-4-4L4 16v4z"
+                stroke={colors.text}
+                strokeWidth={1.6}
+                strokeLinejoin="round"
+                fill="none"
+              />
+              <Path
+                d="M13.5 6.5l4 4"
+                stroke={colors.text}
+                strokeWidth={1.6}
+                strokeLinecap="round"
+              />
+            </Svg>
           </TouchableOpacity>
         </View>
 
@@ -275,27 +300,24 @@ export function RoutineDetail({
           },
         ]}
       >
-        <View style={styles.startShadowLayer}>
-          <TouchableOpacity
-            style={[styles.startButton, starting && styles.disabledButton]}
-            onPress={handleStartWorkout}
-            disabled={starting}
-            activeOpacity={0.8}
-          >
-            {starting ? (
-              <ActivityIndicator color="#007AFF" />
-            ) : (
-              <>
-                <Text style={[styles.startIcon, { color: colors.text }]}>
-                  ▶
-                </Text>
-                <Text style={[styles.startButtonText, { color: colors.text }]}>
-                  Start Workout
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={[
+            styles.startButton,
+            { borderColor: colors.text },
+            starting && styles.disabledButton,
+          ]}
+          onPress={handleStartWorkout}
+          disabled={starting}
+          activeOpacity={0.7}
+        >
+          {starting ? (
+            <ActivityIndicator color={colors.text} />
+          ) : (
+            <Text style={[styles.startButtonText, { color: colors.text }]}>
+              Start Workout
+            </Text>
+          )}
+        </TouchableOpacity>
       </View>
 
       <StartCountdownOverlay
@@ -335,15 +357,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   editButton: {
-    borderRadius: 999,
-    backgroundColor: "#007AFF",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  editButtonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "700",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: "center",
+    justifyContent: "center",
   },
   daysRow: {
     flexDirection: "row",
@@ -431,31 +450,22 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
-  startShadowLayer: {
-    borderRadius: 999,
-    shadowColor: "#007AFF",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 8,
-  },
   startButton: {
-    height: 60,
-    borderRadius: 999,
+    height: 54,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    backgroundColor: "transparent",
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#007AFF",
     gap: 10,
   },
   disabledButton: {
     opacity: 0.5,
   },
-  startIcon: {
-    fontSize: 22,
-  },
   startButtonText: {
-    fontSize: 18,
-    fontWeight: "700",
+    fontSize: 17,
+    fontWeight: "600",
+    letterSpacing: -0.2,
   },
 });

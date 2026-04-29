@@ -76,7 +76,7 @@ export function PR({ route }: Props) {
           { backgroundColor: isDark ? "#121212" : "#fff" },
         ]}
       >
-        <ActivityIndicator size="large" color="#1877F2" />
+        <ActivityIndicator size="large" color={isDark ? "#fff" : "#000"} />
         <Text style={[styles.loadingText, { color: isDark ? "#fff" : "#000" }]}>
           Loading PRs...
         </Text>

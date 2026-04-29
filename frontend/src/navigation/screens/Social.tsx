@@ -338,7 +338,6 @@ const styles = StyleSheet.create({
   },
 
   feedList: {
-    paddingHorizontal: 16,
     paddingVertical: 20,
   },
 

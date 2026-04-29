@@ -38,6 +38,7 @@ public class WorkoutService {
   private final AppUserRepository appUserRepository;
   private final NotificationRepository notificationRepository;
   private final StreakService streakService;
+  private final S3StorageService s3StorageService;
 
   @Transactional(readOnly = true)
   public List<Workout> getWorkoutsByUser(UUID userId) {
@@ -113,6 +114,11 @@ public class WorkoutService {
           : List.of()
       )
       .exercises(exercises)
+      .photoUrls(
+        workout.getPhotoUrls() != null
+          ? new ArrayList<>(workout.getPhotoUrls())
+          : new ArrayList<>()
+      )
       .build();
   }
 
@@ -323,6 +329,11 @@ public class WorkoutService {
           ? submission.getBodyTags()
           : new ArrayList<>()
       )
+      .photoUrls(
+        submission.getPhotoUrls() != null
+          ? new ArrayList<>(submission.getPhotoUrls())
+          : new ArrayList<>()
+      )
       .workoutExercises(new ArrayList<>())
       .build();
 
@@ -412,6 +423,12 @@ public class WorkoutService {
       notificationRepository.deleteAllByCommentIn(
         workout.getPost().getPostComments()
       );
+    }
+
+    if (workout.getPhotoUrls() != null) {
+      for (String url : workout.getPhotoUrls()) {
+        s3StorageService.deleteWorkoutPhoto(url);
+      }
     }
 
     // Delete the workout - cascade will handle related entities

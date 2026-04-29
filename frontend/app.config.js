@@ -47,6 +47,7 @@ export default {
         },
       ],
       "expo-asset",
+      "expo-font",
       [
         "expo-splash-screen",
         {

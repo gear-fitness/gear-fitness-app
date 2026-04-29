@@ -29,10 +29,34 @@ export function ExerciseFilterBar({
 
   const colors = {
     text: isDark ? "#fff" : "#000",
-    border: isDark ? "#333" : "#e0e0e0",
-    inputBg: isDark ? "#1c1c1e" : "#f5f5f5",
-    accent: "#007AFF",
+    activeBg: isDark ? "#fff" : "#000",
+    activeText: isDark ? "#000" : "#fff",
+    inactiveBorder: isDark ? "rgba(255,255,255,0.22)" : "rgba(0,0,0,0.18)",
   };
+
+  const renderChip = (label: string, active: boolean, onPress: () => void) => (
+    <TouchableOpacity
+      key={label}
+      activeOpacity={0.7}
+      onPress={onPress}
+      style={[
+        styles.chip,
+        {
+          backgroundColor: active ? colors.activeBg : "transparent",
+          borderColor: active ? colors.activeBg : colors.inactiveBorder,
+        },
+      ]}
+    >
+      <Text
+        style={[
+          styles.chipText,
+          { color: active ? colors.activeText : colors.text },
+        ]}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
 
   return (
     <>
@@ -47,53 +71,12 @@ export function ExerciseFilterBar({
         style={styles.chipScrollView}
         contentContainerStyle={styles.chipContainer}
       >
-        <TouchableOpacity
-          style={[
-            styles.chip,
-            {
-              backgroundColor: !selectedBodyPart
-                ? colors.accent
-                : colors.inputBg,
-              borderColor: !selectedBodyPart ? colors.accent : colors.border,
-            },
-          ]}
-          onPress={() => onSelectBodyPart(null)}
-        >
-          <Text
-            style={[
-              styles.chipText,
-              { color: !selectedBodyPart ? "#fff" : colors.text },
-            ]}
-          >
-            All
-          </Text>
-        </TouchableOpacity>
-        {bodyParts.map((part) => (
-          <TouchableOpacity
-            key={part}
-            style={[
-              styles.chip,
-              {
-                backgroundColor:
-                  selectedBodyPart === part ? colors.accent : colors.inputBg,
-                borderColor:
-                  selectedBodyPart === part ? colors.accent : colors.border,
-              },
-            ]}
-            onPress={() =>
-              onSelectBodyPart(selectedBodyPart === part ? null : part)
-            }
-          >
-            <Text
-              style={[
-                styles.chipText,
-                { color: selectedBodyPart === part ? "#fff" : colors.text },
-              ]}
-            >
-              {part}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {renderChip("All", !selectedBodyPart, () => onSelectBodyPart(null))}
+        {bodyParts.map((part) =>
+          renderChip(part, selectedBodyPart === part, () =>
+            onSelectBodyPart(selectedBodyPart === part ? null : part),
+          ),
+        )}
       </ScrollView>
     </>
   );
@@ -113,7 +96,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
-    borderWidth: 1,
+    borderWidth: 1.5,
   },
   chipText: {
     fontSize: 13,

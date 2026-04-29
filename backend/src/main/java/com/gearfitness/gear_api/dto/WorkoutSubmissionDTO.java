@@ -27,6 +27,9 @@ public class WorkoutSubmissionDTO {
   private String caption;
   private String imageUrl;
 
+  // Optional - S3 URLs of photos attached to the workout
+  private List<String> photoUrls;
+
   @Data
   @NoArgsConstructor
   @AllArgsConstructor

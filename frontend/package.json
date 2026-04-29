@@ -9,6 +9,7 @@
     "ios": "expo run:ios"
   },
   "dependencies": {
+    "@expo-google-fonts/libre-caslon-text": "^0.4.0",
     "@expo/metro-runtime": "~55.0.6",
     "@kingstinct/react-native-healthkit": "^14.0.0",
     "@react-native-async-storage/async-storage": "^2.2.0",
@@ -26,6 +27,7 @@
     "expo-constants": "~55.0.8",
     "expo-dev-client": "~55.0.16",
     "expo-device": "~55.0.10",
+    "expo-font": "~55.0.6",
     "expo-glass-effect": "~55.0.8",
     "expo-image-manipulator": "~55.0.11",
     "expo-image-picker": "~55.0.13",

@@ -18,6 +18,7 @@ public class FeedPostDTO {
   private UUID postId;
   private UUID workoutId;
   private String imageUrl;
+  private List<String> photoUrls;
   private String caption;
   private LocalDateTime createdAt;
 

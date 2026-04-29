@@ -1,27 +1,25 @@
-import { Text } from "@react-navigation/elements";
 import {
   StyleSheet,
   View,
+  Text,
   FlatList,
   TouchableOpacity,
   TextInput,
-  Image,
   useColorScheme,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import Svg, { Circle, Path } from "react-native-svg";
 import { Calendar } from "react-native-calendars";
-import React, { useState, useEffect } from "react";
-import { useTheme } from "@react-navigation/native";
+import React, { useMemo, useState, useEffect } from "react";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { Swipeable } from "react-native-gesture-handler";
-import weightlifter from "../../assets/weightlifter.png";
 import { useAuth } from "../../context/AuthContext";
 import { getUserWorkouts, deleteWorkout } from "../../api/workoutService";
 import { Workout } from "../../api/types";
-import { parseLocalDate } from "../../utils/date";
+import { parseLocalDate, getCurrentLocalDateString } from "../../utils/date";
 import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
@@ -30,7 +28,6 @@ type RootStackParamList = {
   HomeTabs: undefined;
   Profile: { user: string };
   Settings: undefined;
-  PR: { userId: string };
   DetailedHistory: {
     workoutId: string;
     caption?: string;
@@ -41,47 +38,68 @@ type RootStackParamList = {
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
+function formatBodyTag(tag: string): string {
+  return tag
+    .split("_")
+    .map((p) => p.charAt(0) + p.slice(1).toLowerCase())
+    .join(" ");
+}
+
+function formatDuration(minutes: number): string {
+  if (minutes < 60) return `${minutes}m`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
 export function History() {
-  // Add the tab tracking hook at the beginning of the component
   useTrackTab("History");
 
-  const { colors } = useTheme();
   const navigation = useNavigation<NavigationProp>();
   const { user } = useAuth();
   const colorScheme = useColorScheme();
-  const isDarkMode = colorScheme === "dark";
+  const isDark = colorScheme === "dark";
 
-  const [markedDates, setMarkedDates] = useState({});
+  const t = isDark
+    ? {
+        bg: "#0a0a0a",
+        surface: "#141414",
+        text: "#fff",
+        textMuted: "rgba(255,255,255,0.55)",
+        textFaint: "rgba(255,255,255,0.4)",
+        textGhost: "rgba(255,255,255,0.18)",
+        border: "rgba(255,255,255,0.08)",
+        chipBg: "rgba(255,255,255,0.08)",
+      }
+    : {
+        bg: "#fafafa",
+        surface: "#fff",
+        text: "#000",
+        textMuted: "rgba(0,0,0,0.5)",
+        textFaint: "rgba(0,0,0,0.4)",
+        textGhost: "rgba(0,0,0,0.18)",
+        border: "rgba(0,0,0,0.08)",
+        chipBg: "rgba(0,0,0,0.05)",
+      };
+
   const [searchQuery, setSearchQuery] = useState("");
   const [data, setData] = useState<Workout[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-  // Fetch workouts on initial mount
   useEffect(() => {
     fetchWorkouts();
   }, []);
 
-  // Function to fetch workouts
   const fetchWorkouts = async () => {
     if (!user?.userId) return;
     try {
       const workouts = await getUserWorkouts(user.userId);
       setData(workouts);
-      setMarkedDates(buildMarkedDates(workouts));
     } catch (err) {
       console.error("Error loading workouts:", err);
     }
   };
 
-  const buildMarkedDates = (workouts: Workout[]) => {
-    const marks: Record<string, boolean> = {};
-    workouts.forEach((w) => {
-      marks[w.datePerformed] = true;
-    });
-    return marks;
-  };
-
-  // Refetch workouts every time the screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
       fetchWorkouts();
@@ -91,11 +109,7 @@ export function History() {
   const handleDeleteWorkout = async (workoutId: string) => {
     try {
       await deleteWorkout(workoutId);
-      setData((prevData) => {
-        const updated = prevData.filter((w) => w.workoutId !== workoutId);
-        setMarkedDates(buildMarkedDates(updated));
-        return updated;
-      });
+      setData((prevData) => prevData.filter((w) => w.workoutId !== workoutId));
     } catch (error) {
       console.error("Error deleting workout:", error);
       fetchWorkouts();
@@ -109,19 +123,48 @@ export function History() {
       "Are you sure you want to delete this workout? This action cannot be undone.",
   });
 
-  const today = new Date();
-  const formattedToday =
-    today.getFullYear() +
-    "-" +
-    String(today.getMonth() + 1).padStart(2, "0") +
-    "-" +
-    String(today.getDate()).padStart(2, "0");
+  const todayStr = getCurrentLocalDateString();
 
-  const handlePrPress = () => {
-    if (!user?.userId) return;
-    // Pass userId to PR screen
-    navigation.getParent()?.navigate("PR", { userId: user.userId });
-  };
+  const markedDates = useMemo(() => {
+    const circle = {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+    };
+    const marks: Record<string, object> = {};
+    data.forEach((w) => {
+      marks[w.datePerformed] = {
+        customStyles: {
+          container: { ...circle, backgroundColor: t.chipBg },
+          text: { color: t.text, fontWeight: "600" },
+        },
+      };
+    });
+    if (todayStr !== selectedDate) {
+      marks[todayStr] = {
+        customStyles: {
+          container: {
+            ...circle,
+            backgroundColor: marks[todayStr] ? t.chipBg : "transparent",
+            borderWidth: 1.5,
+            borderColor: t.text,
+          },
+          text: { color: t.text, fontWeight: "700" },
+        },
+      };
+    }
+    if (selectedDate) {
+      marks[selectedDate] = {
+        customStyles: {
+          container: { ...circle, backgroundColor: t.text },
+          text: { color: t.bg, fontWeight: "600" },
+        },
+      };
+    }
+    return marks;
+  }, [data, selectedDate, todayStr, t.bg, t.chipBg, t.text]);
 
   const filteredData = data.filter((item) => {
     const matchesSearch = item.name
@@ -133,51 +176,184 @@ export function History() {
     return matchesSearch && matchesDate;
   });
 
-  const renderItem = ({ item }: { item: Workout }) => (
-    <View style={styles.rowWrapper}>
-      <Swipeable {...getSwipeableProps(item.workoutId)}>
-        <TouchableOpacity
-          style={[
-            styles.button,
-            { backgroundColor: isDarkMode ? colors.card : "white" },
-          ]}
-          activeOpacity={0.7}
-          onPress={() =>
-            navigation.getParent()?.navigate("DetailedHistory", {
-              workoutId: item.workoutId,
-            })
-          }
-        >
-          <View style={styles.cardContent}>
-            <View style={styles.cardInfo}>
-              <Text
-                style={[
-                  styles.cardTitle,
-                  { color: isDarkMode ? "#FFF" : "#1a1a1a" },
-                ]}
-              >
-                {item.name}
-              </Text>
-              <Text
-                style={[
-                  styles.cardSubtitle,
-                  { color: isDarkMode ? "#AAA" : "#777" },
-                ]}
-              >
-                {parseLocalDate(item.datePerformed).toLocaleDateString(
-                  "en-US",
-                  {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  },
+  const handleSelectDate = (iso: string) => {
+    setSelectedDate((prev) => (prev === iso ? null : iso));
+  };
+
+  const renderItem = ({ item }: { item: Workout }) => {
+    const dateLabel = parseLocalDate(item.datePerformed)
+      .toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+      .toUpperCase();
+
+    const hasDuration = item.durationMin != null && item.durationMin > 0;
+    const hasMuscles = Array.isArray(item.bodyTags) && item.bodyTags.length > 0;
+    const hasMetrics = hasDuration || item.exerciseCount > 0 || hasMuscles;
+
+    return (
+      <View style={styles.rowWrapper}>
+        <Swipeable {...getSwipeableProps(item.workoutId)}>
+          <TouchableOpacity
+            style={[
+              styles.workoutCard,
+              { backgroundColor: t.surface, borderColor: t.border },
+            ]}
+            activeOpacity={0.7}
+            onPress={() =>
+              navigation.getParent()?.navigate("DetailedHistory", {
+                workoutId: item.workoutId,
+              })
+            }
+          >
+            <Text
+              style={[styles.workoutDate, { color: t.textMuted }]}
+              numberOfLines={1}
+            >
+              {dateLabel}
+            </Text>
+            <Text style={[styles.workoutTitle, { color: t.text }]}>
+              {item.name}
+            </Text>
+
+            {hasMetrics && (
+              <View style={styles.metricsRow}>
+                {hasDuration && (
+                  <View style={styles.metricCell}>
+                    <Text style={[styles.metricLabel, { color: t.textMuted }]}>
+                      Time
+                    </Text>
+                    <Text style={[styles.metricValue, { color: t.text }]}>
+                      {formatDuration(item.durationMin!)}
+                    </Text>
+                  </View>
                 )}
+                <View style={styles.metricCell}>
+                  <Text style={[styles.metricLabel, { color: t.textMuted }]}>
+                    Exercises
+                  </Text>
+                  <Text style={[styles.metricValue, { color: t.text }]}>
+                    {item.exerciseCount}
+                  </Text>
+                </View>
+                {hasMuscles && (
+                  <View style={styles.metricCell}>
+                    <Text style={[styles.metricLabel, { color: t.textMuted }]}>
+                      Muscles
+                    </Text>
+                    <Text style={[styles.musclesText, { color: t.text }]}>
+                      {item.bodyTags.map(formatBodyTag).join(", ")}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+          </TouchableOpacity>
+        </Swipeable>
+      </View>
+    );
+  };
+
+  const ListHeader = (
+    <View>
+      <View style={styles.calendarBlock}>
+        <Calendar
+          key={`${isDark ? "dark" : "light"}-${selectedDate ?? "none"}`}
+          maxDate={todayStr}
+          current={todayStr}
+          markedDates={markedDates}
+          markingType="custom"
+          onDayPress={(day: { dateString: string }) =>
+            handleSelectDate(day.dateString)
+          }
+          theme={{
+            backgroundColor: t.bg,
+            calendarBackground: t.bg,
+            dayTextColor: t.text,
+            monthTextColor: t.text,
+            textSectionTitleColor: t.textMuted,
+            todayTextColor: t.text,
+            textDisabledColor: t.textGhost,
+            arrowColor: t.text,
+            textDayFontFamily: "System",
+            textMonthFontFamily: "System",
+            textDayHeaderFontFamily: "System",
+            textDayFontWeight: "600",
+            textMonthFontWeight: "600",
+            textDayHeaderFontWeight: "600",
+            textDayFontSize: 17,
+            textMonthFontSize: 22,
+            textDayHeaderFontSize: 11,
+          }}
+          hideExtraDays={true}
+          enableSwipeMonths={true}
+          style={{ backgroundColor: t.bg }}
+        />
+      </View>
+
+      <View style={styles.searchWrapper}>
+        <View
+          style={[
+            styles.searchPill,
+            { borderColor: t.border, backgroundColor: t.surface },
+          ]}
+        >
+          <Svg width={14} height={14} viewBox="0 0 16 16" fill="none">
+            <Circle
+              cx="7"
+              cy="7"
+              r="4.5"
+              stroke={t.textMuted}
+              strokeWidth="1.4"
+            />
+            <Path
+              d="M10.5 10.5L13 13"
+              stroke={t.textMuted}
+              strokeWidth="1.4"
+              strokeLinecap="round"
+            />
+          </Svg>
+          <TextInput
+            style={[styles.searchInput, { color: t.text }]}
+            placeholder="Search workouts"
+            placeholderTextColor={t.textMuted}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            returnKeyType="done"
+            onSubmitEditing={() => Keyboard.dismiss()}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery("")}>
+              <Text style={[styles.searchClear, { color: t.textMuted }]}>
+                Clear
               </Text>
-            </View>
-            <Text style={styles.cardChevron}>›</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      <View style={styles.sectionHeader}>
+        <Text style={[styles.overline, { color: t.textMuted }]}>WORKOUTS</Text>
+        <Text style={[styles.overlineRight, { color: t.textFaint }]}>
+          {filteredData.length} logged
+        </Text>
+      </View>
+
+      {filteredData.length === 0 && (
+        <View style={{ paddingHorizontal: 20 }}>
+          <View style={[styles.emptyBox, { borderColor: t.border }]}>
+            <Text style={[styles.emptyText, { color: t.textMuted }]}>
+              {selectedDate
+                ? "No workout on this day."
+                : searchQuery
+                  ? `No matches for "${searchQuery}".`
+                  : "No workouts yet."}
+            </Text>
           </View>
-        </TouchableOpacity>
-      </Swipeable>
+        </View>
+      )}
     </View>
   );
 
@@ -186,107 +362,12 @@ export function History() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={{ flex: 1 }}
     >
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <Calendar
-          maxDate={formattedToday}
-          key={colors.background}
-          style={styles.calendar}
-          current={formattedToday}
-          markedDates={{
-            ...Object.keys(markedDates).reduce((acc: any, date: string) => {
-              acc[date] = {
-                customStyles: {
-                  container: {
-                    backgroundColor: "rgba(24, 119, 242, 0.15)",
-                    borderRadius: 16,
-                  },
-                  text: { color: colors.text },
-                },
-              };
-              return acc;
-            }, {}),
-
-            [formattedToday]: {
-              customStyles: {
-                text: { color: "#1877F2", fontWeight: "700" },
-              },
-            },
-
-            // Selected day (not today) - inverted circle
-            ...(selectedDate
-              ? {
-                  [selectedDate]: {
-                    customStyles: {
-                      container: {
-                        backgroundColor: "#1877F2",
-                        borderRadius: 16,
-                      },
-                      text: {
-                        color: "#FFFFFF",
-                        fontWeight: "600",
-                      },
-                    },
-                  },
-                }
-              : {}),
-          }}
-          markingType="custom"
-          onDayPress={(day: { dateString: string }) => {
-            setSelectedDate((prev) =>
-              prev === day.dateString ? null : day.dateString,
-            );
-          }}
-          theme={{
-            backgroundColor: colors.card,
-            calendarBackground: colors.card,
-            dayTextColor: colors.text,
-            monthTextColor: colors.text,
-            textSectionTitleColor: colors.text,
-            todayTextColor: "#1877F2",
-            arrowColor: "#1877F2",
-            textDayFontFamily: "System",
-            textMonthFontFamily: "System",
-            textDayHeaderFontFamily: "System",
-            textDayFontWeight: "400",
-            textMonthFontWeight: "700",
-            textDayHeaderFontWeight: "600",
-            textDayFontSize: 15,
-            textMonthFontSize: 18,
-            textDayHeaderFontSize: 13,
-            textDisabledColor: isDarkMode ? "#555" : "#ccc",
-          }}
-          hideExtraDays={true}
-          enableSwipeMonths={true}
-        />
-        {/* Search Bar + PR Button */}
-        <View style={styles.searchContainer}>
-          <TextInput
-            style={[
-              styles.searchInput,
-              {
-                color: colors.text,
-                borderColor: colors.border,
-                backgroundColor: colors.card,
-              },
-            ]}
-            placeholder="Search workouts..."
-            placeholderTextColor={colors.text + "80"}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            returnKeyType="done"
-            onSubmitEditing={() => Keyboard.dismiss()}
-          />
-          <TouchableOpacity
-            style={[styles.settingsButton, { backgroundColor: colors.primary }]}
-            onPress={handlePrPress}
-          >
-            <Image source={weightlifter} style={styles.settingsButtonIcon} />
-          </TouchableOpacity>
-        </View>
+      <View style={[styles.container, { backgroundColor: t.bg }]}>
         <FlatList
           data={filteredData}
           keyExtractor={(item) => item.workoutId}
           renderItem={renderItem}
+          ListHeaderComponent={ListHeader}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ paddingBottom: MINI_PLAYER_HEIGHT + 30 }}
         />
@@ -298,88 +379,114 @@ export function History() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "flex-start",
-    paddingTop: 50,
   },
-  calendar: {
-    width: "90%",
-    alignSelf: "center",
-    maxHeight: 350,
-    borderRadius: 16,
-    overflow: "hidden",
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    marginBottom: 8,
+  calendarBlock: {
+    paddingTop: 40,
+    paddingHorizontal: 8,
   },
-  rowWrapper: {
-    borderRadius: 12,
-    overflow: "hidden",
-    marginHorizontal: 20,
-    marginVertical: 5,
-  },
-  button: {
-    padding: 14,
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  buttonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  cardContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  cardInfo: {
-    flex: 1,
-  },
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: "600",
-    marginBottom: 3,
-  },
-  cardSubtitle: {
-    fontSize: 13,
-    fontWeight: "400",
-  },
-  cardChevron: {
-    fontSize: 24,
-    color: "#C7C7CC",
-    fontWeight: "300",
-    marginLeft: 8,
-  },
-  searchContainer: {
-    flexDirection: "row",
+  searchWrapper: {
     paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingTop: 24,
+  },
+  searchPill: {
+    flexDirection: "row",
     alignItems: "center",
     gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   searchInput: {
     flex: 1,
-    borderWidth: 1,
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 16,
+    fontSize: 15,
+    padding: 0,
   },
-  settingsButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
+  searchClear: {
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  sectionHeader: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    marginBottom: 12,
   },
-  settingsButtonIcon: {
-    width: 24,
-    height: 24,
+  overline: {
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 1.2,
+  },
+  overlineRight: {
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 1.2,
+    fontVariant: ["tabular-nums"],
+  },
+  emptyBox: {
+    paddingVertical: 32,
+    paddingHorizontal: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderStyle: "dashed",
+  },
+  emptyText: {
+    fontSize: 14,
+    lineHeight: 21,
+    textAlign: "center",
+  },
+  rowWrapper: {
+    marginHorizontal: 20,
+    marginBottom: 10,
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  workoutCard: {
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  workoutDate: {
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 1.2,
+    fontVariant: ["tabular-nums"],
+    marginBottom: 6,
+  },
+  workoutTitle: {
+    fontSize: 26,
+    fontWeight: "700",
+    letterSpacing: -0.8,
+    lineHeight: 29,
+  },
+  metricsRow: {
+    flexDirection: "row",
+    marginTop: 18,
+    gap: 12,
+  },
+  metricCell: {
+    flex: 1,
+  },
+  metricLabel: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  metricValue: {
+    fontSize: 22,
+    fontWeight: "700",
+    letterSpacing: -0.5,
+    marginTop: 2,
+    fontVariant: ["tabular-nums"],
+  },
+  musclesText: {
+    fontSize: 18,
+    fontWeight: "600",
+    letterSpacing: -0.3,
+    lineHeight: 24,
+    marginTop: 2,
   },
 });
