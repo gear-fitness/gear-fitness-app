@@ -229,8 +229,38 @@ export function Profile() {
               label="WORKOUTS"
               value={profile.workoutStats.totalWorkouts}
             />
-            <Stat theme={t} label="FOLLOWERS" value={profile.followersCount} />
-            <Stat theme={t} label="FOLLOWING" value={profile.followingCount} />
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() =>
+                navigation.navigate("FollowScreen", {
+                  initialTab: "followers",
+                  userId: profile.userId,
+                  username: profile.username,
+                })
+              }
+            >
+              <Stat
+                theme={t}
+                label="FOLLOWERS"
+                value={profile.followersCount}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() =>
+                navigation.navigate("FollowScreen", {
+                  initialTab: "following",
+                  userId: profile.userId,
+                  username: profile.username,
+                })
+              }
+            >
+              <Stat
+                theme={t}
+                label="FOLLOWING"
+                value={profile.followingCount}
+              />
+            </TouchableOpacity>
           </View>
 
           {isOtherUser && (
