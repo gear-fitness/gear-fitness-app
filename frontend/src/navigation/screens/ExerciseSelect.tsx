@@ -31,14 +31,6 @@ export function ExerciseSelect() {
   const { exercises } = useExerciseList();
   const { showPlayer, start } = useWorkoutTimer();
   const insets = useSafeAreaInsets();
-  console.log("ExerciseSelect", {
-    insets,
-    parent:
-      navigation.getParent()?.getId?.() ??
-      navigation.getParent()?.getState?.()?.type,
-    state: navigation.getState()?.type,
-    routes: navigation.getState()?.routes?.map((r) => r.name),
-  });
 
   const handleExercisePress = (exercise: Exercise) => {
     start();
