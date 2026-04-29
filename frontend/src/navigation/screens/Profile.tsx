@@ -399,10 +399,7 @@ export function Profile() {
       >
         <ProfileHeader />
         {posts.length > 0 ? (
-          <FeedPostCard
-            post={posts[0]}
-            onOpenComments={handleOpenComments}
-          />
+          <FeedPostCard post={posts[0]} onOpenComments={handleOpenComments} />
         ) : postsLoading ? (
           <ActivityIndicator style={styles.loader} color={t.text} />
         ) : (

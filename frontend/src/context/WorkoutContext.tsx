@@ -99,8 +99,7 @@ export function WorkoutTimerProvider({
 
   // Tab tracking
   const [activeTab, setActiveTab] = useState("Home"); // Default to Home tab
-  const [lastModalScreen, setLastModalScreen] =
-    useState<LastModalScreen>(null);
+  const [lastModalScreen, setLastModalScreen] = useState<LastModalScreen>(null);
 
   // Persistence state
   const [isRestoringState, setIsRestoringState] = useState(false);

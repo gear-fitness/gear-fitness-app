@@ -325,7 +325,11 @@ export function WorkoutSummary() {
             onPress={start}
             style={[styles.resumeBtn, { backgroundColor: ACCENT }]}
           >
-            <Text style={[styles.resumeText, { color: isDark ? "#000" : "#fff" }]}>Resume</Text>
+            <Text
+              style={[styles.resumeText, { color: isDark ? "#000" : "#fff" }]}
+            >
+              Resume
+            </Text>
           </TouchableOpacity>
         )}
       </View>

@@ -67,14 +67,11 @@ public class S3StorageService {
     byte[] imageBytes,
     String contentType
   ) {
-    String extension = "image/png".equalsIgnoreCase(contentType) ? "png" : "jpg";
+    String extension = "image/png".equalsIgnoreCase(contentType)
+      ? "png"
+      : "jpg";
     String key =
-      "workout-photos/" +
-      userId +
-      "/" +
-      UUID.randomUUID() +
-      "." +
-      extension;
+      "workout-photos/" + userId + "/" + UUID.randomUUID() + "." + extension;
 
     PutObjectRequest putRequest = PutObjectRequest.builder()
       .bucket(postsBucketName)

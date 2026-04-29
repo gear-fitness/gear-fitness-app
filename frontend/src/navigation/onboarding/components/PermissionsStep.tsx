@@ -158,7 +158,9 @@ export function PermissionsStep({
           <PermCard
             title="Location"
             subtitle="GPS tracking for outdoor workouts"
-            accentColor={colors.isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"}
+            accentColor={
+              colors.isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"
+            }
             emoji="📍"
             enabled={location}
             onToggle={() => toggle("location")}

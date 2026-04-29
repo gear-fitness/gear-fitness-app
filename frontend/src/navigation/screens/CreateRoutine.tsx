@@ -231,7 +231,11 @@ export function CreateRoutine({
           </View>
 
           <TouchableOpacity
-            style={[styles.primaryButton, { borderColor: colors.text }, submitting && styles.disabledButton]}
+            style={[
+              styles.primaryButton,
+              { borderColor: colors.text },
+              submitting && styles.disabledButton,
+            ]}
             onPress={handleNextFromDetails}
             disabled={submitting}
           >
@@ -371,8 +375,18 @@ export function CreateRoutine({
                     </Text>
                   </View>
                   {selected && (
-                    <View style={[styles.positionBadge, { backgroundColor: colors.isDark ? "#fff" : "#000" }]}>
-                      <Text style={[styles.positionBadgeText, { color: colors.isDark ? "#000" : "#fff" }]}>
+                    <View
+                      style={[
+                        styles.positionBadge,
+                        { backgroundColor: colors.isDark ? "#fff" : "#000" },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.positionBadgeText,
+                          { color: colors.isDark ? "#000" : "#fff" },
+                        ]}
+                      >
                         {posIndex + 1}
                       </Text>
                     </View>
@@ -392,14 +406,20 @@ export function CreateRoutine({
           ]}
         >
           <TouchableOpacity
-            style={[styles.primaryButton, { borderColor: colors.text }, submitting && styles.disabledButton]}
+            style={[
+              styles.primaryButton,
+              { borderColor: colors.text },
+              submitting && styles.disabledButton,
+            ]}
             onPress={handleSubmitFromScratch}
             disabled={submitting}
           >
             {submitting ? (
               <ActivityIndicator color={colors.text} />
             ) : (
-              <Text style={[styles.primaryButtonText, { color: colors.text }]}>Create Routine</Text>
+              <Text style={[styles.primaryButtonText, { color: colors.text }]}>
+                Create Routine
+              </Text>
             )}
           </TouchableOpacity>
         </SafeAreaView>
@@ -486,7 +506,9 @@ export function CreateRoutine({
           {submitting ? (
             <ActivityIndicator color={colors.text} />
           ) : (
-            <Text style={[styles.primaryButtonText, { color: colors.text }]}>Create Routine</Text>
+            <Text style={[styles.primaryButtonText, { color: colors.text }]}>
+              Create Routine
+            </Text>
           )}
         </TouchableOpacity>
       </SafeAreaView>

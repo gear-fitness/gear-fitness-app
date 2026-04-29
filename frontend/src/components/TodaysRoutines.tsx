@@ -50,15 +50,19 @@ export function TodaysRoutines() {
     [loadFromRoutine, navigation],
   );
 
-  const { isCountdownVisible, countdownValue, startCountdown, cancelCountdown } =
-    useStartCountdown({
-      onComplete: async () => {
-        const pendingRoutine = pendingRoutineRef.current;
-        pendingRoutineRef.current = null;
-        if (!pendingRoutine) return;
-        await handleQuickStartRoutine(pendingRoutine);
-      },
-    });
+  const {
+    isCountdownVisible,
+    countdownValue,
+    startCountdown,
+    cancelCountdown,
+  } = useStartCountdown({
+    onComplete: async () => {
+      const pendingRoutine = pendingRoutineRef.current;
+      pendingRoutineRef.current = null;
+      if (!pendingRoutine) return;
+      await handleQuickStartRoutine(pendingRoutine);
+    },
+  });
 
   const handleQuickStartPress = (routine: Routine) => {
     if (!routine.exercises.length) return;

@@ -174,7 +174,10 @@ export function RoutineDetail({
             activeOpacity={0.7}
             style={[
               styles.editButton,
-              { backgroundColor: colors.surface, borderColor: colors.cardBorder },
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.cardBorder,
+              },
             ]}
             onPress={() =>
               routine &&
@@ -298,7 +301,11 @@ export function RoutineDetail({
         ]}
       >
         <TouchableOpacity
-          style={[styles.startButton, { borderColor: colors.text }, starting && styles.disabledButton]}
+          style={[
+            styles.startButton,
+            { borderColor: colors.text },
+            starting && styles.disabledButton,
+          ]}
           onPress={handleStartWorkout}
           disabled={starting}
           activeOpacity={0.7}

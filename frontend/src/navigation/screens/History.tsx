@@ -191,8 +191,7 @@ export function History() {
 
     const hasDuration = item.durationMin != null && item.durationMin > 0;
     const hasMuscles = Array.isArray(item.bodyTags) && item.bodyTags.length > 0;
-    const hasMetrics =
-      hasDuration || item.exerciseCount > 0 || hasMuscles;
+    const hasMetrics = hasDuration || item.exerciseCount > 0 || hasMuscles;
 
     return (
       <View style={styles.rowWrapper}>
@@ -223,9 +222,7 @@ export function History() {
               <View style={styles.metricsRow}>
                 {hasDuration && (
                   <View style={styles.metricCell}>
-                    <Text
-                      style={[styles.metricLabel, { color: t.textMuted }]}
-                    >
+                    <Text style={[styles.metricLabel, { color: t.textMuted }]}>
                       Time
                     </Text>
                     <Text style={[styles.metricValue, { color: t.text }]}>
@@ -234,9 +231,7 @@ export function History() {
                   </View>
                 )}
                 <View style={styles.metricCell}>
-                  <Text
-                    style={[styles.metricLabel, { color: t.textMuted }]}
-                  >
+                  <Text style={[styles.metricLabel, { color: t.textMuted }]}>
                     Exercises
                   </Text>
                   <Text style={[styles.metricValue, { color: t.text }]}>
@@ -245,9 +240,7 @@ export function History() {
                 </View>
                 {hasMuscles && (
                   <View style={styles.metricCell}>
-                    <Text
-                      style={[styles.metricLabel, { color: t.textMuted }]}
-                    >
+                    <Text style={[styles.metricLabel, { color: t.textMuted }]}>
                       Muscles
                     </Text>
                     <Text style={[styles.musclesText, { color: t.text }]}>

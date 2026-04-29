@@ -213,10 +213,7 @@ function CompactPostCard({
         </Text>
       </View>
 
-      <Text
-        style={[styles.workoutName, { color: t.text }]}
-        numberOfLines={2}
-      >
+      <Text style={[styles.workoutName, { color: t.text }]} numberOfLines={2}>
         {post.workoutName}
       </Text>
 

@@ -222,7 +222,6 @@ public class WorkoutController {
     }
   }
 
-
   @DeleteMapping("/{workoutId}")
   public ResponseEntity<Void> deleteWorkout(
     @PathVariable UUID workoutId,
