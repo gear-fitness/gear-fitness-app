@@ -51,17 +51,17 @@ export function ExerciseSelect() {
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: isDark ? "#000" : "#fff" }}
-      edges={["bottom"]}
     >
       <FloatingCloseButton />
-
-      <ExerciseListView
-        exercises={exercises}
-        onExercisePress={handleExercisePress}
-        onCreateExercise={() =>
-          navigation.navigate("CreateExercise", { startWorkout: true })
-        }
-      />
+      <View style={{ flex: 1, marginTop: 60 }}>
+        <ExerciseListView
+          exercises={exercises}
+          onExercisePress={handleExercisePress}
+          onCreateExercise={() =>
+            navigation.navigate("CreateExercise", { startWorkout: true })
+          }
+        />
+      </View>
     </SafeAreaView>
   );
 }

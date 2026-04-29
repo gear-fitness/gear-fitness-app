@@ -34,9 +34,6 @@ import { formatTag } from "../../utils/formatTag";
 import { getAllBodyPartNames } from "../../utils/exerciseUtils";
 import { MUSCLE_GROUPS } from "../../constants/muscleGroups";
 
-export function WorkoutComplete() {
-  useTrackTab("WorkoutComplete");
-
 const ACCENT = "#111";
 const DESTRUCTIVE = "#C93838";
 const MAX_PHOTOS = 4;
@@ -52,8 +49,6 @@ type Theme = {
   chipBorder: string;
 };
 
-
-
 export function WorkoutComplete() {
   useTrackTab("WorkoutComplete");
 
@@ -64,7 +59,7 @@ export function WorkoutComplete() {
   const photoTileSize = Math.floor((screenWidth - 40 - 24) / 4);
   const { exercises, seconds, reset } = useWorkoutTimer();
 
-    const initialBodyTags = useMemo(() => {
+  const initialBodyTags = useMemo(() => {
     const tags = new Set(
       exercises.flatMap((ex) =>
         ex.bodyParts ? getAllBodyPartNames(ex.bodyParts) : [],
@@ -347,12 +342,6 @@ export function WorkoutComplete() {
                   onPress={() => toggleBodyTag(tag)}
                   style={[
                     styles.tagButton,
-                    {
-                      backgroundColor: bodyTags.includes(tag)
-                        ? "#007AFF"
-                        : colors.card,
-                      borderColor: colors.border,
-                    },
                     active
                       ? {
                           backgroundColor: isDark ? "#fff" : ACCENT,
@@ -367,10 +356,7 @@ export function WorkoutComplete() {
                   <Text
                     style={[
                       styles.tagText,
-                      { color: bodyTags.includes(tag) ? "#fff" : colors.text },
-                      {
-                        color: active ? (isDark ? "#000" : "#fff") : t.text,
-                      },
+                      { color: active ? (isDark ? "#000" : "#fff") : t.text },
                     ]}
                   >
                     {formatTag(tag)}
