@@ -31,6 +31,14 @@ export function ExerciseSelect() {
   const { exercises } = useExerciseList();
   const { showPlayer, start } = useWorkoutTimer();
   const insets = useSafeAreaInsets();
+  console.log("ExerciseSelect", {
+    insets,
+    parent:
+      navigation.getParent()?.getId?.() ??
+      navigation.getParent()?.getState?.()?.type,
+    state: navigation.getState()?.type,
+    routes: navigation.getState()?.routes?.map((r) => r.name),
+  });
 
   const handleExercisePress = (exercise: Exercise) => {
     start();
@@ -49,11 +57,9 @@ export function ExerciseSelect() {
   };
 
   return (
-    <SafeAreaView
-      style={{ flex: 1, backgroundColor: isDark ? "#000" : "#fff" }}
-    >
+    <View style={{ flex: 1, backgroundColor: isDark ? "#000" : "#fff" }}>
       <FloatingCloseButton />
-      <View style={{ flex: 1, marginTop: 60 }}>
+      <View style={{ flex: 1, paddingTop: insets.top + 60 }}>
         <ExerciseListView
           exercises={exercises}
           onExercisePress={handleExercisePress}
@@ -62,7 +68,7 @@ export function ExerciseSelect() {
           }
         />
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
