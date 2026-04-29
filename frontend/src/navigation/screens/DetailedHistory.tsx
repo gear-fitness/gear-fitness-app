@@ -6,16 +6,22 @@ import {
   useColorScheme,
   ActivityIndicator,
   TouchableOpacity,
+  StyleProp,
+  TextStyle,
+  ColorValue,
 } from "react-native";
+import Svg, { Path } from "react-native-svg";
 import React, { useState, useEffect } from "react";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { getWorkoutDetails } from "../../api/workoutService";
-import { WorkoutDetail } from "../../api/types";
+import { WorkoutDetail, WorkoutExercise, WorkoutSet } from "../../api/types";
 import { parseLocalDate } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
-import { useNavigation } from "@react-navigation/native";
 import { formatTag } from "../../utils/formatTag";
 import { formatMuscleGroups, renderBodyParts } from "../../utils/exerciseUtils";
+import { useNavigation, useTheme } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 
 type RootStackParamList = {
   DetailedHistory: {
@@ -27,13 +33,19 @@ type RootStackParamList = {
 
 type Props = NativeStackScreenProps<RootStackParamList, "DetailedHistory">;
 
+const PR_GOLD = "#D4A017";
+
 export function DetailedHistory({ route }: Props) {
   useTrackTab("DetailedHistory");
 
   const navigation = useNavigation();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const { workoutId, caption, workoutName } = route.params;
+  const { colors } = useTheme();
+
+  const isDark = useColorScheme() === "dark";
+  const accent = isDark ? "#fff" : "#000";
+
+  const insets = useSafeAreaInsets();
+  const { workoutId, caption } = route.params;
 
   const [workout, setWorkout] = useState<WorkoutDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -55,17 +67,58 @@ export function DetailedHistory({ route }: Props) {
     fetchWorkout();
   }, [workoutId]);
 
+  const textMuted: StyleProp<TextStyle> = { color: colors.text, opacity: 0.5 };
+  const textFaint: StyleProp<TextStyle> = { color: colors.text, opacity: 0.4 };
+
+  const glassAvailable = isLiquidGlassAvailable();
+
+  const backButton = (
+    <TouchableOpacity
+      accessibilityLabel="Back"
+      onPress={() => navigation.goBack()}
+      activeOpacity={0.7}
+      style={[
+        styles.backButton,
+        {
+          top: insets.top + 8,
+          backgroundColor: glassAvailable ? "transparent" : colors.background,
+          borderColor: glassAvailable ? "transparent" : colors.border,
+        },
+      ]}
+    >
+      {glassAvailable && (
+        <GlassView
+          style={[StyleSheet.absoluteFillObject, { borderRadius: 23 }]}
+          glassEffectStyle="regular"
+          isInteractive
+        />
+      )}
+      <Svg width={20} height={20} viewBox="0 0 16 16" fill="none">
+        <Path
+          d="M10 3l-5 5 5 5"
+          stroke={colors.text}
+          strokeWidth={1.6}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Svg>
+    </TouchableOpacity>
+  );
+
+  const bodyPaddingTop = insets.top + 68;
+
   if (loading) {
     return (
       <View
         style={[
           styles.container,
           styles.centerContent,
-          { backgroundColor: isDark ? "#121212" : "#fff" },
+          { backgroundColor: colors.background },
         ]}
       >
-        <ActivityIndicator size="large" color="#1877F2" />
-        <Text style={[styles.loadingText, { color: isDark ? "#fff" : "#000" }]}>
+        {backButton}
+        <ActivityIndicator size="large" color={colors.text} />
+        <Text style={[styles.loadingText, { color: colors.text }]}>
           Loading workout...
         </Text>
       </View>
@@ -78,15 +131,14 @@ export function DetailedHistory({ route }: Props) {
         style={[
           styles.container,
           styles.centerContent,
-          { backgroundColor: isDark ? "#121212" : "#fff" },
+          { backgroundColor: colors.background },
         ]}
       >
-        <Text style={[styles.errorText, { color: isDark ? "#fff" : "#000" }]}>
+        {backButton}
+        <Text style={[styles.errorText, { color: colors.text }]}>
           Error: {error}
         </Text>
-        <Text
-          style={[styles.errorSubtext, { color: isDark ? "#aaa" : "#666" }]}
-        >
+        <Text style={[styles.errorSubtext, textMuted]}>
           Workout ID: {workoutId}
         </Text>
       </View>
@@ -99,191 +151,259 @@ export function DetailedHistory({ route }: Props) {
         style={[
           styles.container,
           styles.centerContent,
-          { backgroundColor: isDark ? "#121212" : "#fff" },
+          { backgroundColor: colors.background },
         ]}
       >
-        <Text style={[styles.errorText, { color: isDark ? "#fff" : "#000" }]}>
+        {backButton}
+        <Text style={[styles.errorText, { color: colors.text }]}>
           Workout not found
         </Text>
       </View>
     );
   }
 
+  const dateOverline = parseLocalDate(workout.datePerformed)
+    .toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
+    .toUpperCase();
+
+  const hasDuration = workout.durationMin != null && workout.durationMin > 0;
+
   return (
-    <>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {backButton}
       <ScrollView
-        style={[
-          styles.container,
-          { backgroundColor: isDark ? "#121212" : "#fff" },
-        ]}
+        contentContainerStyle={{
+          paddingTop: bodyPaddingTop,
+          paddingBottom: 40,
+        }}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text
-            style={[styles.workoutName, { color: isDark ? "#fff" : "#000" }]}
-          >
+        {/* Title block */}
+        <View style={styles.titleBlock}>
+          <Text style={[styles.dateOverline, textMuted]}>{dateOverline}</Text>
+          <Text style={[styles.workoutName, { color: colors.text }]}>
             {workout.name}
           </Text>
-          <Text
-            style={[styles.workoutDate, { color: isDark ? "#aaa" : "#666" }]}
-          >
-            {parseLocalDate(workout.datePerformed).toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            })}
-            {workout.durationMin != null &&
-              workout.durationMin > 0 &&
-              ` • ${workout.durationMin} min`}
-          </Text>
-          {workout.bodyTags && workout.bodyTags.length > 0 && (
-            <Text
-              style={[
-                styles.bodyTag,
-                { color: isDark ? "#1877F2" : "#1877F2" },
-              ]}
-            >
-              {formatMuscleGroups(workout.bodyTags)}
+
+          <View style={styles.metricsRow}>
+            {hasDuration && (
+              <View style={styles.metric}>
+                <Text style={[styles.metricLabel, textMuted]}>Time</Text>
+                <Text style={[styles.metricValue, { color: colors.text }]}>
+                  {workout.durationMin} min
+                </Text>
+              </View>
+            )}
+            <View style={styles.metric}>
+              <Text style={[styles.metricLabel, textMuted]}>Exercises</Text>
+              <Text style={[styles.metricValue, { color: colors.text }]}>
+                {workout.exercises.length}
+              </Text>
+            </View>
+            {workout.bodyTags && workout.bodyTags.length > 0 && (
+              <View style={[styles.metric, styles.metricWide]}>
+                <Text style={[styles.metricLabel, textMuted]}>Muscles</Text>
+                <Text style={[styles.musclesText, { color: colors.text }]}>
+                  {formatMuscleGroups(workout.bodyTags)}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {caption && (
+            <Text style={[styles.caption, { color: colors.text }]}>
+              {caption}
             </Text>
           )}
+
           <TouchableOpacity
-            style={[
-              styles.saveRoutineButton,
-              { borderColor: isDark ? "#333" : "#D1D1D6" },
-            ]}
+            activeOpacity={0.7}
             onPress={() =>
               navigation.navigate("CreateRoutine", {
                 prefilledWorkoutId: workoutId,
               })
             }
+            style={[
+              styles.saveRoutineButton,
+              {
+                borderColor: isDark
+                  ? "rgba(255,255,255,0.22)"
+                  : "rgba(0,0,0,0.2)",
+              },
+            ]}
           >
-            <Text
-              style={[
-                styles.saveRoutineText,
-                { color: isDark ? "#fff" : "#000" },
-              ]}
-            >
-              Save as Routine
+            <Svg width={14} height={14} viewBox="0 0 16 16" fill="none">
+              <Path
+                d="M8 3v10M3 8h10"
+                stroke={colors.text}
+                strokeWidth={1.6}
+                strokeLinecap="round"
+              />
+            </Svg>
+            <Text style={[styles.saveRoutineText, { color: colors.text }]}>
+              Save as routine
             </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Caption */}
-        {caption && (
-          <View
-            style={[
-              styles.captionContainer,
-              {
-                backgroundColor: isDark ? "#1e1e1e" : "#f9f9f9",
-                borderTopColor: isDark ? "#333" : "#e0e0e0",
-              },
-            ]}
-          >
-            <Text
-              style={[styles.captionText, { color: isDark ? "#fff" : "#000" }]}
-            >
-              {caption}
-            </Text>
-          </View>
-        )}
-
         {/* Exercises */}
         {workout.exercises && workout.exercises.length > 0 ? (
-          workout.exercises.map((exercise) => (
-            <View
-              key={exercise.workoutExerciseId}
-              style={[
-                styles.exerciseCard,
-                {
-                  backgroundColor: isDark ? "#1e1e1e" : "#f9f9f9",
-                  borderColor: isDark ? "#333" : "#e0e0e0",
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.exerciseName,
-                  { color: isDark ? "#fff" : "#000" },
-                ]}
-              >
-                {exercise.exerciseName}
-              </Text>
-              <Text
-                style={[styles.bodyPart, { color: isDark ? "#aaa" : "#666" }]}
-              >
-                {renderBodyParts(exercise.bodyParts, "grey", "#1877F2")}
-              </Text>
-              {exercise.note && (
-                <Text
-                  style={[styles.note, { color: isDark ? "#bbb" : "#777" }]}
-                >
-                  Note: {exercise.note}
-                </Text>
-              )}
-
-              {/* Sets */}
-              <View style={styles.setsContainer}>
-                {exercise.sets && exercise.sets.length > 0 ? (
-                  exercise.sets.map((set) => (
-                    <View
-                      key={set.workoutSetId}
-                      style={[
-                        styles.setRow,
-                        {
-                          backgroundColor: isDark ? "#2a2a2a" : "#fff",
-                          borderColor: isDark ? "#444" : "#ddd",
-                        },
-                        set.isPr && styles.prSet,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.setText,
-                          { color: isDark ? "#fff" : "#000" },
-                        ]}
-                      >
-                        Set {set.setNumber}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.setText,
-                          { color: isDark ? "#fff" : "#000" },
-                        ]}
-                      >
-                        {set.reps} reps
-                        {set.weightLbs !== null && ` @ ${set.weightLbs} lbs`}
-                      </Text>
-                      {set.isPr && <Text style={styles.prBadge}>PR 🏆</Text>}
-                    </View>
-                  ))
-                ) : (
-                  <Text
-                    style={[
-                      styles.noSetsText,
-                      { color: isDark ? "#aaa" : "#666" },
-                    ]}
-                  >
-                    No sets recorded
-                  </Text>
-                )}
-              </View>
-            </View>
-          ))
+          <View style={styles.exercisesList}>
+            {workout.exercises.map((exercise, i) => (
+              <ExerciseBlock
+                key={exercise.workoutExerciseId}
+                exercise={exercise}
+                index={i + 1}
+                total={workout.exercises.length}
+                textColor={colors.text}
+                surfaceBg={colors.card}
+                borderColor={colors.border}
+                textMuted={textMuted}
+                textFaint={textFaint}
+              />
+            ))}
+          </View>
         ) : (
           <View style={styles.centerContent}>
-            <Text
-              style={[
-                styles.noExercisesText,
-                { color: isDark ? "#aaa" : "#666" },
-              ]}
-            >
+            <Text style={[styles.noExercisesText, textMuted]}>
               No exercises recorded for this workout
             </Text>
           </View>
         )}
       </ScrollView>
-    </>
+    </View>
   );
+}
+
+type ExerciseBlockProps = {
+  exercise: WorkoutExercise;
+  index: number;
+  total: number;
+  textColor: ColorValue;
+  surfaceBg: ColorValue;
+  borderColor: ColorValue;
+  textMuted: StyleProp<TextStyle>;
+  textFaint: StyleProp<TextStyle>;
+};
+
+function ExerciseBlock({
+  exercise,
+  index,
+  total,
+  textColor,
+  surfaceBg,
+  borderColor,
+  textMuted,
+  textFaint,
+}: ExerciseBlockProps) {
+  const isDark = useColorScheme() === "dark";
+  const accent = isDark ? "#fff" : "#000";
+  return (
+    <View style={styles.exerciseBlock}>
+      <View style={styles.exerciseHeader}>
+        <Text style={[styles.exerciseOverline, textMuted]}>
+          EXERCISE {index} / {total} ·
+          {renderBodyParts(exercise.bodyParts, "grey", accent)}
+        </Text>
+        <Text style={[styles.exerciseName, { color: textColor }]}>
+          {exercise.exerciseName}
+        </Text>
+        {exercise.note && (
+          <Text style={[styles.exerciseNote, textMuted]}>{exercise.note}</Text>
+        )}
+      </View>
+
+      {exercise.sets && exercise.sets.length > 0 ? (
+        <View style={styles.setsList}>
+          {exercise.sets.map((set, i) => (
+            <HistorySetRow
+              key={set.workoutSetId}
+              set={set}
+              idx={i}
+              textColor={textColor}
+              surfaceBg={surfaceBg}
+              borderColor={borderColor}
+              textFaint={textFaint}
+            />
+          ))}
+        </View>
+      ) : (
+        <Text style={[styles.noSetsText, textMuted]}>No sets recorded</Text>
+      )}
+    </View>
+  );
+}
+
+type HistorySetRowProps = {
+  set: WorkoutSet;
+  idx: number;
+  textColor: ColorValue;
+  surfaceBg: ColorValue;
+  borderColor: ColorValue;
+  textFaint: StyleProp<TextStyle>;
+};
+
+function HistorySetRow({
+  set,
+  idx,
+  textColor,
+  surfaceBg,
+  borderColor,
+  textFaint,
+}: HistorySetRowProps) {
+  const isPr = set.isPr;
+  return (
+    <View
+      style={[
+        styles.setRow,
+        {
+          backgroundColor: surfaceBg,
+          borderColor: isPr ? PR_GOLD : borderColor,
+          borderWidth: isPr ? 1.5 : StyleSheet.hairlineWidth,
+        },
+      ]}
+    >
+      <Text style={[styles.setIndex, textFaint]}>{idx + 1}</Text>
+      <View style={styles.setMetric}>
+        <Text style={[styles.setNumber, { color: textColor }]}>
+          {set.reps}
+          <Text style={[styles.setUnit, textFaint]}> reps</Text>
+        </Text>
+      </View>
+      <View style={styles.setMetric}>
+        <Text style={[styles.setNumber, { color: textColor }]}>
+          {set.weightLbs ?? 0}
+          <Text style={[styles.setUnit, textFaint]}> lbs</Text>
+        </Text>
+      </View>
+      {isPr ? (
+        <View style={styles.prBadge}>
+          <Text style={styles.prText}>PR</Text>
+          <Svg width={12} height={12} viewBox="0 0 16 16" fill="none">
+            <Path
+              d="M4 3h8v2a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V3zM3 3h10M6 8v3M10 8v3M5 11h6v2H5z"
+              stroke={PR_GOLD}
+              strokeWidth={1.3}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </Svg>
+        </View>
+      ) : (
+        <View style={styles.prPlaceholder} />
+      )}
+    </View>
+  );
+}
+
+function formatBodyTag(tag: string) {
+  return tag
+    .split("_")
+    .map((word) => word.charAt(0) + word.slice(1).toLowerCase())
+    .join(" ");
 }
 
 const styles = StyleSheet.create({
@@ -295,78 +415,158 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 20,
   },
-  header: {
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
+  backButton: {
+    position: "absolute",
+    left: 16,
+    zIndex: 10,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  titleBlock: {
+    paddingHorizontal: 20,
+    paddingBottom: 8,
+  },
+  dateOverline: {
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 1.2,
+    marginBottom: 6,
   },
   workoutName: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 8,
+    fontSize: 32,
+    fontWeight: "700",
+    letterSpacing: -0.8,
+    lineHeight: 34,
   },
-  workoutDate: {
-    fontSize: 16,
-    marginBottom: 4,
+  metricsRow: {
+    flexDirection: "row",
+    marginTop: 18,
+    gap: 24,
+    alignItems: "flex-start",
   },
-  bodyTag: {
-    fontSize: 14,
+  metric: {
+    flexShrink: 0,
+  },
+  metricWide: {
+    flex: 1,
+    minWidth: 0,
+  },
+  metricLabel: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  metricValue: {
+    fontSize: 22,
+    fontWeight: "700",
+    letterSpacing: -0.5,
+    marginTop: 2,
+    fontVariant: ["tabular-nums"],
+  },
+  musclesText: {
+    fontSize: 18,
     fontWeight: "600",
+    letterSpacing: -0.3,
+    lineHeight: 22,
     marginTop: 4,
   },
-  captionContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    marginTop: 8,
-    borderTopWidth: 1,
+  caption: {
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: 18,
   },
-  captionText: {
-    fontSize: 15,
-    lineHeight: 20,
-  },
-  exerciseCard: {
-    margin: 15,
-    padding: 15,
-    borderRadius: 10,
+  saveRoutineButton: {
+    marginTop: 18,
+    alignSelf: "flex-start",
+    height: 38,
+    paddingHorizontal: 14,
     borderWidth: 1,
+    borderRadius: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  saveRoutineText: {
+    fontSize: 14,
+    fontWeight: "600",
+    letterSpacing: -0.2,
+  },
+  exercisesList: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    gap: 28,
+  },
+  exerciseBlock: {},
+  exerciseHeader: {
+    paddingBottom: 12,
+  },
+  exerciseOverline: {
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 1.2,
+    marginBottom: 6,
   },
   exerciseName: {
-    fontSize: 20,
-    fontWeight: "600",
-    marginBottom: 4,
+    fontSize: 22,
+    fontWeight: "700",
+    letterSpacing: -0.5,
+    lineHeight: 24,
   },
-  bodyPart: {
-    fontSize: 14,
-    marginBottom: 8,
-  },
-  note: {
-    fontSize: 14,
+  exerciseNote: {
+    fontSize: 13,
     fontStyle: "italic",
-    marginBottom: 12,
+    marginTop: 4,
   },
-  setsContainer: {
-    marginTop: 10,
+  setsList: {
+    gap: 6,
   },
   setRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    padding: 12,
-    marginBottom: 8,
-    borderRadius: 8,
-    borderWidth: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    gap: 12,
   },
-  prSet: {
-    borderColor: "#FFD700",
-    borderWidth: 2,
+  setIndex: {
+    width: 24,
+    fontSize: 13,
+    fontWeight: "600",
+    fontVariant: ["tabular-nums"],
   },
-  setText: {
-    fontSize: 16,
+  setMetric: {
+    flex: 1,
+  },
+  setNumber: {
+    fontSize: 22,
+    fontWeight: "600",
+    fontVariant: ["tabular-nums"],
+  },
+  setUnit: {
+    fontSize: 12,
+    fontWeight: "400",
   },
   prBadge: {
-    color: "#FFD700",
-    fontSize: 14,
-    fontWeight: "bold",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  prText: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1.4,
+    color: PR_GOLD,
+  },
+  prPlaceholder: {
+    width: 20,
+  },
+  loadingText: {
+    fontSize: 16,
+    marginTop: 12,
   },
   errorText: {
     fontSize: 18,
@@ -378,28 +578,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: "center",
   },
-  loadingText: {
-    fontSize: 16,
-    marginTop: 12,
-  },
   noExercisesText: {
-    fontSize: 16,
+    fontSize: 14,
     fontStyle: "italic",
   },
   noSetsText: {
-    fontSize: 14,
+    fontSize: 13,
     fontStyle: "italic",
-  },
-  saveRoutineButton: {
-    marginTop: 12,
-    borderWidth: 1,
-    borderRadius: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    alignSelf: "flex-start",
-  },
-  saveRoutineText: {
-    fontSize: 14,
-    fontWeight: "600",
   },
 });

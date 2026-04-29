@@ -15,6 +15,7 @@ export interface FeedPost {
   postId: string;
   workoutId: string;
   imageUrl?: string;
+  photoUrls?: string[];
   caption?: string;
   createdAt: string;
   userId: string;

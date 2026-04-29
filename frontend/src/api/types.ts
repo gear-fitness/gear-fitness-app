@@ -19,6 +19,7 @@ export interface WorkoutStats {
   };
   workoutStreak: number;
   workoutDaysCurrentWeek: number;
+  dailyActivity: number[];
 }
 
 export interface UserProfile {
@@ -89,6 +90,9 @@ export interface Workout {
   name: string;
   datePerformed: string;
   createdAt: string;
+  durationMin: number | null;
+  exerciseCount: number;
+  bodyTags: string[];
 }
 
 export interface WorkoutSet {

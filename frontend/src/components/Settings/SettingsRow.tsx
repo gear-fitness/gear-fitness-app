@@ -6,6 +6,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  useColorScheme,
 } from "react-native";
 
 export type SettingsCellPosition = "single" | "first" | "middle" | "last";
@@ -121,6 +122,7 @@ export function SettingsToggleCell({
   separatorColor,
   position,
 }: SettingsToggleCellProps) {
+  const isDark = useColorScheme() === "dark";
   return (
     <SettingsSectionContainer
       cardColor={cardColor}
@@ -133,8 +135,8 @@ export function SettingsToggleCell({
           <Switch
             value={value}
             onValueChange={onValueChange}
-            trackColor={{ false: "#767577", true: "#007AFF" }}
-            thumbColor="#fff"
+            trackColor={{ false: "#767577", true: isDark ? "#fff" : "#000" }}
+            thumbColor={isDark ? "#000" : "#fff"}
           />
         </View>
       </View>

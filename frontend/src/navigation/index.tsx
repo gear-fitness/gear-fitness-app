@@ -2,16 +2,12 @@ import {
   BottomTabBar,
   createBottomTabNavigator,
 } from "@react-navigation/bottom-tabs";
-import { HeaderButton } from "@react-navigation/elements";
 import {
   createStaticNavigation,
   StaticParamList,
 } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { Image, View, Text } from "react-native";
-
-/* ICONS */
-import close from "../assets/close.png";
+import { View, Text } from "react-native";
 
 /* SCREENS */
 import { Profile } from "./screens/Profile";
@@ -22,10 +18,7 @@ import { NotFound } from "./screens/NotFound";
 import { History } from "./screens/History";
 import { PR } from "./screens/PR";
 import { DetailedHistory } from "./screens/DetailedHistory";
-import { ExerciseSelect } from "./screens/ExerciseSelect";
-import { ExerciseDetail } from "./screens/ExerciseDetail";
-import { WorkoutSummary } from "./screens/WorkoutSummary";
-import { WorkoutComplete } from "./screens/WorkoutComplete";
+import { WorkoutFlowNavigator } from "./WorkoutFlowNavigator";
 import { OnboardingScreen } from "./screens/Onboarding";
 import { WorkoutChat } from "./screens/WorkoutChat";
 import { AuthLoadingScreen } from "./screens/AuthLoading";
@@ -37,6 +30,7 @@ import { RoutineList } from "./screens/RoutineList";
 import { RoutineDetail } from "./screens/RoutineDetail";
 import { CreateRoutine } from "./screens/CreateRoutine";
 import { EditRoutine } from "./screens/EditRoutine";
+import { UserPosts } from "./screens/UserPosts";
 import FollowScreen from "./screens/FollowScreen";
 import { Platform } from "react-native";
 
@@ -140,6 +134,14 @@ const RootStack = createNativeStackNavigator({
       },
     },
 
+    UserPosts: {
+      screen: UserPosts,
+      options: {
+        headerShown: false,
+        gestureEnabled: true,
+      },
+    },
+
     PR: {
       screen: PR,
       options: {
@@ -153,62 +155,33 @@ const RootStack = createNativeStackNavigator({
       screen: DetailedHistory,
       options: {
         title: "Workout",
-        headerShown: true,
-        headerBackTitle: "Back",
+        headerShown: false,
+        gestureEnabled: true,
       },
     },
 
-    /* MODAL 1 — SELECT EXERCISE */
-    ExerciseSelect: {
-      screen: ExerciseSelect,
-      options: ({ navigation }) => ({
-        title: "Select Exercise",
-        presentation: "modal",
-        headerRight: () => (
-          <HeaderButton onPress={navigation.goBack}>
-            <Image source={close} style={{ width: 15, height: 15 }} />
-          </HeaderButton>
-        ),
-      }),
+    /* WORKOUT FLOW — single fullscreen modal containing the inner stack
+       (ExerciseSelect, ExerciseDetail, WorkoutSummary, WorkoutComplete).
+       Inter-screen transitions happen inside the inner stack with no
+       UIKit modal dismiss/present, so no flash to HomeTabs. */
+    WorkoutFlow: {
+      screen: WorkoutFlowNavigator,
+      options: {
+        presentation: "fullScreenModal",
+        headerShown: false,
+        gestureEnabled: true,
+        gestureDirection: "vertical",
+      },
     },
 
     CreateExercise: {
       screen: CreateExerciseScreen,
       options: {
         title: "New Exercise",
-        presentation: "modal",
-        headerShown: true,
-      },
-    },
-
-    /* MODAL 2 — EXERCISE DETAIL */
-    ExerciseDetail: {
-      screen: ExerciseDetail,
-      options: {
-        title: "Exercise Detail",
-        presentation: "modal",
-        headerShown: true,
-        headerBackTitle: "Back",
-      },
-    },
-
-    /* MODAL 3 — WORKOUT SUMMARY */
-    WorkoutSummary: {
-      screen: WorkoutSummary,
-      options: {
-        title: "Workout Summary",
-        presentation: "modal",
-        headerShown: true,
-      },
-    },
-
-    /* MODAL 4 — WORKOUT COMPLETE */
-    WorkoutComplete: {
-      screen: WorkoutComplete,
-      options: {
-        title: "Workout Complete",
-        presentation: "modal",
-        headerShown: true,
+        presentation: "fullScreenModal",
+        headerShown: false,
+        gestureEnabled: true,
+        gestureDirection: "vertical",
       },
     },
 
@@ -305,9 +278,7 @@ declare global {
       Settings: undefined;
       Profile: undefined;
       UserProfile: { username: string };
-      WorkoutSummary: undefined;
-      WorkoutComplete: undefined;
-      ExerciseSelect: undefined;
+      UserPosts: { userId: string; username: string };
       ExerciseChat: undefined;
 
       FollowScreen: {
@@ -322,6 +293,16 @@ declare global {
           sets?: any[];
         };
       };
+      WorkoutFlow:
+        | {
+            screen?:
+              | "ExerciseSelect"
+              | "ExerciseDetail"
+              | "WorkoutSummary"
+              | "WorkoutComplete";
+            params?: any;
+          }
+        | undefined;
 
       CreateExercise:
         | {

@@ -11,12 +11,34 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { BodyPartDTO, createExercise } from "../../api/exerciseService";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "..";
+import { FloatingCloseButton } from "../../components/FloatingCloseButton";
+
+const BODY_PARTS = [
+  "CHEST",
+  "BACK",
+  "SHOULDERS",
+  "BICEPS",
+  "TRICEPS",
+  "LEGS",
+  "QUADS",
+  "HAMSTRINGS",
+  "GLUTES",
+  "CALVES",
+  "CORE",
+  "TRAPS",
+  "FOREARMS",
+  "FULL_BODY",
+  "OTHER",
+];
 import { MUSCLE_GROUPS } from "../../constants/muscleGroups";
 
 const TARGET_COLORS = {
@@ -36,6 +58,7 @@ export function CreateExerciseScreen() {
   const isDark = useColorScheme() === "dark";
   const route = useRoute<any>();
   const { start, showPlayer } = useWorkoutTimer();
+  const insets = useSafeAreaInsets();
 
   const startWorkout = route.params?.startWorkout ?? false;
 
@@ -112,13 +135,16 @@ export function CreateExerciseScreen() {
         const workoutExerciseId = Date.now().toString();
         showPlayer(workoutExerciseId);
 
-        (navigation as any).replace("ExerciseDetail", {
-          exercise: {
-            workoutExerciseId,
-            exerciseId: created.exerciseId,
-            name: created.name,
-            bodyParts: created.bodyParts,
-            sets: [],
+        (navigation as any).replace("WorkoutFlow", {
+          screen: "ExerciseDetail",
+          params: {
+            exercise: {
+              workoutExerciseId,
+              exerciseId: created.exerciseId,
+              name: created.name,
+              bodyParts: created.bodyParts,
+              sets: [],
+            },
           },
         });
       } else {
@@ -137,15 +163,24 @@ export function CreateExerciseScreen() {
       style={[styles.container, { backgroundColor: colors.bg }]}
       edges={["bottom"]}
     >
+      <FloatingCloseButton />
+
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 125 : 0}
+        keyboardVerticalOffset={0}
       >
         <ScrollView
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[
+            styles.content,
+            { paddingTop: insets.top + 68 },
+          ]}
           keyboardShouldPersistTaps="handled"
         >
+          <Text style={[styles.heroTitle, { color: colors.text }]}>
+            New Exercise
+          </Text>
+
           {/* Name */}
           <Text style={[styles.label, { color: colors.subtle }]}>Name</Text>
           <TextInput
@@ -210,7 +245,18 @@ export function CreateExerciseScreen() {
                   onPress={() => cycleBodyPart(bp)}
                   style={[
                     styles.chip,
-                    { backgroundColor: chipColor, borderColor },
+                    {
+                      backgroundColor: isSelected
+                        ? isDark
+                          ? "#fff"
+                          : "#000"
+                        : colors.inputBg,
+                      borderColor: isSelected
+                        ? isDark
+                          ? "#fff"
+                          : "#000"
+                        : colors.border,
+                    },
                   ]}
                 >
                   <Text
@@ -284,13 +330,13 @@ export function CreateExerciseScreen() {
             disabled={!name.trim() || saving || !hasPrimary}
             style={[
               styles.footerButton,
-              {
-                opacity: name.trim() && !saving && hasPrimary ? 1 : 0.4,
-                backgroundColor: "#1E90FF",
-              },
+              { opacity: name.trim() && !saving && hasPrimary ? 1 : 0.4 },
+              { backgroundColor: isDark ? "#fff" : "#000" },
             ]}
           >
-            <Text style={styles.buttonText}>
+            <Text
+              style={[styles.buttonText, { color: isDark ? "#000" : "#fff" }]}
+            >
               {saving ? "Saving..." : "Save Exercise"}
             </Text>
           </TouchableOpacity>
@@ -307,6 +353,13 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     paddingBottom: 40,
+  },
+  heroTitle: {
+    fontSize: 32,
+    fontWeight: "700",
+    letterSpacing: -0.5,
+    lineHeight: 38,
+    marginBottom: 8,
   },
   label: {
     fontSize: 13,

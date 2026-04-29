@@ -15,8 +15,8 @@ import { Routine } from "../../api/types";
 import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
 import { formatDayAbbrev } from "../../utils/days";
 import { useThemedHeader } from "../../hooks/useThemedHeader";
-import { useTrackTab } from "../../hooks/useTrackTab";
 import { getPrimaryBodyPart } from "../../utils/exerciseUtils";
+import { useTrackTab } from "../../hooks/useTrackTab";
 
 function getBodyPartsSummary(routine: Routine): string {
   const parts = routine.exercises
@@ -31,8 +31,7 @@ function getBodyPartsSummary(routine: Routine): string {
 }
 
 export function RoutineList() {
-  useTrackTab("FollowScreen");
-
+  useTrackTab("RoutineList");
   const { navigation, colors } = useThemedHeader((c) => ({
     headerTitleStyle: {
       color: c.text,
@@ -145,7 +144,10 @@ export function RoutineList() {
         style={[styles.container, { backgroundColor: colors.bg }]}
       >
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator
+            size="large"
+            color={colors.isDark ? "#fff" : "#000"}
+          />
         </View>
       </SafeAreaView>
     );

@@ -14,6 +14,7 @@ import com.gearfitness.gear_api.repository.WorkoutRepository;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.temporal.TemporalAdjusters;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -242,13 +243,62 @@ public class AppUserService {
       .distinct()
       .count();
 
+    List<Integer> dailyActivity = buildDailyActivity(user, today);
+
     return WorkoutStatsDTO.builder()
       .totalWorkouts(totalWorkouts)
       .workoutsThisWeek(workoutsThisWeek)
       .weeklySplit(weeklySplit)
       .workoutStreak(workoutStreak)
       .workoutDaysCurrentWeek(workoutDaysCurrentWeek)
+      .dailyActivity(dailyActivity)
       .build();
+  }
+
+  /**
+   * Build the 35-day activity ramp for the profile grid.
+   * Window is anchored to a Sunday-first week: index 0 = the Sunday 4 weeks
+   * before this week's Sunday, index 34 = today. Levels are derived from total
+   * workout duration on each day: 0 (none), 1 (<30 min), 2 (30–60 min), 3 (>60).
+   */
+  private List<Integer> buildDailyActivity(AppUser user, LocalDate today) {
+    LocalDate gridStart = today
+      .with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY))
+      .minusWeeks(4);
+
+    List<Workout> windowWorkouts =
+      workoutRepository.findByUserAndDatePerformedBetween(
+        user,
+        gridStart,
+        today
+      );
+
+    Map<LocalDate, Integer> minutesByDay = new HashMap<>();
+    for (Workout w : windowWorkouts) {
+      Integer dur = w.getDurationMin();
+      int minutes = dur == null ? 0 : dur;
+      minutesByDay.merge(w.getDatePerformed(), minutes, Integer::sum);
+    }
+
+    List<Integer> activity = new ArrayList<>(35);
+    for (int i = 0; i < 35; i++) {
+      LocalDate day = gridStart.plusDays(i);
+      if (day.isAfter(today)) {
+        activity.add(0);
+        continue;
+      }
+      Integer minutes = minutesByDay.get(day);
+      if (minutes == null) {
+        activity.add(0);
+      } else if (minutes < 30) {
+        activity.add(1);
+      } else if (minutes <= 60) {
+        activity.add(2);
+      } else {
+        activity.add(3);
+      }
+    }
+    return activity;
   }
 
   /**
