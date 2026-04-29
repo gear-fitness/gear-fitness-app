@@ -17,6 +17,7 @@ export interface WorkoutStats {
   };
   workoutStreak: number;
   workoutDaysCurrentWeek: number;
+  dailyActivity: number[];
 }
 
 export interface UserProfile {

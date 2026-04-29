@@ -61,13 +61,6 @@ const BODY_TAGS = [
   "CORE",
 ];
 
-const CLOSE_FLOW_ROUTES = [
-  "WorkoutComplete",
-  "WorkoutSummary",
-  "ExerciseDetail",
-  "ExerciseSelect",
-];
-
 export function WorkoutComplete() {
   useTrackTab("WorkoutComplete");
 
@@ -82,7 +75,10 @@ export function WorkoutComplete() {
   const [bodyTag, setBodyTag] = useState<string[]>(["FULL_BODY"]);
   const [caption, setCaption] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loadingAction, setLoadingAction] = useState<"save" | "post" | null>(
+    null,
+  );
+  const loading = loadingAction !== null;
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -170,11 +166,9 @@ export function WorkoutComplete() {
   };
 
   const popOutOfFlow = () => {
-    const state = navigation.getState();
-    const modalCount = state.routes.filter((r: any) =>
-      CLOSE_FLOW_ROUTES.includes(r.name),
-    ).length;
-    navigation.pop(modalCount);
+    const parent = navigation.getParent();
+    if (parent) parent.goBack();
+    else navigation.goBack();
   };
 
   const handleSaveWorkout = async (createPost: boolean) => {
@@ -187,7 +181,7 @@ export function WorkoutComplete() {
       return;
     }
 
-    setLoading(true);
+    setLoadingAction(createPost ? "post" : "save");
 
     try {
       let uploadedUrls: string[] = [];
@@ -209,7 +203,7 @@ export function WorkoutComplete() {
         } catch (uploadError) {
           console.error("Failed to upload workout photos:", uploadError);
           Alert.alert("Error", "Failed to upload photos. Please try again.");
-          setLoading(false);
+          setLoadingAction(null);
           return;
         }
       }
@@ -256,7 +250,7 @@ export function WorkoutComplete() {
       console.error("Failed to save workout:", error);
       Alert.alert("Error", "Failed to save workout. Please try again.");
     } finally {
-      setLoading(false);
+      setLoadingAction(null);
     }
   };
 
@@ -294,7 +288,11 @@ export function WorkoutComplete() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={0}
     >
-      <FloatingCloseButton />
+      <FloatingCloseButton
+        direction="left"
+        accessibilityLabel="Back to summary"
+        onPress={() => navigation.navigate("WorkoutSummary")}
+      />
 
       <ScrollView
         ref={scrollViewRef}
@@ -538,7 +536,7 @@ export function WorkoutComplete() {
               onPress={() => handleSaveWorkout(false)}
               disabled={loading}
             >
-              {loading ? (
+              {loadingAction === "save" ? (
                 <ActivityIndicator color={t.text} />
               ) : (
                 <Text style={[styles.footerBtnText, { color: t.text }]}>
@@ -555,7 +553,7 @@ export function WorkoutComplete() {
               onPress={() => handleSaveWorkout(true)}
               disabled={loading}
             >
-              {loading ? (
+              {loadingAction === "post" ? (
                 <ActivityIndicator color={isDark ? "#000" : "#fff"} />
               ) : (
                 <View style={styles.footerBtnContent}>

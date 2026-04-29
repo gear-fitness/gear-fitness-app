@@ -353,7 +353,11 @@ export const ExerciseDetailContent = forwardRef<
       >
         <View style={styles.topBar}>
           <TouchableOpacity
-            onPress={() => navigation.goBack()}
+            onPress={() => {
+              const parent = navigation.getParent();
+              if (parent) parent.goBack();
+              else navigation.goBack();
+            }}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             style={[styles.dismissButton, { backgroundColor: colors.chipBg }]}
           >

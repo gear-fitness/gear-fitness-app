@@ -18,10 +18,7 @@ import { NotFound } from "./screens/NotFound";
 import { History } from "./screens/History";
 import { PR } from "./screens/PR";
 import { DetailedHistory } from "./screens/DetailedHistory";
-import { ExerciseSelect } from "./screens/ExerciseSelect";
-import { ExerciseDetail } from "./screens/ExerciseDetail";
-import { WorkoutSummary } from "./screens/WorkoutSummary";
-import { WorkoutComplete } from "./screens/WorkoutComplete";
+import { WorkoutFlowNavigator } from "./WorkoutFlowNavigator";
 import { OnboardingScreen } from "./screens/Onboarding";
 import { WorkoutChat } from "./screens/WorkoutChat";
 import { AuthLoadingScreen } from "./screens/AuthLoading";
@@ -33,6 +30,7 @@ import { RoutineList } from "./screens/RoutineList";
 import { RoutineDetail } from "./screens/RoutineDetail";
 import { CreateRoutine } from "./screens/CreateRoutine";
 import { EditRoutine } from "./screens/EditRoutine";
+import { UserPosts } from "./screens/UserPosts";
 import { Platform } from "react-native";
 
 /* ---------------------- TABS ---------------------- */
@@ -128,6 +126,14 @@ const RootStack = createNativeStackNavigator({
       },
     },
 
+    UserPosts: {
+      screen: UserPosts,
+      options: {
+        headerShown: false,
+        gestureEnabled: true,
+      },
+    },
+
     PR: {
       screen: PR,
       options: {
@@ -146,11 +152,13 @@ const RootStack = createNativeStackNavigator({
       },
     },
 
-    /* MODAL 1 — SELECT EXERCISE */
-    ExerciseSelect: {
-      screen: ExerciseSelect,
+    /* WORKOUT FLOW — single fullscreen modal containing the inner stack
+       (ExerciseSelect, ExerciseDetail, WorkoutSummary, WorkoutComplete).
+       Inter-screen transitions happen inside the inner stack with no
+       UIKit modal dismiss/present, so no flash to HomeTabs. */
+    WorkoutFlow: {
+      screen: WorkoutFlowNavigator,
       options: {
-        title: "Select Exercise",
         presentation: "fullScreenModal",
         headerShown: false,
         gestureEnabled: true,
@@ -166,41 +174,6 @@ const RootStack = createNativeStackNavigator({
         headerShown: false,
         gestureEnabled: true,
         gestureDirection: "vertical",
-      },
-    },
-
-    /* MODAL 2 — EXERCISE DETAIL */
-    ExerciseDetail: {
-      screen: ExerciseDetail,
-      options: {
-        title: "Exercise Detail",
-        presentation: "fullScreenModal",
-        headerShown: false,
-        gestureEnabled: true,
-        gestureDirection: "vertical",
-        headerBackTitle: "Back",
-      },
-    },
-
-    /* MODAL 3 — WORKOUT SUMMARY */
-    WorkoutSummary: {
-      screen: WorkoutSummary,
-      options: {
-        title: "Workout Summary",
-        presentation: "fullScreenModal",
-        headerShown: false,
-        gestureEnabled: true,
-        gestureDirection: "vertical",
-      },
-    },
-
-    /* MODAL 4 — WORKOUT COMPLETE */
-    WorkoutComplete: {
-      screen: WorkoutComplete,
-      options: {
-        title: "Workout Complete",
-        presentation: "fullScreenModal",
-        headerShown: false,
       },
     },
 
@@ -297,19 +270,19 @@ declare global {
       Settings: undefined;
       Profile: undefined;
       UserProfile: { username: string };
-      WorkoutSummary: undefined;
-      WorkoutComplete: undefined;
-      ExerciseSelect: undefined;
+      UserPosts: { userId: string; username: string };
       ExerciseChat: undefined;
 
-      ExerciseDetail: {
-        exercise: {
-          workoutExerciseId?: string;
-          exerciseId: string;
-          name: string;
-          sets?: any[];
-        };
-      };
+      WorkoutFlow:
+        | {
+            screen?:
+              | "ExerciseSelect"
+              | "ExerciseDetail"
+              | "WorkoutSummary"
+              | "WorkoutComplete";
+            params?: any;
+          }
+        | undefined;
 
       CreateExercise:
         | {

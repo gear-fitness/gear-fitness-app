@@ -12,11 +12,13 @@ import Svg, { Path } from "react-native-svg";
 type Props = {
   onPress?: () => void;
   accessibilityLabel?: string;
+  direction?: "down" | "left";
 };
 
 export function FloatingCloseButton({
   onPress,
   accessibilityLabel = "Close",
+  direction = "down",
 }: Props) {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
@@ -27,10 +29,16 @@ export function FloatingCloseButton({
   const surface = isDark ? "#141414" : "#ffffff";
   const border = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";
 
+  const handleDefaultPress = () => {
+    const parent = navigation.getParent();
+    if (parent) parent.goBack();
+    else navigation.goBack();
+  };
+
   return (
     <TouchableOpacity
       accessibilityLabel={accessibilityLabel}
-      onPress={onPress ?? (() => navigation.goBack())}
+      onPress={onPress ?? handleDefaultPress}
       activeOpacity={0.7}
       style={[
         styles.button,
@@ -50,7 +58,7 @@ export function FloatingCloseButton({
       )}
       <Svg width={16} height={16} viewBox="0 0 16 16" fill="none">
         <Path
-          d="M4 6l4 4 4-4"
+          d={direction === "left" ? "M10 4l-4 4 4 4" : "M4 6l4 4 4-4"}
           stroke={stroke}
           strokeWidth={1.6}
           strokeLinecap="round"

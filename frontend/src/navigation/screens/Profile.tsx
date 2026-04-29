@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
   View,
-  FlatList,
+  ScrollView,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
@@ -30,7 +30,6 @@ import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
 import { feedRefresh } from "../../utils/feedRefreshFlag";
 import { Avatar } from "../../components/Avatar";
 
-const WEEK_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 const WEEK_LABELS = ["S", "M", "T", "W", "T", "F", "S"] as const;
 const GRID_ROWS = 5;
 const GRID_COLS = 7;
@@ -52,9 +51,6 @@ export function Profile() {
   const [error, setError] = useState<string | null>(null);
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [postsLoading, setPostsLoading] = useState(false);
-  const [loadingMorePosts, setLoadingMorePosts] = useState(false);
-  const [currentPostsPage, setCurrentPostsPage] = useState(0);
-  const [hasMorePosts, setHasMorePosts] = useState(true);
 
   const t = isDark
     ? {
@@ -156,35 +152,13 @@ export function Profile() {
       const response = await socialFeedApi.getUserPosts(
         targetProfile.userId,
         0,
-        5,
+        1,
       );
       setPosts(response.content);
-      setCurrentPostsPage(0);
-      setHasMorePosts(!response.last);
     } catch (error) {
       console.error("Error loading user posts:", error);
     } finally {
       setPostsLoading(false);
-    }
-  };
-
-  const loadMorePosts = async () => {
-    if (!hasMorePosts || loadingMorePosts || postsLoading || !profile) return;
-    try {
-      setLoadingMorePosts(true);
-      const nextPage = currentPostsPage + 1;
-      const response = await socialFeedApi.getUserPosts(
-        profile.userId,
-        nextPage,
-        5,
-      );
-      setPosts((prev) => [...prev, ...response.content]);
-      setCurrentPostsPage(nextPage);
-      setHasMorePosts(!response.last);
-    } catch (error) {
-      console.error("Error loading more posts:", error);
-    } finally {
-      setLoadingMorePosts(false);
     }
   };
 
@@ -201,12 +175,9 @@ export function Profile() {
     const todayDow = today.getDay();
     const todayIdx = (GRID_ROWS - 1) * GRID_COLS + todayDow;
 
-    const lastRowStart = (GRID_ROWS - 1) * GRID_COLS;
-    const activity = Array.from({ length: GRID_ROWS * GRID_COLS }, (_, i) => {
-      if (i < lastRowStart || i > todayIdx) return 0;
-      const day = WEEK_DAYS[i - lastRowStart];
-      return profile.workoutStats.weeklySplit[day] > 0 ? 3 : 0;
-    });
+    const activity =
+      profile.workoutStats.dailyActivity ??
+      Array<number>(GRID_ROWS * GRID_COLS).fill(0);
 
     const dotColor = (level: number) =>
       level === 0
@@ -337,6 +308,29 @@ export function Profile() {
 
         <View style={styles.postsSectionHeader}>
           <Text style={[styles.overline, { color: t.textMuted }]}>POSTS</Text>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() =>
+              navigation.navigate("UserPosts", {
+                userId: profile.userId,
+                username: profile.username,
+              })
+            }
+            hitSlop={10}
+            style={styles.seeAllBtn}
+          >
+            <Text style={[styles.seeAllText, { color: t.text }]}>See all</Text>
+            <Svg width={12} height={12} viewBox="0 0 12 12" fill="none">
+              <Path
+                d="M4.5 2.5L8 6l-3.5 3.5"
+                stroke={t.text}
+                strokeWidth={1.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                fill="none"
+              />
+            </Svg>
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -384,40 +378,11 @@ export function Profile() {
         </View>
       )}
 
-      <FlatList
-        data={posts}
-        renderItem={({ item }) => (
-          <FeedPostCard post={item} onOpenComments={handleOpenComments} />
-        )}
-        keyExtractor={(item) => String(item.postId)}
-        ListHeaderComponent={<ProfileHeader />}
-        ListEmptyComponent={
-          postsLoading ? (
-            <ActivityIndicator style={styles.loader} color={t.text} />
-          ) : (
-            <View style={styles.emptyPosts}>
-              <Text style={[styles.emptyText, { color: t.textMuted }]}>
-                No posts yet
-              </Text>
-            </View>
-          )
-        }
-        ListFooterComponent={
-          loadingMorePosts ? (
-            <View style={styles.footer}>
-              <ActivityIndicator color={t.text} />
-              <Text style={[styles.footerText, { color: t.textMuted }]}>
-                Loading more...
-              </Text>
-            </View>
-          ) : null
-        }
+      <ScrollView
         contentContainerStyle={{
           paddingTop: insets.top + 40,
           paddingBottom: MINI_PLAYER_HEIGHT + 30,
         }}
-        onEndReached={loadMorePosts}
-        onEndReachedThreshold={0.5}
         refreshControl={
           <RefreshControl
             refreshing={loading}
@@ -431,7 +396,23 @@ export function Profile() {
             }
           />
         }
-      />
+      >
+        <ProfileHeader />
+        {posts.length > 0 ? (
+          <FeedPostCard
+            post={posts[0]}
+            onOpenComments={handleOpenComments}
+          />
+        ) : postsLoading ? (
+          <ActivityIndicator style={styles.loader} color={t.text} />
+        ) : (
+          <View style={styles.emptyPosts}>
+            <Text style={[styles.emptyText, { color: t.textMuted }]}>
+              No posts yet
+            </Text>
+          </View>
+        )}
+      </ScrollView>
     </View>
   );
 }
@@ -536,11 +517,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
 
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    marginHorizontal: 20,
-  },
-
   activitySection: {
     paddingHorizontal: 20,
     paddingTop: 20,
@@ -616,6 +592,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  seeAllBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  seeAllText: {
+    fontSize: 13,
+    fontWeight: "500",
+    letterSpacing: -0.1,
   },
 
   emptyPosts: {
@@ -628,13 +617,5 @@ const styles = StyleSheet.create({
 
   loader: {
     padding: 32,
-  },
-  footer: {
-    paddingVertical: 20,
-    alignItems: "center",
-  },
-  footerText: {
-    marginTop: 8,
-    fontSize: 14,
   },
 });

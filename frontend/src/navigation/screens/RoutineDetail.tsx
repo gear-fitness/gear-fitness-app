@@ -67,7 +67,9 @@ export function RoutineDetail({
           name: ex.exerciseName,
         })),
       );
-      (navigation as any).navigate("WorkoutSummary");
+      (navigation as any).navigate("WorkoutFlow", {
+        screen: "WorkoutSummary",
+      });
     } finally {
       setStarting(false);
     }

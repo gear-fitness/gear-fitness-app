@@ -65,7 +65,8 @@ export function Workout() {
   const { playerVisible, seconds, exercises } = useWorkoutTimer();
   const { isCountdownVisible, countdownValue, startCountdown, cancelCountdown } =
     useStartCountdown({
-      onComplete: () => navigation.navigate("ExerciseSelect"),
+      onComplete: () =>
+        navigation.navigate("WorkoutFlow", { screen: "ExerciseSelect" }),
     });
 
   useFocusEffect(
@@ -106,7 +107,7 @@ export function Workout() {
 
   const handlePrimaryPress = () => {
     if (inProgress) {
-      navigation.navigate("WorkoutComplete");
+      navigation.navigate("WorkoutFlow", { screen: "WorkoutComplete" });
     } else {
       startCountdown();
     }

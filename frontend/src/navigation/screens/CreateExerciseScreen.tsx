@@ -85,12 +85,15 @@ export function CreateExerciseScreen() {
         const workoutExerciseId = Date.now().toString();
         showPlayer(workoutExerciseId);
 
-        (navigation as any).replace("ExerciseDetail", {
-          exercise: {
-            workoutExerciseId,
-            exerciseId: created.exerciseId,
-            name: created.name,
-            sets: [],
+        (navigation as any).replace("WorkoutFlow", {
+          screen: "ExerciseDetail",
+          params: {
+            exercise: {
+              workoutExerciseId,
+              exerciseId: created.exerciseId,
+              name: created.name,
+              sets: [],
+            },
           },
         });
       } else {

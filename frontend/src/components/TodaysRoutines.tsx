@@ -40,7 +40,9 @@ export function TodaysRoutines() {
             name: ex.exerciseName,
           })),
         );
-        (navigation as any).navigate("WorkoutSummary");
+        (navigation as any).navigate("WorkoutFlow", {
+          screen: "WorkoutSummary",
+        });
       } catch {
         // Ignore and keep user on current screen.
       }

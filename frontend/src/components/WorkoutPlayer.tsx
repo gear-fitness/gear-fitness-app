@@ -28,11 +28,16 @@ export function WorkoutPlayer() {
         (e) => e.workoutExerciseId === currentExerciseId,
       );
       if (ex) {
-        navigationRef.current?.navigate("ExerciseDetail", { exercise: ex });
+        navigationRef.current?.navigate("WorkoutFlow", {
+          screen: "ExerciseDetail",
+          params: { exercise: ex },
+        });
         return;
       }
     }
-    navigationRef.current?.navigate("WorkoutSummary");
+    navigationRef.current?.navigate("WorkoutFlow", {
+      screen: "WorkoutSummary",
+    });
   };
 
   // Check if we're on an allowed tab
