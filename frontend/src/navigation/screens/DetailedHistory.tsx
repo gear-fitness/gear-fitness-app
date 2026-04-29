@@ -40,7 +40,10 @@ export function DetailedHistory({ route }: Props) {
 
   const navigation = useNavigation();
   const { colors } = useTheme();
+
   const isDark = useColorScheme() === "dark";
+  const accent = isDark ? "#fff" : "#000";
+
   const insets = useSafeAreaInsets();
   const { workoutId, caption } = route.params;
 
@@ -296,12 +299,14 @@ function ExerciseBlock({
   textMuted,
   textFaint,
 }: ExerciseBlockProps) {
+  const isDark = useColorScheme() === "dark";
+  const accent = isDark ? "#fff" : "#000";
   return (
     <View style={styles.exerciseBlock}>
       <View style={styles.exerciseHeader}>
         <Text style={[styles.exerciseOverline, textMuted]}>
           EXERCISE {index} / {total} ·
-          {renderBodyParts(exercise.bodyParts, "grey", "#1877F2")}
+          {renderBodyParts(exercise.bodyParts, "grey", accent)}
         </Text>
         <Text style={[styles.exerciseName, { color: textColor }]}>
           {exercise.exerciseName}

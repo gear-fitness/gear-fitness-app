@@ -37,6 +37,7 @@ export function EditRoutine({
   const { routine } = route.params;
   const navigation = useNavigation();
   const colors = useThemeColors();
+  const accent = colors.isDark ? "#fff" : "#000";
 
   const [name, setName] = useState(routine.name);
   const [selectedDays, setSelectedDays] = useState<string[]>(
@@ -184,7 +185,7 @@ export function EditRoutine({
                 <Text
                   style={[styles.selectedSubtitle, { color: colors.secondary }]}
                 >
-                  {renderBodyParts(item.bodyParts, colors.secondary, "#007AFF")}
+                  {renderBodyParts(item.bodyParts, colors.secondary, accent)}
                 </Text>
               </View>
               <TouchableOpacity
@@ -314,11 +315,7 @@ export function EditRoutine({
                       { color: colors.secondary },
                     ]}
                   >
-                    {renderBodyParts(
-                      item.bodyParts,
-                      colors.secondary,
-                      "#007AFF",
-                    )}
+                    {renderBodyParts(item.bodyParts, colors.secondary, accent)}
                   </Text>
                 </View>
                 <Text style={[styles.addText, { color: colors.text }]}>+</Text>
