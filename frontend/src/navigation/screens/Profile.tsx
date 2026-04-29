@@ -12,7 +12,10 @@ import {
 } from "react-native";
 import { Button } from "@react-navigation/elements";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import Svg, { Path } from "react-native-svg";
 
@@ -48,6 +51,7 @@ export function Profile() {
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [postsLoading, setPostsLoading] = useState(false);
@@ -106,7 +110,7 @@ export function Profile() {
         loadUserPosts(profileData);
       }
     });
-  }, [usernameParam]);
+  }, []);
 
   const handleFollowToggle = async () => {
     if (!profile) return;
@@ -207,6 +211,15 @@ export function Profile() {
               @{profile.username}
             </Text>
           </View>
+          {!isOtherUser && (
+            <TouchableOpacity
+              onPress={() => navigation.navigate("Settings")}
+              hitSlop={10}
+              accessibilityLabel="Settings"
+            >
+              <Ionicons name="settings-outline" size={34} color={t.text} />
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.statsWrap}>
@@ -336,15 +349,6 @@ export function Profile() {
     );
   };
 
-  if (loading) {
-    return (
-      <View style={[styles.center, { backgroundColor: t.bg }]}>
-        <ActivityIndicator size="large" color={t.text} />
-        <Text style={{ color: t.text, marginTop: 8 }}>Loading profile...</Text>
-      </View>
-    );
-  }
-
   if (error || !profile) {
     return (
       <View style={[styles.center, { backgroundColor: t.bg }]}>
@@ -355,48 +359,38 @@ export function Profile() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: t.bg }}>
-      {isOtherUser ? (
-        <View style={[styles.topLeftBtn, { top: insets.top + 2 }]}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            hitSlop={10}
-            accessibilityLabel="Back"
-          >
-            <Ionicons name="chevron-back" size={28} color={t.text} />
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <View style={[styles.topRightBtn, { top: insets.top + 2 }]}>
-          <TouchableOpacity
-            onPress={() => navigation.navigate("Settings")}
-            hitSlop={10}
-            accessibilityLabel="Settings"
-          >
-            <Ionicons name="settings-outline" size={28} color={t.text} />
-          </TouchableOpacity>
-        </View>
-      )}
-
+    <SafeAreaView style={{ flex: 1, backgroundColor: t.bg }} edges={["top"]}>
       <ScrollView
         contentContainerStyle={{
-          paddingTop: insets.top + 40,
           paddingBottom: MINI_PLAYER_HEIGHT + 30,
         }}
         refreshControl={
           <RefreshControl
-            refreshing={loading}
+            refreshing={refreshing}
             tintColor={t.text}
-            onRefresh={() =>
-              loadProfile().then((profileData) => {
-                if (profileData) {
-                  loadUserPosts(profileData);
-                }
-              })
-            }
+            onRefresh={async () => {
+              setRefreshing(true);
+              const profileData = await loadProfile();
+              if (profileData) {
+                await loadUserPosts(profileData);
+              }
+              setRefreshing(false);
+            }}
           />
         }
       >
+        {isOtherUser && (
+          <View style={styles.topBar}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              hitSlop={10}
+              accessibilityLabel="Back"
+            >
+              <Ionicons name="chevron-back" size={28} color={t.text} />
+            </TouchableOpacity>
+          </View>
+        )}
+
         <ProfileHeader />
         {posts.length > 0 ? (
           <FeedPostCard post={posts[0]} onOpenComments={handleOpenComments} />
@@ -410,7 +404,7 @@ export function Profile() {
           </View>
         )}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -454,11 +448,20 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
 
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 8,
+    height: 40,
+  },
   identityRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 20,
-    gap: 20,
+    paddingTop: 16,
+    gap: 16,
   },
   identityText: {
     flex: 1,
