@@ -2,6 +2,9 @@ import React, { useCallback, useLayoutEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -22,10 +25,7 @@ import { BackButton } from "../../components/BackButton";
 import { DAYS, DAY_FULL, DAY_SHORT } from "../../utils/days";
 import { useThemeColors } from "../../hooks/useThemeColors";
 import { useExerciseList } from "../../hooks/useExerciseList";
-import {
-  formatPrimaryBodyParts,
-  renderBodyParts,
-} from "../../utils/exerciseUtils";
+import { renderBodyParts } from "../../utils/exerciseUtils";
 import { useExerciseFilter } from "../../hooks/useExerciseFilter";
 import { ExerciseFilterBar } from "../../components/ExerciseFilterBar";
 
@@ -211,136 +211,158 @@ export function EditRoutine({
     );
   };
 
-  const ListHeader = () => (
-    <View style={styles.listHeaderContent}>
-      <Text style={[styles.label, { color: colors.secondary }]}>
-        ROUTINE NAME
-      </Text>
-      <TextInput
-        style={[
-          styles.input,
-          {
-            backgroundColor: colors.inputBg,
-            color: colors.text,
-            borderColor: colors.border,
-          },
-        ]}
-        value={name}
-        onChangeText={setName}
-        placeholder="Routine name"
-        placeholderTextColor={colors.secondary}
-      />
-
-      <Text style={[styles.label, { color: colors.secondary }]}>
-        SCHEDULED DAYS
-      </Text>
-      <View style={styles.daysRow}>
-        {DAYS.map((day) => {
-          const active = selectedDays.includes(day);
-          return (
-            <TouchableOpacity
-              key={day}
-              style={[
-                styles.dayPill,
-                { backgroundColor: active ? colors.pillActive : colors.pill },
-              ]}
-              onPress={() => toggleDay(day)}
-            >
-              <Text
-                style={[
-                  styles.dayPillText,
-                  { color: active ? colors.pillActiveText : colors.text },
-                ]}
-              >
-                {day}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      <Text style={[styles.label, { color: colors.secondary }]}>
-        EXERCISES ({selectedExercises.length})
-      </Text>
-      {selectedExercises.length === 0 && (
-        <Text style={[styles.emptyHint, { color: colors.secondary }]}>
-          Add exercises from the list below.
-        </Text>
-      )}
-    </View>
-  );
-
-  const ListFooter = () => (
-    <View style={styles.listFooterContent}>
-      <Text style={[styles.label, { color: colors.secondary }]}>
-        ADD EXERCISES
-      </Text>
-      <ExerciseFilterBar
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        bodyParts={bodyParts}
-        selectedBodyPart={selectedBodyPart}
-        onSelectBodyPart={setSelectedBodyPart}
-      />
-
-      {loadingExercises ? (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator color={colors.isDark ? "#fff" : "#000"} />
+  return (
+    <KeyboardAvoidingView
+      style={[styles.flex, { backgroundColor: colors.bg }]}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.scrollContent}
+        nestedScrollEnabled
+      >
+        {/* Routine name */}
+        <View style={styles.sectionWrap}>
+          <Text style={[styles.label, { color: colors.secondary }]}>
+            ROUTINE NAME
+          </Text>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.inputBg,
+                color: colors.text,
+                borderColor: colors.border,
+              },
+            ]}
+            value={name}
+            onChangeText={setName}
+            placeholder="Routine name"
+            placeholderTextColor={colors.secondary}
+          />
         </View>
-      ) : filteredExercises.length === 0 ? null : (
-        sections.map((section) => (
-          <View key={section.title}>
-            <Text style={[styles.sectionHeader, { color: colors.secondary }]}>
-              {section.title}
-            </Text>
-            {section.data.slice(0, 30).map((item) => (
-              <TouchableOpacity
-                key={item.exerciseId}
-                style={[
-                  styles.availableRow,
-                  {
-                    borderBottomColor: colors.border,
-                    backgroundColor: colors.surface,
-                  },
-                ]}
-                onPress={() => addExercise(item)}
-              >
-                <View style={styles.selectedInfo}>
-                  <Text style={[styles.selectedTitle, { color: colors.text }]}>
-                    {item.name}
-                  </Text>
+
+        {/* Scheduled days */}
+        <View style={styles.sectionWrap}>
+          <Text style={[styles.label, { color: colors.secondary }]}>
+            SCHEDULED DAYS
+          </Text>
+          <View style={styles.daysRow}>
+            {DAYS.map((day) => {
+              const active = selectedDays.includes(day);
+              return (
+                <TouchableOpacity
+                  key={day}
+                  style={[
+                    styles.dayPill,
+                    {
+                      backgroundColor: active ? colors.pillActive : colors.pill,
+                    },
+                  ]}
+                  onPress={() => toggleDay(day)}
+                >
                   <Text
                     style={[
-                      styles.selectedSubtitle,
-                      { color: colors.secondary },
+                      styles.dayPillText,
+                      { color: active ? colors.pillActiveText : colors.text },
                     ]}
                   >
-                    {renderBodyParts(item.bodyParts, colors.secondary, accent)}
+                    {day}
                   </Text>
-                </View>
-                <Text style={[styles.addText, { color: colors.text }]}>+</Text>
-              </TouchableOpacity>
-            ))}
+                </TouchableOpacity>
+              );
+            })}
           </View>
-        ))
-      )}
-      <View style={styles.bottomPad} />
-    </View>
-  );
+        </View>
 
-  return (
-    <View style={[styles.flex, { backgroundColor: colors.bg }]}>
-      <DraggableFlatList
-        data={selectedExercises}
-        keyExtractor={(item) => item.routineExerciseId}
-        renderItem={renderExerciseItem}
-        onDragEnd={({ data }) => setSelectedExercises(data)}
-        ListHeaderComponent={<ListHeader />}
-        ListFooterComponent={<ListFooter />}
-        contentContainerStyle={styles.listContent}
-        activationDistance={10}
-      />
-    </View>
+        {/* Selected exercises (draggable) */}
+        <View style={styles.sectionWrap}>
+          <Text style={[styles.label, { color: colors.secondary }]}>
+            EXERCISES ({selectedExercises.length})
+          </Text>
+          {selectedExercises.length === 0 ? (
+            <Text style={[styles.emptyHint, { color: colors.secondary }]}>
+              Add exercises from the list below.
+            </Text>
+          ) : (
+            <DraggableFlatList
+              data={selectedExercises}
+              keyExtractor={(item) => item.routineExerciseId}
+              renderItem={renderExerciseItem}
+              onDragEnd={({ data }) => setSelectedExercises(data)}
+              scrollEnabled={false}
+              activationDistance={10}
+            />
+          )}
+        </View>
+
+        {/* Add exercises */}
+        <View style={styles.sectionWrap}>
+          <Text style={[styles.label, { color: colors.secondary }]}>
+            ADD EXERCISES
+          </Text>
+          <ExerciseFilterBar
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            bodyParts={bodyParts}
+            selectedBodyPart={selectedBodyPart}
+            onSelectBodyPart={setSelectedBodyPart}
+          />
+
+          {loadingExercises ? (
+            <View style={styles.loadingWrap}>
+              <ActivityIndicator color={colors.isDark ? "#fff" : "#000"} />
+            </View>
+          ) : filteredExercises.length === 0 ? null : (
+            sections.map((section) => (
+              <View key={section.title}>
+                <Text
+                  style={[styles.sectionHeader, { color: colors.secondary }]}
+                >
+                  {section.title}
+                </Text>
+                {section.data.slice(0, 30).map((item) => (
+                  <TouchableOpacity
+                    key={item.exerciseId}
+                    style={[
+                      styles.availableRow,
+                      {
+                        borderBottomColor: colors.border,
+                        backgroundColor: colors.surface,
+                      },
+                    ]}
+                    onPress={() => addExercise(item)}
+                  >
+                    <View style={styles.selectedInfo}>
+                      <Text
+                        style={[styles.selectedTitle, { color: colors.text }]}
+                      >
+                        {item.name}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.selectedSubtitle,
+                          { color: colors.secondary },
+                        ]}
+                      >
+                        {renderBodyParts(
+                          item.bodyParts,
+                          colors.secondary,
+                          accent,
+                        )}
+                      </Text>
+                    </View>
+                    <Text style={[styles.addText, { color: colors.text }]}>
+                      +
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ))
+          )}
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -355,9 +377,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   saveText: { fontSize: 22, fontWeight: "600", includeFontPadding: false },
-  listContent: { paddingBottom: 40 },
-  listHeaderContent: { paddingHorizontal: 16, paddingTop: 8 },
-  listFooterContent: { paddingHorizontal: 16 },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 80 },
+  sectionWrap: { marginTop: 8 },
   label: {
     fontSize: 12,
     fontWeight: "600",
@@ -371,7 +392,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
-    marginBottom: 16,
   },
   daysRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   dayPill: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 },
@@ -380,7 +400,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
     marginBottom: 8,
-    marginHorizontal: 16,
   },
   selectedRow: {
     borderWidth: 1,
@@ -412,7 +431,6 @@ const styles = StyleSheet.create({
   addText: { fontSize: 22, fontWeight: "300" },
   loadingWrap: { paddingVertical: 20, alignItems: "center" },
   emptyHint: { fontSize: 13, fontStyle: "italic", marginBottom: 4 },
-  bottomPad: { height: 40 },
   sectionHeader: {
     fontSize: 13,
     fontWeight: "700",

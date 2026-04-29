@@ -370,7 +370,7 @@ export function CreateRoutine({
                       {renderBodyParts(
                         item.bodyParts,
                         colors.secondary,
-                        "#007AFF",
+                        colors.accent,
                       )}
                     </Text>
                   </View>
