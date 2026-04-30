@@ -69,6 +69,7 @@ export function Workout() {
     countdownValue,
     startCountdown,
     cancelCountdown,
+    skipCountdown,
   } = useStartCountdown({
     onComplete: () =>
       navigation.navigate("WorkoutFlow", { screen: "ExerciseSelect" }),
@@ -307,6 +308,7 @@ export function Workout() {
         countdownValue={countdownValue}
         isDark={isDark}
         onCancel={cancelCountdown}
+        onSkip={skipCountdown}
       />
     </SafeAreaView>
   );
