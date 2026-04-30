@@ -183,7 +183,7 @@ export function CreateRoutine({
     return (
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={[styles.flex, { backgroundColor: colors.bg }]}
+        style={[styles.flex, { backgroundColor: colors.appBg }]}
       >
         {renderTopChrome()}
         <ScrollView contentContainerStyle={styles.stepContent}>
@@ -204,7 +204,6 @@ export function CreateRoutine({
             value={name}
             onChangeText={setName}
             returnKeyType="done"
-            autoFocus
           />
 
           <Text style={[styles.label, { color: colors.secondary }]}>
@@ -261,7 +260,7 @@ export function CreateRoutine({
 
   if (step === "source") {
     return (
-      <View style={[styles.flex, { backgroundColor: colors.bg }]}>
+      <View style={[styles.flex, { backgroundColor: colors.appBg }]}>
         {renderTopChrome()}
         <ScrollView contentContainerStyle={styles.stepContent}>
           <Text style={[styles.sourceSubtitle, { color: colors.secondary }]}>
@@ -271,7 +270,7 @@ export function CreateRoutine({
         <TouchableOpacity
           style={[
             styles.sourceCard,
-            { backgroundColor: colors.surface, borderColor: colors.border },
+            { backgroundColor: colors.cardBg, borderColor: colors.border },
           ]}
           onPress={handleChooseScratch}
         >
@@ -292,7 +291,7 @@ export function CreateRoutine({
         <TouchableOpacity
           style={[
             styles.sourceCard,
-            { backgroundColor: colors.surface, borderColor: colors.border },
+            { backgroundColor: colors.cardBg, borderColor: colors.border },
           ]}
           onPress={handleChooseWorkout}
         >
@@ -316,7 +315,7 @@ export function CreateRoutine({
 
   if (step === "scratch") {
     return (
-      <View style={[styles.flex, { backgroundColor: colors.bg }]}>
+      <View style={[styles.flex, { backgroundColor: colors.appBg }]}>
         {renderTopChrome()}
         <View style={styles.stepContent}>
           <SearchBar
@@ -401,7 +400,7 @@ export function CreateRoutine({
           edges={["bottom"]}
           style={[
             styles.stickyBottom,
-            { backgroundColor: colors.bg, borderTopColor: colors.border },
+            { backgroundColor: colors.appBg, borderTopColor: colors.border },
           ]}
         >
           <TouchableOpacity
@@ -428,7 +427,7 @@ export function CreateRoutine({
 
   // step === "workout"
   return (
-    <View style={[styles.flex, { backgroundColor: colors.bg }]}>
+    <View style={[styles.flex, { backgroundColor: colors.appBg }]}>
       {renderTopChrome()}
       {workoutsLoading ? (
         <View style={styles.centered}>
@@ -489,7 +488,7 @@ export function CreateRoutine({
         edges={["bottom"]}
         style={[
           styles.stickyBottom,
-          { backgroundColor: colors.bg, borderTopColor: colors.border },
+          { backgroundColor: colors.appBg, borderTopColor: colors.border },
         ]}
       >
         <TouchableOpacity

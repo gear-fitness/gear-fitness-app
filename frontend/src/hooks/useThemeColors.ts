@@ -27,6 +27,7 @@ export function useThemeColors() {
     positionBg: isDark ? "#3A3A3C" : "#E5E5EA",
     tint: isDark ? "#fff" : "#000",
     danger: "#FF3B30",
+    skeleton: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
     // Onboarding-specific tokens
     accent: isDark ? "#fff" : "#000",
     accentText: isDark ? "#000" : "#fff",

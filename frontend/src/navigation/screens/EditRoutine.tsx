@@ -146,7 +146,7 @@ export function EditRoutine({
                     ? colors.isDark
                       ? "#2A2A2C"
                       : "#E8E8ED"
-                    : colors.surface,
+                    : colors.cardBg,
                   borderColor: colors.border,
                 },
               ]}
@@ -186,7 +186,7 @@ export function EditRoutine({
 
   return (
     <KeyboardAvoidingView
-      style={[styles.flex, { backgroundColor: colors.bg }]}
+      style={[styles.flex, { backgroundColor: colors.appBg }]}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <FloatingCloseButton direction="left" accessibilityLabel="Back" />
@@ -199,7 +199,7 @@ export function EditRoutine({
           styles.floatingSave,
           {
             top: insets.top + 8,
-            backgroundColor: colors.surface,
+            backgroundColor: colors.cardBg,
             borderColor: colors.border,
           },
         ]}
@@ -328,7 +328,7 @@ export function EditRoutine({
                       styles.availableRow,
                       {
                         borderBottomColor: colors.border,
-                        backgroundColor: colors.surface,
+                        backgroundColor: colors.cardBg,
                       },
                     ]}
                     onPress={() => addExercise(item)}
