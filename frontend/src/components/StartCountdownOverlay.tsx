@@ -16,6 +16,8 @@ interface StartCountdownOverlayProps {
   onSkip: () => void;
 }
 
+const DESTRUCTIVE = "#C93838";
+
 export function StartCountdownOverlay({
   visible,
   countdownValue,
@@ -73,23 +75,10 @@ export function StartCountdownOverlay({
         </View>
 
         <TouchableOpacity
-          style={[
-            styles.countdownCancelButton,
-            {
-              backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "#f4f4f4",
-              borderColor: isDark ? "rgba(255,255,255,0.22)" : "#dedede",
-            },
-          ]}
+          style={[styles.countdownCancelButton]}
           onPress={onCancel}
         >
-          <Text
-            style={[
-              styles.countdownCancelText,
-              { color: isDark ? "#fff" : "#111" },
-            ]}
-          >
-            Cancel
-          </Text>
+          <Text style={[styles.countdownCancelText]}>Cancel</Text>
         </TouchableOpacity>
       </View>
     </Modal>
@@ -115,17 +104,19 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   countdownCancelButton: {
-    width: "62%",
-    maxWidth: 200,
-    height: 44,
+    height: 46,
+    paddingHorizontal: 36,
     marginTop: 24,
-    borderRadius: 999,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: DESTRUCTIVE,
+    backgroundColor: "transparent",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1,
   },
   countdownCancelText: {
     fontSize: 15,
+    color: DESTRUCTIVE,
     fontWeight: "700",
   },
 });

@@ -46,6 +46,7 @@ import { ProfileStep } from "../onboarding/components/ProfileStep";
 import { PermissionsStep } from "../onboarding/components/PermissionsStep";
 import { AllSetStep } from "../onboarding/components/AllSetStep";
 import { calcAge } from "../onboarding/calcAge";
+import { useTrackTab } from "../../hooks/useTrackTab";
 
 const initialBg = Appearance.getColorScheme() === "dark" ? "#000" : "#eff2f5";
 
@@ -68,6 +69,7 @@ export function OnboardingScreen() {
   const { login } = useAuth();
   const insets = useSafeAreaInsets();
   const colors = useOnboardingColors();
+  useTrackTab("Onboarding");
 
   const [draft, setDraft] = useState<OnboardingDraft>(defaultDraft());
   const [hydrated, setHydrated] = useState(false);

@@ -41,11 +41,6 @@ const BODY_PARTS = [
 ];
 import { MUSCLE_GROUPS } from "../../constants/muscleGroups";
 
-const TARGET_COLORS = {
-  PRIMARY: "#007AFF",
-  SECONDARY: "#5856D6",
-};
-
 const TARGET_LABELS = {
   PRIMARY: "P",
   SECONDARY: "S",
@@ -232,12 +227,6 @@ export function CreateExerciseScreen() {
             {MUSCLE_GROUPS.map((bp) => {
               const targetType = getTargetType(bp);
               const isSelected = targetType !== null;
-              const chipColor = isSelected
-                ? TARGET_COLORS[targetType]
-                : colors.inputBg;
-              const borderColor = isSelected
-                ? TARGET_COLORS[targetType]
-                : colors.border;
 
               return (
                 <TouchableOpacity
@@ -280,32 +269,6 @@ export function CreateExerciseScreen() {
             })}
           </View>
 
-          {/* Legend */}
-          <View style={styles.legendRow}>
-            <View style={styles.legendItem}>
-              <View
-                style={[
-                  styles.legendDot,
-                  { backgroundColor: TARGET_COLORS.PRIMARY },
-                ]}
-              />
-              <Text style={[styles.legendText, { color: colors.subtle }]}>
-                Primary
-              </Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View
-                style={[
-                  styles.legendDot,
-                  { backgroundColor: TARGET_COLORS.SECONDARY },
-                ]}
-              />
-              <Text style={[styles.legendText, { color: colors.subtle }]}>
-                Secondary
-              </Text>
-            </View>
-          </View>
-
           {/* Validation hint */}
           {!hasPrimary && bodyParts.length > 0 && (
             <Text style={styles.warning}>
@@ -320,7 +283,7 @@ export function CreateExerciseScreen() {
         {/* Save — pinned to bottom */}
         <View style={[styles.footer, { borderTopColor: colors.border }]}>
           <TouchableOpacity
-            style={[styles.footerButton, { backgroundColor: "#FF3B30" }]}
+            style={[styles.footerButton, { backgroundColor: "#C93838" }]}
             onPress={() => navigation.goBack()}
           >
             <Text style={[styles.buttonText, { color: "#fff" }]}>Discard</Text>
