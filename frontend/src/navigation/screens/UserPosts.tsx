@@ -18,6 +18,7 @@ import { useNormalizeFeedPosts } from "../../context/LikesContext";
 import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
 import { CompactPostCard } from "../../components/CompactPostCard";
 import { FeedPostCard } from "../../components/FeedPostCard";
+import { useTrackTab } from "../../hooks/useTrackTab";
 
 const PAGE_SIZE = 20;
 const GRID_PADDING_HORIZONTAL = 12;
@@ -32,6 +33,8 @@ export function UserPosts() {
   const scheme = useColorScheme();
   const isDark = scheme === "dark";
   const { width: windowWidth } = useWindowDimensions();
+
+  useTrackTab("UserPosts");
 
   const userId: string = route.params?.userId;
   const username: string = route.params?.username ?? "";
@@ -64,8 +67,7 @@ export function UserPosts() {
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const normalizeFeedPosts = useNormalizeFeedPosts();
 
-  const cardWidth =
-    (windowWidth - GRID_PADDING_HORIZONTAL * 2 - GRID_GAP) / 2;
+  const cardWidth = (windowWidth - GRID_PADDING_HORIZONTAL * 2 - GRID_GAP) / 2;
 
   useEffect(() => {
     let active = true;
