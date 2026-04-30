@@ -72,6 +72,7 @@ export function ExerciseSelect() {
           onCreateExercise={() =>
             navigation.navigate("CreateExercise", { startWorkout: true })
           }
+          loading={exercises.length === 0}
         />
       </View>
     </View>
