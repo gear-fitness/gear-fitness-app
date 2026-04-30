@@ -10,17 +10,15 @@ import {
   TextInput,
   Text,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme, useRoute } from "@react-navigation/native";
 import { socialFeedApi, Comment } from "../api/socialFeedApi";
 import { Avatar } from "./Avatar";
-import { FloatingCloseButton } from "./FloatingCloseButton";
 
 export function CommentsScreen() {
   const { colors } = useTheme();
   const route = useRoute<any>();
-  const insets = useSafeAreaInsets();
   const postId = route.params?.postId;
 
   const [comments, setComments] = useState<Comment[]>([]);
@@ -140,7 +138,6 @@ export function CommentsScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
     >
-      <FloatingCloseButton accessibilityLabel="Close" />
       <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
         {loading ? (
           <View style={styles.loadingContainer}>
@@ -149,10 +146,7 @@ export function CommentsScreen() {
         ) : (
           <FlatList
             style={{ flex: 1, paddingHorizontal: 10 }}
-            contentContainerStyle={[
-              styles.commentsList,
-              { paddingTop: insets.top + 60 },
-            ]}
+            contentContainerStyle={styles.commentsList}
             data={comments}
             renderItem={renderComment}
             keyExtractor={(item) => item.commentId}

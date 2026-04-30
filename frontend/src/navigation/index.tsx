@@ -200,8 +200,9 @@ const RootStack = createNativeStackNavigator({
     Comments: {
       screen: CommentsScreen,
       options: {
+        title: "Comments",
         presentation: "modal",
-        headerShown: false,
+        headerShown: true,
       },
     },
     ImageViewer: {
