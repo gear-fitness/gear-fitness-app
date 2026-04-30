@@ -24,6 +24,7 @@ import { notificationService } from "../../api/notificationService";
 import { FeedPostCard } from "../../components/FeedPostCard";
 import { UserSearchCard } from "../../components/UserSearchCard";
 import { useAuth } from "../../context/AuthContext";
+import { useNormalizeFeedPosts } from "../../context/LikesContext";
 import { ActivityModal } from "../../components/ActivityModal";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
@@ -52,6 +53,8 @@ export function Social() {
   const [showActivity, setShowActivity] = useState(false);
   const [hasUnreadActivity, setHasUnreadActivity] = useState(false);
 
+  const normalizeFeedPosts = useNormalizeFeedPosts();
+
   // Initial feed load
   useEffect(() => {
     loadFeed();
@@ -70,6 +73,7 @@ export function Social() {
     try {
       setLoading(true);
       const response = await socialFeedApi.getFeed(0, 5);
+      normalizeFeedPosts(response.content);
       setPosts(response.content);
       setCurrentPage(0);
       setHasMore(!response.last);
@@ -86,6 +90,7 @@ export function Social() {
     try {
       setRefreshing(true);
       const response = await socialFeedApi.getFeed(0, 5);
+      normalizeFeedPosts(response.content);
       setPosts(response.content);
       setCurrentPage(0);
       setHasMore(!response.last);
@@ -95,7 +100,7 @@ export function Social() {
     } finally {
       setRefreshing(false);
     }
-  }, []);
+  }, [normalizeFeedPosts]);
 
   // Infinite scroll
   const loadMore = async () => {
@@ -106,6 +111,7 @@ export function Social() {
       const nextPage = currentPage + 1;
       const response = await socialFeedApi.getFeed(nextPage, 5);
 
+      normalizeFeedPosts(response.content);
       setPosts((prev) => [...prev, ...response.content]);
       setCurrentPage(nextPage);
       setHasMore(!response.last);

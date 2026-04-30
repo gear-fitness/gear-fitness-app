@@ -18,6 +18,7 @@ import { NotFound } from "./screens/NotFound";
 import { History } from "./screens/History";
 import { PR } from "./screens/PR";
 import { DetailedHistory } from "./screens/DetailedHistory";
+import { PostDetail } from "./screens/PostDetail";
 import { WorkoutFlowNavigator } from "./WorkoutFlowNavigator";
 import { OnboardingScreen } from "./screens/Onboarding";
 import { WorkoutChat } from "./screens/WorkoutChat";
@@ -155,6 +156,15 @@ const RootStack = createNativeStackNavigator({
       screen: DetailedHistory,
       options: {
         title: "Workout",
+        headerShown: false,
+        gestureEnabled: true,
+      },
+    },
+
+    PostDetail: {
+      screen: PostDetail,
+      options: {
+        title: "Post",
         headerShown: false,
         gestureEnabled: true,
       },
@@ -312,6 +322,11 @@ declare global {
 
       Comments: {
         postId: string;
+      };
+
+      PostDetail: {
+        postId: string;
+        openCommentsOnMount?: boolean;
       };
 
       CreateRoutine: { prefilledWorkoutId?: string } | undefined;

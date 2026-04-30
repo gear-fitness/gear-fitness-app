@@ -14,6 +14,7 @@ import { useEffect } from "react";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { WorkoutTimerProvider } from "./context/WorkoutContext";
+import { LikesProvider } from "./context/LikesContext";
 import { WorkoutPlayer } from "./components/WorkoutPlayer";
 import * as Notifications from "expo-notifications";
 import {
@@ -115,16 +116,17 @@ function AppContent({
         }
         break;
       case "LIKE":
-        if (data.params?.workoutId) {
-          navigationRef.current.navigate("DetailedHistory", {
-            workoutId: data.params.workoutId,
+        if (data.params?.postId) {
+          navigationRef.current.navigate("PostDetail", {
+            postId: data.params.postId,
           });
         }
         break;
       case "COMMENT":
         if (data.params?.postId) {
-          navigationRef.current.navigate("Comments", {
+          navigationRef.current.navigate("PostDetail", {
             postId: data.params.postId,
+            openCommentsOnMount: true,
           });
         }
         break;
@@ -143,16 +145,18 @@ function AppContent({
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <WorkoutTimerProvider>
-          <Navigation
-            ref={navigationRef}
-            theme={theme}
-            linking={{
-              enabled: "auto",
-              prefixes: [prefix],
-            }}
-            onReady={() => setIsNavigationReady(true)}
-          />
-          <WorkoutPlayer />
+          <LikesProvider>
+            <Navigation
+              ref={navigationRef}
+              theme={theme}
+              linking={{
+                enabled: "auto",
+                prefixes: [prefix],
+              }}
+              onReady={() => setIsNavigationReady(true)}
+            />
+            <WorkoutPlayer />
+          </LikesProvider>
         </WorkoutTimerProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

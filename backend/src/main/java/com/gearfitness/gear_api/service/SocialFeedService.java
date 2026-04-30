@@ -6,6 +6,7 @@ import com.gearfitness.gear_api.repository.PostCommentRepository;
 import com.gearfitness.gear_api.repository.PostLikeRepository;
 import com.gearfitness.gear_api.repository.PostRepository;
 import jakarta.transaction.Transactional;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -75,6 +76,24 @@ public class SocialFeedService {
     return posts.map(post ->
       mapToDTO(post, likeCounts, commentCounts, likedPostIds)
     );
+  }
+
+  public FeedPostDTO getPost(UUID postId, UUID viewingUserId) {
+    Post post = postRepository
+      .findById(postId)
+      .orElseThrow(() -> new RuntimeException("Post not found"));
+
+    List<UUID> postIds = Collections.singletonList(postId);
+    Map<UUID, Long> likeCounts = postLikeRepository.countByPostIds(postIds);
+    Map<UUID, Long> commentCounts = postCommentRepository.countByPostIds(
+      postIds
+    );
+    Set<UUID> likedPostIds = postLikeRepository.findPostIdsLikedByUser(
+      viewingUserId,
+      postIds
+    );
+
+    return mapToDTO(post, likeCounts, commentCounts, likedPostIds);
   }
 
   private FeedPostDTO mapToDTO(

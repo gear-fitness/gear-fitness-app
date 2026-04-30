@@ -113,12 +113,13 @@ export function ActivityModal({ visible, onClose }: ActivityModalProps) {
               username: item.actorUsername,
             });
           } else if (item.type === "COMMENT" && item.postId) {
-            navigation.navigate("Comments", {
+            navigation.navigate("PostDetail", {
               postId: item.postId,
+              openCommentsOnMount: true,
             });
-          } else if (item.type === "LIKE" && item.workoutId) {
-            navigation.navigate("DetailedHistory", {
-              workoutId: item.workoutId,
+          } else if (item.type === "LIKE" && item.postId) {
+            navigation.navigate("PostDetail", {
+              postId: item.postId,
             });
           }
         }}
