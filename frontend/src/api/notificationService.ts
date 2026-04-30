@@ -4,6 +4,7 @@ export interface NotificationDTO {
   notificationId: string;
   type: string;
   actorUsername: string;
+  actorProfilePictureUrl?: string | null;
   postId?: string;
   workoutId?: string | null;
   commentBody?: string;

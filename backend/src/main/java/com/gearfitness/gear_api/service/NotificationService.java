@@ -28,6 +28,7 @@ public class NotificationService {
           .notificationId(n.getNotificationId())
           .type(n.getType().name())
           .actorUsername(n.getActor().getUsername())
+          .actorProfilePictureUrl(n.getActor().getProfilePictureUrl())
           .postId(n.getPost() != null ? n.getPost().getPostId() : null)
           .workoutId(
             n.getPost() != null ? n.getPost().getWorkout().getWorkoutId() : null
