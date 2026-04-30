@@ -25,8 +25,11 @@ type Props = {
 
 export function CompactPostCard({ post, theme: t, width }: Props) {
   const navigation = useNavigation<any>();
-  const { liked: likedByUser, count: likeCount, toggle: handleLike } =
-    useLikeState(post.postId, post);
+  const {
+    liked: likedByUser,
+    count: likeCount,
+    toggle: handleLike,
+  } = useLikeState(post.postId, post);
   const time = post.durationMin ? formatDurationShort(post.durationMin) : "—";
 
   const photos =
@@ -269,19 +272,11 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   thumbLayerSecond: {
-    transform: [
-      { translateX: 2 },
-      { translateY: 2 },
-      { rotate: "-3deg" },
-    ],
+    transform: [{ translateX: 2 }, { translateY: 2 }, { rotate: "-3deg" }],
     opacity: 0.85,
   },
   thumbLayerThird: {
-    transform: [
-      { translateX: 4 },
-      { translateY: 4 },
-      { rotate: "4deg" },
-    ],
+    transform: [{ translateX: 4 }, { translateY: 4 }, { rotate: "4deg" }],
     opacity: 0.72,
   },
   thumbImage: {

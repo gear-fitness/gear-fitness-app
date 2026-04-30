@@ -148,12 +148,7 @@ export function SocialFeedProvider({
 
   const loadMore = useCallback(async () => {
     const s = stateRef.current;
-    if (
-      !s.hasMore ||
-      s.loadingMore ||
-      s.status === "loading" ||
-      s.refreshing
-    ) {
+    if (!s.hasMore || s.loadingMore || s.status === "loading" || s.refreshing) {
       return;
     }
 
@@ -254,9 +249,7 @@ export function SocialFeedProvider({
 function useSocialFeedContext(): SocialFeedContextValue {
   const ctx = useContext(SocialFeedContext);
   if (!ctx) {
-    throw new Error(
-      "useSocialFeed must be used within a SocialFeedProvider",
-    );
+    throw new Error("useSocialFeed must be used within a SocialFeedProvider");
   }
   return ctx;
 }

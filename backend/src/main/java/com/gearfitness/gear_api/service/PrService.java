@@ -34,21 +34,13 @@ public class PrService {
   @Transactional
   public void recomputePrsForUserExercise(UUID userId, UUID exerciseId) {
     List<WorkoutSet> sets =
-      workoutSetRepository.findChronologicalForUserExercise(
-        userId,
-        exerciseId
-      );
+      workoutSetRepository.findChronologicalForUserExercise(userId, exerciseId);
 
     // Group sets by workout, preserving chronological workout order.
     LinkedHashMap<UUID, List<WorkoutSet>> byWorkout = new LinkedHashMap<>();
     for (WorkoutSet s : sets) {
-      UUID workoutId = s
-        .getWorkoutExercise()
-        .getWorkout()
-        .getWorkoutId();
-      byWorkout
-        .computeIfAbsent(workoutId, k -> new ArrayList<>())
-        .add(s);
+      UUID workoutId = s.getWorkoutExercise().getWorkout().getWorkoutId();
+      byWorkout.computeIfAbsent(workoutId, k -> new ArrayList<>()).add(s);
     }
 
     BigDecimal runningMax = null;
@@ -67,10 +59,7 @@ public class PrService {
           continue;
         }
         int weightCmp = w.compareTo(best.getWeightLbs());
-        if (
-          weightCmp > 0 ||
-          (weightCmp == 0 && s.getReps() > best.getReps())
-        ) {
+        if (weightCmp > 0 || (weightCmp == 0 && s.getReps() > best.getReps())) {
           best = s;
         }
       }

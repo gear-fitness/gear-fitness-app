@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { notificationService } from "../api/notificationService";
+import { Avatar } from "./Avatar";
 
 type ActivityModalProps = {
   visible: boolean;
@@ -23,6 +24,7 @@ type NotificationItem = {
   notificationId: string;
   type: string;
   actorUsername: string;
+  actorProfilePictureUrl?: string | null;
   postId?: string;
   workoutId?: string | null;
   commentBody?: string;
@@ -125,7 +127,7 @@ export function ActivityModal({ visible, onClose }: ActivityModalProps) {
         }}
         style={[styles.row, { borderBottomColor: colors.border }]}
       >
-        {/* Avatar click */}
+        {/* Avatar — tapping navigates to the actor's profile */}
         <TouchableOpacity
           onPress={() => {
             onClose();
@@ -133,12 +135,12 @@ export function ActivityModal({ visible, onClose }: ActivityModalProps) {
               username: item.actorUsername,
             });
           }}
+          style={styles.avatarWrapper}
         >
-          <Ionicons
-            name="person-circle-outline"
+          <Avatar
+            username={item.actorUsername}
+            profilePictureUrl={item.actorProfilePictureUrl}
             size={40}
-            color={colors.primary}
-            style={{ marginRight: 12 }}
           />
         </TouchableOpacity>
 
@@ -147,6 +149,14 @@ export function ActivityModal({ visible, onClose }: ActivityModalProps) {
             <Text style={{ fontWeight: "600" }}>{item.actorUsername}</Text>
             {actionText}
           </Text>
+          {item.type === "COMMENT" && item.commentBody ? (
+            <Text
+              style={[styles.commentPreview, { color: colors.text + "99" }]}
+              numberOfLines={1}
+            >
+              "{item.commentBody}"
+            </Text>
+          ) : null}
         </View>
 
         <Text style={[styles.time, { color: colors.text + "99" }]}>
@@ -184,13 +194,11 @@ export function ActivityModal({ visible, onClose }: ActivityModalProps) {
           <View style={styles.center}>
             <Ionicons
               name="notifications-outline"
-              size={60}
+              size={48}
               color={colors.border}
-              style={{ marginBottom: 10 }}
             />
-
-            <Text style={{ color: colors.text + "99", fontSize: 16 }}>
-              No Notifications
+            <Text style={[styles.emptyText, { color: colors.text + "99" }]}>
+              No activity yet
             </Text>
           </View>
         ) : (
@@ -206,43 +214,49 @@ export function ActivityModal({ visible, onClose }: ActivityModalProps) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-
+  container: {
+    flex: 1,
+  },
   header: {
-    height: 48,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    borderBottomWidth: 1,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-
   title: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "600",
-    textAlign: "center",
-    flex: 1,
   },
-
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
   row: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-
+  avatarWrapper: {
+    marginRight: 12,
+  },
   textContainer: {
     flex: 1,
+    marginRight: 8,
   },
-
+  commentPreview: {
+    fontSize: 13,
+    marginTop: 2,
+  },
   time: {
     fontSize: 12,
+  },
+  center: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+  },
+  emptyText: {
+    fontSize: 15,
   },
 });

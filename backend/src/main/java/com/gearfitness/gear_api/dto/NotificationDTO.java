@@ -14,6 +14,7 @@ public class NotificationDTO {
   private UUID notificationId;
   private String type;
   private String actorUsername;
+  private String actorProfilePictureUrl;
   private UUID postId;
   private UUID workoutId;
   private String commentBody;
