@@ -22,12 +22,17 @@ import { formatMuscleGroups, renderBodyParts } from "../../utils/exerciseUtils";
 import { useNavigation, useTheme } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
+import { Ionicons } from "@expo/vector-icons";
+import { socialFeedApi } from "../../api/socialFeedApi";
 
 type RootStackParamList = {
   DetailedHistory: {
     workoutId: string;
     caption?: string;
     workoutName?: string;
+    postId?: string;
+    initialLikeCount?: number;
+    initialLikedByUser?: boolean;
   };
 };
 
@@ -45,11 +50,32 @@ export function DetailedHistory({ route }: Props) {
   const accent = isDark ? "#fff" : "#000";
 
   const insets = useSafeAreaInsets();
-  const { workoutId, caption } = route.params;
+  const { workoutId, caption, postId, initialLikeCount, initialLikedByUser } =
+    route.params;
 
   const [workout, setWorkout] = useState<WorkoutDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [likeCount, setLikeCount] = useState(initialLikeCount ?? 0);
+  const [likedByUser, setLikedByUser] = useState(initialLikedByUser ?? false);
+  const [liking, setLiking] = useState(false);
+
+  const handleLike = async () => {
+    if (!postId || liking) return;
+    const wasLiked = likedByUser;
+    setLikedByUser(!wasLiked);
+    setLikeCount((prev) => (wasLiked ? prev - 1 : prev + 1));
+    try {
+      setLiking(true);
+      await socialFeedApi.toggleLike(postId);
+    } catch (err) {
+      setLikedByUser(wasLiked);
+      setLikeCount((prev) => (wasLiked ? prev + 1 : prev - 1));
+      console.error("Error toggling like:", err);
+    } finally {
+      setLiking(false);
+    }
+  };
 
   useEffect(() => {
     const fetchWorkout = async () => {
@@ -105,6 +131,59 @@ export function DetailedHistory({ route }: Props) {
     </TouchableOpacity>
   );
 
+  const floatingActions = postId ? (
+    <View style={[styles.floatingActions, { bottom: insets.bottom + 16 }]}>
+      <TouchableOpacity
+        accessibilityLabel={likedByUser ? "Unlike" : "Like"}
+        onPress={handleLike}
+        activeOpacity={0.7}
+        disabled={liking}
+        style={[
+          styles.floatingButton,
+          {
+            backgroundColor: glassAvailable ? "transparent" : colors.background,
+            borderColor: glassAvailable ? "transparent" : colors.border,
+          },
+        ]}
+      >
+        {glassAvailable && (
+          <GlassView
+            style={[StyleSheet.absoluteFillObject, { borderRadius: 23 }]}
+            glassEffectStyle="regular"
+            isInteractive
+          />
+        )}
+        <Ionicons
+          name={likedByUser ? "heart" : "heart-outline"}
+          size={22}
+          color={likedByUser ? "#e74c3c" : colors.text}
+        />
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        accessibilityLabel="Comments"
+        onPress={() => navigation.navigate("Comments", { postId })}
+        activeOpacity={0.7}
+        style={[
+          styles.floatingButton,
+          {
+            backgroundColor: glassAvailable ? "transparent" : colors.background,
+            borderColor: glassAvailable ? "transparent" : colors.border,
+          },
+        ]}
+      >
+        {glassAvailable && (
+          <GlassView
+            style={[StyleSheet.absoluteFillObject, { borderRadius: 23 }]}
+            glassEffectStyle="regular"
+            isInteractive
+          />
+        )}
+        <Ionicons name="chatbubble-outline" size={22} color={colors.text} />
+      </TouchableOpacity>
+    </View>
+  ) : null;
+
   const bodyPaddingTop = insets.top + 68;
 
   if (loading) {
@@ -117,6 +196,7 @@ export function DetailedHistory({ route }: Props) {
         ]}
       >
         {backButton}
+        {floatingActions}
         <ActivityIndicator size="large" color={colors.text} />
         <Text style={[styles.loadingText, { color: colors.text }]}>
           Loading workout...
@@ -135,6 +215,7 @@ export function DetailedHistory({ route }: Props) {
         ]}
       >
         {backButton}
+        {floatingActions}
         <Text style={[styles.errorText, { color: colors.text }]}>
           Error: {error}
         </Text>
@@ -155,6 +236,7 @@ export function DetailedHistory({ route }: Props) {
         ]}
       >
         {backButton}
+        {floatingActions}
         <Text style={[styles.errorText, { color: colors.text }]}>
           Workout not found
         </Text>
@@ -175,6 +257,7 @@ export function DetailedHistory({ route }: Props) {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {backButton}
+      {floatingActions}
       <ScrollView
         contentContainerStyle={{
           paddingTop: bodyPaddingTop,
@@ -419,6 +502,23 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 16,
     zIndex: 10,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  floatingActions: {
+    position: "absolute",
+    right: 16,
+    zIndex: 10,
+    flexDirection: "column",
+    gap: 12,
+    alignItems: "center",
+  },
+  floatingButton: {
     width: 46,
     height: 46,
     borderRadius: 23,
