@@ -9,6 +9,7 @@ import {
   Alert,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 import { checkUsernameAvailability } from "../../../api/userService";
 import { OnboardingProfile } from "../types";
 import { OnboardingTopBar } from "./OnboardingTopBar";
@@ -69,9 +70,13 @@ export function ProfileStep({
       quality: 0.8,
     });
     if (!result.canceled && result.assets[0]) {
-      const uri = result.assets[0].uri;
-      setPhotoUri(uri);
-      onProfileChange({ name, username, photoUri: uri });
+      const manipulated = await ImageManipulator.manipulateAsync(
+        result.assets[0].uri,
+        [{ resize: { width: 300 } }],
+        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG },
+      );
+      setPhotoUri(manipulated.uri);
+      onProfileChange({ name, username, photoUri: manipulated.uri });
     }
   };
 

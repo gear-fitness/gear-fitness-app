@@ -157,6 +157,7 @@ public class PostInteractionService {
       .postId(comment.getPost().getPostId())
       .userId(comment.getUser().getUserId())
       .username(comment.getUser().getUsername())
+      .userProfilePictureUrl(comment.getUser().getProfilePictureUrl())
       .body(comment.getBody())
       .createdAt(comment.getCreatedAt())
       .build();

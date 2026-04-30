@@ -67,7 +67,7 @@ const defaultDraft = (): OnboardingDraft => ({
 
 export function OnboardingScreen() {
   const navigation = useNavigation();
-  const { login } = useAuth();
+  const { login, refreshUser } = useAuth();
   const insets = useSafeAreaInsets();
   const colors = useOnboardingColors();
   useTrackTab("Onboarding");
@@ -161,6 +161,7 @@ export function OnboardingScreen() {
 
       if (draft.profile?.photoUri) {
         await uploadProfilePicture(draft.profile.photoUri);
+        await refreshUser();
       }
     } catch (syncErr) {
       // Profile sync failure should not block the user from proceeding
