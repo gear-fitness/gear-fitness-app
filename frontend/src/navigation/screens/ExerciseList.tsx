@@ -1,6 +1,9 @@
 import React from "react";
 import { useColorScheme, View, Text, StyleSheet } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { useExerciseList } from "../../hooks/useExerciseList";

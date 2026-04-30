@@ -445,7 +445,6 @@ export function Profile() {
           />
         }
       >
-
         {profile ? <ProfileHeader /> : <ProfileHeaderSkeleton t={t} />}
 
         {profile ? (

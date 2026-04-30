@@ -9,7 +9,10 @@ import {
   FlatList,
 } from "react-native";
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
 import Svg, { Polyline, Circle, Line, Text as SvgText } from "react-native-svg";

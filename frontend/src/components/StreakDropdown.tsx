@@ -50,9 +50,9 @@ export function StreakDropdown({
 }: StreakDropdownProps) {
   const scaleAnim = useRef(new Animated.Value(0.96)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
-  const [pendingAction, setPendingAction] = useState<
-    "rest" | "restore" | null
-  >(null);
+  const [pendingAction, setPendingAction] = useState<"rest" | "restore" | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!loading) setPendingAction(null);

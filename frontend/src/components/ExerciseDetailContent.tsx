@@ -938,9 +938,7 @@ function PlateLoader({
 }) {
   const reverseStack = [...stack].reverse();
   const summary = plateMath(bar, sideTotal, mode);
-  const slideAnim = useRef(
-    new Animated.Value(mode === "dual" ? 0 : 1),
-  ).current;
+  const slideAnim = useRef(new Animated.Value(mode === "dual" ? 0 : 1)).current;
   const [segmentedWidth, setSegmentedWidth] = useState(0);
 
   useEffect(() => {

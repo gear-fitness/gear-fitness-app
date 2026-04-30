@@ -9,7 +9,10 @@ import {
   Easing,
 } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { deleteRoutine, getUserRoutines } from "../../api/routineService";
 import { Routine } from "../../api/types";
@@ -58,10 +61,7 @@ function RoutineCardSkeleton({
   return (
     <View style={styles.cardWrapper}>
       <View
-        style={[
-          styles.card,
-          { backgroundColor: cardBg, borderColor: border },
-        ]}
+        style={[styles.card, { backgroundColor: cardBg, borderColor: border }]}
       >
         <Animated.View
           style={{

@@ -12,7 +12,10 @@ import {
   Platform,
   Alert,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import {
   createRoutine,
@@ -264,50 +267,50 @@ export function CreateRoutine({
         {renderTopChrome()}
         <ScrollView contentContainerStyle={styles.stepContent}>
           <Text style={[styles.sourceSubtitle, { color: colors.secondary }]}>
-          How would you like to build this routine?
-        </Text>
+            How would you like to build this routine?
+          </Text>
 
-        <TouchableOpacity
-          style={[
-            styles.sourceCard,
-            { backgroundColor: colors.cardBg, borderColor: colors.border },
-          ]}
-          onPress={handleChooseScratch}
-        >
-          <Text style={styles.sourceCardIcon}>✏️</Text>
-          <View style={styles.sourceCardText}>
-            <Text style={[styles.sourceCardTitle, { color: colors.text }]}>
-              Build from scratch
-            </Text>
-            <Text
-              style={[styles.sourceCardSubtitle, { color: colors.secondary }]}
-            >
-              Search and add exercises manually
-            </Text>
-          </View>
-          <Text style={[styles.chevron, { color: colors.secondary }]}>›</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.sourceCard,
+              { backgroundColor: colors.cardBg, borderColor: colors.border },
+            ]}
+            onPress={handleChooseScratch}
+          >
+            <Text style={styles.sourceCardIcon}>✏️</Text>
+            <View style={styles.sourceCardText}>
+              <Text style={[styles.sourceCardTitle, { color: colors.text }]}>
+                Build from scratch
+              </Text>
+              <Text
+                style={[styles.sourceCardSubtitle, { color: colors.secondary }]}
+              >
+                Search and add exercises manually
+              </Text>
+            </View>
+            <Text style={[styles.chevron, { color: colors.secondary }]}>›</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[
-            styles.sourceCard,
-            { backgroundColor: colors.cardBg, borderColor: colors.border },
-          ]}
-          onPress={handleChooseWorkout}
-        >
-          <Text style={styles.sourceCardIcon}>📋</Text>
-          <View style={styles.sourceCardText}>
-            <Text style={[styles.sourceCardTitle, { color: colors.text }]}>
-              From a past workout
-            </Text>
-            <Text
-              style={[styles.sourceCardSubtitle, { color: colors.secondary }]}
-            >
-              Copy exercises from a completed workout
-            </Text>
-          </View>
-          <Text style={[styles.chevron, { color: colors.secondary }]}>›</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.sourceCard,
+              { backgroundColor: colors.cardBg, borderColor: colors.border },
+            ]}
+            onPress={handleChooseWorkout}
+          >
+            <Text style={styles.sourceCardIcon}>📋</Text>
+            <View style={styles.sourceCardText}>
+              <Text style={[styles.sourceCardTitle, { color: colors.text }]}>
+                From a past workout
+              </Text>
+              <Text
+                style={[styles.sourceCardSubtitle, { color: colors.secondary }]}
+              >
+                Copy exercises from a completed workout
+              </Text>
+            </View>
+            <Text style={[styles.chevron, { color: colors.secondary }]}>›</Text>
+          </TouchableOpacity>
         </ScrollView>
       </View>
     );

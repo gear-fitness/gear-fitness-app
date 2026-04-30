@@ -199,11 +199,7 @@ export function Social() {
             />
           )}
           <View style={styles.bellWrapper}>
-            <Ionicons
-              name="notifications"
-              size={22}
-              color={colors.text}
-            />
+            <Ionicons name="notifications" size={22} color={colors.text} />
             {hasUnreadActivity && <View style={styles.redDot} />}
           </View>
         </TouchableOpacity>
