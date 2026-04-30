@@ -21,6 +21,7 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { parseLocalDate } from "../../utils/date";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
+import { SearchBar } from "../../components/SearchBar";
 import { DAYS, DAY_FULL } from "../../utils/days";
 import { useThemeColors } from "../../hooks/useThemeColors";
 import { useExerciseList } from "../../hooks/useExerciseList";
@@ -318,19 +319,10 @@ export function CreateRoutine({
       <View style={[styles.flex, { backgroundColor: colors.bg }]}>
         {renderTopChrome()}
         <View style={styles.stepContent}>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: colors.inputBg,
-                color: colors.text,
-                borderColor: colors.border,
-              },
-            ]}
-            placeholder="Search exercises..."
-            placeholderTextColor={colors.secondary}
+          <SearchBar
             value={searchQuery}
             onChangeText={setSearchQuery}
+            placeholder="Search exercises..."
             returnKeyType="search"
           />
           {selectedExerciseIds.length > 0 && (

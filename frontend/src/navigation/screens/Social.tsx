@@ -6,11 +6,11 @@ import {
   ActivityIndicator,
   RefreshControl,
   TouchableOpacity,
-  TextInput,
 } from "react-native";
 import { Text } from "@react-navigation/elements";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import {
   useTheme,
   useNavigation,
@@ -21,6 +21,7 @@ import { FeedPost } from "../../api/socialFeedApi";
 import { searchUsers } from "../../api/userService";
 import { notificationService } from "../../api/notificationService";
 import { FeedPostCard } from "../../components/FeedPostCard";
+import { SearchBar } from "../../components/SearchBar";
 import { UserSearchCard } from "../../components/UserSearchCard";
 import { useAuth } from "../../context/AuthContext";
 import { useSocialFeed } from "../../context/SocialFeedContext";
@@ -36,6 +37,7 @@ export function Social() {
   const { colors } = useTheme();
   const navigation = useNavigation();
   const { user } = useAuth();
+  const glassAvailable = isLiquidGlassAvailable();
 
   const feed = useSocialFeed();
 
@@ -166,45 +168,33 @@ export function Social() {
     <SafeAreaView style={styles.container}>
       {/* Search Bar */}
       <View style={styles.searchRow}>
-        <View
-          style={[
-            styles.searchContainer,
-            { backgroundColor: colors.card, borderColor: colors.border },
-          ]}
-        >
-          <Ionicons
-            name="search"
-            size={20}
-            color={colors.text}
-            style={styles.searchIcon}
-          />
-          <TextInput
-            placeholder="Search users"
-            placeholderTextColor="#999"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            autoCorrect={false}
-            autoCapitalize="none"
-            autoComplete="off"
-            style={[styles.searchInput, { color: colors.text }]}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery("")}>
-              <Ionicons name="close-circle" size={20} color={colors.border} />
-            </TouchableOpacity>
-          )}
-        </View>
+        <SearchBar
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="Search users"
+          style={styles.searchBar}
+        />
 
         <TouchableOpacity
           onPress={() => setShowActivity(true)}
           style={[
             styles.bellButton,
-            { backgroundColor: colors.card, borderColor: colors.border },
+            {
+              backgroundColor: glassAvailable ? "transparent" : colors.card,
+              borderColor: glassAvailable ? "transparent" : colors.border,
+            },
           ]}
         >
+          {glassAvailable && (
+            <GlassView
+              style={[StyleSheet.absoluteFillObject, { borderRadius: 20 }]}
+              glassEffectStyle="regular"
+              isInteractive
+            />
+          )}
           <View style={styles.bellWrapper}>
             <Ionicons
-              name="notifications-outline"
+              name="notifications"
               size={22}
               color={colors.text}
             />
@@ -286,18 +276,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
 
-  searchContainer: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    height: 40,
-  },
-
-  searchIcon: { marginRight: 8 },
-  searchInput: { flex: 1, fontSize: 16 },
+  searchBar: { flex: 1 },
 
   bellButton: {
     width: 40,
@@ -306,6 +285,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     justifyContent: "center",
     alignItems: "center",
+    overflow: "hidden",
   },
 
   bellWrapper: { position: "relative" },

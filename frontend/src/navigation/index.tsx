@@ -146,11 +146,7 @@ const RootStack = createNativeStackNavigator({
 
     PR: {
       screen: PR,
-      options: {
-        title: "Personal Records",
-        headerBackTitle: "History",
-        headerShown: true,
-      },
+      options: { headerShown: false },
     },
 
     DetailedHistory: {
@@ -204,9 +200,8 @@ const RootStack = createNativeStackNavigator({
     Comments: {
       screen: CommentsScreen,
       options: {
-        title: "Comments",
         presentation: "modal",
-        headerShown: true,
+        headerShown: false,
       },
     },
     ImageViewer: {
@@ -221,17 +216,11 @@ const RootStack = createNativeStackNavigator({
     },
     ExerciseList: {
       screen: ExerciseList,
-      options: {
-        title: "Exercises",
-        headerBackTitle: "Back",
-      },
+      options: { headerShown: false },
     },
     ExerciseHistory: {
       screen: ExerciseHistory,
-      options: {
-        title: "Exercise History",
-        headerBackTitle: "Back",
-      },
+      options: { headerShown: false },
     },
 
     CreateRoutine: {

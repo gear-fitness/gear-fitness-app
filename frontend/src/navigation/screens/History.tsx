@@ -4,13 +4,11 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  TextInput,
   useColorScheme,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import Svg, { Circle, Path } from "react-native-svg";
 import { Calendar } from "react-native-calendars";
 import React, { useMemo, useState, useEffect } from "react";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -23,6 +21,7 @@ import { parseLocalDate, getCurrentLocalDateString } from "../../utils/date";
 import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
+import { SearchBar } from "../../components/SearchBar";
 
 type RootStackParamList = {
   HomeTabs: undefined;
@@ -294,44 +293,13 @@ export function History() {
       </View>
 
       <View style={styles.searchWrapper}>
-        <View
-          style={[
-            styles.searchPill,
-            { borderColor: t.border, backgroundColor: t.surface },
-          ]}
-        >
-          <Svg width={14} height={14} viewBox="0 0 16 16" fill="none">
-            <Circle
-              cx="7"
-              cy="7"
-              r="4.5"
-              stroke={t.textMuted}
-              strokeWidth="1.4"
-            />
-            <Path
-              d="M10.5 10.5L13 13"
-              stroke={t.textMuted}
-              strokeWidth="1.4"
-              strokeLinecap="round"
-            />
-          </Svg>
-          <TextInput
-            style={[styles.searchInput, { color: t.text }]}
-            placeholder="Search workouts"
-            placeholderTextColor={t.textMuted}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            returnKeyType="done"
-            onSubmitEditing={() => Keyboard.dismiss()}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery("")}>
-              <Text style={[styles.searchClear, { color: t.textMuted }]}>
-                Clear
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        <SearchBar
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="Search workouts"
+          returnKeyType="done"
+          onSubmitEditing={() => Keyboard.dismiss()}
+        />
       </View>
 
       <View style={styles.sectionHeader}>
@@ -387,24 +355,6 @@ const styles = StyleSheet.create({
   searchWrapper: {
     paddingHorizontal: 20,
     paddingTop: 24,
-  },
-  searchPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    padding: 0,
-  },
-  searchClear: {
-    fontSize: 12,
-    fontWeight: "500",
   },
   sectionHeader: {
     flexDirection: "row",

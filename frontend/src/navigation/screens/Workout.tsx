@@ -6,6 +6,7 @@ import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { useTrackTab } from "../../hooks/useTrackTab";
@@ -125,6 +126,8 @@ export function Workout() {
     };
   }, [isCountdownVisible, navigation]);
 
+  const glassAvailable = isLiquidGlassAvailable();
+
   const t = isDark
     ? {
         bg: "#0a0a0a",
@@ -195,20 +198,18 @@ export function Workout() {
             style={[
               styles.iconBtn,
               {
-                backgroundColor: t.surface,
-                borderColor: t.border,
-                ...(isDark
-                  ? null
-                  : {
-                      shadowColor: "#000",
-                      shadowOpacity: 0.04,
-                      shadowRadius: 2,
-                      shadowOffset: { width: 0, height: 1 },
-                      elevation: 1,
-                    }),
+                backgroundColor: glassAvailable ? "transparent" : t.surface,
+                borderColor: glassAvailable ? "transparent" : t.border,
               },
             ]}
           >
+            {glassAvailable && (
+              <GlassView
+                style={[StyleSheet.absoluteFillObject, { borderRadius: 22 }]}
+                glassEffectStyle="regular"
+                isInteractive
+              />
+            )}
             <MaterialCommunityIcons
               name="weight-lifter"
               size={22}
@@ -223,27 +224,25 @@ export function Workout() {
             style={[
               styles.iconBtn,
               {
-                backgroundColor: t.surface,
-                borderColor: t.border,
-                ...(isDark
-                  ? null
-                  : {
-                      shadowColor: "#000",
-                      shadowOpacity: 0.04,
-                      shadowRadius: 2,
-                      shadowOffset: { width: 0, height: 1 },
-                      elevation: 1,
-                    }),
+                backgroundColor: glassAvailable ? "transparent" : t.surface,
+                borderColor: glassAvailable ? "transparent" : t.border,
               },
             ]}
           >
+            {glassAvailable && (
+              <GlassView
+                style={[StyleSheet.absoluteFillObject, { borderRadius: 22 }]}
+                glassEffectStyle="regular"
+                isInteractive
+              />
+            )}
             <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
               <Path
                 d="M6 3h12v18l-6-4-6 4V3z"
                 stroke={t.text}
                 strokeWidth={1.6}
                 strokeLinejoin="round"
-                fill="none"
+                fill={t.text}
               />
             </Svg>
           </TouchableOpacity>
@@ -364,6 +363,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
   },
 
   hero: {

@@ -3,10 +3,11 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
+  View,
   useColorScheme,
 } from "react-native";
 import { Text } from "@react-navigation/elements";
-import { ExerciseSearchBar } from "./ExerciseSearchBar";
+import { SearchBar } from "./SearchBar";
 
 interface ExerciseFilterBarProps {
   searchQuery: string;
@@ -60,11 +61,13 @@ export function ExerciseFilterBar({
 
   return (
     <>
-      <ExerciseSearchBar
-        searchQuery={searchQuery}
-        onSearchChange={onSearchChange}
-        placeholder={placeholder}
-      />
+      <View style={styles.searchWrapper}>
+        <SearchBar
+          value={searchQuery}
+          onChangeText={onSearchChange}
+          placeholder={placeholder}
+        />
+      </View>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -83,6 +86,10 @@ export function ExerciseFilterBar({
 }
 
 const styles = StyleSheet.create({
+  searchWrapper: {
+    marginTop: 10,
+    marginBottom: 12,
+  },
   chipScrollView: {
     flexGrow: 0,
     marginBottom: 8,

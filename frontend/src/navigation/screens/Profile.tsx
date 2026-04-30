@@ -427,6 +427,7 @@ export function Profile() {
       )}
       <ScrollView
         contentContainerStyle={{
+          paddingTop: isOtherUser ? 30 : 20,
           paddingBottom: MINI_PLAYER_HEIGHT + 30,
         }}
         refreshControl={
