@@ -39,6 +39,7 @@ public class WorkoutService {
   private final NotificationRepository notificationRepository;
   private final StreakService streakService;
   private final S3StorageService s3StorageService;
+  private final PrService prService;
 
   @Transactional(readOnly = true)
   public List<Workout> getWorkoutsByUser(UUID userId) {
@@ -372,7 +373,7 @@ public class WorkoutService {
           .setNumber(setNumber++)
           .reps(setDto.getReps())
           .weightLbs(new BigDecimal(setDto.getWeight()))
-          .isPr(false) // TODO: Implement PR detection
+          .isPr(false)
           .build();
 
         workoutExercise.getWorkoutSets().add(workoutSet);
@@ -383,6 +384,17 @@ public class WorkoutService {
 
     // Save complete workout with exercises and sets
     workout = workoutRepository.save(workout);
+
+    // Recompute PRs for each exercise touched by this workout. Submission may
+    // be back-dated, so a full per-(user, exercise) recompute is needed.
+    Set<UUID> touchedExerciseIds = workout
+      .getWorkoutExercises()
+      .stream()
+      .map(we -> we.getExercise().getExerciseId())
+      .collect(Collectors.toSet());
+    for (UUID exerciseId : touchedExerciseIds) {
+      prService.recomputePrsForUserExercise(userId, exerciseId);
+    }
 
     // Update daily streak after workout submission
     streakService.recalculateStreak(user);
@@ -431,10 +443,26 @@ public class WorkoutService {
       }
     }
 
+    // Snapshot the exercises this workout touched before cascade delete, so we
+    // can recompute PRs for each (user, exercise) afterwards.
+    Set<UUID> touchedExerciseIds = workout
+      .getWorkoutExercises()
+      .stream()
+      .map(we -> we.getExercise().getExerciseId())
+      .collect(Collectors.toSet());
+    AppUser owner = workout.getUser();
+
     // Delete the workout - cascade will handle related entities
     workoutRepository.delete(workout);
+    workoutRepository.flush();
+
+    // Recompute PRs for each exercise this workout touched. Sets that were
+    // shadowed by the deleted workout's lifts may now qualify as PRs.
+    for (UUID exerciseId : touchedExerciseIds) {
+      prService.recomputePrsForUserExercise(owner.getUserId(), exerciseId);
+    }
 
     // Recalculate streak after deletion
-    streakService.recalculateStreak(workout.getUser());
+    streakService.recalculateStreak(owner);
   }
 }
