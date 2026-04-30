@@ -13,6 +13,7 @@ interface StartCountdownOverlayProps {
   countdownValue: number;
   isDark: boolean;
   onCancel: () => void;
+  onSkip: () => void;
 }
 
 export function StartCountdownOverlay({
@@ -20,6 +21,7 @@ export function StartCountdownOverlay({
   countdownValue,
   isDark,
   onCancel,
+  onSkip,
 }: StartCountdownOverlayProps) {
   const countdownScale = useRef(new Animated.Value(0.7)).current;
   const countdownOpacity = useRef(new Animated.Value(0)).current;
@@ -54,18 +56,20 @@ export function StartCountdownOverlay({
         ]}
       >
         <View style={styles.countdownContent}>
-          <Animated.Text
-            style={[
-              styles.countdownNumber,
-              {
-                color: isDark ? "#fff" : "#000",
-                opacity: countdownOpacity,
-                transform: [{ scale: countdownScale }],
-              },
-            ]}
-          >
-            {countdownValue}
-          </Animated.Text>
+          <TouchableOpacity activeOpacity={0.6} onPress={onSkip} hitSlop={25}>
+            <Animated.Text
+              style={[
+                styles.countdownNumber,
+                {
+                  color: isDark ? "#fff" : "#000",
+                  opacity: countdownOpacity,
+                  transform: [{ scale: countdownScale }],
+                },
+              ]}
+            >
+              {countdownValue}
+            </Animated.Text>
+          </TouchableOpacity>
         </View>
 
         <TouchableOpacity

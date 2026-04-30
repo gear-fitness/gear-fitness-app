@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   StyleSheet,
   View,
@@ -9,13 +9,12 @@ import {
   RefreshControl,
   Text,
   useColorScheme,
+  Animated,
+  Easing,
 } from "react-native";
 import { Button } from "@react-navigation/elements";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import Svg, { Path } from "react-native-svg";
 
@@ -38,8 +37,35 @@ const WEEK_LABELS = ["S", "M", "T", "W", "T", "F", "S"] as const;
 const GRID_ROWS = 5;
 const GRID_COLS = 7;
 
+// Shared pulse animation hook for all skeleton blocks on the screen.
+function useSkeletonPulse() {
+  const opacity = useRef(new Animated.Value(0.4)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, {
+          toValue: 0.8,
+          duration: 600,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0.4,
+          duration: 600,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [opacity]);
+
+  return opacity;
+}
+
 export function Profile() {
-  const insets = useSafeAreaInsets();
   const navigation = useNavigation() as any;
   const route = useRoute<any>();
   const scheme = useColorScheme();
@@ -68,6 +94,7 @@ export function Profile() {
         border: "rgba(255,255,255,0.08)",
         primaryBg: "#fff",
         primaryText: "#000",
+        skeleton: "rgba(255,255,255,0.08)",
         dotEmpty: "rgba(255,255,255,0.06)",
         dotLow: "#4a2a12",
         dotMid: "#8a4716",
@@ -82,6 +109,7 @@ export function Profile() {
         border: "rgba(0,0,0,0.08)",
         primaryBg: "#000",
         primaryText: "#fff",
+        skeleton: "rgba(0,0,0,0.08)",
         dotEmpty: "rgba(0,0,0,0.06)",
         dotLow: "#ffd2a8",
         dotMid: "#ff9d5c",
@@ -90,7 +118,6 @@ export function Profile() {
 
   const loadProfile = async () => {
     try {
-      setLoading(true);
       setError(null);
       const profileData = usernameParam
         ? await getUserProfile(usernameParam)
@@ -99,7 +126,6 @@ export function Profile() {
       return profileData;
     } catch {
       setError("Failed to load profile");
-      Alert.alert("Error", "Failed to load profile");
       return null;
     } finally {
       setLoading(false);
@@ -233,6 +259,7 @@ export function Profile() {
               value={profile.workoutStats.totalWorkouts}
             />
             <TouchableOpacity
+              style={styles.statCell}
               activeOpacity={0.7}
               onPress={() =>
                 navigation.navigate("FollowScreen", {
@@ -382,7 +409,7 @@ export function Profile() {
     );
   };
 
-  if (error || !profile) {
+  if (error && !profile) {
     return (
       <View style={[styles.center, { backgroundColor: t.bg }]}>
         <Text style={{ color: t.text }}>Failed to load profile</Text>
@@ -424,17 +451,22 @@ export function Profile() {
           </View>
         )}
 
-        <ProfileHeader />
-        {posts.length > 0 ? (
-          <FeedPostCard post={posts[0]} onOpenComments={handleOpenComments} />
-        ) : postsLoading ? (
-          <ActivityIndicator style={styles.loader} color={t.text} />
+        {profile ? <ProfileHeader /> : <ProfileHeaderSkeleton t={t} />}
+
+        {profile ? (
+          posts.length > 0 ? (
+            <FeedPostCard post={posts[0]} onOpenComments={handleOpenComments} />
+          ) : postsLoading ? (
+            <PostCardSkeleton t={t} />
+          ) : (
+            <View style={styles.emptyPosts}>
+              <Text style={[styles.emptyText, { color: t.textMuted }]}>
+                No posts yet
+              </Text>
+            </View>
+          )
         ) : (
-          <View style={styles.emptyPosts}>
-            <Text style={[styles.emptyText, { color: t.textMuted }]}>
-              No posts yet
-            </Text>
-          </View>
+          <PostCardSkeleton t={t} />
         )}
       </ScrollView>
     </SafeAreaView>
@@ -460,6 +492,146 @@ function Stat({
   );
 }
 
+// ----- Skeletons -----
+
+type SkeletonTheme = {
+  bg: string;
+  skeleton: string;
+};
+
+function SkeletonBlock({
+  width,
+  height,
+  borderRadius = 4,
+  style,
+  t,
+  opacity,
+}: {
+  width: number | string;
+  height: number;
+  borderRadius?: number;
+  style?: any;
+  t: SkeletonTheme;
+  opacity: Animated.Value;
+}) {
+  return (
+    <Animated.View
+      style={[
+        {
+          width,
+          height,
+          borderRadius,
+          backgroundColor: t.skeleton,
+          opacity,
+        },
+        style,
+      ]}
+    />
+  );
+}
+
+function ProfileHeaderSkeleton({ t }: { t: SkeletonTheme }) {
+  const opacity = useSkeletonPulse();
+
+  return (
+    <View>
+      <View style={styles.identityRow}>
+        <SkeletonBlock
+          width={96}
+          height={96}
+          borderRadius={48}
+          t={t}
+          opacity={opacity}
+        />
+        <View style={styles.identityText}>
+          <SkeletonBlock
+            width="70%"
+            height={24}
+            borderRadius={6}
+            t={t}
+            opacity={opacity}
+          />
+          <SkeletonBlock
+            width="50%"
+            height={14}
+            borderRadius={4}
+            style={{ marginTop: 8 }}
+            t={t}
+            opacity={opacity}
+          />
+        </View>
+      </View>
+
+      <View style={styles.statsWrap}>
+        <View style={styles.statsRow}>
+          {[0, 1, 2].map((i) => (
+            <View key={i} style={styles.statCell}>
+              <SkeletonBlock
+                width={64}
+                height={10}
+                borderRadius={3}
+                t={t}
+                opacity={opacity}
+              />
+              <SkeletonBlock
+                width={48}
+                height={28}
+                borderRadius={6}
+                style={{ marginTop: 8 }}
+                t={t}
+                opacity={opacity}
+              />
+            </View>
+          ))}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function PostCardSkeleton({ t }: { t: SkeletonTheme }) {
+  const opacity = useSkeletonPulse();
+
+  return (
+    <View style={styles.postSkeletonWrap}>
+      <View style={styles.postSkeletonHeader}>
+        <SkeletonBlock
+          width={36}
+          height={36}
+          borderRadius={18}
+          t={t}
+          opacity={opacity}
+        />
+        <View style={{ marginLeft: 10, flex: 1 }}>
+          <SkeletonBlock
+            width="40%"
+            height={12}
+            borderRadius={3}
+            t={t}
+            opacity={opacity}
+          />
+          <SkeletonBlock
+            width="25%"
+            height={10}
+            borderRadius={3}
+            style={{ marginTop: 6 }}
+            t={t}
+            opacity={opacity}
+          />
+        </View>
+      </View>
+      <SkeletonBlock
+        width="100%"
+        height={200}
+        borderRadius={12}
+        style={{ marginTop: 12 }}
+        t={t}
+        opacity={opacity}
+      />
+    </View>
+  );
+}
+
 const DOT_SIZE = 28;
 const RING_SIZE = 36;
 
@@ -468,17 +640,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-  },
-
-  topLeftBtn: {
-    position: "absolute",
-    left: 16,
-    zIndex: 10,
-  },
-  topRightBtn: {
-    position: "absolute",
-    right: 16,
-    zIndex: 10,
   },
 
   topBar: {
@@ -650,5 +811,14 @@ const styles = StyleSheet.create({
 
   loader: {
     padding: 32,
+  },
+
+  postSkeletonWrap: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+  },
+  postSkeletonHeader: {
+    flexDirection: "row",
+    alignItems: "center",
   },
 });

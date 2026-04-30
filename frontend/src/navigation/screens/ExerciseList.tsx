@@ -29,6 +29,7 @@ export function ExerciseList() {
         onCreateExercise={() =>
           navigation.navigate("CreateExercise", { startWorkout: false })
         }
+        loading={exercises.length === 0}
       />
     </SafeAreaView>
   );
