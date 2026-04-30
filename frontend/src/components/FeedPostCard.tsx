@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -33,6 +33,12 @@ export function FeedPostCard({ post }: Props) {
   const [likeCount, setLikeCount] = useState(post.likeCount);
   const [likedByUser, setLikedByUser] = useState(post.likedByCurrentUser);
   const [liking, setLiking] = useState(false);
+
+  useEffect(() => {
+    if (liking) return;
+    setLikeCount(post.likeCount);
+    setLikedByUser(post.likedByCurrentUser);
+  }, [post.likeCount, post.likedByCurrentUser, liking]);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const { width: screenWidth } = useWindowDimensions();
   const navigation = useNavigation();
@@ -163,6 +169,9 @@ export function FeedPostCard({ post }: Props) {
             workoutId: post.workoutId,
             caption: post.caption,
             workoutName: post.workoutName,
+            postId: post.postId,
+            initialLikeCount: likeCount,
+            initialLikedByUser: likedByUser,
           });
         }}
       >
