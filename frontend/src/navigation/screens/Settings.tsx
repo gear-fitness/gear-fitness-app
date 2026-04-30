@@ -18,6 +18,7 @@ import { useTrackTab } from "../../hooks/useTrackTab";
 import { useProfilePhoto } from "../../hooks/useProfilePhoto";
 import { Avatar } from "../../components/Avatar";
 import { AvatarWithCameraOverlay } from "../../components/AvatarWithCameraOverlay";
+import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 import {
   SettingsDestructiveCell,
   SettingsCellPosition,
@@ -438,34 +439,43 @@ export function Settings() {
   };
 
   return (
-    <SectionList
-      style={[styles.container, { backgroundColor: themeColors.appBg }]}
-      sections={sections}
-      keyExtractor={(item) => item.id}
-      renderItem={renderItem}
-      renderSectionHeader={({ section }) =>
-        section.title ? (
-          <Text style={[styles.sectionTitle, { color: themeColors.secondary }]}>
-            {section.title}
-          </Text>
-        ) : null
-      }
-      renderSectionFooter={({ section }) =>
-        section.footer ? (
-          <Text
-            style={[styles.sectionFooter, { color: themeColors.secondary }]}
-          >
-            {section.footer}
-          </Text>
-        ) : null
-      }
-      ListHeaderComponent={renderAvatarHeader}
-      stickySectionHeadersEnabled={false}
-      contentContainerStyle={{
-        paddingTop: 12,
-        paddingBottom: insets.bottom + 40,
-      }}
-    />
+    <View style={[styles.container, { backgroundColor: themeColors.appBg }]}>
+      <FloatingCloseButton
+        direction="left"
+        accessibilityLabel="Back"
+        onPress={() => navigation.getParent()?.goBack()}
+      />
+      <SectionList
+        style={styles.container}
+        sections={sections}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
+        renderSectionHeader={({ section }) =>
+          section.title ? (
+            <Text
+              style={[styles.sectionTitle, { color: themeColors.secondary }]}
+            >
+              {section.title}
+            </Text>
+          ) : null
+        }
+        renderSectionFooter={({ section }) =>
+          section.footer ? (
+            <Text
+              style={[styles.sectionFooter, { color: themeColors.secondary }]}
+            >
+              {section.footer}
+            </Text>
+          ) : null
+        }
+        ListHeaderComponent={renderAvatarHeader}
+        stickySectionHeadersEnabled={false}
+        contentContainerStyle={{
+          paddingTop: insets.top + 68,
+          paddingBottom: insets.bottom + 40,
+        }}
+      />
+    </View>
   );
 }
 

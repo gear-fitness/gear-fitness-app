@@ -18,6 +18,7 @@ import { useNormalizeFeedPosts } from "../../context/LikesContext";
 import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
 import { CompactPostCard } from "../../components/CompactPostCard";
 import { FeedPostCard } from "../../components/FeedPostCard";
+import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 
 const PAGE_SIZE = 20;
 const GRID_PADDING_HORIZONTAL = 12;
@@ -110,6 +111,7 @@ export function UserPosts() {
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
+      <FloatingCloseButton direction="left" accessibilityLabel="Back" />
       <View
         style={[
           styles.topBar,
@@ -120,14 +122,7 @@ export function UserPosts() {
           },
         ]}
       >
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          hitSlop={10}
-          style={styles.backBtn}
-          accessibilityLabel="Back"
-        >
-          <Ionicons name="chevron-back" size={26} color={t.text} />
-        </TouchableOpacity>
+        <View style={styles.backBtn} />
         <View style={styles.titleWrap}>
           <Text style={[styles.title, { color: t.text }]}>Posts</Text>
           {username ? (

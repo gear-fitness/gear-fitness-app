@@ -1,4 +1,4 @@
-import React, { useCallback, useLayoutEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -17,11 +17,12 @@ import DraggableFlatList, {
 } from "react-native-draggable-flatlist";
 import { Swipeable } from "react-native-gesture-handler";
 import { useNavigation } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Exercise } from "../../api/exerciseService";
 import { Routine, RoutineExercise } from "../../api/types";
 import { updateRoutine } from "../../api/routineService";
 import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
-import { BackButton } from "../../components/BackButton";
+import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 import { DAYS, DAY_FULL, DAY_SHORT } from "../../utils/days";
 import { useThemeColors } from "../../hooks/useThemeColors";
 import { useExerciseList } from "../../hooks/useExerciseList";
@@ -37,6 +38,7 @@ export function EditRoutine({
   const { routine } = route.params;
   const navigation = useNavigation();
   const colors = useThemeColors();
+  const insets = useSafeAreaInsets();
   const accent = colors.isDark ? "#fff" : "#000";
 
   const [name, setName] = useState(routine.name);
@@ -87,35 +89,6 @@ export function EditRoutine({
       setSaving(false);
     }
   }, [name, selectedExercises, selectedDays, routine.routineId, navigation]);
-
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerStyle: { backgroundColor: colors.bg },
-      headerTitleStyle: { color: colors.text, fontWeight: "700", fontSize: 17 },
-      headerTintColor: colors.text,
-      headerShadowVisible: false,
-      headerLeft: () => (
-        <BackButton onPress={() => navigation.goBack()} color={colors.text} />
-      ),
-      headerRight: () => (
-        <TouchableOpacity
-          accessibilityLabel="Save"
-          onPress={handleSave}
-          disabled={saving}
-          style={[
-            styles.saveButton,
-            { backgroundColor: colors.surface, borderColor: colors.border },
-          ]}
-        >
-          {saving ? (
-            <ActivityIndicator size="small" color={colors.text} />
-          ) : (
-            <Text style={[styles.saveText, { color: colors.text }]}>✓</Text>
-          )}
-        </TouchableOpacity>
-      ),
-    });
-  }, [navigation, colors, saving, handleSave]);
 
   const selectedExerciseIds = useMemo(
     () => new Set(selectedExercises.map((ex) => ex.exerciseId)),
@@ -216,11 +189,38 @@ export function EditRoutine({
       style={[styles.flex, { backgroundColor: colors.bg }]}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
+      <FloatingCloseButton direction="left" accessibilityLabel="Back" />
+      <TouchableOpacity
+        accessibilityLabel="Save"
+        onPress={handleSave}
+        disabled={saving}
+        activeOpacity={0.7}
+        style={[
+          styles.floatingSave,
+          {
+            top: insets.top + 8,
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+          },
+        ]}
+      >
+        {saving ? (
+          <ActivityIndicator size="small" color={colors.text} />
+        ) : (
+          <Text style={[styles.saveText, { color: colors.text }]}>✓</Text>
+        )}
+      </TouchableOpacity>
       <ScrollView
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: insets.top + 60 },
+        ]}
         nestedScrollEnabled
       >
+        <Text style={[styles.heroTitle, { color: colors.text }]}>
+          Edit Routine
+        </Text>
         {/* Routine name */}
         <View style={styles.sectionWrap}>
           <Text style={[styles.label, { color: colors.secondary }]}>
@@ -368,16 +368,25 @@ export function EditRoutine({
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  saveButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  floatingSave: {
+    position: "absolute",
+    right: 16,
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth,
     justifyContent: "center",
     alignItems: "center",
   },
-  saveText: { fontSize: 22, fontWeight: "600", includeFontPadding: false },
-  scrollContent: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 80 },
+  saveText: { fontSize: 20, fontWeight: "600", includeFontPadding: false },
+  heroTitle: {
+    fontSize: 28,
+    fontWeight: "700",
+    letterSpacing: -0.5,
+    marginBottom: 8,
+  },
+  scrollContent: { paddingHorizontal: 16, paddingBottom: 80 },
   sectionWrap: { marginTop: 8 },
   label: {
     fontSize: 12,

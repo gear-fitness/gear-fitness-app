@@ -12,7 +12,6 @@ import {
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
 import {
   getUserFollowers,
   getUserFollowing,
@@ -23,6 +22,7 @@ import {
 import { FollowerUser } from "../../api/types";
 import { Avatar } from "../../components/Avatar";
 import { useTrackTab } from "../../hooks/useTrackTab";
+import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 
 type Tab = "followers" | "following";
 
@@ -198,15 +198,10 @@ export default function FollowScreen() {
         { backgroundColor: c.bg, paddingTop: insets.top },
       ]}
     >
+      <FloatingCloseButton direction="left" accessibilityLabel="Back" />
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: c.border }]}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backBtn}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="chevron-back" size={26} color={c.text} />
-        </TouchableOpacity>
+        <View style={styles.backBtn} />
 
         <View style={styles.headerCenter}>
           <Text style={[styles.headerTitle, { color: c.text }]}>

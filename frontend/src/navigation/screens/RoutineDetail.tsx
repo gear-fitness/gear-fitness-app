@@ -9,16 +9,18 @@ import {
   Alert,
   useColorScheme,
 } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { getRoutineDetail, deleteRoutine } from "../../api/routineService";
 import { Routine } from "../../api/types";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { formatDay } from "../../utils/days";
-import { useThemedHeader } from "../../hooks/useThemedHeader";
+import { useThemeColors } from "../../hooks/useThemeColors";
 import { StartCountdownOverlay } from "../../components/StartCountdownOverlay";
 import { useStartCountdown } from "../../hooks/useStartCountdown";
 import { formatPrimaryBodyParts } from "../../utils/exerciseUtils";
+import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 
 export function RoutineDetail({
   route,
@@ -27,7 +29,9 @@ export function RoutineDetail({
 }) {
   const { routineId } = route.params;
   const { loadFromRoutine } = useWorkoutTimer();
-  const { navigation, colors } = useThemedHeader(() => ({ title: "" }));
+  const navigation = useNavigation<any>();
+  const colors = useThemeColors();
+  const insets = useSafeAreaInsets();
   const isDark = useColorScheme() === "dark";
 
   const [routine, setRoutine] = useState<Routine | null>(null);
@@ -136,6 +140,7 @@ export function RoutineDetail({
           { backgroundColor: colors.bg },
         ]}
       >
+        <FloatingCloseButton direction="left" accessibilityLabel="Back" />
         <ActivityIndicator size="large" color={isDark ? "#fff" : "#000"} />
       </View>
     );
@@ -150,6 +155,7 @@ export function RoutineDetail({
           { backgroundColor: colors.bg },
         ]}
       >
+        <FloatingCloseButton direction="left" accessibilityLabel="Back" />
         <Text style={[styles.errorText, { color: colors.text }]}>
           {error ?? "Routine not found"}
         </Text>
@@ -159,9 +165,13 @@ export function RoutineDetail({
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
+      <FloatingCloseButton direction="left" accessibilityLabel="Back" />
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: insets.top + 60 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Routine name */}
@@ -340,7 +350,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 24,
-    paddingTop: 24,
     paddingBottom: 120,
   },
   routineName: {

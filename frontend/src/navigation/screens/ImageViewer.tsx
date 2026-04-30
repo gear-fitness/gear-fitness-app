@@ -6,11 +6,9 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
   useWindowDimensions,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -24,6 +22,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 
 type RootStackParamList = {
   ImageViewer: {
@@ -138,20 +137,14 @@ export function ImageViewer({ route }: Props) {
       </GestureDetector>
 
       <Animated.View
-        style={[
-          styles.topBar,
-          { paddingTop: insets.top + 8 },
-          chromeStyle,
-        ]}
+        style={[styles.topBar, chromeStyle]}
         pointerEvents="box-none"
       >
-        <TouchableOpacity
+        <FloatingCloseButton
+          position="right"
+          icon="close"
           onPress={dismiss}
-          hitSlop={12}
-          style={styles.closeButton}
-        >
-          <Ionicons name="close" size={32} color="#fff" />
-        </TouchableOpacity>
+        />
       </Animated.View>
 
       {photos.length > 1 && (
@@ -188,12 +181,6 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    paddingHorizontal: 12,
-  },
-  closeButton: {
-    padding: 8,
   },
   counterWrap: {
     position: "absolute",

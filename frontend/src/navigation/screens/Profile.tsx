@@ -32,6 +32,7 @@ import { useNormalizeFeedPosts } from "../../context/LikesContext";
 import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
 import { useSocialFeed } from "../../context/SocialFeedContext";
 import { Avatar } from "../../components/Avatar";
+import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 
 const WEEK_LABELS = ["S", "M", "T", "W", "T", "F", "S"] as const;
 const GRID_ROWS = 5;
@@ -421,6 +422,9 @@ export function Profile() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.bg }} edges={["top"]}>
+      {isOtherUser && (
+        <FloatingCloseButton direction="left" accessibilityLabel="Back" />
+      )}
       <ScrollView
         contentContainerStyle={{
           paddingBottom: MINI_PLAYER_HEIGHT + 30,
@@ -440,17 +444,6 @@ export function Profile() {
           />
         }
       >
-        {isOtherUser && (
-          <View style={styles.topBar}>
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              hitSlop={10}
-              accessibilityLabel="Back"
-            >
-              <Ionicons name="chevron-back" size={28} color={t.text} />
-            </TouchableOpacity>
-          </View>
-        )}
 
         {profile ? <ProfileHeader /> : <ProfileHeaderSkeleton t={t} />}
 

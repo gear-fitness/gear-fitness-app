@@ -13,6 +13,7 @@ import {
   Modal,
   ActionSheetIOS,
   Alert,
+  Animated,
   useColorScheme,
 } from "react-native";
 import { GlassView } from "expo-glass-effect";
@@ -33,6 +34,7 @@ import stopwatch from "../assets/stopwatch.png";
 import { useWorkoutTimer, WorkoutSet } from "../context/WorkoutContext";
 import { useSwipeableDelete } from "../hooks/useSwipeableDelete";
 import { BodyPartDTO } from "../api/exerciseService";
+import { FloatingCloseButton } from "./FloatingCloseButton";
 
 interface ExerciseDetailContentProps {
   exercise: {
@@ -351,22 +353,14 @@ export const ExerciseDetailContent = forwardRef<
             { backgroundColor: colors.bg, paddingTop: insets.top },
           ]}
         >
+          <FloatingCloseButton
+            onPress={() => {
+              const parent = navigation.getParent();
+              if (parent) parent.goBack();
+              else navigation.goBack();
+            }}
+          />
           <View style={styles.topBar}>
-            <TouchableOpacity
-              onPress={() => {
-                const parent = navigation.getParent();
-                if (parent) parent.goBack();
-                else navigation.goBack();
-              }}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              style={[styles.dismissButton, { backgroundColor: colors.chipBg }]}
-            >
-              <SymbolView
-                name="chevron.down"
-                tintColor={colors.text}
-                size={16}
-              />
-            </TouchableOpacity>
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={() => setShowingTotal((v) => !v)}
@@ -944,10 +938,31 @@ function PlateLoader({
 }) {
   const reverseStack = [...stack].reverse();
   const summary = plateMath(bar, sideTotal, mode);
+  const slideAnim = useRef(
+    new Animated.Value(mode === "dual" ? 0 : 1),
+  ).current;
+  const [segmentedWidth, setSegmentedWidth] = useState(0);
+
+  useEffect(() => {
+    Animated.spring(slideAnim, {
+      toValue: mode === "dual" ? 0 : 1,
+      useNativeDriver: true,
+      stiffness: 220,
+      damping: 22,
+      mass: 0.8,
+    }).start();
+  }, [mode, slideAnim]);
+
+  const indicatorWidth = segmentedWidth ? (segmentedWidth - 6) / 2 : 0;
+  const indicatorTranslateX = slideAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, indicatorWidth],
+  });
 
   return (
     <View style={plateStyles.loader}>
       <View
+        onLayout={(e) => setSegmentedWidth(e.nativeEvent.layout.width)}
         style={[
           plateStyles.segmented,
           {
@@ -956,6 +971,23 @@ function PlateLoader({
           },
         ]}
       >
+        {indicatorWidth > 0 && (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              plateStyles.segmentedIndicator,
+              {
+                width: indicatorWidth,
+                backgroundColor: colors.accent,
+                transform: [{ translateX: indicatorTranslateX }],
+                shadowColor: isDark ? "#fff" : "#000",
+                shadowOpacity: isDark ? 0.04 : 0.06,
+                shadowOffset: { width: 0, height: 1 },
+                shadowRadius: 2,
+              },
+            ]}
+          />
+        )}
         {(["dual", "single"] as PlateMode[]).map((m) => {
           const active = mode === m;
           return (
@@ -963,21 +995,12 @@ function PlateLoader({
               key={m}
               onPress={() => onModeChange(m)}
               activeOpacity={0.7}
-              style={[
-                plateStyles.segmentedItem,
-                active && {
-                  backgroundColor: colors.surface,
-                  shadowColor: isDark ? "#fff" : "#000",
-                  shadowOpacity: isDark ? 0.04 : 0.06,
-                  shadowOffset: { width: 0, height: 1 },
-                  shadowRadius: 2,
-                },
-              ]}
+              style={plateStyles.segmentedItem}
             >
               <Text
                 style={[
                   plateStyles.segmentedText,
-                  { color: active ? colors.text : colors.textMuted },
+                  { color: active ? colors.accentText : colors.textMuted },
                 ]}
               >
                 {m === "dual" ? "Dual side" : "Single side"}
@@ -1198,18 +1221,6 @@ const styles = StyleSheet.create({
   infoButton: {
     position: "absolute",
     right: 20,
-    top: "50%",
-    transform: [{ translateY: -16 }],
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  dismissButton: {
-    position: "absolute",
-    left: 20,
     top: "50%",
     transform: [{ translateY: -16 }],
     width: 32,
@@ -1578,6 +1589,14 @@ const plateStyles = StyleSheet.create({
     borderWidth: 1,
     padding: 3,
     marginBottom: 4,
+    position: "relative",
+  },
+  segmentedIndicator: {
+    position: "absolute",
+    top: 3,
+    left: 3,
+    bottom: 3,
+    borderRadius: 8,
   },
   segmentedItem: {
     flex: 1,

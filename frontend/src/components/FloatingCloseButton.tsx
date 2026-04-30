@@ -9,12 +9,16 @@ type Props = {
   onPress?: () => void;
   accessibilityLabel?: string;
   direction?: "down" | "left";
+  position?: "left" | "right";
+  icon?: "chevron" | "close";
 };
 
 export function FloatingCloseButton({
   onPress,
   accessibilityLabel = "Close",
   direction = "down",
+  position = "left",
+  icon = "chevron",
 }: Props) {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
@@ -31,6 +35,13 @@ export function FloatingCloseButton({
     else navigation.goBack();
   };
 
+  const iconPath =
+    icon === "close"
+      ? "M4 4l8 8M12 4l-8 8"
+      : direction === "left"
+        ? "M10 4l-4 4 4 4"
+        : "M4 6l4 4 4-4";
+
   return (
     <TouchableOpacity
       accessibilityLabel={accessibilityLabel}
@@ -38,6 +49,7 @@ export function FloatingCloseButton({
       activeOpacity={0.7}
       style={[
         styles.button,
+        position === "right" ? { right: 16 } : { left: 16 },
         {
           top: insets.top + 8,
           backgroundColor: glassAvailable ? "transparent" : surface,
@@ -54,7 +66,7 @@ export function FloatingCloseButton({
       )}
       <Svg width={16} height={16} viewBox="0 0 16 16" fill="none">
         <Path
-          d={direction === "left" ? "M10 4l-4 4 4 4" : "M4 6l4 4 4-4"}
+          d={iconPath}
           stroke={stroke}
           strokeWidth={1.6}
           strokeLinecap="round"
@@ -68,7 +80,6 @@ export function FloatingCloseButton({
 const styles = StyleSheet.create({
   button: {
     position: "absolute",
-    left: 16,
     zIndex: 10,
     width: 40,
     height: 40,

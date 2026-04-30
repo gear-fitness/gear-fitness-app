@@ -236,50 +236,22 @@ const RootStack = createNativeStackNavigator({
 
     CreateRoutine: {
       screen: CreateRoutine,
-      options: ({ theme }) => ({
-        headerShown: true,
-        headerShadowVisible: false,
-        headerStyle: { backgroundColor: theme.dark ? "#000" : "#fff" },
-        headerTintColor: theme.dark ? "#fff" : "#000",
-      }),
+      options: { headerShown: false },
     },
 
     EditRoutine: {
       screen: EditRoutine,
-      options: ({ theme }) => ({
-        headerShown: true,
-        title: "Edit Routine",
-        headerShadowVisible: false,
-        headerStyle: { backgroundColor: theme.dark ? "#000" : "#fff" },
-        headerTintColor: theme.dark ? "#fff" : "#000",
-      }),
+      options: { headerShown: false },
     },
 
     RoutineList: {
       screen: RoutineList,
-      options: ({ theme }) => ({
-        headerShown: true,
-        title: "Routines",
-        headerShadowVisible: false,
-        headerStyle: { backgroundColor: theme.dark ? "#000" : "#fff" },
-        headerTintColor: theme.dark ? "#fff" : "#000",
-        headerTitleStyle: {
-          color: theme.dark ? "#fff" : "#000",
-          fontWeight: "800" as const,
-          fontSize: 30,
-        },
-      }),
+      options: { headerShown: false },
     },
 
     RoutineDetail: {
       screen: RoutineDetail,
-      options: ({ theme }) => ({
-        title: "",
-        headerShown: true,
-        headerShadowVisible: false,
-        headerStyle: { backgroundColor: theme.dark ? "#000" : "#fff" },
-        headerTintColor: theme.dark ? "#fff" : "#000",
-      }),
+      options: { headerShown: false },
     },
   },
 });

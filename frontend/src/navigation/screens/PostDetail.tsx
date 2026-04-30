@@ -6,18 +6,16 @@ import {
   StyleSheet,
   Text,
   TextStyle,
-  TouchableOpacity,
   View,
 } from "react-native";
-import Svg, { Path } from "react-native-svg";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useNavigation, useTheme } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { FeedPost, socialFeedApi } from "../../api/socialFeedApi";
 import { FeedPostCard } from "../../components/FeedPostCard";
 import { useSeedLikeState } from "../../context/LikesContext";
 import { useTrackTab } from "../../hooks/useTrackTab";
+import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 
 type RootStackParamList = {
   PostDetail: {
@@ -74,40 +72,8 @@ export function PostDetail({ route }: Props) {
   }, []);
 
   const textMuted: StyleProp<TextStyle> = { color: colors.text, opacity: 0.5 };
-  const glassAvailable = isLiquidGlassAvailable();
 
-  const backButton = (
-    <TouchableOpacity
-      accessibilityLabel="Back"
-      onPress={() => navigation.goBack()}
-      activeOpacity={0.7}
-      style={[
-        styles.backButton,
-        {
-          top: insets.top + 8,
-          backgroundColor: glassAvailable ? "transparent" : colors.background,
-          borderColor: glassAvailable ? "transparent" : colors.border,
-        },
-      ]}
-    >
-      {glassAvailable && (
-        <GlassView
-          style={[StyleSheet.absoluteFillObject, { borderRadius: 23 }]}
-          glassEffectStyle="regular"
-          isInteractive
-        />
-      )}
-      <Svg width={20} height={20} viewBox="0 0 16 16" fill="none">
-        <Path
-          d="M10 3l-5 5 5 5"
-          stroke={colors.text}
-          strokeWidth={1.6}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </Svg>
-    </TouchableOpacity>
-  );
+  const backButton = <FloatingCloseButton direction="left" />;
 
   const bodyPaddingTop = insets.top + 68;
 
@@ -173,18 +139,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
-  },
-  backButton: {
-    position: "absolute",
-    left: 16,
-    zIndex: 10,
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    borderWidth: StyleSheet.hairlineWidth,
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
   },
   loadingText: {
     fontSize: 16,

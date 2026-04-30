@@ -1,4 +1,4 @@
-import React, { useState, useLayoutEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
   Platform,
   Alert,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import {
   createRoutine,
@@ -20,7 +20,7 @@ import {
 } from "../../api/routineService";
 import { useAuth } from "../../context/AuthContext";
 import { parseLocalDate } from "../../utils/date";
-import { BackButton } from "../../components/BackButton";
+import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 import { DAYS, DAY_FULL } from "../../utils/days";
 import { useThemeColors } from "../../hooks/useThemeColors";
 import { useExerciseList } from "../../hooks/useExerciseList";
@@ -45,6 +45,7 @@ export function CreateRoutine({
   const prefilledWorkoutId = route.params?.prefilledWorkoutId;
   const { user } = useAuth();
   const colors = useThemeColors();
+  const insets = useSafeAreaInsets();
 
   const {
     exercises,
@@ -74,25 +75,29 @@ export function CreateRoutine({
     workout: "source",
   };
 
-  useLayoutEffect(() => {
-    const prevStep = stepBack[step];
-    navigation.setOptions({
-      title: STEP_TITLES[step],
-      headerStyle: { backgroundColor: colors.bg },
-      headerTitleStyle: { color: colors.text, fontWeight: "700", fontSize: 17 },
-      headerTintColor: colors.text,
-      headerShadowVisible: false,
-      gestureEnabled: prevStep === null,
-      headerLeft: () => (
-        <BackButton
-          onPress={
-            prevStep ? () => setStep(prevStep) : () => navigation.goBack()
-          }
-          color={colors.text}
-        />
-      ),
-    });
-  }, [navigation, step, colors]);
+  const handleStepBack = () => {
+    const prev = stepBack[step];
+    if (prev) setStep(prev);
+    else navigation.goBack();
+  };
+
+  const renderTopChrome = () => (
+    <>
+      <FloatingCloseButton
+        direction="left"
+        accessibilityLabel="Back"
+        onPress={handleStepBack}
+      />
+      <Text
+        style={[
+          styles.heroTitle,
+          { color: colors.text, marginTop: insets.top + 60 },
+        ]}
+      >
+        {STEP_TITLES[step]}
+      </Text>
+    </>
+  );
 
   const toggleDay = (day: string) => {
     setSelectedDays((prev) =>
@@ -179,6 +184,7 @@ export function CreateRoutine({
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={[styles.flex, { backgroundColor: colors.bg }]}
       >
+        {renderTopChrome()}
         <ScrollView contentContainerStyle={styles.stepContent}>
           <Text style={[styles.label, { color: colors.secondary }]}>
             ROUTINE NAME
@@ -254,11 +260,10 @@ export function CreateRoutine({
 
   if (step === "source") {
     return (
-      <ScrollView
-        style={{ backgroundColor: colors.bg }}
-        contentContainerStyle={styles.stepContent}
-      >
-        <Text style={[styles.sourceSubtitle, { color: colors.secondary }]}>
+      <View style={[styles.flex, { backgroundColor: colors.bg }]}>
+        {renderTopChrome()}
+        <ScrollView contentContainerStyle={styles.stepContent}>
+          <Text style={[styles.sourceSubtitle, { color: colors.secondary }]}>
           How would you like to build this routine?
         </Text>
 
@@ -303,13 +308,15 @@ export function CreateRoutine({
           </View>
           <Text style={[styles.chevron, { color: colors.secondary }]}>›</Text>
         </TouchableOpacity>
-      </ScrollView>
+        </ScrollView>
+      </View>
     );
   }
 
   if (step === "scratch") {
     return (
       <View style={[styles.flex, { backgroundColor: colors.bg }]}>
+        {renderTopChrome()}
         <View style={styles.stepContent}>
           <TextInput
             style={[
@@ -430,6 +437,7 @@ export function CreateRoutine({
   // step === "workout"
   return (
     <View style={[styles.flex, { backgroundColor: colors.bg }]}>
+      {renderTopChrome()}
       {workoutsLoading ? (
         <View style={styles.centered}>
           <ActivityIndicator color={colors.tint} />
@@ -520,9 +528,16 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
+  heroTitle: {
+    fontSize: 28,
+    fontWeight: "700",
+    letterSpacing: -0.5,
+    paddingHorizontal: 20,
+    marginBottom: 8,
+  },
   stepContent: {
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 8,
     paddingBottom: 20,
   },
   label: {

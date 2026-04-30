@@ -8,15 +8,16 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect } from "@react-navigation/native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { deleteRoutine, getUserRoutines } from "../../api/routineService";
 import { Routine } from "../../api/types";
 import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
 import { formatDayAbbrev } from "../../utils/days";
-import { useThemedHeader } from "../../hooks/useThemedHeader";
+import { useThemeColors } from "../../hooks/useThemeColors";
 import { getPrimaryBodyPart } from "../../utils/exerciseUtils";
 import { useTrackTab } from "../../hooks/useTrackTab";
+import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 
 function getBodyPartsSummary(routine: Routine): string {
   const parts = routine.exercises
@@ -32,13 +33,9 @@ function getBodyPartsSummary(routine: Routine): string {
 
 export function RoutineList() {
   useTrackTab("RoutineList");
-  const { navigation, colors } = useThemedHeader((c) => ({
-    headerTitleStyle: {
-      color: c.text,
-      fontWeight: "800" as const,
-      fontSize: 30,
-    },
-  }));
+  const navigation = useNavigation<any>();
+  const colors = useThemeColors();
+  const insets = useSafeAreaInsets();
 
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [loading, setLoading] = useState(true);
@@ -143,6 +140,7 @@ export function RoutineList() {
         edges={["bottom"]}
         style={[styles.container, { backgroundColor: colors.bg }]}
       >
+        <FloatingCloseButton direction="left" accessibilityLabel="Back" />
         <View style={styles.centered}>
           <ActivityIndicator
             size="large"
@@ -153,17 +151,31 @@ export function RoutineList() {
     );
   }
 
+  const ListHeader = (
+    <>
+      <Text
+        style={[
+          styles.heroTitle,
+          { color: colors.text, marginTop: insets.top + 60 },
+        ]}
+      >
+        Routines
+      </Text>
+      {renderAddCard()}
+    </>
+  );
+
   return (
     <SafeAreaView
       edges={["bottom"]}
       style={[styles.container, { backgroundColor: colors.bg }]}
     >
-      {/* Cards */}
+      <FloatingCloseButton direction="left" accessibilityLabel="Back" />
       <FlatList
         data={routines}
         keyExtractor={(item) => item.routineId}
         renderItem={renderCard}
-        ListHeaderComponent={renderAddCard}
+        ListHeaderComponent={ListHeader}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       />
@@ -180,9 +192,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  heroTitle: {
+    fontSize: 30,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+    marginBottom: 16,
+  },
   listContent: {
     paddingHorizontal: 24,
-    paddingTop: 12,
     paddingBottom: 40,
     gap: 14,
   },
