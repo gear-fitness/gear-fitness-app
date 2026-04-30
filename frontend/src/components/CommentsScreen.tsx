@@ -31,8 +31,12 @@ export function CommentsScreen() {
   const postId = route.params?.postId;
   const insets = useSafeAreaInsets();
 
-  const goToProfile = (username: string) =>
-    navigation.navigate("UserProfile", { username });
+  const goToProfile = (username: string) => {
+    navigation.goBack();
+    setTimeout(() => {
+      navigation.navigate("UserProfile", { username });
+    }, 200);
+  };
 
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(false);
