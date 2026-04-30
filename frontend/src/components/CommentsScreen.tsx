@@ -5,12 +5,16 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  KeyboardAvoidingView,
   Platform,
   TextInput,
   Text,
+  Keyboard,
+  KeyboardEvent,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme, useRoute } from "@react-navigation/native";
 import { socialFeedApi, Comment } from "../api/socialFeedApi";
@@ -20,13 +24,13 @@ export function CommentsScreen() {
   const { colors } = useTheme();
   const route = useRoute<any>();
   const postId = route.params?.postId;
+  const insets = useSafeAreaInsets();
 
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(false);
   const [commenting, setCommenting] = useState(false);
   const [commentText, setCommentText] = useState("");
-
-  const [now, setNow] = useState(Date.now());
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const [, forceUpdate] = useState(0);
 
@@ -34,8 +38,25 @@ export function CommentsScreen() {
     const interval = setInterval(() => {
       forceUpdate((n) => n + 1);
     }, 60000);
-
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const show = Keyboard.addListener(showEvent, (e: KeyboardEvent) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hide = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+    return () => {
+      show.remove();
+      hide.remove();
+    };
   }, []);
 
   useEffect(() => {
@@ -76,21 +97,16 @@ export function CommentsScreen() {
 
   const formatTimeAgo = (dateString?: string) => {
     if (!dateString) return "Just now";
-
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return "Just now";
-
     const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
-
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(seconds / 3600);
     const days = Math.floor(seconds / 86400);
-
     if (seconds < 60) return "Just now";
     if (minutes < 60) return `${minutes}m`;
     if (hours < 24) return `${hours}h`;
     if (days < 7) return `${days}d`;
-
     return date.toLocaleDateString(undefined, {
       month: "short",
       day: "numeric",
@@ -133,68 +149,67 @@ export function CommentsScreen() {
   );
 
   return (
-    <KeyboardAvoidingView
+    <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
+      edges={["bottom"]}
     >
-      <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
-          </View>
-        ) : (
-          <FlatList
-            style={{ flex: 1, paddingHorizontal: 10 }}
-            contentContainerStyle={styles.commentsList}
-            data={comments}
-            renderItem={renderComment}
-            keyExtractor={(item) => item.commentId}
-            ListEmptyComponent={renderEmpty}
-            showsVerticalScrollIndicator={false}
-          />
-        )}
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : (
+        <FlatList
+          style={{ flex: 1, paddingHorizontal: 10 }}
+          contentContainerStyle={styles.commentsList}
+          data={comments}
+          renderItem={renderComment}
+          keyExtractor={(item) => item.commentId}
+          ListEmptyComponent={renderEmpty}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        />
+      )}
 
-        {/* Input Row - Matches ExerciseChat */}
-        <View
+      <View
+        style={[
+          styles.inputRow,
+          {
+            borderColor: colors.border,
+            backgroundColor: colors.card,
+            marginBottom:
+              keyboardHeight > 0 ? keyboardHeight - insets.bottom + 8 : 25,
+          },
+        ]}
+      >
+        <TextInput
           style={[
-            styles.inputRow,
-            {
-              borderColor: colors.border,
-              backgroundColor: colors.card,
-            },
+            styles.input,
+            { backgroundColor: colors.card, color: colors.text },
+          ]}
+          placeholder="Add a comment..."
+          placeholderTextColor={colors.border}
+          value={commentText}
+          onChangeText={setCommentText}
+          multiline
+          maxLength={500}
+          blurOnSubmit={true}
+        />
+        <TouchableOpacity
+          onPress={handleAddComment}
+          disabled={!commentText.trim() || commenting}
+          style={[
+            styles.sendButton,
+            { opacity: commentText.trim() && !commenting ? 1 : 0.5 },
           ]}
         >
-          <TextInput
-            style={[
-              styles.input,
-              { backgroundColor: colors.card, color: colors.text },
-            ]}
-            placeholder="Add a comment..."
-            placeholderTextColor={colors.border}
-            value={commentText}
-            onChangeText={setCommentText}
-            multiline
-            maxLength={500}
-            blurOnSubmit={true}
-          />
-          <TouchableOpacity
-            onPress={handleAddComment}
-            disabled={!commentText.trim() || commenting}
-            style={[
-              styles.sendButton,
-              { opacity: commentText.trim() && !commenting ? 1 : 0.5 },
-            ]}
-          >
-            {commenting ? (
-              <ActivityIndicator size="small" color="#000" />
-            ) : (
-              <Text style={styles.sendArrow}>↑</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    </KeyboardAvoidingView>
+          {commenting ? (
+            <ActivityIndicator size="small" color="#000" />
+          ) : (
+            <Text style={styles.sendArrow}>↑</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
   );
 }
 
@@ -214,18 +229,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     paddingVertical: 12,
     gap: 12,
-  },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
   },
   commentContent: {
     flex: 1,
@@ -267,7 +270,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 25,
     marginHorizontal: 10,
-    marginBottom: 25,
+    marginTop: 4,
   },
   input: {
     flex: 1,
