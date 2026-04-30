@@ -3,11 +3,12 @@ import {
   View,
   StyleSheet,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   Image,
   ScrollView,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  useWindowDimensions,
+  LayoutChangeEvent,
   StyleProp,
   TextStyle,
 } from "react-native";
@@ -34,7 +35,7 @@ export function FeedPostCard({ post }: Props) {
   const { liked: likedByUser, count: likeCount, toggle: handleLike } =
     useLikeState(post.postId, post);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
-  const { width: screenWidth } = useWindowDimensions();
+  const [scrollWidth, setScrollWidth] = useState(0);
   const navigation = useNavigation();
 
   const photos =
@@ -43,11 +44,23 @@ export function FeedPostCard({ post }: Props) {
       : post.imageUrl
         ? [post.imageUrl]
         : [];
-  const photoWidth = screenWidth - 28;
 
   const handlePhotoScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const index = Math.round(e.nativeEvent.contentOffset.x / photoWidth);
+    if (scrollWidth === 0) return;
+    const index = Math.round(e.nativeEvent.contentOffset.x / scrollWidth);
     if (index !== activePhotoIndex) setActivePhotoIndex(index);
+  };
+
+  const handleScrollLayout = (e: LayoutChangeEvent) => {
+    setScrollWidth(e.nativeEvent.layout.width);
+  };
+
+  const openImageViewer = () => {
+    if (photos.length === 0) return;
+    navigation.navigate("ImageViewer", {
+      photos,
+      initialIndex: activePhotoIndex,
+    });
   };
 
   const isOwnPost = post.username === user?.username;
@@ -136,6 +149,52 @@ export function FeedPostCard({ post }: Props) {
         )}
       </View>
 
+      {photos.length > 0 && (
+        <View style={styles.carouselWrap}>
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onLayout={handleScrollLayout}
+            onMomentumScrollEnd={handlePhotoScroll}
+            scrollEnabled={photos.length > 1}
+          >
+            {photos.map((url, i) => (
+              <TouchableWithoutFeedback
+                key={`${url}-${i}`}
+                onPress={openImageViewer}
+              >
+                <Image
+                  source={{ uri: url }}
+                  style={[
+                    styles.image,
+                    { width: scrollWidth, borderColor: colors.border },
+                  ]}
+                  resizeMode="cover"
+                />
+              </TouchableWithoutFeedback>
+            ))}
+          </ScrollView>
+          {photos.length > 1 && (
+            <View style={styles.dotsRow}>
+              {photos.map((_, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.dot,
+                    {
+                      backgroundColor:
+                        i === activePhotoIndex ? colors.text : colors.border,
+                      opacity: i === activePhotoIndex ? 0.9 : 0.5,
+                    },
+                  ]}
+                />
+              ))}
+            </View>
+          )}
+        </View>
+      )}
+
       <TouchableOpacity
         activeOpacity={0.7}
         onPress={() => {
@@ -150,47 +209,6 @@ export function FeedPostCard({ post }: Props) {
           });
         }}
       >
-        {photos.length > 0 && (
-          <View style={styles.carouselWrap}>
-            <ScrollView
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              onMomentumScrollEnd={handlePhotoScroll}
-              scrollEnabled={photos.length > 1}
-            >
-              {photos.map((url, i) => (
-                <Image
-                  key={`${url}-${i}`}
-                  source={{ uri: url }}
-                  style={[
-                    styles.image,
-                    { width: photoWidth, borderColor: colors.border },
-                  ]}
-                  resizeMode="cover"
-                />
-              ))}
-            </ScrollView>
-            {photos.length > 1 && (
-              <View style={styles.dotsRow}>
-                {photos.map((_, i) => (
-                  <View
-                    key={i}
-                    style={[
-                      styles.dot,
-                      {
-                        backgroundColor:
-                          i === activePhotoIndex ? colors.text : colors.border,
-                        opacity: i === activePhotoIndex ? 0.9 : 0.5,
-                      },
-                    ]}
-                  />
-                ))}
-              </View>
-            )}
-          </View>
-        )}
-
         <View style={styles.titleBlock}>
           <Text style={[styles.dateOverline, textMuted]}>
             {formatOverlineDate(post.datePerformed)}

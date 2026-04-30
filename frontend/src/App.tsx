@@ -15,6 +15,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { WorkoutTimerProvider } from "./context/WorkoutContext";
 import { LikesProvider } from "./context/LikesContext";
+import { SocialFeedProvider } from "./context/SocialFeedContext";
 import { WorkoutPlayer } from "./components/WorkoutPlayer";
 import * as Notifications from "expo-notifications";
 import {
@@ -146,16 +147,18 @@ function AppContent({
       <SafeAreaProvider>
         <WorkoutTimerProvider>
           <LikesProvider>
-            <Navigation
-              ref={navigationRef}
-              theme={theme}
-              linking={{
-                enabled: "auto",
-                prefixes: [prefix],
-              }}
-              onReady={() => setIsNavigationReady(true)}
-            />
-            <WorkoutPlayer />
+            <SocialFeedProvider>
+              <Navigation
+                ref={navigationRef}
+                theme={theme}
+                linking={{
+                  enabled: "auto",
+                  prefixes: [prefix],
+                }}
+                onReady={() => setIsNavigationReady(true)}
+              />
+              <WorkoutPlayer />
+            </SocialFeedProvider>
           </LikesProvider>
         </WorkoutTimerProvider>
       </SafeAreaProvider>

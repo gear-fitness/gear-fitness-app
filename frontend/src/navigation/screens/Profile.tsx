@@ -30,7 +30,7 @@ import { socialFeedApi, FeedPost } from "../../api/socialFeedApi";
 import { FeedPostCard } from "../../components/FeedPostCard";
 import { useNormalizeFeedPosts } from "../../context/LikesContext";
 import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
-import { feedRefresh } from "../../utils/feedRefreshFlag";
+import { useSocialFeed } from "../../context/SocialFeedContext";
 import { Avatar } from "../../components/Avatar";
 
 const WEEK_LABELS = ["S", "M", "T", "W", "T", "F", "S"] as const;
@@ -83,6 +83,7 @@ export function Profile() {
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [postsLoading, setPostsLoading] = useState(false);
   const normalizeFeedPosts = useNormalizeFeedPosts();
+  const { invalidate: invalidateFeed } = useSocialFeed();
 
   const t = isDark
     ? {
@@ -155,7 +156,7 @@ export function Profile() {
             onPress: async () => {
               try {
                 await unfollowUser(profile.userId);
-                feedRefresh.needed = true;
+                invalidateFeed();
                 loadProfile();
               } catch {
                 Alert.alert("Error", "Failed to update follow status");
@@ -169,7 +170,7 @@ export function Profile() {
 
     try {
       await followUser(profile.userId);
-      feedRefresh.needed = true;
+      invalidateFeed();
       loadProfile();
     } catch {
       Alert.alert("Error", "Failed to update follow status");

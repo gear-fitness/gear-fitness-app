@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useLayoutEffect, useRef } from "react";
 import {
   View,
   FlatList,
@@ -6,7 +6,6 @@ import {
   ActivityIndicator,
   RefreshControl,
   TouchableOpacity,
-  Alert,
   TextInput,
 } from "react-native";
 import { Text } from "@react-navigation/elements";
@@ -18,17 +17,16 @@ import {
   useFocusEffect,
 } from "@react-navigation/native";
 
-import { socialFeedApi, FeedPost } from "../../api/socialFeedApi";
+import { FeedPost } from "../../api/socialFeedApi";
 import { searchUsers } from "../../api/userService";
 import { notificationService } from "../../api/notificationService";
 import { FeedPostCard } from "../../components/FeedPostCard";
 import { UserSearchCard } from "../../components/UserSearchCard";
 import { useAuth } from "../../context/AuthContext";
-import { useNormalizeFeedPosts } from "../../context/LikesContext";
+import { useSocialFeed } from "../../context/SocialFeedContext";
 import { ActivityModal } from "../../components/ActivityModal";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
-import { feedRefresh } from "../../utils/feedRefreshFlag";
 import { useHealthKitForegroundSync } from "../../hooks/useHealthKitSync";
 
 export function Social() {
@@ -39,12 +37,7 @@ export function Social() {
   const navigation = useNavigation();
   const { user } = useAuth();
 
-  const [posts, setPosts] = useState<FeedPost[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [currentPage, setCurrentPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
+  const feed = useSocialFeed();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [userResults, setUserResults] = useState<any[]>([]);
@@ -53,74 +46,41 @@ export function Social() {
   const [showActivity, setShowActivity] = useState(false);
   const [hasUnreadActivity, setHasUnreadActivity] = useState(false);
 
-  const normalizeFeedPosts = useNormalizeFeedPosts();
+  const flatListRef = useRef<FlatList<FeedPost>>(null);
+  const restoredRef = useRef(false);
+  const enableEndReachedRef = useRef(false);
 
-  // Initial feed load
+  // Cold-start load: only fires when the store is still in the "idle" state.
   useEffect(() => {
-    loadFeed();
-  }, []);
+    feed.initialLoadIfNeeded();
+  }, [feed.initialLoadIfNeeded]);
 
+  // If an invalidation flag was set while we were on another screen, refresh on focus.
+  // No-ops if the data isn't stale.
   useFocusEffect(
     useCallback(() => {
-      if (feedRefresh.needed) {
-        feedRefresh.needed = false;
-        loadFeed();
-      }
-    }, []),
+      feed.refreshIfStaleAndHidden();
+    }, [feed.refreshIfStaleAndHidden]),
   );
 
-  const loadFeed = async () => {
-    try {
-      setLoading(true);
-      const response = await socialFeedApi.getFeed(0, 5);
-      normalizeFeedPosts(response.content);
-      setPosts(response.content);
-      setCurrentPage(0);
-      setHasMore(!response.last);
-    } catch (error) {
-      console.error("Error loading feed:", error);
-      Alert.alert("Error", "Failed to load feed");
-    } finally {
-      setLoading(false);
+  // Restore scroll offset after the FlatList has laid out posts. Guards prevent
+  // (a) re-running on every render, (b) firing onEndReached during the programmatic scroll.
+  useLayoutEffect(() => {
+    if (restoredRef.current) return;
+    if (feed.posts.length === 0) return;
+    const offset = feed.getScrollOffset();
+    if (offset <= 0) {
+      restoredRef.current = true;
+      enableEndReachedRef.current = true;
+      return;
     }
-  };
-
-  // Pull to refresh
-  const onRefresh = useCallback(async () => {
-    try {
-      setRefreshing(true);
-      const response = await socialFeedApi.getFeed(0, 5);
-      normalizeFeedPosts(response.content);
-      setPosts(response.content);
-      setCurrentPage(0);
-      setHasMore(!response.last);
-    } catch (error) {
-      console.error("Error refreshing feed:", error);
-      Alert.alert("Error", "Failed to refresh feed");
-    } finally {
-      setRefreshing(false);
-    }
-  }, [normalizeFeedPosts]);
-
-  // Infinite scroll
-  const loadMore = async () => {
-    if (!hasMore || loadingMore || loading) return;
-
-    try {
-      setLoadingMore(true);
-      const nextPage = currentPage + 1;
-      const response = await socialFeedApi.getFeed(nextPage, 5);
-
-      normalizeFeedPosts(response.content);
-      setPosts((prev) => [...prev, ...response.content]);
-      setCurrentPage(nextPage);
-      setHasMore(!response.last);
-    } catch (error) {
-      console.error("Error loading more posts:", error);
-    } finally {
-      setLoadingMore(false);
-    }
-  };
+    flatListRef.current?.scrollToOffset({ offset, animated: false });
+    restoredRef.current = true;
+    const id = setTimeout(() => {
+      enableEndReachedRef.current = true;
+    }, 250);
+    return () => clearTimeout(id);
+  }, [feed.posts.length, feed.getScrollOffset]);
 
   const handleOpenComments = (postId: string) => {
     navigation.navigate("Comments", { postId });
@@ -170,7 +130,7 @@ export function Social() {
   );
 
   const renderFooter = () => {
-    if (!loadingMore) return null;
+    if (!feed.loadingMore) return null;
     return (
       <View style={styles.footer}>
         <ActivityIndicator size="small" color={colors.primary} />
@@ -181,17 +141,26 @@ export function Social() {
     );
   };
 
-  const renderEmpty = () => (
-    <View style={styles.emptyState}>
-      <Ionicons name="people-outline" size={64} color={colors.border} />
-      <Text style={[styles.emptyText, { color: colors.text }]}>
-        No workouts yet
-      </Text>
-      <Text style={[styles.emptySubtext, { color: colors.text }]}>
-        Follow people to see their activity
-      </Text>
-    </View>
-  );
+  const renderEmpty = () => {
+    if (feed.status === "loading" || feed.status === "idle") {
+      return (
+        <View style={styles.emptyState}>
+          <ActivityIndicator size="small" color={colors.primary} />
+        </View>
+      );
+    }
+    return (
+      <View style={styles.emptyState}>
+        <Ionicons name="people-outline" size={64} color={colors.border} />
+        <Text style={[styles.emptyText, { color: colors.text }]}>
+          No workouts yet
+        </Text>
+        <Text style={[styles.emptySubtext, { color: colors.text }]}>
+          Follow people to see their activity
+        </Text>
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -219,7 +188,6 @@ export function Social() {
             autoComplete="off"
             style={[styles.searchInput, { color: colors.text }]}
           />
-          {/* Feed */}
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery("")}>
               <Ionicons name="close-circle" size={20} color={colors.border} />
@@ -270,22 +238,31 @@ export function Social() {
         />
       ) : (
         <FlatList
-          data={posts}
+          ref={flatListRef}
+          data={feed.posts}
           renderItem={({ item }) => (
             <FeedPostCard post={item} onOpenComments={handleOpenComments} />
           )}
           keyExtractor={(item) => String(item.postId)}
           contentContainerStyle={
-            posts.length === 0
+            feed.posts.length === 0
               ? { ...styles.emptyContainer }
               : { ...styles.feedList, paddingBottom: MINI_PLAYER_HEIGHT + 30 }
           }
           ListEmptyComponent={renderEmpty}
           ListFooterComponent={renderFooter}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            <RefreshControl
+              refreshing={feed.refreshing}
+              onRefresh={feed.refresh}
+            />
           }
-          onEndReached={loadMore}
+          onScroll={(e) => feed.setScrollOffset(e.nativeEvent.contentOffset.y)}
+          scrollEventThrottle={32}
+          onEndReached={() => {
+            if (!enableEndReachedRef.current) return;
+            void feed.loadMore();
+          }}
           onEndReachedThreshold={0.5}
         />
       )}

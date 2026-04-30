@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
+import { useSocialFeed } from "../../context/SocialFeedContext";
 import {
   submitWorkout,
   uploadWorkoutPhoto,
@@ -58,6 +59,7 @@ export function WorkoutComplete() {
   const { width: screenWidth } = useWindowDimensions();
   const photoTileSize = Math.floor((screenWidth - 40 - 24) / 4);
   const { exercises, seconds, reset } = useWorkoutTimer();
+  const { invalidate: invalidateFeed } = useSocialFeed();
 
   const initialBodyTags = useMemo(() => {
     const tags = new Set(
@@ -227,6 +229,8 @@ export function WorkoutComplete() {
 
       await submitWorkout(submission);
       await AsyncStorage.removeItem("@workout_state");
+
+      if (createPost) invalidateFeed();
 
       Alert.alert(
         "Success",

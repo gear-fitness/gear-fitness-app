@@ -33,6 +33,7 @@ import { CreateRoutine } from "./screens/CreateRoutine";
 import { EditRoutine } from "./screens/EditRoutine";
 import { UserPosts } from "./screens/UserPosts";
 import FollowScreen from "./screens/FollowScreen";
+import { ImageViewer } from "./screens/ImageViewer";
 import { Platform } from "react-native";
 
 /* ---------------------- TABS ---------------------- */
@@ -208,6 +209,16 @@ const RootStack = createNativeStackNavigator({
         headerShown: true,
       },
     },
+    ImageViewer: {
+      screen: ImageViewer,
+      options: {
+        presentation: "transparentModal",
+        headerShown: false,
+        animation: "fade",
+        animationDuration: 150,
+        gestureEnabled: false,
+      },
+    },
     ExerciseList: {
       screen: ExerciseList,
       options: {
@@ -322,6 +333,11 @@ declare global {
 
       Comments: {
         postId: string;
+      };
+
+      ImageViewer: {
+        photos: string[];
+        initialIndex: number;
       };
 
       PostDetail: {
