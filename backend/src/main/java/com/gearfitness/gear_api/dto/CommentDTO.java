@@ -17,6 +17,7 @@ public class CommentDTO {
   private UUID postId;
   private UUID userId;
   private String username;
+  private String userProfilePictureUrl;
   private String body;
   private LocalDateTime createdAt;
 }

@@ -16,15 +16,23 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme, useRoute } from "@react-navigation/native";
+import {
+  useTheme,
+  useRoute,
+  useNavigation,
+} from "@react-navigation/native";
 import { socialFeedApi, Comment } from "../api/socialFeedApi";
 import { Avatar } from "./Avatar";
 
 export function CommentsScreen() {
   const { colors } = useTheme();
   const route = useRoute<any>();
+  const navigation = useNavigation<any>();
   const postId = route.params?.postId;
   const insets = useSafeAreaInsets();
+
+  const goToProfile = (username: string) =>
+    navigation.navigate("UserProfile", { username });
 
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -117,12 +125,26 @@ export function CommentsScreen() {
 
   const renderComment = ({ item }: { item: Comment }) => (
     <View style={styles.commentItem}>
-      <Avatar username={item.username} size={36} />
+      <TouchableOpacity
+        onPress={() => goToProfile(item.username)}
+        activeOpacity={0.7}
+      >
+        <Avatar
+          username={item.username}
+          profilePictureUrl={item.userProfilePictureUrl}
+          size={36}
+        />
+      </TouchableOpacity>
       <View style={styles.commentContent}>
         <View style={styles.commentHeader}>
-          <Text style={[styles.username, { color: colors.text }]}>
-            {item.username}
-          </Text>
+          <TouchableOpacity
+            onPress={() => goToProfile(item.username)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.username, { color: colors.text }]}>
+              {item.username}
+            </Text>
+          </TouchableOpacity>
           <Text
             style={[styles.timestamp, { color: colors.text, opacity: 0.6 }]}
           >

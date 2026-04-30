@@ -37,6 +37,7 @@ export interface Comment {
   postId: string;
   userId: string;
   username: string;
+  userProfilePictureUrl?: string;
   body: string;
   createdAt: string;
 }
