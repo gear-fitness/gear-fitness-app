@@ -397,7 +397,7 @@ export function Settings() {
     const common = {
       textColor: themeColors.text as ColorValue,
       secondaryTextColor: themeColors.secondary as ColorValue,
-      cardColor: themeColors.surface as ColorValue,
+      cardColor: themeColors.cardBg as ColorValue,
       separatorColor: themeColors.separator as ColorValue,
       position: position as SettingsCellPosition,
     };
@@ -416,9 +416,9 @@ export function Settings() {
       return (
         <View style={styles.logoutSectionWrap}>
           <SettingsDestructiveCell
-            cardColor={themeColors.surface as ColorValue}
+            cardColor={themeColors.cardBg as ColorValue}
             separatorColor={themeColors.separator as ColorValue}
-            destructiveColor="#ff3b30"
+            destructiveColor={themeColors.danger}
             position={position}
             title={item.title}
             onPress={item.onPress}
@@ -439,7 +439,7 @@ export function Settings() {
 
   return (
     <SectionList
-      style={[styles.container, { backgroundColor: themeColors.bg }]}
+      style={[styles.container, { backgroundColor: themeColors.appBg }]}
       sections={sections}
       keyExtractor={(item) => item.id}
       renderItem={renderItem}

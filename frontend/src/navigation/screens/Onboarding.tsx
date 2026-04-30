@@ -48,7 +48,8 @@ import { AllSetStep } from "../onboarding/components/AllSetStep";
 import { calcAge } from "../onboarding/calcAge";
 import { useTrackTab } from "../../hooks/useTrackTab";
 
-const initialBg = Appearance.getColorScheme() === "dark" ? "#000" : "#eff2f5";
+const initialBg =
+  Appearance.getColorScheme() === "dark" ? "#0a0a0a" : "#fafafa";
 
 const STEP_COMPONENTS = [
   IntroStep,

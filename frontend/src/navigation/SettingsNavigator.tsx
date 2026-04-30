@@ -35,7 +35,7 @@ export function SettingsNavigator() {
         options={({ navigation }) => ({
           headerShown: true,
           title: "Profile",
-          headerStyle: { backgroundColor: colors.bg },
+          headerStyle: { backgroundColor: colors.appBg },
           headerTitleStyle: {
             color: colors.text,
             fontWeight: "800" as const,

@@ -21,6 +21,7 @@ import com.gearfitness.gear_api.repository.WorkoutRepository;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -396,8 +397,10 @@ public class WorkoutService {
       prService.recomputePrsForUserExercise(userId, exerciseId);
     }
 
-    // Update daily streak after workout submission
-    streakService.recalculateStreak(user);
+    // Update daily streak after workout submission. Use the workout's
+    // datePerformed (already in the user's local date) so the streak walks
+    // forward from the user's local "today", not the server's UTC date.
+    streakService.recalculateStreak(user, workout.getDatePerformed());
 
     // Create post if requested
     if (Boolean.TRUE.equals(submission.getCreatePost())) {
@@ -462,7 +465,8 @@ public class WorkoutService {
       prService.recomputePrsForUserExercise(owner.getUserId(), exerciseId);
     }
 
-    // Recalculate streak after deletion
-    streakService.recalculateStreak(owner);
+    // Recalculate streak after deletion. Deletion isn't user-time-sensitive,
+    // so UTC "today" is acceptable.
+    streakService.recalculateStreak(owner, LocalDate.now(ZoneOffset.UTC));
   }
 }

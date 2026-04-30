@@ -32,33 +32,31 @@ public class StreakService {
   private final StreakRestoreRepository streakRestoreRepository;
 
   @Transactional(readOnly = true)
-  public StreakInfoDTO getStreakInfo(UUID userId) {
+  public StreakInfoDTO getStreakInfo(UUID userId, LocalDate today) {
     AppUser user = appUserRepository
       .findById(userId)
       .orElseThrow(() ->
         new RuntimeException("User not found with id: " + userId)
       );
 
-    refreshStreakIfStale(user);
+    refreshStreakIfStale(user, today);
 
     return StreakInfoDTO.builder()
       .currentStreak(user.getCurrentStreak())
       .longestStreak(user.getLongestStreak())
-      .restoreTokensRemaining(getRestoreTokensRemaining(user))
-      .todayLogged(isTodayLogged(user))
+      .restoreTokensRemaining(getRestoreTokensRemaining(user, today))
+      .todayLogged(isTodayLogged(user, today))
       .lastStreakDate(user.getLastStreakDate())
       .build();
   }
 
   @Transactional
-  public StreakInfoDTO logRestDay(UUID userId) {
+  public StreakInfoDTO logRestDay(UUID userId, LocalDate today) {
     AppUser user = appUserRepository
       .findById(userId)
       .orElseThrow(() ->
         new RuntimeException("User not found with id: " + userId)
       );
-
-    LocalDate today = LocalDate.now(ZoneOffset.UTC);
 
     if (workoutRepository.existsByUserAndDatePerformed(user, today)) {
       throw new IllegalStateException("Already worked out today");
@@ -71,30 +69,29 @@ public class StreakService {
     RestDay restDay = RestDay.builder().user(user).date(today).build();
     restDayRepository.save(restDay);
 
-    recalculateStreak(user);
+    recalculateStreak(user, today);
 
     return StreakInfoDTO.builder()
       .currentStreak(user.getCurrentStreak())
       .longestStreak(user.getLongestStreak())
-      .restoreTokensRemaining(getRestoreTokensRemaining(user))
+      .restoreTokensRemaining(getRestoreTokensRemaining(user, today))
       .todayLogged(true)
       .lastStreakDate(user.getLastStreakDate())
       .build();
   }
 
   @Transactional
-  public StreakInfoDTO useRestoreToken(UUID userId) {
+  public StreakInfoDTO useRestoreToken(UUID userId, LocalDate today) {
     AppUser user = appUserRepository
       .findById(userId)
       .orElseThrow(() ->
         new RuntimeException("User not found with id: " + userId)
       );
 
-    if (getRestoreTokensRemaining(user) <= 0) {
+    if (getRestoreTokensRemaining(user, today) <= 0) {
       throw new IllegalStateException("No restore tokens available this week");
     }
 
-    LocalDate today = LocalDate.now(ZoneOffset.UTC);
     LocalDate yesterday = today.minusDays(1);
     LocalDate dayBeforeYesterday = today.minusDays(2);
 
@@ -113,27 +110,26 @@ public class StreakService {
       .build();
     streakRestoreRepository.save(restore);
 
-    recalculateStreak(user);
+    recalculateStreak(user, today);
 
     return StreakInfoDTO.builder()
       .currentStreak(user.getCurrentStreak())
       .longestStreak(user.getLongestStreak())
-      .restoreTokensRemaining(getRestoreTokensRemaining(user))
-      .todayLogged(isTodayLogged(user))
+      .restoreTokensRemaining(getRestoreTokensRemaining(user, today))
+      .todayLogged(isTodayLogged(user, today))
       .lastStreakDate(user.getLastStreakDate())
       .build();
   }
 
   @Transactional
-  public void recalculateStreak(AppUser user) {
-    LocalDate today = LocalDate.now(ZoneOffset.UTC);
+  public void recalculateStreak(AppUser user, LocalDate today) {
     int maxLookback = Math.max(user.getCurrentStreak() + 30, 365);
     LocalDate lookbackStart = today.minusDays(maxLookback);
 
     Set<LocalDate> activeDays = getActiveDays(user, lookbackStart, today);
 
     // Allow the chain to start at yesterday when today isn't logged yet —
-    // today only counts as a break once the UTC day has actually ended.
+    // today only counts as a break once the user's local day has actually ended.
     LocalDate date = activeDays.contains(today) ? today : today.minusDays(1);
     int streak = 0;
     while (activeDays.contains(date)) {
@@ -149,13 +145,13 @@ public class StreakService {
     appUserRepository.save(user);
   }
 
-  public void recalculateStreak(UUID userId) {
+  public void recalculateStreak(UUID userId, LocalDate today) {
     AppUser user = appUserRepository
       .findById(userId)
       .orElseThrow(() ->
         new RuntimeException("User not found with id: " + userId)
       );
-    recalculateStreak(user);
+    recalculateStreak(user, today);
   }
 
   private Set<LocalDate> getActiveDays(
@@ -181,20 +177,26 @@ public class StreakService {
     return activeDays;
   }
 
+  // Overload for the scheduled notification job, which has no user-request
+  // context. Falls back to UTC; per-user timezone for scheduled notifications
+  // is a separate concern.
   @Transactional(readOnly = true)
   public boolean isRestoreAvailable(AppUser user) {
-    if (getRestoreTokensRemaining(user) <= 0) {
+    return isRestoreAvailable(user, LocalDate.now(ZoneOffset.UTC));
+  }
+
+  @Transactional(readOnly = true)
+  public boolean isRestoreAvailable(AppUser user, LocalDate today) {
+    if (getRestoreTokensRemaining(user, today) <= 0) {
       return false;
     }
-    LocalDate today = LocalDate.now(ZoneOffset.UTC);
     LocalDate yesterday = today.minusDays(1);
     LocalDate dayBeforeYesterday = today.minusDays(2);
     Set<LocalDate> window = getActiveDays(user, dayBeforeYesterday, yesterday);
     return !window.contains(yesterday) && window.contains(dayBeforeYesterday);
   }
 
-  private int getRestoreTokensRemaining(AppUser user) {
-    LocalDate today = LocalDate.now(ZoneOffset.UTC);
+  private int getRestoreTokensRemaining(AppUser user, LocalDate today) {
     LocalDate monday = today.with(
       TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)
     );
@@ -209,26 +211,24 @@ public class StreakService {
     return Math.max(0, 1 - (int) usedThisWeek);
   }
 
-  private boolean isTodayLogged(AppUser user) {
-    LocalDate today = LocalDate.now(ZoneOffset.UTC);
+  private boolean isTodayLogged(AppUser user, LocalDate today) {
     return (
       workoutRepository.existsByUserAndDatePerformed(user, today) ||
       restDayRepository.existsByUserAndDate(user, today)
     );
   }
 
-  private void refreshStreakIfStale(AppUser user) {
+  private void refreshStreakIfStale(AppUser user, LocalDate today) {
     LocalDate lastDate = user.getLastStreakDate();
     if (lastDate == null) {
       return;
     }
 
-    LocalDate today = LocalDate.now(ZoneOffset.UTC);
     LocalDate yesterday = today.minusDays(1);
 
     // If last streak date is before yesterday, streak may have broken
     if (lastDate.isBefore(yesterday)) {
-      recalculateStreak(user);
+      recalculateStreak(user, today);
     }
   }
 }

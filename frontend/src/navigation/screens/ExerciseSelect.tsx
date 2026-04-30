@@ -82,7 +82,9 @@ export function ExerciseSelect() {
 const styles = StyleSheet.create({
   title: {
     position: "absolute",
-    left: 72, // 16 button left + 40 button width + 16 gap
+    left: 0,
+    right: 0,
+    textAlign: "center",
     height: 40, // matches button height
     lineHeight: 40, // vertically centers text in that height
     fontSize: 24,

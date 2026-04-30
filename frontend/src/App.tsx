@@ -131,6 +131,11 @@ function AppContent({
           });
         }
         break;
+      case "UNFINISHED_WORKOUT":
+        navigationRef.current.navigate("WorkoutFlow", {
+          screen: "WorkoutSummary",
+        });
+        break;
       // No default — notifications without a type just open the app
     }
   }, [lastNotificationResponse]);

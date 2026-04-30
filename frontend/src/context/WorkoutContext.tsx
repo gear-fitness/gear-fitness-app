@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import { AppState, AppStateStatus } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Notifications from "expo-notifications";
 import { BodyPartDTO } from "../api/exerciseService";
 
 export interface WorkoutSet {
@@ -42,6 +43,41 @@ const WORKOUT_STATE_VERSION = 1;
 const STORAGE_KEY = "@workout_state";
 const SAVE_DEBOUNCE_MS = 500;
 const MAX_STATE_AGE_DAYS = 7;
+
+// Local notification fired if the user backgrounds the app mid-workout
+// and doesn't return within this window.
+const UNFINISHED_WORKOUT_NOTIFICATION_ID = "unfinished-workout-reminder";
+const UNFINISHED_WORKOUT_DELAY_SECONDS = 20 * 60;
+
+async function scheduleUnfinishedWorkoutReminder() {
+  try {
+    await Notifications.scheduleNotificationAsync({
+      identifier: UNFINISHED_WORKOUT_NOTIFICATION_ID,
+      content: {
+        title: "Finish your workout?",
+        body: "You've got an unfinished workout waiting. Tap to jump back in.",
+        data: { type: "UNFINISHED_WORKOUT" },
+        sound: true,
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds: UNFINISHED_WORKOUT_DELAY_SECONDS,
+      },
+    });
+  } catch (error) {
+    console.error("Failed to schedule unfinished workout reminder:", error);
+  }
+}
+
+async function cancelUnfinishedWorkoutReminder() {
+  try {
+    await Notifications.cancelScheduledNotificationAsync(
+      UNFINISHED_WORKOUT_NOTIFICATION_ID,
+    );
+  } catch {
+    // No pending notification with this identifier; safe to ignore.
+  }
+}
 
 interface WorkoutContextValue {
   seconds: number;
@@ -213,6 +249,9 @@ export function WorkoutTimerProvider({
   useEffect(() => {
     setIsRestoringState(true);
     restoreWorkoutState();
+    // Drop any reminder left over from a previous session — the 20-min
+    // window only restarts on the next background event.
+    cancelUnfinishedWorkoutReminder();
   }, []);
 
   // Auto-save on state changes
@@ -263,9 +302,15 @@ export function WorkoutTimerProvider({
           const now = Date.now();
           const currentElapsed = Math.floor((now - startTimestamp) / 1000);
           setSeconds(totalElapsedSeconds + currentElapsed);
+          cancelUnfinishedWorkoutReminder();
+        } else if (nextAppState === "active") {
+          cancelUnfinishedWorkoutReminder();
         } else if (nextAppState.match(/inactive|background/)) {
           // App going to background - save immediately (no debounce)
           saveWorkoutState(true);
+          if (running) {
+            scheduleUnfinishedWorkoutReminder();
+          }
         }
       },
     );
@@ -336,6 +381,7 @@ export function WorkoutTimerProvider({
 
     setRunning(false);
     setStartTimestamp(null);
+    cancelUnfinishedWorkoutReminder();
   };
 
   const reset = async () => {
@@ -349,6 +395,7 @@ export function WorkoutTimerProvider({
 
     // Clear persisted state
     await clearPersistedState();
+    await cancelUnfinishedWorkoutReminder();
   };
 
   // Player actions

@@ -5,6 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
 import Svg, { Path } from "react-native-svg";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { useTrackTab } from "../../hooks/useTrackTab";
@@ -208,14 +209,11 @@ export function Workout() {
               },
             ]}
           >
-            <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-              <Path
-                d="M3 10v4M6 7v10M9 5v14M15 5v14M18 7v10M21 10v4"
-                stroke={t.text}
-                strokeWidth={1.6}
-                strokeLinecap="round"
-              />
-            </Svg>
+            <MaterialCommunityIcons
+              name="weight-lifter"
+              size={22}
+              color={t.text}
+            />
           </TouchableOpacity>
 
           <TouchableOpacity

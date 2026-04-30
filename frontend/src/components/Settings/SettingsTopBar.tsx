@@ -24,7 +24,11 @@ export function SettingsTopBar({
     <View
       style={[
         styles.container,
-        { paddingTop: insets.top + 12, borderBottomColor: colors.border },
+        {
+          paddingTop: insets.top + 12,
+          backgroundColor: colors.appBg,
+          borderBottomColor: colors.border,
+        },
       ]}
     >
       <BackButton onPress={onBack} color={colors.text} />

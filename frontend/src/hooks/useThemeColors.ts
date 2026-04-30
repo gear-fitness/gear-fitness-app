@@ -6,6 +6,8 @@ export function useThemeColors() {
   return {
     isDark,
     bg: isDark ? "#000" : "#fff",
+    appBg: isDark ? "#0a0a0a" : "#fafafa",
+    cardBg: isDark ? "#141414" : "#fff",
     surface: isDark ? "#1C1C1E" : "#eff2f5",
     text: isDark ? "#fff" : "#000",
     inputText: isDark ? "#fff" : "#000",

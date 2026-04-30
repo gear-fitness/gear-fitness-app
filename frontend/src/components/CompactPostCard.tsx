@@ -87,9 +87,9 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
         </View>
         <View>
           <Text style={[styles.metricValue, { color: t.text }]}>
-            {post.setCount}
+            {post.exerciseCount}
           </Text>
-          <Text style={[styles.metricLabel, { color: t.textFaint }]}>SETS</Text>
+          <Text style={[styles.metricLabel, { color: t.textFaint }]}>EX.</Text>
         </View>
         {photos.length > 0 && (
           <TouchableOpacity
@@ -214,6 +214,8 @@ const styles = StyleSheet.create({
     gap: 16,
     marginTop: "auto",
     alignItems: "flex-end",
+    position: "relative",
+    minHeight: 48,
   },
   metricValue: {
     fontSize: 16,
@@ -246,10 +248,11 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   thumbStackWrap: {
+    position: "absolute",
+    right: -4,
+    bottom: -4,
     width: 56,
     height: 56,
-    marginLeft: "auto",
-    marginTop: -8,
   },
   thumbLayer: {
     position: "absolute",
