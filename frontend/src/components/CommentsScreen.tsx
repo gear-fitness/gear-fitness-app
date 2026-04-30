@@ -16,11 +16,7 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import {
-  useTheme,
-  useRoute,
-  useNavigation,
-} from "@react-navigation/native";
+import { useTheme, useRoute, useNavigation } from "@react-navigation/native";
 import { socialFeedApi, Comment } from "../api/socialFeedApi";
 import { Avatar } from "./Avatar";
 

@@ -44,10 +44,11 @@ public class S3StorageService {
     s3Client.putObject(putRequest, RequestBody.fromBytes(imageBytes));
 
     return String.format(
-      "https://%s.s3.%s.amazonaws.com/%s",
+      "https://%s.s3.%s.amazonaws.com/%s?v=%d",
       bucketName,
       region,
-      key
+      key,
+      System.currentTimeMillis()
     );
   }
 
