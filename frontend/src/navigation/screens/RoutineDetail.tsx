@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,15 +8,166 @@ import {
   ActivityIndicator,
   Alert,
   useColorScheme,
+  Animated,
+  Easing,
 } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, { Path } from "react-native-svg";
 import { getRoutineDetail, deleteRoutine } from "../../api/routineService";
 import { Routine } from "../../api/types";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { formatDay } from "../../utils/days";
-import { useThemedHeader } from "../../hooks/useThemedHeader";
+import { useThemeColors } from "../../hooks/useThemeColors";
 import { StartCountdownOverlay } from "../../components/StartCountdownOverlay";
 import { useStartCountdown } from "../../hooks/useStartCountdown";
+import { formatPrimaryBodyParts } from "../../utils/exerciseUtils";
+import { FloatingCloseButton } from "../../components/FloatingCloseButton";
+
+function useSkeletonPulse() {
+  const opacity = useRef(new Animated.Value(0.4)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, {
+          toValue: 0.8,
+          duration: 600,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0.4,
+          duration: 600,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [opacity]);
+  return opacity;
+}
+
+function RoutineDetailSkeleton({
+  topPadding,
+  cardBg,
+  cardBorder,
+  separator,
+  skeleton,
+}: {
+  topPadding: number;
+  cardBg: string;
+  cardBorder: string;
+  separator: string;
+  skeleton: string;
+}) {
+  const opacity = useSkeletonPulse();
+  return (
+    <View style={[styles.scrollContent, { paddingTop: topPadding }]}>
+      {/* Title row */}
+      <View style={styles.titleRow}>
+        <Animated.View
+          style={{
+            flex: 1,
+            height: 32,
+            borderRadius: 8,
+            backgroundColor: skeleton,
+            opacity,
+          }}
+        />
+        <Animated.View
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: skeleton,
+            opacity,
+          }}
+        />
+      </View>
+
+      {/* Day pills */}
+      <View style={[styles.daysRow, { marginTop: 12 }]}>
+        {[60, 70, 55].map((w, i) => (
+          <Animated.View
+            key={i}
+            style={{
+              width: w,
+              height: 26,
+              borderRadius: 20,
+              backgroundColor: skeleton,
+              opacity,
+            }}
+          />
+        ))}
+      </View>
+
+      {/* Exercise count line */}
+      <Animated.View
+        style={{
+          width: 100,
+          height: 12,
+          borderRadius: 3,
+          backgroundColor: skeleton,
+          opacity,
+          marginBottom: 16,
+        }}
+      />
+
+      {/* Exercise list card */}
+      <View
+        style={[
+          styles.exerciseCard,
+          { backgroundColor: cardBg, borderColor: cardBorder },
+        ]}
+      >
+        {[0, 1, 2, 3].map((i) => (
+          <View key={i}>
+            <View style={styles.exerciseRow}>
+              <Animated.View
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 8,
+                  backgroundColor: skeleton,
+                  opacity,
+                  marginRight: 14,
+                }}
+              />
+              <View style={styles.exerciseInfo}>
+                <Animated.View
+                  style={{
+                    width: "70%",
+                    height: 16,
+                    borderRadius: 4,
+                    backgroundColor: skeleton,
+                    opacity,
+                  }}
+                />
+                <Animated.View
+                  style={{
+                    width: "40%",
+                    height: 12,
+                    borderRadius: 3,
+                    backgroundColor: skeleton,
+                    opacity,
+                    marginTop: 6,
+                  }}
+                />
+              </View>
+            </View>
+            {i < 3 && (
+              <View
+                style={[styles.separator, { backgroundColor: separator }]}
+              />
+            )}
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
 
 export function RoutineDetail({
   route,
@@ -25,7 +176,9 @@ export function RoutineDetail({
 }) {
   const { routineId } = route.params;
   const { loadFromRoutine } = useWorkoutTimer();
-  const { navigation, colors } = useThemedHeader(() => ({ title: "" }));
+  const navigation = useNavigation<any>();
+  const colors = useThemeColors();
+  const insets = useSafeAreaInsets();
   const isDark = useColorScheme() === "dark";
 
   const [routine, setRoutine] = useState<Routine | null>(null);
@@ -64,9 +217,12 @@ export function RoutineDetail({
         routine.exercises.map((ex) => ({
           exerciseId: ex.exerciseId,
           name: ex.exerciseName,
+          bodyParts: ex.bodyParts,
         })),
       );
-      (navigation as any).navigate("WorkoutSummary");
+      (navigation as any).navigate("WorkoutFlow", {
+        screen: "WorkoutSummary",
+      });
     } finally {
       setStarting(false);
     }
@@ -124,14 +280,15 @@ export function RoutineDetail({
 
   if (loading) {
     return (
-      <View
-        style={[
-          styles.container,
-          styles.centered,
-          { backgroundColor: colors.bg },
-        ]}
-      >
-        <ActivityIndicator size="large" color="#007AFF" />
+      <View style={[styles.container, { backgroundColor: colors.appBg }]}>
+        <FloatingCloseButton direction="left" accessibilityLabel="Back" />
+        <RoutineDetailSkeleton
+          topPadding={insets.top + 60}
+          cardBg={colors.cardBg}
+          cardBorder={colors.cardBorder}
+          separator={colors.separator}
+          skeleton={colors.skeleton}
+        />
       </View>
     );
   }
@@ -142,9 +299,10 @@ export function RoutineDetail({
         style={[
           styles.container,
           styles.centered,
-          { backgroundColor: colors.bg },
+          { backgroundColor: colors.appBg },
         ]}
       >
+        <FloatingCloseButton direction="left" accessibilityLabel="Back" />
         <Text style={[styles.errorText, { color: colors.text }]}>
           {error ?? "Routine not found"}
         </Text>
@@ -153,10 +311,14 @@ export function RoutineDetail({
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg }]}>
+    <View style={[styles.container, { backgroundColor: colors.appBg }]}>
+      <FloatingCloseButton direction="left" accessibilityLabel="Back" />
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: insets.top + 60 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Routine name */}
@@ -165,13 +327,35 @@ export function RoutineDetail({
             {routine.name}
           </Text>
           <TouchableOpacity
-            style={styles.editButton}
+            accessibilityLabel="Edit"
+            activeOpacity={0.7}
+            style={[
+              styles.editButton,
+              {
+                backgroundColor: colors.cardBg,
+                borderColor: colors.cardBorder,
+              },
+            ]}
             onPress={() =>
               routine &&
               (navigation as any).navigate("EditRoutine", { routine })
             }
           >
-            <Text style={styles.editButtonText}>Edit</Text>
+            <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+              <Path
+                d="M4 20h4l10-10-4-4L4 16v4z"
+                stroke={colors.text}
+                strokeWidth={1.6}
+                strokeLinejoin="round"
+                fill="none"
+              />
+              <Path
+                d="M13.5 6.5l4 4"
+                stroke={colors.text}
+                strokeWidth={1.6}
+                strokeLinecap="round"
+              />
+            </Svg>
           </TouchableOpacity>
         </View>
 
@@ -201,7 +385,7 @@ export function RoutineDetail({
         <View
           style={[
             styles.exerciseCard,
-            { backgroundColor: colors.surface, borderColor: colors.cardBorder },
+            { backgroundColor: colors.cardBg, borderColor: colors.cardBorder },
           ]}
         >
           {routine.exercises.length === 0 ? (
@@ -234,8 +418,7 @@ export function RoutineDetail({
                         { color: colors.secondary },
                       ]}
                     >
-                      {ex.bodyPart.charAt(0).toUpperCase() +
-                        ex.bodyPart.slice(1).toLowerCase()}
+                      {formatPrimaryBodyParts(ex.bodyParts)}
                     </Text>
                   </View>
                 </View>
@@ -258,7 +441,7 @@ export function RoutineDetail({
           onPress={handleDelete}
           disabled={deleting}
         >
-          <Text style={styles.deleteText}>
+          <Text style={[styles.deleteText, { color: colors.danger }]}>
             {deleting ? "Deleting..." : "Delete Routine"}
           </Text>
         </TouchableOpacity>
@@ -269,32 +452,29 @@ export function RoutineDetail({
         style={[
           styles.stickyBottom,
           {
-            backgroundColor: colors.bg,
+            backgroundColor: colors.appBg,
             borderTopColor: colors.separator,
           },
         ]}
       >
-        <View style={styles.startShadowLayer}>
-          <TouchableOpacity
-            style={[styles.startButton, starting && styles.disabledButton]}
-            onPress={handleStartWorkout}
-            disabled={starting}
-            activeOpacity={0.8}
-          >
-            {starting ? (
-              <ActivityIndicator color="#007AFF" />
-            ) : (
-              <>
-                <Text style={[styles.startIcon, { color: colors.text }]}>
-                  ▶
-                </Text>
-                <Text style={[styles.startButtonText, { color: colors.text }]}>
-                  Start Workout
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={[
+            styles.startButton,
+            { borderColor: colors.text },
+            starting && styles.disabledButton,
+          ]}
+          onPress={handleStartWorkout}
+          disabled={starting}
+          activeOpacity={0.7}
+        >
+          {starting ? (
+            <ActivityIndicator color={colors.text} />
+          ) : (
+            <Text style={[styles.startButtonText, { color: colors.text }]}>
+              Start Workout
+            </Text>
+          )}
+        </TouchableOpacity>
       </View>
 
       <StartCountdownOverlay
@@ -317,7 +497,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 24,
-    paddingTop: 24,
     paddingBottom: 120,
   },
   routineName: {
@@ -334,15 +513,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   editButton: {
-    borderRadius: 999,
-    backgroundColor: "#007AFF",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  editButtonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "700",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: "center",
+    justifyContent: "center",
   },
   daysRow: {
     flexDirection: "row",
@@ -415,7 +591,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   deleteText: {
-    color: "#FF3B30",
     fontSize: 16,
     fontWeight: "500",
   },
@@ -430,31 +605,22 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
-  startShadowLayer: {
-    borderRadius: 999,
-    shadowColor: "#007AFF",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 8,
-  },
   startButton: {
-    height: 60,
-    borderRadius: 999,
+    height: 54,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    backgroundColor: "transparent",
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#007AFF",
     gap: 10,
   },
   disabledButton: {
     opacity: 0.5,
   },
-  startIcon: {
-    fontSize: 22,
-  },
   startButtonText: {
-    fontSize: 18,
-    fontWeight: "700",
+    fontSize: 17,
+    fontWeight: "600",
+    letterSpacing: -0.2,
   },
 });

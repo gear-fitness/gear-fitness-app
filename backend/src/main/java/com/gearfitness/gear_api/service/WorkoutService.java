@@ -1,5 +1,6 @@
 package com.gearfitness.gear_api.service;
 
+import com.gearfitness.gear_api.dto.BodyPartDTO;
 import com.gearfitness.gear_api.dto.DailyVolumeDTO;
 import com.gearfitness.gear_api.dto.WeeklyVolumeDTO;
 import com.gearfitness.gear_api.dto.WorkoutDetailDTO;
@@ -20,6 +21,7 @@ import com.gearfitness.gear_api.repository.WorkoutRepository;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -36,6 +38,9 @@ public class WorkoutService {
   private final PostRepository postRepository;
   private final AppUserRepository appUserRepository;
   private final NotificationRepository notificationRepository;
+  private final StreakService streakService;
+  private final S3StorageService s3StorageService;
+  private final PrService prService;
 
   @Transactional(readOnly = true)
   public List<Workout> getWorkoutsByUser(UUID userId) {
@@ -87,7 +92,12 @@ public class WorkoutService {
         return new WorkoutExerciseDTO(
           we.getWorkoutExerciseId(),
           we.getExercise().getName(),
-          we.getExercise().getBodyPart().toString(),
+          we
+            .getExercise()
+            .getBodyParts()
+            .stream()
+            .map(bp -> new BodyPartDTO(bp.getBodyPart(), bp.getTargetType()))
+            .toList(),
           we.getPosition(),
           isOwner ? we.getNote() : null,
           sets
@@ -100,12 +110,17 @@ public class WorkoutService {
       .name(workout.getName())
       .datePerformed(workout.getDatePerformed())
       .durationMin(workout.getDurationMin())
-      .bodyTag(
-        workout.getBodyTags() != null && !workout.getBodyTags().isEmpty()
-          ? workout.getBodyTags().get(0).toString()
-          : null
+      .bodyTags(
+        workout.getBodyTags() != null
+          ? workout.getBodyTags().stream().map(Enum::name).toList()
+          : List.of()
       )
       .exercises(exercises)
+      .photoUrls(
+        workout.getPhotoUrls() != null
+          ? new ArrayList<>(workout.getPhotoUrls())
+          : new ArrayList<>()
+      )
       .build();
   }
 
@@ -191,7 +206,8 @@ public class WorkoutService {
   public List<DailyVolumeDTO> getDailyVolume(
     UUID userId,
     int numberOfWeeks,
-    DayOfWeek weekStartDay
+    DayOfWeek weekStartDay,
+    String localDate
   ) {
     List<Workout> workouts = workoutRepository.findByUser_UserId(userId);
 
@@ -202,7 +218,10 @@ public class WorkoutService {
     // Calculate date range
     // Extend endDate to the end of the current week (Saturday) to ensure full week
     // is displayed
-    LocalDate endDate = LocalDate.now().with(
+    LocalDate referenceDate = (localDate != null && !localDate.isBlank())
+      ? LocalDate.parse(localDate)
+      : LocalDate.now();
+    LocalDate endDate = referenceDate.with(
       TemporalAdjusters.nextOrSame(DayOfWeek.SATURDAY)
     );
 
@@ -312,6 +331,11 @@ public class WorkoutService {
           ? submission.getBodyTags()
           : new ArrayList<>()
       )
+      .photoUrls(
+        submission.getPhotoUrls() != null
+          ? new ArrayList<>(submission.getPhotoUrls())
+          : new ArrayList<>()
+      )
       .workoutExercises(new ArrayList<>())
       .build();
 
@@ -350,7 +374,7 @@ public class WorkoutService {
           .setNumber(setNumber++)
           .reps(setDto.getReps())
           .weightLbs(new BigDecimal(setDto.getWeight()))
-          .isPr(false) // TODO: Implement PR detection
+          .isPr(false)
           .build();
 
         workoutExercise.getWorkoutSets().add(workoutSet);
@@ -361,6 +385,22 @@ public class WorkoutService {
 
     // Save complete workout with exercises and sets
     workout = workoutRepository.save(workout);
+
+    // Recompute PRs for each exercise touched by this workout. Submission may
+    // be back-dated, so a full per-(user, exercise) recompute is needed.
+    Set<UUID> touchedExerciseIds = workout
+      .getWorkoutExercises()
+      .stream()
+      .map(we -> we.getExercise().getExerciseId())
+      .collect(Collectors.toSet());
+    for (UUID exerciseId : touchedExerciseIds) {
+      prService.recomputePrsForUserExercise(userId, exerciseId);
+    }
+
+    // Update daily streak after workout submission. Use the workout's
+    // datePerformed (already in the user's local date) so the streak walks
+    // forward from the user's local "today", not the server's UTC date.
+    streakService.recalculateStreak(user, workout.getDatePerformed());
 
     // Create post if requested
     if (Boolean.TRUE.equals(submission.getCreatePost())) {
@@ -400,7 +440,33 @@ public class WorkoutService {
       );
     }
 
+    if (workout.getPhotoUrls() != null) {
+      for (String url : workout.getPhotoUrls()) {
+        s3StorageService.deleteWorkoutPhoto(url);
+      }
+    }
+
+    // Snapshot the exercises this workout touched before cascade delete, so we
+    // can recompute PRs for each (user, exercise) afterwards.
+    Set<UUID> touchedExerciseIds = workout
+      .getWorkoutExercises()
+      .stream()
+      .map(we -> we.getExercise().getExerciseId())
+      .collect(Collectors.toSet());
+    AppUser owner = workout.getUser();
+
     // Delete the workout - cascade will handle related entities
     workoutRepository.delete(workout);
+    workoutRepository.flush();
+
+    // Recompute PRs for each exercise this workout touched. Sets that were
+    // shadowed by the deleted workout's lifts may now qualify as PRs.
+    for (UUID exerciseId : touchedExerciseIds) {
+      prService.recomputePrsForUserExercise(owner.getUserId(), exerciseId);
+    }
+
+    // Recalculate streak after deletion. Deletion isn't user-time-sensitive,
+    // so UTC "today" is acceptable.
+    streakService.recalculateStreak(owner, LocalDate.now(ZoneOffset.UTC));
   }
 }

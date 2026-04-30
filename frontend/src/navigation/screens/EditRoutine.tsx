@@ -1,7 +1,10 @@
-import React, { useCallback, useLayoutEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -14,14 +17,18 @@ import DraggableFlatList, {
 } from "react-native-draggable-flatlist";
 import { Swipeable } from "react-native-gesture-handler";
 import { useNavigation } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Exercise } from "../../api/exerciseService";
 import { Routine, RoutineExercise } from "../../api/types";
 import { updateRoutine } from "../../api/routineService";
 import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
-import { BackButton } from "../../components/BackButton";
+import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 import { DAYS, DAY_FULL, DAY_SHORT } from "../../utils/days";
 import { useThemeColors } from "../../hooks/useThemeColors";
 import { useExerciseList } from "../../hooks/useExerciseList";
+import { renderBodyParts } from "../../utils/exerciseUtils";
+import { useExerciseFilter } from "../../hooks/useExerciseFilter";
+import { ExerciseFilterBar } from "../../components/ExerciseFilterBar";
 
 export function EditRoutine({
   route,
@@ -31,6 +38,8 @@ export function EditRoutine({
   const { routine } = route.params;
   const navigation = useNavigation();
   const colors = useThemeColors();
+  const insets = useSafeAreaInsets();
+  const accent = colors.isDark ? "#fff" : "#000";
 
   const [name, setName] = useState(routine.name);
   const [selectedDays, setSelectedDays] = useState<string[]>(
@@ -43,8 +52,19 @@ export function EditRoutine({
   );
   const { exercises: allExercises, loading: loadingExercises } =
     useExerciseList();
+
+  const {
+    searchQuery,
+    setSearchQuery,
+    selectedBodyPart,
+    setSelectedBodyPart,
+    bodyParts,
+    sections,
+  } = useExerciseFilter(allExercises);
+
+  const filteredExercises = sections.flatMap((s) => s.data);
+
   const [saving, setSaving] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
 
   const handleSave = useCallback(async () => {
     if (!name.trim()) {
@@ -70,47 +90,10 @@ export function EditRoutine({
     }
   }, [name, selectedExercises, selectedDays, routine.routineId, navigation]);
 
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerStyle: { backgroundColor: colors.bg },
-      headerTitleStyle: { color: colors.text, fontWeight: "700", fontSize: 17 },
-      headerTintColor: colors.text,
-      headerShadowVisible: false,
-      headerLeft: () => (
-        <BackButton onPress={() => navigation.goBack()} color={colors.text} />
-      ),
-      headerRight: () => (
-        <TouchableOpacity
-          onPress={handleSave}
-          disabled={saving}
-          style={styles.saveButton}
-        >
-          {saving ? (
-            <ActivityIndicator size="small" color="#007AFF" />
-          ) : (
-            <Text style={[styles.saveText, { color: colors.text }]}>✓</Text>
-          )}
-        </TouchableOpacity>
-      ),
-    });
-  }, [navigation, colors, saving, handleSave]);
-
   const selectedExerciseIds = useMemo(
     () => new Set(selectedExercises.map((ex) => ex.exerciseId)),
     [selectedExercises],
   );
-
-  const filteredExercises = useMemo(() => {
-    const query = searchQuery.toLowerCase().trim();
-    return allExercises.filter((ex) => {
-      if (selectedExerciseIds.has(ex.exerciseId)) return false;
-      if (!query) return true;
-      return (
-        ex.name.toLowerCase().includes(query) ||
-        ex.bodyPart.toLowerCase().includes(query)
-      );
-    });
-  }, [allExercises, searchQuery, selectedExerciseIds]);
 
   const toggleDay = (day: string) => {
     setSelectedDays((prev) =>
@@ -118,9 +101,9 @@ export function EditRoutine({
     );
   };
 
-  const removeExercise = (exerciseId: string) => {
+  const removeExercise = (routineExerciseId: string) => {
     setSelectedExercises((prev) =>
-      prev.filter((ex) => ex.exerciseId !== exerciseId),
+      prev.filter((ex) => ex.routineExerciseId !== routineExerciseId),
     );
   };
 
@@ -129,10 +112,10 @@ export function EditRoutine({
     setSelectedExercises((prev) => [
       ...prev,
       {
-        routineExerciseId: `new-${exercise.exerciseId}`,
+        routineExerciseId: `new-${exercise.exerciseId}-${Date.now()}`,
         exerciseId: exercise.exerciseId,
         exerciseName: exercise.name,
-        bodyPart: exercise.bodyPart,
+        bodyParts: exercise.bodyParts,
         position: nextPosition,
       },
     ]);
@@ -154,7 +137,7 @@ export function EditRoutine({
     return (
       <ScaleDecorator activeScale={1.03}>
         <View style={styles.selectedRowWrapper}>
-          <Swipeable {...getSwipeableProps(item.exerciseId)}>
+          <Swipeable {...getSwipeableProps(item.routineExerciseId)}>
             <View
               style={[
                 styles.selectedRow,
@@ -163,7 +146,7 @@ export function EditRoutine({
                     ? colors.isDark
                       ? "#2A2A2C"
                       : "#E8E8ED"
-                    : colors.surface,
+                    : colors.cardBg,
                   borderColor: colors.border,
                 },
               ]}
@@ -175,7 +158,7 @@ export function EditRoutine({
                 <Text
                   style={[styles.selectedSubtitle, { color: colors.secondary }]}
                 >
-                  {item.bodyPart}
+                  {renderBodyParts(item.bodyParts, colors.secondary, accent)}
                 </Text>
               </View>
               <TouchableOpacity
@@ -201,149 +184,210 @@ export function EditRoutine({
     );
   };
 
-  const ListHeader = () => (
-    <View style={styles.listHeaderContent}>
-      <Text style={[styles.label, { color: colors.secondary }]}>
-        ROUTINE NAME
-      </Text>
-      <TextInput
+  return (
+    <KeyboardAvoidingView
+      style={[styles.flex, { backgroundColor: colors.appBg }]}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <FloatingCloseButton direction="left" accessibilityLabel="Back" />
+      <TouchableOpacity
+        accessibilityLabel="Save"
+        onPress={handleSave}
+        disabled={saving}
+        activeOpacity={0.7}
         style={[
-          styles.input,
+          styles.floatingSave,
           {
-            backgroundColor: colors.inputBg,
-            color: colors.text,
+            top: insets.top + 8,
+            backgroundColor: colors.cardBg,
             borderColor: colors.border,
           },
         ]}
-        value={name}
-        onChangeText={setName}
-        placeholder="Routine name"
-        placeholderTextColor={colors.secondary}
-      />
-
-      <Text style={[styles.label, { color: colors.secondary }]}>
-        SCHEDULED DAYS
-      </Text>
-      <View style={styles.daysRow}>
-        {DAYS.map((day) => {
-          const active = selectedDays.includes(day);
-          return (
-            <TouchableOpacity
-              key={day}
-              style={[
-                styles.dayPill,
-                { backgroundColor: active ? colors.pillActive : colors.pill },
-              ]}
-              onPress={() => toggleDay(day)}
-            >
-              <Text
-                style={[
-                  styles.dayPillText,
-                  { color: active ? colors.pillActiveText : colors.text },
-                ]}
-              >
-                {day}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      <Text style={[styles.label, { color: colors.secondary }]}>
-        EXERCISES ({selectedExercises.length})
-      </Text>
-      {selectedExercises.length === 0 && (
-        <Text style={[styles.emptyHint, { color: colors.secondary }]}>
-          Add exercises from the list below.
+      >
+        {saving ? (
+          <ActivityIndicator size="small" color={colors.text} />
+        ) : (
+          <Text style={[styles.saveText, { color: colors.text }]}>✓</Text>
+        )}
+      </TouchableOpacity>
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: insets.top + 60 },
+        ]}
+        nestedScrollEnabled
+      >
+        <Text style={[styles.heroTitle, { color: colors.text }]}>
+          Edit Routine
         </Text>
-      )}
-    </View>
-  );
-
-  const ListFooter = () => (
-    <View style={styles.listFooterContent}>
-      <Text style={[styles.label, { color: colors.secondary }]}>
-        ADD EXERCISES
-      </Text>
-      <TextInput
-        style={[
-          styles.input,
-          {
-            backgroundColor: colors.inputBg,
-            color: colors.text,
-            borderColor: colors.border,
-          },
-        ]}
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        placeholder="Search exercises..."
-        placeholderTextColor={colors.secondary}
-      />
-
-      {loadingExercises ? (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator color="#007AFF" />
-        </View>
-      ) : (
-        filteredExercises.slice(0, 30).map((item) => (
-          <TouchableOpacity
-            key={item.exerciseId}
+        {/* Routine name */}
+        <View style={styles.sectionWrap}>
+          <Text style={[styles.label, { color: colors.secondary }]}>
+            ROUTINE NAME
+          </Text>
+          <TextInput
             style={[
-              styles.availableRow,
+              styles.input,
               {
-                borderBottomColor: colors.border,
-                backgroundColor: colors.surface,
+                backgroundColor: colors.inputBg,
+                color: colors.text,
+                borderColor: colors.border,
               },
             ]}
-            onPress={() => addExercise(item)}
-          >
-            <View style={styles.selectedInfo}>
-              <Text style={[styles.selectedTitle, { color: colors.text }]}>
-                {item.name}
-              </Text>
-              <Text
-                style={[styles.selectedSubtitle, { color: colors.secondary }]}
-              >
-                {item.bodyPart}
-              </Text>
-            </View>
-            <Text style={[styles.addText, { color: colors.text }]}>+</Text>
-          </TouchableOpacity>
-        ))
-      )}
-      <View style={styles.bottomPad} />
-    </View>
-  );
+            value={name}
+            onChangeText={setName}
+            placeholder="Routine name"
+            placeholderTextColor={colors.secondary}
+          />
+        </View>
 
-  return (
-    <View style={[styles.flex, { backgroundColor: colors.bg }]}>
-      <DraggableFlatList
-        data={selectedExercises}
-        keyExtractor={(item) => item.routineExerciseId}
-        renderItem={renderExerciseItem}
-        onDragEnd={({ data }) => setSelectedExercises(data)}
-        ListHeaderComponent={<ListHeader />}
-        ListFooterComponent={<ListFooter />}
-        contentContainerStyle={styles.listContent}
-        activationDistance={10}
-      />
-    </View>
+        {/* Scheduled days */}
+        <View style={styles.sectionWrap}>
+          <Text style={[styles.label, { color: colors.secondary }]}>
+            SCHEDULED DAYS
+          </Text>
+          <View style={styles.daysRow}>
+            {DAYS.map((day) => {
+              const active = selectedDays.includes(day);
+              return (
+                <TouchableOpacity
+                  key={day}
+                  style={[
+                    styles.dayPill,
+                    {
+                      backgroundColor: active ? colors.pillActive : colors.pill,
+                    },
+                  ]}
+                  onPress={() => toggleDay(day)}
+                >
+                  <Text
+                    style={[
+                      styles.dayPillText,
+                      { color: active ? colors.pillActiveText : colors.text },
+                    ]}
+                  >
+                    {day}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Selected exercises (draggable) */}
+        <View style={styles.sectionWrap}>
+          <Text style={[styles.label, { color: colors.secondary }]}>
+            EXERCISES ({selectedExercises.length})
+          </Text>
+          {selectedExercises.length === 0 ? (
+            <Text style={[styles.emptyHint, { color: colors.secondary }]}>
+              Add exercises from the list below.
+            </Text>
+          ) : (
+            <DraggableFlatList
+              data={selectedExercises}
+              keyExtractor={(item) => item.routineExerciseId}
+              renderItem={renderExerciseItem}
+              onDragEnd={({ data }) => setSelectedExercises(data)}
+              scrollEnabled={false}
+              activationDistance={10}
+            />
+          )}
+        </View>
+
+        {/* Add exercises */}
+        <View style={styles.sectionWrap}>
+          <Text style={[styles.label, { color: colors.secondary }]}>
+            ADD EXERCISES
+          </Text>
+          <ExerciseFilterBar
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            bodyParts={bodyParts}
+            selectedBodyPart={selectedBodyPart}
+            onSelectBodyPart={setSelectedBodyPart}
+          />
+
+          {loadingExercises ? (
+            <View style={styles.loadingWrap}>
+              <ActivityIndicator color={colors.isDark ? "#fff" : "#000"} />
+            </View>
+          ) : filteredExercises.length === 0 ? null : (
+            sections.map((section) => (
+              <View key={section.title}>
+                <Text
+                  style={[styles.sectionHeader, { color: colors.secondary }]}
+                >
+                  {section.title}
+                </Text>
+                {section.data.slice(0, 30).map((item) => (
+                  <TouchableOpacity
+                    key={item.exerciseId}
+                    style={[
+                      styles.availableRow,
+                      {
+                        borderBottomColor: colors.border,
+                        backgroundColor: colors.cardBg,
+                      },
+                    ]}
+                    onPress={() => addExercise(item)}
+                  >
+                    <View style={styles.selectedInfo}>
+                      <Text
+                        style={[styles.selectedTitle, { color: colors.text }]}
+                      >
+                        {item.name}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.selectedSubtitle,
+                          { color: colors.secondary },
+                        ]}
+                      >
+                        {renderBodyParts(
+                          item.bodyParts,
+                          colors.secondary,
+                          accent,
+                        )}
+                      </Text>
+                    </View>
+                    <Text style={[styles.addText, { color: colors.text }]}>
+                      +
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ))
+          )}
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  saveButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  floatingSave: {
+    position: "absolute",
+    right: 16,
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
     justifyContent: "center",
     alignItems: "center",
   },
-  saveText: { fontSize: 22, fontWeight: "600", includeFontPadding: false },
-  listContent: { paddingBottom: 40 },
-  listHeaderContent: { paddingHorizontal: 16, paddingTop: 8 },
-  listFooterContent: { paddingHorizontal: 16 },
+  saveText: { fontSize: 20, fontWeight: "600", includeFontPadding: false },
+  heroTitle: {
+    fontSize: 28,
+    fontWeight: "700",
+    letterSpacing: -0.5,
+    marginBottom: 8,
+  },
+  scrollContent: { paddingHorizontal: 16, paddingBottom: 80 },
+  sectionWrap: { marginTop: 8 },
   label: {
     fontSize: 12,
     fontWeight: "600",
@@ -357,7 +401,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
-    marginBottom: 16,
   },
   daysRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   dayPill: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 },
@@ -366,7 +409,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
     marginBottom: 8,
-    marginHorizontal: 16,
   },
   selectedRow: {
     borderWidth: 1,
@@ -398,5 +440,11 @@ const styles = StyleSheet.create({
   addText: { fontSize: 22, fontWeight: "300" },
   loadingWrap: { paddingVertical: 20, alignItems: "center" },
   emptyHint: { fontSize: 13, fontStyle: "italic", marginBottom: 4 },
-  bottomPad: { height: 40 },
+  sectionHeader: {
+    fontSize: 13,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    paddingVertical: 10,
+  },
 });

@@ -70,9 +70,9 @@ public class PostInteractionService {
 
         String data = String.format(
           """
-          {"type":"LIKE","screen":"DetailedHistory","params":{"workoutId":"%s"}}
+          {"type":"LIKE","screen":"PostDetail","params":{"postId":"%s"}}
           """,
-          post.getWorkout().getWorkoutId()
+          post.getPostId()
         );
         expoPushService.sendPushNotification(
           post.getUser().getExpoPushToken(),
@@ -134,7 +134,7 @@ public class PostInteractionService {
       // Send push notification
       String data = String.format(
         """
-        {"type":"COMMENT","screen":"Comments","params":{"postId":"%s"}}
+        {"type":"COMMENT","screen":"PostDetail","params":{"postId":"%s"}}
         """,
         post.getPostId()
       );

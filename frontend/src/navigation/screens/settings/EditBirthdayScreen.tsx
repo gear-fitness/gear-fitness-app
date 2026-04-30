@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { View, Text, Alert, Pressable, StyleSheet } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Picker } from "@react-native-picker/picker";
 import { useAuth } from "../../../context/AuthContext";
 import { updateUserProfile } from "../../../api/userService";
@@ -14,7 +15,7 @@ import {
 import { PickerSheet } from "../../onboarding/components/PickerSheet";
 import { useOnboardingColors } from "../../onboarding/components/useOnboardingColors";
 import { makeOnboardingStyles } from "../../onboarding/components/makeOnboardingStyles";
-import { SettingsTopBar } from "../../../components/Settings/SettingsTopBar";
+import { FloatingCloseButton } from "../../../components/FloatingCloseButton";
 
 function getDaysInMonth(month: number, year: number): number {
   return new Date(year, month + 1, 0).getDate();
@@ -24,6 +25,7 @@ export function EditBirthdayScreen() {
   const navigation = useNavigation<any>();
   const { refreshUser } = useAuth();
   const colors = useOnboardingColors();
+  const insets = useSafeAreaInsets();
   const shared = useMemo(() => makeOnboardingStyles(colors), [colors]);
 
   const [sheetVisible, setSheetVisible] = useState(false);
@@ -74,13 +76,8 @@ export function EditBirthdayScreen() {
 
   return (
     <View style={[shared.screen, { backgroundColor: colors.screenBg }]}>
-      <SettingsTopBar
-        title="Birthday"
-        onBack={() => navigation.goBack()}
-        onSave={handleSave}
-        saveDisabled={!canSave}
-      />
-      <View style={shared.body}>
+      <FloatingCloseButton direction="left" accessibilityLabel="Back" />
+      <View style={[shared.body, { paddingTop: insets.top + 60 }]}>
         <Text style={shared.heading}>When were you born?</Text>
         <Text style={shared.subheading}>
           Used to calculate your age for health metrics. Kept private and

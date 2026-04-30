@@ -1,47 +1,72 @@
 import React, { useState } from "react";
-import { View, StyleSheet, TouchableOpacity } from "react-native";
+import {
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  Image,
+  ScrollView,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  LayoutChangeEvent,
+  StyleProp,
+  TextStyle,
+} from "react-native";
 import { Text } from "@react-navigation/elements";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useTheme } from "@react-navigation/native";
-import { FeedPost, socialFeedApi } from "../api/socialFeedApi";
+import { FeedPost } from "../api/socialFeedApi";
 import { parseLocalDate } from "../utils/date";
+import { formatTag } from "../utils/formatTag";
 import { useAuth } from "../context/AuthContext";
+import { useLikeState } from "../context/LikesContext";
 import { Avatar } from "./Avatar";
+
 interface Props {
   post: FeedPost;
   onOpenComments: (postId: string) => void;
 }
 
-export function FeedPostCard({ post, onOpenComments }: Props) {
+export function FeedPostCard({ post }: Props) {
   const { colors } = useTheme();
+  const cardBg = colors.card;
+  const innerBg = colors.card;
   const { user } = useAuth();
-  const [likeCount, setLikeCount] = useState(post.likeCount);
-  const [likedByUser, setLikedByUser] = useState(post.likedByCurrentUser);
-  const [liking, setLiking] = useState(false);
+  const {
+    liked: likedByUser,
+    count: likeCount,
+    toggle: handleLike,
+  } = useLikeState(post.postId, post);
+  const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+  const [scrollWidth, setScrollWidth] = useState(0);
   const navigation = useNavigation();
 
-  const isOwnPost = post.username === user?.username;
+  const photos =
+    post.photoUrls && post.photoUrls.length > 0
+      ? post.photoUrls
+      : post.imageUrl
+        ? [post.imageUrl]
+        : [];
 
-  const handleLike = async () => {
-    if (liking) return;
-
-    // Optimistic update
-    const wasLiked = likedByUser;
-    setLikedByUser(!wasLiked);
-    setLikeCount((prev) => (wasLiked ? prev - 1 : prev + 1));
-
-    try {
-      setLiking(true);
-      await socialFeedApi.toggleLike(post.postId);
-    } catch (error) {
-      // Revert on error
-      setLikedByUser(wasLiked);
-      setLikeCount((prev) => (wasLiked ? prev + 1 : prev - 1));
-      console.error("Error toggling like:", error);
-    } finally {
-      setLiking(false);
-    }
+  const handlePhotoScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (scrollWidth === 0) return;
+    const index = Math.round(e.nativeEvent.contentOffset.x / scrollWidth);
+    if (index !== activePhotoIndex) setActivePhotoIndex(index);
   };
+
+  const handleScrollLayout = (e: LayoutChangeEvent) => {
+    setScrollWidth(e.nativeEvent.layout.width);
+  };
+
+  const openImageViewer = () => {
+    if (photos.length === 0) return;
+    navigation.navigate("ImageViewer", {
+      photos,
+      initialIndex: activePhotoIndex,
+    });
+  };
+
+  const isOwnPost = post.username === user?.username;
 
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
@@ -55,12 +80,14 @@ export function FeedPostCard({ post, onOpenComments }: Props) {
     return `${Math.floor(seconds / 604800)}w ago`;
   };
 
-  const formatDate = (dateString: string) => {
-    return parseLocalDate(dateString).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
+  const formatOverlineDate = (dateString: string) => {
+    return parseLocalDate(dateString)
+      .toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+      .toUpperCase();
   };
 
   const formatBodyTag = (tag: string) => {
@@ -70,28 +97,47 @@ export function FeedPostCard({ post, onOpenComments }: Props) {
       .join(" ");
   };
 
+  const formatDuration = (minutes: number) => {
+    if (minutes < 60) return `${minutes}m`;
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return m === 0 ? `${h}h` : `${h}h ${m}m`;
+  };
+
+  const textMuted: StyleProp<TextStyle> = { color: colors.text, opacity: 0.5 };
+  const textFaint: StyleProp<TextStyle> = { color: colors.text, opacity: 0.4 };
+
+  const userHeader = (
+    <View style={styles.userInfo}>
+      <Avatar
+        username={post.username}
+        profilePictureUrl={post.userProfilePictureUrl}
+        size={40}
+      />
+      <View>
+        <Text style={[styles.username, { color: colors.text }]}>
+          {post.username}
+        </Text>
+        <Text style={[styles.timestamp, textFaint]}>
+          {formatTimeAgo(post.createdAt)}
+        </Text>
+      </View>
+    </View>
+  );
+
+  const hasDuration = post.durationMin != null && post.durationMin > 0;
+  const hasMuscles = Array.isArray(post.bodyTags) && post.bodyTags.length > 0;
+
   return (
-    <View style={[styles.card, { backgroundColor: colors.card }]}>
-      {/* User Header */}
+    <View
+      style={[
+        styles.card,
+        { backgroundColor: cardBg, borderColor: colors.border },
+      ]}
+    >
       <View style={styles.header}>
         {isOwnPost ? (
-          <View style={styles.userInfo}>
-            <Avatar
-              username={post.username}
-              profilePictureUrl={post.userProfilePictureUrl}
-              size={40}
-            />
-            <View>
-              <Text style={[styles.username, { color: colors.text }]}>
-                {post.username}
-              </Text>
-              <Text
-                style={[styles.timestamp, { color: colors.text, opacity: 0.6 }]}
-              >
-                {formatTimeAgo(post.createdAt)}
-              </Text>
-            </View>
-          </View>
+          userHeader
         ) : (
           <TouchableOpacity
             activeOpacity={0.7}
@@ -101,31 +147,57 @@ export function FeedPostCard({ post, onOpenComments }: Props) {
               })
             }
           >
-            <View style={styles.userInfo}>
-              <Avatar
-                username={post.username}
-                profilePictureUrl={post.userProfilePictureUrl}
-                size={40}
-              />
-              <View>
-                <Text style={[styles.username, { color: colors.text }]}>
-                  {post.username}
-                </Text>
-                <Text
-                  style={[
-                    styles.timestamp,
-                    { color: colors.text, opacity: 0.6 },
-                  ]}
-                >
-                  {formatTimeAgo(post.createdAt)}
-                </Text>
-              </View>
-            </View>
+            {userHeader}
           </TouchableOpacity>
         )}
       </View>
 
-      {/* Workout Info */}
+      {photos.length > 0 && (
+        <View style={styles.carouselWrap}>
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onLayout={handleScrollLayout}
+            onMomentumScrollEnd={handlePhotoScroll}
+            scrollEnabled={photos.length > 1}
+          >
+            {photos.map((url, i) => (
+              <TouchableWithoutFeedback
+                key={`${url}-${i}`}
+                onPress={openImageViewer}
+              >
+                <Image
+                  source={{ uri: url }}
+                  style={[
+                    styles.image,
+                    { width: scrollWidth, borderColor: colors.border },
+                  ]}
+                  resizeMode="cover"
+                />
+              </TouchableWithoutFeedback>
+            ))}
+          </ScrollView>
+          {photos.length > 1 && (
+            <View style={styles.dotsRow}>
+              {photos.map((_, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.dot,
+                    {
+                      backgroundColor:
+                        i === activePhotoIndex ? colors.text : colors.border,
+                      opacity: i === activePhotoIndex ? 0.9 : 0.5,
+                    },
+                  ]}
+                />
+              ))}
+            </View>
+          )}
+        </View>
+      )}
+
       <TouchableOpacity
         activeOpacity={0.7}
         onPress={() => {
@@ -134,85 +206,46 @@ export function FeedPostCard({ post, onOpenComments }: Props) {
             workoutId: post.workoutId,
             caption: post.caption,
             workoutName: post.workoutName,
+            postId: post.postId,
+            initialLikeCount: likeCount,
+            initialLikedByUser: likedByUser,
           });
         }}
       >
-        <View style={styles.workoutInfo}>
+        <View style={styles.titleBlock}>
+          <Text style={[styles.dateOverline, textMuted]}>
+            {formatOverlineDate(post.datePerformed)}
+          </Text>
           <Text style={[styles.workoutName, { color: colors.text }]}>
             {post.workoutName}
           </Text>
-          <View style={styles.workoutMeta}>
-            <View style={styles.metaItem}>
-              <Ionicons name="calendar-outline" size={16} color={colors.text} />
-              <Text
-                style={[styles.metaText, { color: colors.text, opacity: 0.6 }]}
-              >
-                {formatDate(post.datePerformed)}
-              </Text>
-            </View>
-            {post.durationMin != null && post.durationMin > 0 && (
-              <View style={styles.metaItem}>
-                <Ionicons name="time-outline" size={16} color={colors.text} />
-                <Text
-                  style={[
-                    styles.metaText,
-                    { color: colors.text, opacity: 0.6 },
-                  ]}
-                >
-                  {post.durationMin} min
-                </Text>
-              </View>
-            )}
-            {Array.isArray(post.bodyTags) && post.bodyTags.length > 0 && (
-              <View style={styles.metaItem}>
-                <Ionicons
-                  name="fitness-outline"
-                  size={16}
-                  color={colors.text}
-                />
-                <Text
-                  style={[
-                    styles.metaText,
-                    { color: colors.text, opacity: 0.6 },
-                  ]}
-                >
-                  {post.bodyTags.map(formatBodyTag).join(", ")}
-                </Text>
-              </View>
-            )}
-            <View style={styles.metaRow}>
-              <View style={styles.metaItem}>
-                <Ionicons name="list-outline" size={16} color={colors.text} />
-                <Text
-                  style={[
-                    styles.metaText,
-                    { color: colors.text, opacity: 0.6 },
-                  ]}
-                >
-                  {post.exerciseCount}{" "}
-                  {post.exerciseCount === 1 ? "exercise" : "exercises"}
-                </Text>
-              </View>
-              <View style={styles.metaItem}>
-                <Ionicons
-                  name="stats-chart-outline"
-                  size={16}
-                  color={colors.text}
-                />
-                <Text
-                  style={[
-                    styles.metaText,
-                    { color: colors.text, opacity: 0.6 },
-                  ]}
-                >
-                  {post.setCount} {post.setCount === 1 ? "set" : "sets"}
-                </Text>
-              </View>
-            </View>
-          </View>
         </View>
 
-        {/* Caption */}
+        <View style={styles.metricsRow}>
+          {hasDuration && (
+            <View style={styles.metric}>
+              <Text style={[styles.metricLabel, textMuted]}>Time</Text>
+              <Text style={[styles.metricValue, { color: colors.text }]}>
+                {formatDuration(post.durationMin!)}
+              </Text>
+            </View>
+          )}
+          <View style={styles.metric}>
+            <Text style={[styles.metricLabel, textMuted]}>Exercises</Text>
+            <Text style={[styles.metricValue, { color: colors.text }]}>
+              {post.exerciseCount}
+            </Text>
+          </View>
+          {hasMuscles && (
+            <View style={styles.metric}>
+              <Text style={[styles.metricLabel, textMuted]}>Muscles</Text>
+              <Text style={[styles.musclesText, { color: colors.text }]}>
+                {post.bodyTags.map(formatTag).join(", ")}
+              </Text>
+            </View>
+          )}
+        </View>
+
         {post.caption && (
           <Text style={[styles.caption, { color: colors.text }]}>
             {post.caption}
@@ -220,13 +253,16 @@ export function FeedPostCard({ post, onOpenComments }: Props) {
         )}
       </TouchableOpacity>
 
-      {/* Engagement */}
-      <View style={[styles.engagement, { borderTopColor: colors.border }]}>
-        <TouchableOpacity
-          style={styles.engagementItem}
-          onPress={handleLike}
-          disabled={liking}
-        >
+      <View
+        style={[
+          styles.engagement,
+          {
+            backgroundColor: innerBg,
+            borderColor: colors.border,
+          },
+        ]}
+      >
+        <TouchableOpacity style={styles.engagementItem} onPress={handleLike}>
           <Ionicons
             name={likedByUser ? "heart" : "heart-outline"}
             size={24}
@@ -259,93 +295,121 @@ export function FeedPostCard({ post, onOpenComments }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 12,
-    marginBottom: 16,
+    marginHorizontal: 16,
+    marginBottom: 14,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 16,
-    paddingBottom: 0,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 12,
   },
   userInfo: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
   },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "600",
-  },
   username: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
+    letterSpacing: -0.2,
   },
   timestamp: {
     fontSize: 12,
     marginTop: 2,
+    fontVariant: ["tabular-nums"],
   },
-  workoutInfo: {
-    padding: 16,
+  carouselWrap: {
+    marginHorizontal: 14,
+    marginBottom: 12,
+  },
+  image: {
+    height: 220,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  dotsRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 8,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  titleBlock: {
+    paddingHorizontal: 16,
+  },
+  dateOverline: {
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 1.2,
+    marginBottom: 6,
   },
   workoutName: {
-    fontSize: 18,
+    fontSize: 26,
     fontWeight: "700",
-    marginBottom: 8,
+    letterSpacing: -0.8,
+    lineHeight: 28,
   },
-  workoutMeta: {
+  metricsRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 16,
+    paddingHorizontal: 16,
+    paddingTop: 18,
+    paddingBottom: 16,
+    gap: 12,
   },
-  metaItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
+  metric: {
+    flex: 1,
   },
-  metaRow: {
-    flexDirection: "row",
-    gap: 16,
-    width: "100%",
+  metricLabel: {
+    fontSize: 13,
+    fontWeight: "500",
   },
-  metaText: {
-    fontSize: 14,
+  metricValue: {
+    fontSize: 22,
+    fontWeight: "700",
+    letterSpacing: -0.5,
+    marginTop: 2,
+    fontVariant: ["tabular-nums"],
+  },
+  musclesText: {
+    fontSize: 18,
+    fontWeight: "600",
+    letterSpacing: -0.3,
+    lineHeight: 24,
+    marginTop: 2,
   },
   caption: {
     paddingHorizontal: 16,
-    paddingBottom: 16,
-    fontSize: 15,
+    paddingBottom: 14,
+    fontSize: 14,
     lineHeight: 20,
   },
   engagement: {
+    marginHorizontal: 12,
+    marginBottom: 12,
+    padding: 4,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
     flexDirection: "row",
-    gap: 24,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
   },
   engagementItem: {
+    flex: 1,
+    height: 42,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 8,
   },
   engagementText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "600",
+    letterSpacing: -0.2,
+    fontVariant: ["tabular-nums"],
   },
 });

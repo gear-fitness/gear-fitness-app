@@ -1,21 +1,21 @@
 import React, { useMemo } from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../../context/AuthContext";
 import { useOnboardingColors } from "../../onboarding/components/useOnboardingColors";
 import { makeOnboardingStyles } from "../../onboarding/components/makeOnboardingStyles";
-import { SettingsTopBar } from "../../../components/Settings/SettingsTopBar";
+import { FloatingCloseButton } from "../../../components/FloatingCloseButton";
 
 export function ViewEmailScreen() {
-  const navigation = useNavigation<any>();
   const { user } = useAuth();
   const colors = useOnboardingColors();
+  const insets = useSafeAreaInsets();
   const shared = useMemo(() => makeOnboardingStyles(colors), [colors]);
 
   return (
     <View style={[shared.screen, { backgroundColor: colors.screenBg }]}>
-      <SettingsTopBar title="Email" onBack={() => navigation.goBack()} />
-      <View style={shared.body}>
+      <FloatingCloseButton direction="left" accessibilityLabel="Back" />
+      <View style={[shared.body, { paddingTop: insets.top + 60 }]}>
         <Text style={shared.heading}>Associated email</Text>
         <Text style={shared.subheading}>
           This is the email linked to your Gear account.

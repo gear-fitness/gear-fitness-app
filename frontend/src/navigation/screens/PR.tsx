@@ -9,12 +9,14 @@ import {
 } from "react-native";
 import React, { useState, useEffect } from "react";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import bench from "../../assets/bench.png";
 import squat from "../../assets/squat.png";
 import deadlift from "../../assets/deadlift.png";
 import { getUserPersonalRecords } from "../../api/workoutService";
 import { PersonalRecord } from "../../api/types";
 import { useTrackTab } from "../../hooks/useTrackTab";
+import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 
 type RootStackParamList = {
   PR: { userId: string };
@@ -27,6 +29,7 @@ export function PR({ route }: Props) {
 
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+  const insets = useSafeAreaInsets();
   const { userId } = route.params;
 
   const [prs, setPrs] = useState<PersonalRecord[]>([]);
@@ -76,7 +79,8 @@ export function PR({ route }: Props) {
           { backgroundColor: isDark ? "#121212" : "#fff" },
         ]}
       >
-        <ActivityIndicator size="large" color="#1877F2" />
+        <FloatingCloseButton direction="left" accessibilityLabel="Back" />
+        <ActivityIndicator size="large" color={isDark ? "#fff" : "#000"} />
         <Text style={[styles.loadingText, { color: isDark ? "#fff" : "#000" }]}>
           Loading PRs...
         </Text>
@@ -88,9 +92,13 @@ export function PR({ route }: Props) {
     <View
       style={[
         styles.container,
-        { backgroundColor: isDark ? "#121212" : "#fff" },
+        {
+          backgroundColor: isDark ? "#121212" : "#fff",
+          paddingTop: insets.top + 60,
+        },
       ]}
     >
+      <FloatingCloseButton direction="left" accessibilityLabel="Back" />
       {prs.map((pr, index) => (
         <View
           key={index}

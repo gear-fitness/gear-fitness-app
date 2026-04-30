@@ -41,7 +41,7 @@ public class GeminiService {
           "- Answer directly without asking clarifying questions first\n" +
           "- For off-topic questions, politely redirect to this exercise",
         exercise.getName(),
-        exercise.getBodyPart(),
+        exercise.getBodyParts(),
         exercise.getDescription() != null ? exercise.getDescription() : ""
       );
 

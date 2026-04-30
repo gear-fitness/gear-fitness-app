@@ -9,6 +9,7 @@ import {
   ScrollView,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../../context/AuthContext";
 import {
   updateUserProfile,
@@ -16,7 +17,7 @@ import {
 } from "../../../api/userService";
 import { useOnboardingColors } from "../../onboarding/components/useOnboardingColors";
 import { makeOnboardingStyles } from "../../onboarding/components/makeOnboardingStyles";
-import { SettingsTopBar } from "../../../components/Settings/SettingsTopBar";
+import { FloatingCloseButton } from "../../../components/FloatingCloseButton";
 
 type AvailabilityStatus =
   | "idle"
@@ -29,6 +30,7 @@ export function EditUsernameScreen() {
   const navigation = useNavigation<any>();
   const { user, refreshUser } = useAuth();
   const colors = useOnboardingColors();
+  const insets = useSafeAreaInsets();
   const shared = useMemo(() => makeOnboardingStyles(colors), [colors]);
 
   const [username, setUsername] = useState(user?.username ?? "");
@@ -104,14 +106,9 @@ export function EditUsernameScreen() {
 
   return (
     <View style={[shared.screen, { backgroundColor: colors.screenBg }]}>
-      <SettingsTopBar
-        title="Username"
-        onBack={() => navigation.goBack()}
-        onSave={handleSave}
-        saveDisabled={!canSave}
-      />
+      <FloatingCloseButton direction="left" accessibilityLabel="Back" />
       <ScrollView
-        style={shared.body}
+        style={[shared.body, { paddingTop: insets.top + 60 }]}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.bodyContent}
       >

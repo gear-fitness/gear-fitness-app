@@ -32,3 +32,11 @@ export function formatDay(day: string): string {
   };
   return map[day] ?? day;
 }
+
+export function formatDayAbbrev(day: string): string {
+  const upper = day.toUpperCase();
+  const short = DAY_SHORT[upper];
+  if (short) return short;
+  if ((DAYS as readonly string[]).includes(upper)) return upper;
+  return upper.slice(0, 3);
+}

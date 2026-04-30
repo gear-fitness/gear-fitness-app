@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { View, Text, Alert, Pressable, StyleSheet } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Picker } from "@react-native-picker/picker";
 import { useAuth } from "../../../context/AuthContext";
 import { updateUserProfile } from "../../../api/userService";
@@ -13,7 +14,8 @@ import {
 import { PickerSheet } from "../../onboarding/components/PickerSheet";
 import { useOnboardingColors } from "../../onboarding/components/useOnboardingColors";
 import { makeOnboardingStyles } from "../../onboarding/components/makeOnboardingStyles";
-import { SettingsTopBar } from "../../../components/Settings/SettingsTopBar";
+import { FloatingCloseButton } from "../../../components/FloatingCloseButton";
+import { syncOnboardingDataToHealthKit } from "../../../utils/healthKitSync";
 
 function toHeightInches(h: Height): number {
   if (h.unit === "ft_in") return h.ft * 12 + h.inch;
@@ -30,6 +32,7 @@ export function EditHeightScreen() {
   const navigation = useNavigation<any>();
   const { user, refreshUser } = useAuth();
   const colors = useOnboardingColors();
+  const insets = useSafeAreaInsets();
   const shared = useMemo(() => makeOnboardingStyles(colors), [colors]);
 
   const initialInches = user?.heightInches;
@@ -65,6 +68,7 @@ export function EditHeightScreen() {
     try {
       await updateUserProfile(toHeightInches(height));
       await refreshUser();
+      syncOnboardingDataToHealthKit({ height });
       navigation.goBack();
     } catch {
       Alert.alert("Error", "Failed to update height. Please try again.");
@@ -101,13 +105,8 @@ export function EditHeightScreen() {
 
   return (
     <View style={[shared.screen, { backgroundColor: colors.screenBg }]}>
-      <SettingsTopBar
-        title="Height"
-        onBack={() => navigation.goBack()}
-        onSave={handleSave}
-        saveDisabled={!canSave}
-      />
-      <View style={shared.body}>
+      <FloatingCloseButton direction="left" accessibilityLabel="Back" />
+      <View style={[shared.body, { paddingTop: insets.top + 60 }]}>
         <Text style={shared.heading}>How tall are you?</Text>
         <Text style={shared.subheading}>
           Helps calibrate your workout intensity and calorie goals.

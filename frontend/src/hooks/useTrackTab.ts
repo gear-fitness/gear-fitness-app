@@ -1,14 +1,22 @@
 import { useCallback } from "react";
 import { useFocusEffect } from "@react-navigation/native";
-import { useWorkoutTimer } from "../context/WorkoutContext";
+import { useWorkoutTimer, LastModalScreen } from "../context/WorkoutContext";
 
-export function useTrackTab(tabName: string) {
-  const { setActiveTab } = useWorkoutTimer();
+interface UseTrackTabOptions {
+  isModal?: boolean;
+}
+
+export function useTrackTab(tabName: string, opts?: UseTrackTabOptions) {
+  const { setActiveTab, setLastModalScreen } = useWorkoutTimer();
+  const isModal = opts?.isModal ?? false;
 
   // Use useFocusEffect so tab updates when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       setActiveTab(tabName);
-    }, [tabName, setActiveTab]),
+      if (isModal) {
+        setLastModalScreen(tabName as LastModalScreen);
+      }
+    }, [tabName, isModal, setActiveTab, setLastModalScreen]),
   );
 }

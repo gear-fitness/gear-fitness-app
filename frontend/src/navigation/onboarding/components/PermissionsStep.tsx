@@ -1,24 +1,40 @@
-import React, { useMemo } from "react";
-import { Alert, View, Text, StyleSheet, Pressable } from "react-native";
+import React, { useMemo, useState } from "react";
+import {
+  Alert,
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  Platform,
+} from "react-native";
 import * as Notifications from "expo-notifications";
-import { OnboardingPermissions } from "../types";
+
+import { Height, Weight, OnboardingPermissions } from "../types";
 import { OnboardingTopBar } from "./OnboardingTopBar";
 import { useOnboardingColors } from "./useOnboardingColors";
 import { makeOnboardingStyles } from "./makeOnboardingStyles";
+import { syncOnboardingDataToHealthKit } from "../../../utils/healthKitSync";
 
 interface ToggleSwitchProps {
   value: boolean;
   onToggle: () => void;
+  disabled?: boolean;
   colors: ReturnType<typeof useOnboardingColors>;
 }
 
-function ToggleSwitch({ value, onToggle, colors }: ToggleSwitchProps) {
+function ToggleSwitch({
+  value,
+  onToggle,
+  disabled,
+  colors,
+}: ToggleSwitchProps) {
   return (
     <Pressable
-      onPress={onToggle}
+      onPress={disabled ? undefined : onToggle}
       style={[
         styles.toggle,
         { backgroundColor: value ? colors.accent : colors.unitToggleBg },
+        disabled && { opacity: 0.5 },
       ]}
       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
     >
@@ -40,6 +56,7 @@ interface PermCardProps {
   emoji: string;
   enabled: boolean;
   onToggle: () => void;
+  disabled?: boolean;
   colors: ReturnType<typeof useOnboardingColors>;
 }
 
@@ -50,6 +67,7 @@ function PermCard({
   emoji,
   enabled,
   onToggle,
+  disabled,
   colors,
 }: PermCardProps) {
   return (
@@ -68,13 +86,20 @@ function PermCard({
           {subtitle}
         </Text>
       </View>
-      <ToggleSwitch value={enabled} onToggle={onToggle} colors={colors} />
+      <ToggleSwitch
+        value={enabled}
+        onToggle={onToggle}
+        disabled={disabled}
+        colors={colors}
+      />
     </View>
   );
 }
 
 interface PermissionsStepProps {
   permissions?: OnboardingPermissions;
+  height?: Height;
+  weight?: Weight;
   onPermissionsChange: (p: OnboardingPermissions) => void;
   onBack: () => void;
   onContinue: () => void;
@@ -82,58 +107,79 @@ interface PermissionsStepProps {
 
 export function PermissionsStep({
   permissions,
+  height,
+  weight,
   onPermissionsChange,
   onBack,
   onContinue,
 }: PermissionsStepProps) {
   const colors = useOnboardingColors();
   const shared = useMemo(() => makeOnboardingStyles(colors), [colors]);
+  const [healthLoading, setHealthLoading] = useState(false);
 
   const health = permissions?.health ?? false;
   const location = permissions?.location ?? false;
   const notifications = permissions?.notifications ?? false;
 
-  const toggle = async (key: keyof OnboardingPermissions) => {
-    if (key === "notifications") {
-      if (notifications) {
-        onPermissionsChange({
-          health,
-          location,
-          notifications: false,
-        });
-        return;
-      }
+  const handleHealthToggle = async () => {
+    if (healthLoading) return;
 
-      const { status } = await Notifications.requestPermissionsAsync();
-      const granted = status === "granted";
-      onPermissionsChange({
-        health,
-        location,
-        notifications: granted,
-      });
-      if (!granted) {
-        Alert.alert(
-          "Notifications Disabled",
-          "Enable notifications in Settings to receive workout reminders.",
-        );
-      }
+    // Turning OFF — just flip the flag. iOS doesn't let apps revoke
+    // HealthKit permission programmatically.
+    if (health) {
+      onPermissionsChange({ health: false, location, notifications });
       return;
     }
 
-    if (key === "health" || key === "location") {
-      const nextValue = !permissions?.[key];
-      onPermissionsChange({
-        health,
-        location,
-        notifications,
-        [key]: nextValue,
-      });
-      if (nextValue) {
-        Alert.alert(
-          "Permission Setup Pending",
-          `${key === "health" ? "Apple Health" : "Location"} permission prompts will be enabled in a follow-up update.`,
-        );
-      }
+    if (Platform.OS !== "ios") {
+      Alert.alert(
+        "Not Available",
+        "Apple Health is only available on iOS devices.",
+      );
+      return;
+    }
+
+    setHealthLoading(true);
+    try {
+      // Push the user's onboarding values into HealthKit. This requests
+      // permission, then writes height + weight (DOB is read-only in
+      // HealthKit). Best-effort — silent overwrite, no comparison.
+      await syncOnboardingDataToHealthKit({ height, weight });
+      onPermissionsChange({ health: true, location, notifications });
+    } catch (err) {
+      console.error("HealthKit sync failed:", err);
+      // Still flip the toggle on — the user said yes. The sync just
+      // didn't take. They'll get another shot on next sync attempt.
+      onPermissionsChange({ health: true, location, notifications });
+    } finally {
+      setHealthLoading(false);
+    }
+  };
+
+  const handleNotificationsToggle = async () => {
+    if (notifications) {
+      onPermissionsChange({ health, location, notifications: false });
+      return;
+    }
+    const { status } = await Notifications.requestPermissionsAsync();
+    const granted = status === "granted";
+    onPermissionsChange({ health, location, notifications: granted });
+    if (!granted) {
+      Alert.alert(
+        "Notifications Disabled",
+        "Enable notifications in Settings to receive workout reminders.",
+      );
+    }
+  };
+
+  const handleLocationToggle = () => {
+    const next = !location;
+    onPermissionsChange({ health, location: next, notifications });
+    if (next) {
+      Alert.alert(
+        "Permission Setup Pending",
+        "Location permission prompts will be enabled in a follow-up update.",
+      );
     }
   };
 
@@ -141,36 +187,41 @@ export function PermissionsStep({
     <View style={shared.screen}>
       <OnboardingTopBar progress={0.8} onBack={onBack} />
       <View style={shared.body}>
-        <Text style={shared.heading}>Almost there</Text>
+        <Text style={shared.heading}>First we need some permissions</Text>
         <Text style={shared.subheading}>
           Enable these to get the most out of Gear Fitness.
         </Text>
         <View style={styles.cards}>
           <PermCard
             title="Apple Health"
-            subtitle="Sync steps, heart rate, and workouts"
+            subtitle={
+              healthLoading
+                ? "Syncing…"
+                : "Keep your height and weight in sync with Apple Health"
+            }
             accentColor="#FFEEF1"
             emoji="❤️"
             enabled={health}
-            onToggle={() => toggle("health")}
+            onToggle={handleHealthToggle}
+            disabled={healthLoading}
             colors={colors}
           />
           <PermCard
             title="Location"
-            subtitle="GPS tracking for outdoor workouts"
+            subtitle="So we can see which gyms you visit and suggest nearby workout spots"
             accentColor="#E8F1FC"
             emoji="📍"
             enabled={location}
-            onToggle={() => toggle("location")}
+            onToggle={handleLocationToggle}
             colors={colors}
           />
           <PermCard
             title="Notifications"
-            subtitle="Reminders for workouts and milestones"
+            subtitle="Get notified about posts"
             accentColor="#FFF4E0"
             emoji="🔔"
             enabled={notifications}
-            onToggle={() => toggle("notifications")}
+            onToggle={handleNotificationsToggle}
             colors={colors}
           />
         </View>

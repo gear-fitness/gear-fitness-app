@@ -46,8 +46,10 @@ import { ProfileStep } from "../onboarding/components/ProfileStep";
 import { PermissionsStep } from "../onboarding/components/PermissionsStep";
 import { AllSetStep } from "../onboarding/components/AllSetStep";
 import { calcAge } from "../onboarding/calcAge";
+import { useTrackTab } from "../../hooks/useTrackTab";
 
-const initialBg = Appearance.getColorScheme() === "dark" ? "#000" : "#F2F2F7";
+const initialBg =
+  Appearance.getColorScheme() === "dark" ? "#0a0a0a" : "#fafafa";
 
 const STEP_COMPONENTS = [
   IntroStep,
@@ -68,6 +70,7 @@ export function OnboardingScreen() {
   const { login } = useAuth();
   const insets = useSafeAreaInsets();
   const colors = useOnboardingColors();
+  useTrackTab("Onboarding");
 
   const [draft, setDraft] = useState<OnboardingDraft>(defaultDraft());
   const [hydrated, setHydrated] = useState(false);
@@ -253,6 +256,10 @@ export function OnboardingScreen() {
       },
       {
         permissions: draft.permissions,
+        // PermissionsStep needs the current draft height/weight so it
+        // can push them into HealthKit when the user toggles Apple Health on.
+        height: draft.height,
+        weight: draft.weight,
         onPermissionsChange: (p: OnboardingPermissions) =>
           updateDraft({ permissions: p }),
         ...base,

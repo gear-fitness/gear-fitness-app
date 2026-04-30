@@ -1,7 +1,5 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { BackButton } from "../components/BackButton";
-import { useThemeColors } from "../hooks/useThemeColors";
 import { Settings } from "./screens/Settings";
 import { EditNameScreen } from "./screens/settings/EditNameScreen";
 import { EditUsernameScreen } from "./screens/settings/EditUsernameScreen";
@@ -25,32 +23,9 @@ export type SettingsStackParamList = {
 const Stack = createNativeStackNavigator<SettingsStackParamList>();
 
 export function SettingsNavigator() {
-  const colors = useThemeColors();
-
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen
-        name="SettingsMain"
-        component={Settings}
-        options={({ navigation }) => ({
-          headerShown: true,
-          title: "Profile",
-          headerStyle: { backgroundColor: colors.bg },
-          headerTitleStyle: {
-            color: colors.text,
-            fontWeight: "800" as const,
-            fontSize: 30,
-          },
-          headerTintColor: colors.text,
-          headerShadowVisible: false,
-          headerLeft: () => (
-            <BackButton
-              onPress={() => navigation.getParent()?.goBack()}
-              color={colors.text}
-            />
-          ),
-        })}
-      />
+      <Stack.Screen name="SettingsMain" component={Settings} />
       <Stack.Screen name="EditName" component={EditNameScreen} />
       <Stack.Screen name="EditUsername" component={EditUsernameScreen} />
       <Stack.Screen name="ViewEmail" component={ViewEmailScreen} />

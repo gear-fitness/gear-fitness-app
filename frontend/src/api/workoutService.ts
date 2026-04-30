@@ -4,6 +4,7 @@
  */
 
 import apiClient from "./apiClient";
+import { BodyPartDTO } from "./exerciseService";
 import {
   DailyVolumeData,
   WeeklyVolumeData,
@@ -11,6 +12,7 @@ import {
   WorkoutDetail,
   PersonalRecord,
 } from "./types";
+import { getCurrentLocalDateString } from "../utils/date";
 
 export interface WorkoutSubmission {
   name: string;
@@ -21,6 +23,7 @@ export interface WorkoutSubmission {
   createPost?: boolean;
   caption?: string;
   imageUrl?: string;
+  photoUrls?: string[];
 }
 
 export interface ExerciseSubmission {
@@ -39,11 +42,11 @@ export interface WorkoutDetailResponse {
   name: string;
   datePerformed: string;
   durationMin: number;
-  bodyTag: string;
+  bodyTags: string[];
   exercises: Array<{
     workoutExerciseId: string;
     exerciseName: string;
-    bodyPart: string;
+    bodyParts: BodyPartDTO[];
     position: number;
     note: string;
     sets: Array<{
@@ -54,12 +57,32 @@ export interface WorkoutDetailResponse {
       isPr: boolean;
     }>;
   }>;
+  photoUrls: string[];
 }
 
 export async function submitWorkout(
   submission: WorkoutSubmission,
 ): Promise<WorkoutDetailResponse> {
   const { data } = await apiClient.post("/workouts/submit", submission);
+  return data;
+}
+
+/**
+ * Upload a single workout photo to S3. Returns the public S3 URL.
+ */
+export async function uploadWorkoutPhoto(
+  imageUri: string,
+): Promise<{ url: string }> {
+  const formData = new FormData();
+  formData.append("file", {
+    uri: imageUri,
+    type: "image/jpeg",
+    name: "workout-photo.jpg",
+  } as any);
+
+  const { data } = await apiClient.post("/workouts/photos", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
   return data;
 }
 
@@ -73,7 +96,7 @@ export async function getWeeklyVolume(
   const { data } = await apiClient.get(
     `/workouts/user/${userId}/weekly-volume`,
     {
-      params: { weeks },
+      params: { weeks, localDate: getCurrentLocalDateString() },
     },
   );
   return data;
@@ -90,7 +113,7 @@ export async function getDailyVolume(
   const { data } = await apiClient.get(
     `/workouts/user/${userId}/daily-volume`,
     {
-      params: { weeks, weekStartDay },
+      params: { weeks, weekStartDay, localDate: getCurrentLocalDateString() },
     },
   );
   return data;

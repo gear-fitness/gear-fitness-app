@@ -13,13 +13,17 @@ interface StartCountdownOverlayProps {
   countdownValue: number;
   isDark: boolean;
   onCancel: () => void;
+  onSkip: () => void;
 }
+
+const DESTRUCTIVE = "#C93838";
 
 export function StartCountdownOverlay({
   visible,
   countdownValue,
   isDark,
   onCancel,
+  onSkip,
 }: StartCountdownOverlayProps) {
   const countdownScale = useRef(new Animated.Value(0.7)).current;
   const countdownOpacity = useRef(new Animated.Value(0)).current;
@@ -54,38 +58,27 @@ export function StartCountdownOverlay({
         ]}
       >
         <View style={styles.countdownContent}>
-          <Animated.Text
-            style={[
-              styles.countdownNumber,
-              {
-                color: isDark ? "#fff" : "#000",
-                opacity: countdownOpacity,
-                transform: [{ scale: countdownScale }],
-              },
-            ]}
-          >
-            {countdownValue}
-          </Animated.Text>
+          <TouchableOpacity activeOpacity={0.6} onPress={onSkip} hitSlop={25}>
+            <Animated.Text
+              style={[
+                styles.countdownNumber,
+                {
+                  color: isDark ? "#fff" : "#000",
+                  opacity: countdownOpacity,
+                  transform: [{ scale: countdownScale }],
+                },
+              ]}
+            >
+              {countdownValue}
+            </Animated.Text>
+          </TouchableOpacity>
         </View>
 
         <TouchableOpacity
-          style={[
-            styles.countdownCancelButton,
-            {
-              backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "#f4f4f4",
-              borderColor: isDark ? "rgba(255,255,255,0.22)" : "#dedede",
-            },
-          ]}
+          style={[styles.countdownCancelButton]}
           onPress={onCancel}
         >
-          <Text
-            style={[
-              styles.countdownCancelText,
-              { color: isDark ? "#fff" : "#111" },
-            ]}
-          >
-            Cancel
-          </Text>
+          <Text style={[styles.countdownCancelText]}>Cancel</Text>
         </TouchableOpacity>
       </View>
     </Modal>
@@ -111,17 +104,19 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   countdownCancelButton: {
-    width: "62%",
-    maxWidth: 200,
-    height: 44,
+    height: 46,
+    paddingHorizontal: 36,
     marginTop: 24,
-    borderRadius: 999,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: DESTRUCTIVE,
+    backgroundColor: "transparent",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1,
   },
   countdownCancelText: {
     fontSize: 15,
+    color: DESTRUCTIVE,
     fontWeight: "700",
   },
 });

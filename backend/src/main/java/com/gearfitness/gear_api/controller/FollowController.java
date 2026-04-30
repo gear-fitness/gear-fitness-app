@@ -97,11 +97,21 @@ public class FollowController {
   /**
    * GET /api/follows/{userId}/followers
    * Get list of users following the specified user
+   * Includes isFollowing flag relative to the current authenticated user
    */
   @GetMapping("/{userId}/followers")
-  public ResponseEntity<?> getFollowers(@PathVariable UUID userId) {
+  public ResponseEntity<?> getFollowers(
+    @RequestHeader("Authorization") String authHeader,
+    @PathVariable UUID userId
+  ) {
     try {
-      List<FollowerDTO> followers = followService.getFollowers(userId);
+      String token = authHeader.substring(7);
+      UUID currentUserId = jwtService.extractUserId(token);
+
+      List<FollowerDTO> followers = followService.getFollowers(
+        userId,
+        currentUserId
+      );
       return ResponseEntity.ok(followers);
     } catch (RuntimeException e) {
       return ResponseEntity.badRequest().body(e.getMessage());
@@ -111,11 +121,21 @@ public class FollowController {
   /**
    * GET /api/follows/{userId}/following
    * Get list of users that the specified user is following
+   * Includes isFollowing flag relative to the current authenticated user
    */
   @GetMapping("/{userId}/following")
-  public ResponseEntity<?> getFollowing(@PathVariable UUID userId) {
+  public ResponseEntity<?> getFollowing(
+    @RequestHeader("Authorization") String authHeader,
+    @PathVariable UUID userId
+  ) {
     try {
-      List<FollowerDTO> following = followService.getFollowing(userId);
+      String token = authHeader.substring(7);
+      UUID currentUserId = jwtService.extractUserId(token);
+
+      List<FollowerDTO> following = followService.getFollowing(
+        userId,
+        currentUserId
+      );
       return ResponseEntity.ok(following);
     } catch (RuntimeException e) {
       return ResponseEntity.badRequest().body(e.getMessage());

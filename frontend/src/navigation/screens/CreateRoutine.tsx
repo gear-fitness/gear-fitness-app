@@ -1,4 +1,4 @@
-import React, { useState, useLayoutEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -12,7 +12,10 @@ import {
   Platform,
   Alert,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import {
   createRoutine,
@@ -20,11 +23,13 @@ import {
 } from "../../api/routineService";
 import { useAuth } from "../../context/AuthContext";
 import { parseLocalDate } from "../../utils/date";
-import { BackButton } from "../../components/BackButton";
+import { FloatingCloseButton } from "../../components/FloatingCloseButton";
+import { SearchBar } from "../../components/SearchBar";
 import { DAYS, DAY_FULL } from "../../utils/days";
 import { useThemeColors } from "../../hooks/useThemeColors";
 import { useExerciseList } from "../../hooks/useExerciseList";
 import { useUserWorkouts } from "../../hooks/useUserWorkouts";
+import { renderBodyParts } from "../../utils/exerciseUtils";
 
 type Step = "details" | "source" | "scratch" | "workout";
 
@@ -44,6 +49,7 @@ export function CreateRoutine({
   const prefilledWorkoutId = route.params?.prefilledWorkoutId;
   const { user } = useAuth();
   const colors = useThemeColors();
+  const insets = useSafeAreaInsets();
 
   const {
     exercises,
@@ -73,25 +79,29 @@ export function CreateRoutine({
     workout: "source",
   };
 
-  useLayoutEffect(() => {
-    const prevStep = stepBack[step];
-    navigation.setOptions({
-      title: STEP_TITLES[step],
-      headerStyle: { backgroundColor: colors.bg },
-      headerTitleStyle: { color: colors.text, fontWeight: "700", fontSize: 17 },
-      headerTintColor: colors.text,
-      headerShadowVisible: false,
-      gestureEnabled: prevStep === null,
-      headerLeft: () => (
-        <BackButton
-          onPress={
-            prevStep ? () => setStep(prevStep) : () => navigation.goBack()
-          }
-          color={colors.text}
-        />
-      ),
-    });
-  }, [navigation, step, colors]);
+  const handleStepBack = () => {
+    const prev = stepBack[step];
+    if (prev) setStep(prev);
+    else navigation.goBack();
+  };
+
+  const renderTopChrome = () => (
+    <>
+      <FloatingCloseButton
+        direction="left"
+        accessibilityLabel="Back"
+        onPress={handleStepBack}
+      />
+      <Text
+        style={[
+          styles.heroTitle,
+          { color: colors.text, marginTop: insets.top + 60 },
+        ]}
+      >
+        {STEP_TITLES[step]}
+      </Text>
+    </>
+  );
 
   const toggleDay = (day: string) => {
     setSelectedDays((prev) =>
@@ -168,7 +178,7 @@ export function CreateRoutine({
     return exercises.filter(
       (ex) =>
         ex.name.toLowerCase().includes(q) ||
-        ex.bodyPart.toLowerCase().includes(q),
+        ex.bodyParts.some((bp) => bp.bodyPart.toLowerCase().includes(q)),
     );
   }, [exercises, searchQuery]);
 
@@ -176,8 +186,9 @@ export function CreateRoutine({
     return (
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={[styles.flex, { backgroundColor: colors.bg }]}
+        style={[styles.flex, { backgroundColor: colors.appBg }]}
       >
+        {renderTopChrome()}
         <ScrollView contentContainerStyle={styles.stepContent}>
           <Text style={[styles.label, { color: colors.secondary }]}>
             ROUTINE NAME
@@ -196,7 +207,6 @@ export function CreateRoutine({
             value={name}
             onChangeText={setName}
             returnKeyType="done"
-            autoFocus
           />
 
           <Text style={[styles.label, { color: colors.secondary }]}>
@@ -230,14 +240,18 @@ export function CreateRoutine({
           </View>
 
           <TouchableOpacity
-            style={[styles.primaryButton, submitting && styles.disabledButton]}
+            style={[
+              styles.primaryButton,
+              { borderColor: colors.text },
+              submitting && styles.disabledButton,
+            ]}
             onPress={handleNextFromDetails}
             disabled={submitting}
           >
             {submitting ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.text} />
             ) : (
-              <Text style={styles.primaryButtonText}>
+              <Text style={[styles.primaryButtonText, { color: colors.text }]}>
                 {prefilledWorkoutId ? "Save Routine" : "Continue →"}
               </Text>
             )}
@@ -249,80 +263,72 @@ export function CreateRoutine({
 
   if (step === "source") {
     return (
-      <ScrollView
-        style={{ backgroundColor: colors.bg }}
-        contentContainerStyle={styles.stepContent}
-      >
-        <Text style={[styles.sourceSubtitle, { color: colors.secondary }]}>
-          How would you like to build this routine?
-        </Text>
+      <View style={[styles.flex, { backgroundColor: colors.appBg }]}>
+        {renderTopChrome()}
+        <ScrollView contentContainerStyle={styles.stepContent}>
+          <Text style={[styles.sourceSubtitle, { color: colors.secondary }]}>
+            How would you like to build this routine?
+          </Text>
 
-        <TouchableOpacity
-          style={[
-            styles.sourceCard,
-            { backgroundColor: colors.surface, borderColor: colors.border },
-          ]}
-          onPress={handleChooseScratch}
-        >
-          <Text style={styles.sourceCardIcon}>✏️</Text>
-          <View style={styles.sourceCardText}>
-            <Text style={[styles.sourceCardTitle, { color: colors.text }]}>
-              Build from scratch
-            </Text>
-            <Text
-              style={[styles.sourceCardSubtitle, { color: colors.secondary }]}
-            >
-              Search and add exercises manually
-            </Text>
-          </View>
-          <Text style={[styles.chevron, { color: colors.secondary }]}>›</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.sourceCard,
+              { backgroundColor: colors.cardBg, borderColor: colors.border },
+            ]}
+            onPress={handleChooseScratch}
+          >
+            <Text style={styles.sourceCardIcon}>✏️</Text>
+            <View style={styles.sourceCardText}>
+              <Text style={[styles.sourceCardTitle, { color: colors.text }]}>
+                Build from scratch
+              </Text>
+              <Text
+                style={[styles.sourceCardSubtitle, { color: colors.secondary }]}
+              >
+                Search and add exercises manually
+              </Text>
+            </View>
+            <Text style={[styles.chevron, { color: colors.secondary }]}>›</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[
-            styles.sourceCard,
-            { backgroundColor: colors.surface, borderColor: colors.border },
-          ]}
-          onPress={handleChooseWorkout}
-        >
-          <Text style={styles.sourceCardIcon}>📋</Text>
-          <View style={styles.sourceCardText}>
-            <Text style={[styles.sourceCardTitle, { color: colors.text }]}>
-              From a past workout
-            </Text>
-            <Text
-              style={[styles.sourceCardSubtitle, { color: colors.secondary }]}
-            >
-              Copy exercises from a completed workout
-            </Text>
-          </View>
-          <Text style={[styles.chevron, { color: colors.secondary }]}>›</Text>
-        </TouchableOpacity>
-      </ScrollView>
+          <TouchableOpacity
+            style={[
+              styles.sourceCard,
+              { backgroundColor: colors.cardBg, borderColor: colors.border },
+            ]}
+            onPress={handleChooseWorkout}
+          >
+            <Text style={styles.sourceCardIcon}>📋</Text>
+            <View style={styles.sourceCardText}>
+              <Text style={[styles.sourceCardTitle, { color: colors.text }]}>
+                From a past workout
+              </Text>
+              <Text
+                style={[styles.sourceCardSubtitle, { color: colors.secondary }]}
+              >
+                Copy exercises from a completed workout
+              </Text>
+            </View>
+            <Text style={[styles.chevron, { color: colors.secondary }]}>›</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
     );
   }
 
   if (step === "scratch") {
     return (
-      <View style={[styles.flex, { backgroundColor: colors.bg }]}>
+      <View style={[styles.flex, { backgroundColor: colors.appBg }]}>
+        {renderTopChrome()}
         <View style={styles.stepContent}>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: colors.inputBg,
-                color: colors.text,
-                borderColor: colors.border,
-              },
-            ]}
-            placeholder="Search exercises..."
-            placeholderTextColor={colors.secondary}
+          <SearchBar
             value={searchQuery}
             onChangeText={setSearchQuery}
+            placeholder="Search exercises..."
             returnKeyType="search"
           />
           {selectedExerciseIds.length > 0 && (
-            <Text style={[styles.selectedCount, { color: "#007AFF" }]}>
+            <Text style={[styles.selectedCount, { color: colors.tint }]}>
               {selectedExerciseIds.length} selected
             </Text>
           )}
@@ -330,7 +336,7 @@ export function CreateRoutine({
 
         {exercisesLoading ? (
           <View style={styles.centered}>
-            <ActivityIndicator color="#007AFF" />
+            <ActivityIndicator color={colors.tint} />
           </View>
         ) : (
           <FlatList
@@ -362,12 +368,26 @@ export function CreateRoutine({
                         { color: colors.secondary },
                       ]}
                     >
-                      {item.bodyPart}
+                      {renderBodyParts(
+                        item.bodyParts,
+                        colors.secondary,
+                        colors.accent,
+                      )}
                     </Text>
                   </View>
                   {selected && (
-                    <View style={styles.positionBadge}>
-                      <Text style={styles.positionBadgeText}>
+                    <View
+                      style={[
+                        styles.positionBadge,
+                        { backgroundColor: colors.isDark ? "#fff" : "#000" },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.positionBadgeText,
+                          { color: colors.isDark ? "#000" : "#fff" },
+                        ]}
+                      >
                         {posIndex + 1}
                       </Text>
                     </View>
@@ -383,18 +403,24 @@ export function CreateRoutine({
           edges={["bottom"]}
           style={[
             styles.stickyBottom,
-            { backgroundColor: colors.bg, borderTopColor: colors.border },
+            { backgroundColor: colors.appBg, borderTopColor: colors.border },
           ]}
         >
           <TouchableOpacity
-            style={[styles.primaryButton, submitting && styles.disabledButton]}
+            style={[
+              styles.primaryButton,
+              { borderColor: colors.text },
+              submitting && styles.disabledButton,
+            ]}
             onPress={handleSubmitFromScratch}
             disabled={submitting}
           >
             {submitting ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.text} />
             ) : (
-              <Text style={styles.primaryButtonText}>Create Routine</Text>
+              <Text style={[styles.primaryButtonText, { color: colors.text }]}>
+                Create Routine
+              </Text>
             )}
           </TouchableOpacity>
         </SafeAreaView>
@@ -404,10 +430,11 @@ export function CreateRoutine({
 
   // step === "workout"
   return (
-    <View style={[styles.flex, { backgroundColor: colors.bg }]}>
+    <View style={[styles.flex, { backgroundColor: colors.appBg }]}>
+      {renderTopChrome()}
       {workoutsLoading ? (
         <View style={styles.centered}>
-          <ActivityIndicator color="#007AFF" />
+          <ActivityIndicator color={colors.tint} />
         </View>
       ) : workouts.length === 0 ? (
         <View style={styles.centered}>
@@ -464,12 +491,13 @@ export function CreateRoutine({
         edges={["bottom"]}
         style={[
           styles.stickyBottom,
-          { backgroundColor: colors.bg, borderTopColor: colors.border },
+          { backgroundColor: colors.appBg, borderTopColor: colors.border },
         ]}
       >
         <TouchableOpacity
           style={[
             styles.primaryButton,
+            { borderColor: colors.text },
             (!selectedWorkoutId || submitting) && styles.disabledButton,
           ]}
           onPress={() =>
@@ -478,9 +506,11 @@ export function CreateRoutine({
           disabled={!selectedWorkoutId || submitting}
         >
           {submitting ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={colors.text} />
           ) : (
-            <Text style={styles.primaryButtonText}>Create Routine</Text>
+            <Text style={[styles.primaryButtonText, { color: colors.text }]}>
+              Create Routine
+            </Text>
           )}
         </TouchableOpacity>
       </SafeAreaView>
@@ -492,9 +522,16 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
+  heroTitle: {
+    fontSize: 28,
+    fontWeight: "700",
+    letterSpacing: -0.5,
+    paddingHorizontal: 20,
+    marginBottom: 8,
+  },
   stepContent: {
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 8,
     paddingBottom: 20,
   },
   label: {
@@ -528,24 +565,21 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   primaryButton: {
-    backgroundColor: "#007AFF",
-    borderRadius: 999,
-    paddingVertical: 16,
+    height: 54,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    backgroundColor: "transparent",
     alignItems: "center",
+    justifyContent: "center",
     marginTop: 8,
-    shadowColor: "#007AFF",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
   },
   disabledButton: {
     opacity: 0.5,
   },
   primaryButtonText: {
-    color: "#fff",
     fontSize: 17,
-    fontWeight: "700",
+    fontWeight: "600",
+    letterSpacing: -0.2,
   },
   sourceSubtitle: {
     fontSize: 15,
@@ -613,13 +647,11 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: "#007AFF",
     justifyContent: "center",
     alignItems: "center",
     marginLeft: 12,
   },
   positionBadgeText: {
-    color: "#fff",
     fontSize: 13,
     fontWeight: "700",
     includeFontPadding: false,

@@ -18,6 +18,7 @@ public class WorkoutDetailDTO {
   private String name;
   private LocalDate datePerformed;
   private Integer durationMin;
-  private String bodyTag;
+  private List<String> bodyTags;
   private List<WorkoutExerciseDTO> exercises;
+  private List<String> photoUrls;
 }

@@ -1,25 +1,106 @@
-import React, { useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  ActivityIndicator,
+  Animated,
+  Easing,
 } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect } from "@react-navigation/native";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { deleteRoutine, getUserRoutines } from "../../api/routineService";
 import { Routine } from "../../api/types";
 import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
-import { formatDay } from "../../utils/days";
-import { useThemedHeader } from "../../hooks/useThemedHeader";
+import { formatDayAbbrev } from "../../utils/days";
+import { useThemeColors } from "../../hooks/useThemeColors";
+import { getPrimaryBodyPart } from "../../utils/exerciseUtils";
+import { useTrackTab } from "../../hooks/useTrackTab";
+import { FloatingCloseButton } from "../../components/FloatingCloseButton";
+
+function useSkeletonPulse() {
+  const opacity = useRef(new Animated.Value(0.4)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, {
+          toValue: 0.8,
+          duration: 600,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0.4,
+          duration: 600,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [opacity]);
+  return opacity;
+}
+
+function RoutineCardSkeleton({
+  cardBg,
+  border,
+  skeleton,
+}: {
+  cardBg: string;
+  border: string;
+  skeleton: string;
+}) {
+  const opacity = useSkeletonPulse();
+  return (
+    <View style={styles.cardWrapper}>
+      <View
+        style={[styles.card, { backgroundColor: cardBg, borderColor: border }]}
+      >
+        <Animated.View
+          style={{
+            width: 90,
+            height: 11,
+            borderRadius: 3,
+            backgroundColor: skeleton,
+            opacity,
+          }}
+        />
+        <Animated.View
+          style={{
+            width: "60%",
+            height: 22,
+            borderRadius: 6,
+            backgroundColor: skeleton,
+            opacity,
+            marginTop: 4,
+          }}
+        />
+        <Animated.View
+          style={{
+            width: 140,
+            height: 10,
+            borderRadius: 3,
+            backgroundColor: skeleton,
+            opacity,
+            marginTop: 4,
+          }}
+        />
+      </View>
+    </View>
+  );
+}
 
 function getBodyPartsSummary(routine: Routine): string {
   const parts = routine.exercises
     .map((e) => {
-      const bp = e.bodyPart.toLowerCase();
+      const bp = getPrimaryBodyPart(e.bodyParts).toLowerCase();
       return bp.charAt(0).toUpperCase() + bp.slice(1);
     })
     .filter((v, i, arr) => arr.indexOf(v) === i);
@@ -29,13 +110,10 @@ function getBodyPartsSummary(routine: Routine): string {
 }
 
 export function RoutineList() {
-  const { navigation, colors } = useThemedHeader((c) => ({
-    headerTitleStyle: {
-      color: c.text,
-      fontWeight: "800" as const,
-      fontSize: 30,
-    },
-  }));
+  useTrackTab("RoutineList");
+  const navigation = useNavigation<any>();
+  const colors = useThemeColors();
+  const insets = useSafeAreaInsets();
 
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,7 +151,9 @@ export function RoutineList() {
 
   const renderCard = ({ item, index }: { item: Routine; index: number }) => {
     const dayLabel =
-      item.scheduledDays.length > 0 ? formatDay(item.scheduledDays[0]) : "";
+      item.scheduledDays.length > 0
+        ? item.scheduledDays.map(formatDayAbbrev).join(", ")
+        : "";
     const bodyParts = getBodyPartsSummary(item);
 
     return (
@@ -83,7 +163,7 @@ export function RoutineList() {
             style={[
               styles.card,
               {
-                backgroundColor: colors.surface,
+                backgroundColor: colors.cardBg,
                 borderColor: colors.cardBorder,
               },
             ]}
@@ -95,7 +175,11 @@ export function RoutineList() {
             activeOpacity={0.7}
           >
             {dayLabel !== "" && (
-              <Text style={[styles.dayLabel, { color: colors.secondary }]}>
+              <Text
+                style={[styles.dayLabel, { color: colors.secondary }]}
+                numberOfLines={2}
+                ellipsizeMode="tail"
+              >
                 {dayLabel.toUpperCase()}
               </Text>
             )}
@@ -128,14 +212,37 @@ export function RoutineList() {
     </TouchableOpacity>
   );
 
+  const ListHeader = (
+    <>
+      <Text
+        style={[
+          styles.heroTitle,
+          { color: colors.text, marginTop: insets.top + 60 },
+        ]}
+      >
+        Routines
+      </Text>
+      {renderAddCard()}
+    </>
+  );
+
   if (loading) {
     return (
       <SafeAreaView
         edges={["bottom"]}
-        style={[styles.container, { backgroundColor: colors.bg }]}
+        style={[styles.container, { backgroundColor: colors.appBg }]}
       >
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#007AFF" />
+        <FloatingCloseButton direction="left" accessibilityLabel="Back" />
+        <View style={styles.listContent}>
+          {ListHeader}
+          {[0, 1, 2].map((i) => (
+            <RoutineCardSkeleton
+              key={i}
+              cardBg={colors.cardBg}
+              border={colors.cardBorder}
+              skeleton={colors.skeleton}
+            />
+          ))}
         </View>
       </SafeAreaView>
     );
@@ -144,14 +251,14 @@ export function RoutineList() {
   return (
     <SafeAreaView
       edges={["bottom"]}
-      style={[styles.container, { backgroundColor: colors.bg }]}
+      style={[styles.container, { backgroundColor: colors.appBg }]}
     >
-      {/* Cards */}
+      <FloatingCloseButton direction="left" accessibilityLabel="Back" />
       <FlatList
         data={routines}
         keyExtractor={(item) => item.routineId}
         renderItem={renderCard}
-        ListHeaderComponent={renderAddCard}
+        ListHeaderComponent={ListHeader}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       />
@@ -163,14 +270,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  centered: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+  heroTitle: {
+    fontSize: 30,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+    marginBottom: 16,
   },
   listContent: {
     paddingHorizontal: 24,
-    paddingTop: 12,
     paddingBottom: 40,
     gap: 14,
   },

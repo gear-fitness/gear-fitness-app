@@ -50,6 +50,13 @@ export function useStartCountdown({
     }, 1000);
   }, [clearCountdownInterval, duration]);
 
+  const skipCountdown = useCallback(() => {
+    clearCountdownInterval();
+    setIsCountdownVisible(false);
+    setCountdownValue(duration);
+    void onCompleteRef.current();
+  }, [clearCountdownInterval, duration]);
+
   useEffect(() => {
     return () => {
       clearCountdownInterval();
@@ -61,5 +68,6 @@ export function useStartCountdown({
     countdownValue,
     startCountdown,
     cancelCountdown,
+    skipCountdown,
   };
 }

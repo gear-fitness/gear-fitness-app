@@ -2,13 +2,15 @@ import React from "react";
 import { StyleSheet, View, TouchableOpacity } from "react-native";
 import { Text } from "@react-navigation/elements";
 import { useColorScheme } from "react-native";
+import { renderBodyParts } from "../utils/exerciseUtils";
+import { BodyPartDTO } from "../api/exerciseService";
 
 interface ExerciseCardProps {
   exercise: {
     exerciseId: string;
     name: string;
     description?: string;
-    bodyPart: string;
+    bodyParts: BodyPartDTO[];
   };
   onPress: () => void;
   renderActions?: () => React.ReactNode;
@@ -23,9 +25,10 @@ export function ExerciseCard({
 
   const colors = {
     text: isDark ? "#fff" : "#000",
-    subtle: isDark ? "#aaa" : "#666",
-    border: isDark ? "#333" : "#e0e0e0",
-    card: isDark ? "#1c1c1e" : "#fff",
+    subtle: isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.5)",
+    border: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+    card: isDark ? "#141414" : "#fff",
+    accent: isDark ? "#fff" : "#000",
   };
 
   return (
@@ -48,6 +51,15 @@ export function ExerciseCard({
           >
             {exercise.name}
           </Text>
+          {exercise.bodyParts && exercise.bodyParts.length > 0 && (
+            <Text style={[styles.bodyPartsText, { color: colors.subtle }]}>
+              {renderBodyParts(
+                exercise.bodyParts,
+                colors.subtle,
+                colors.accent,
+              )}
+            </Text>
+          )}
           {exercise.description ? (
             <Text
               style={[styles.exerciseDescription, { color: colors.subtle }]}
@@ -86,6 +98,10 @@ const styles = StyleSheet.create({
   exerciseName: {
     fontSize: 16,
     fontWeight: "600",
+    marginBottom: 2,
+  },
+  bodyPartsText: {
+    fontSize: 12,
     marginBottom: 4,
   },
   exerciseDescription: {

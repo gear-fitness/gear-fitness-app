@@ -9,7 +9,10 @@ import {
   FlatList,
 } from "react-native";
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
 import Svg, { Polyline, Circle, Line, Text as SvgText } from "react-native-svg";
@@ -19,6 +22,11 @@ import {
   ExerciseHistory as ExerciseHistoryType,
   ExerciseSession,
 } from "../../api/exerciseService";
+import {
+  formatPrimaryBodyParts,
+  renderBodyParts,
+} from "../../utils/exerciseUtils";
+import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 
 const CHART_HEIGHT = 200;
 const CHART_PADDING = { top: 24, right: 20, bottom: 30, left: 50 };
@@ -50,6 +58,7 @@ export function ExerciseHistory() {
   const route = useRoute<any>();
   const exercise = route.params?.exercise;
   const isDark = useColorScheme() === "dark";
+  const insets = useSafeAreaInsets();
   const chartPagerRef = useRef<FlatList>(null);
 
   const colors = {
@@ -58,18 +67,18 @@ export function ExerciseHistory() {
     subtle: isDark ? "#aaa" : "#666",
     border: isDark ? "#333" : "#e0e0e0",
     card: isDark ? "#1c1c1e" : "#f7f7f7",
-    accent: "#007AFF",
+    accent: isDark ? "#fff" : "#000",
     pr: "#FFD700",
     chartGrid: isDark ? "#333" : "#e0e0e0",
     prLine: "#FFD700",
     prDotColor: "#FFD700",
     volumeLine: "#34C759",
     volumeDotColor: "#34C759",
-    sessionMaxLine: "#007AFF",
-    sessionMaxDotColor: "#007AFF",
-    scopeActive: "#007AFF",
+    sessionMaxLine: isDark ? "#fff" : "#000",
+    sessionMaxDotColor: isDark ? "#fff" : "#000",
+    scopeActive: isDark ? "#fff" : "#000",
     scopeInactive: isDark ? "#1c1c1e" : "#f0f0f0",
-    scopeTextActive: "#fff",
+    scopeTextActive: isDark ? "#000" : "#fff",
     scopeTextInactive: isDark ? "#aaa" : "#666",
   };
 
@@ -454,6 +463,7 @@ export function ExerciseHistory() {
         ]}
         edges={["bottom"]}
       >
+        <FloatingCloseButton direction="left" accessibilityLabel="Back" />
         <ActivityIndicator size="large" color={colors.accent} />
       </SafeAreaView>
     );
@@ -469,14 +479,10 @@ export function ExerciseHistory() {
         ]}
         edges={["bottom"]}
       >
+        <FloatingCloseButton direction="left" accessibilityLabel="Back" />
         <Text style={[styles.errorText, { color: colors.subtle }]}>
           {error}
         </Text>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={[styles.backLink, { color: colors.accent }]}>
-            Go Back
-          </Text>
-        </TouchableOpacity>
       </SafeAreaView>
     );
   }
@@ -495,8 +501,12 @@ export function ExerciseHistory() {
       style={[styles.container, { backgroundColor: colors.bg }]}
       edges={["bottom"]}
     >
+      <FloatingCloseButton direction="left" accessibilityLabel="Back" />
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: insets.top + 60 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Exercise Title */}
@@ -505,7 +515,7 @@ export function ExerciseHistory() {
             {history?.exerciseName || exercise.name}
           </Text>
           <Text style={[styles.bodyPart, { color: colors.accent }]}>
-            {history?.bodyPart || exercise.bodyPart}
+            {renderBodyParts(history.bodyParts, colors.subtle, colors.accent)}
           </Text>
         </View>
 
