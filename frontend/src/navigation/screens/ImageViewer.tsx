@@ -138,11 +138,7 @@ export function ImageViewer({ route }: Props) {
       </GestureDetector>
 
       <Animated.View
-        style={[
-          styles.topBar,
-          { paddingTop: insets.top + 8 },
-          chromeStyle,
-        ]}
+        style={[styles.topBar, { paddingTop: insets.top + 8 }, chromeStyle]}
         pointerEvents="box-none"
       >
         <TouchableOpacity

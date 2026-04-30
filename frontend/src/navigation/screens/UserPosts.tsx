@@ -64,8 +64,7 @@ export function UserPosts() {
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const normalizeFeedPosts = useNormalizeFeedPosts();
 
-  const cardWidth =
-    (windowWidth - GRID_PADDING_HORIZONTAL * 2 - GRID_GAP) / 2;
+  const cardWidth = (windowWidth - GRID_PADDING_HORIZONTAL * 2 - GRID_GAP) / 2;
 
   useEffect(() => {
     let active = true;

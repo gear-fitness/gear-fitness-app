@@ -158,7 +158,9 @@ export function PostDetail({ route }: Props) {
       >
         <FeedPostCard
           post={post}
-          onOpenComments={(id) => navigation.navigate("Comments", { postId: id })}
+          onOpenComments={(id) =>
+            navigation.navigate("Comments", { postId: id })
+          }
         />
       </ScrollView>
     </View>

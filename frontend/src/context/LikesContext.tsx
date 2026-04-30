@@ -109,9 +109,7 @@ export function LikesProvider({ children }: { children: React.ReactNode }) {
 
           // User's intent at the moment the API resolved.
           const intent =
-            after.localDelta !== 0
-              ? after.localDelta === 1
-              : after.serverLiked;
+            after.localDelta !== 0 ? after.localDelta === 1 : after.serverLiked;
 
           // Reconcile: server values become truth. localDelta becomes whatever
           // is needed to keep the displayed state matching the user's intent.
@@ -190,12 +188,12 @@ export function useLikeState(
     if (fallback) ctx.ensureRecord(postId, fallback);
   }, [ctx, postId, fallback?.likedByCurrentUser, fallback?.likeCount]);
 
-  const record = useSyncExternalStore(
-    ctx.subscribe,
-    () => ctx.getRecord(postId),
+  const record = useSyncExternalStore(ctx.subscribe, () =>
+    ctx.getRecord(postId),
   );
 
-  const serverLiked = record?.serverLiked ?? fallback?.likedByCurrentUser ?? false;
+  const serverLiked =
+    record?.serverLiked ?? fallback?.likedByCurrentUser ?? false;
   const serverCount = record?.serverCount ?? fallback?.likeCount ?? 0;
   const localDelta = record?.localDelta ?? 0;
 

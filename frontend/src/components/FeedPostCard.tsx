@@ -32,8 +32,11 @@ export function FeedPostCard({ post }: Props) {
   const cardBg = colors.card;
   const innerBg = colors.card;
   const { user } = useAuth();
-  const { liked: likedByUser, count: likeCount, toggle: handleLike } =
-    useLikeState(post.postId, post);
+  const {
+    liked: likedByUser,
+    count: likeCount,
+    toggle: handleLike,
+  } = useLikeState(post.postId, post);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [scrollWidth, setScrollWidth] = useState(0);
   const navigation = useNavigation();
