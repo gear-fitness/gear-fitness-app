@@ -52,7 +52,11 @@ export function AuthLoadingScreen() {
           style={[styles.retryButton, { backgroundColor: colors.primary }]}
           onPress={retryAuth}
         >
-          <Text style={styles.retryText}>Retry</Text>
+          <Text
+            style={[styles.retryText, { color: dark ? "#000000" : "#fff" }]}
+          >
+            Retry
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.loginButton}
