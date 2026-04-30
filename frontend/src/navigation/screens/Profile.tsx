@@ -28,6 +28,7 @@ import { UserProfile } from "../../api/types";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { socialFeedApi, FeedPost } from "../../api/socialFeedApi";
 import { FeedPostCard } from "../../components/FeedPostCard";
+import { useNormalizeFeedPosts } from "../../context/LikesContext";
 import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
 import { feedRefresh } from "../../utils/feedRefreshFlag";
 import { Avatar } from "../../components/Avatar";
@@ -81,6 +82,7 @@ export function Profile() {
   const [error, setError] = useState<string | null>(null);
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [postsLoading, setPostsLoading] = useState(false);
+  const normalizeFeedPosts = useNormalizeFeedPosts();
 
   const t = isDark
     ? {
@@ -184,6 +186,7 @@ export function Profile() {
         0,
         1,
       );
+      normalizeFeedPosts(response.content);
       setPosts(response.content);
     } catch (error) {
       console.error("Error loading user posts:", error);

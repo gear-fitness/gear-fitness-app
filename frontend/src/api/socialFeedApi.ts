@@ -57,7 +57,15 @@ export const socialFeedApi = {
     });
     return data;
   },
-  toggleLike: async (postId: string): Promise<{ liked: boolean }> => {
+
+  getPost: async (postId: string): Promise<FeedPost> => {
+    const { data } = await apiClient.get(`/feed/posts/${postId}`);
+    return data;
+  },
+
+  toggleLike: async (
+    postId: string,
+  ): Promise<{ liked: boolean; likeCount: number }> => {
     const { data } = await apiClient.post(`/posts/${postId}/like`);
     return data;
   },

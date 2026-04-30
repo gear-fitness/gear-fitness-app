@@ -55,4 +55,14 @@ public class SocialFeedController {
     );
     return ResponseEntity.ok(posts);
   }
+
+  @GetMapping("/posts/{postId}")
+  public ResponseEntity<FeedPostDTO> getPost(
+    @PathVariable UUID postId,
+    @RequestHeader("Authorization") String authHeader
+  ) {
+    String token = authHeader.substring(7);
+    UUID currentUserId = jwtService.extractUserId(token);
+    return ResponseEntity.ok(socialFeedService.getPost(postId, currentUserId));
+  }
 }

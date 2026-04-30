@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { FeedPost, socialFeedApi } from "../../api/socialFeedApi";
 import { Avatar } from "../../components/Avatar";
+import { useNormalizeFeedPosts } from "../../context/LikesContext";
 import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
 import { formatDurationShort, formatTimeAgo } from "../../utils/date";
 
@@ -54,6 +55,7 @@ export function UserPosts() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const normalizeFeedPosts = useNormalizeFeedPosts();
 
   useEffect(() => {
     let active = true;
@@ -62,6 +64,7 @@ export function UserPosts() {
         setLoading(true);
         const res = await socialFeedApi.getUserPosts(userId, 0, PAGE_SIZE);
         if (!active) return;
+        normalizeFeedPosts(res.content);
         setPosts(res.content);
         setPage(0);
         setHasMore(!res.last);
@@ -74,7 +77,7 @@ export function UserPosts() {
     return () => {
       active = false;
     };
-  }, [userId]);
+  }, [userId, normalizeFeedPosts]);
 
   const loadMore = async () => {
     if (!hasMore || loadingMore || loading) return;
@@ -82,6 +85,7 @@ export function UserPosts() {
       setLoadingMore(true);
       const next = page + 1;
       const res = await socialFeedApi.getUserPosts(userId, next, PAGE_SIZE);
+      normalizeFeedPosts(res.content);
       setPosts((prev) => [...prev, ...res.content]);
       setPage(next);
       setHasMore(!res.last);

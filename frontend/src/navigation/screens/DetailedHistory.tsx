@@ -23,7 +23,7 @@ import { useNavigation, useTheme } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { Ionicons } from "@expo/vector-icons";
-import { socialFeedApi } from "../../api/socialFeedApi";
+import { useLikeState } from "../../context/LikesContext";
 
 type RootStackParamList = {
   DetailedHistory: {
@@ -56,26 +56,18 @@ export function DetailedHistory({ route }: Props) {
   const [workout, setWorkout] = useState<WorkoutDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [likeCount, setLikeCount] = useState(initialLikeCount ?? 0);
-  const [likedByUser, setLikedByUser] = useState(initialLikedByUser ?? false);
-  const [liking, setLiking] = useState(false);
 
-  const handleLike = async () => {
-    if (!postId || liking) return;
-    const wasLiked = likedByUser;
-    setLikedByUser(!wasLiked);
-    setLikeCount((prev) => (wasLiked ? prev - 1 : prev + 1));
-    try {
-      setLiking(true);
-      await socialFeedApi.toggleLike(postId);
-    } catch (err) {
-      setLikedByUser(wasLiked);
-      setLikeCount((prev) => (wasLiked ? prev + 1 : prev - 1));
-      console.error("Error toggling like:", err);
-    } finally {
-      setLiking(false);
-    }
-  };
+  const likeFallback =
+    postId !== undefined
+      ? {
+          likedByCurrentUser: initialLikedByUser ?? false,
+          likeCount: initialLikeCount ?? 0,
+        }
+      : undefined;
+  const { liked: likedByUser, toggle: handleLike } = useLikeState(
+    postId ?? "",
+    likeFallback,
+  );
 
   useEffect(() => {
     const fetchWorkout = async () => {
@@ -137,7 +129,6 @@ export function DetailedHistory({ route }: Props) {
         accessibilityLabel={likedByUser ? "Unlike" : "Like"}
         onPress={handleLike}
         activeOpacity={0.7}
-        disabled={liking}
         style={[
           styles.floatingButton,
           {

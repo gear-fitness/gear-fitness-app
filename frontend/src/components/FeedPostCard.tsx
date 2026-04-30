@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   View,
   StyleSheet,
@@ -14,10 +14,11 @@ import {
 import { Text } from "@react-navigation/elements";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useTheme } from "@react-navigation/native";
-import { FeedPost, socialFeedApi } from "../api/socialFeedApi";
+import { FeedPost } from "../api/socialFeedApi";
 import { parseLocalDate } from "../utils/date";
 import { formatTag } from "../utils/formatTag";
 import { useAuth } from "../context/AuthContext";
+import { useLikeState } from "../context/LikesContext";
 import { Avatar } from "./Avatar";
 
 interface Props {
@@ -30,15 +31,8 @@ export function FeedPostCard({ post }: Props) {
   const cardBg = colors.card;
   const innerBg = colors.card;
   const { user } = useAuth();
-  const [likeCount, setLikeCount] = useState(post.likeCount);
-  const [likedByUser, setLikedByUser] = useState(post.likedByCurrentUser);
-  const [liking, setLiking] = useState(false);
-
-  useEffect(() => {
-    if (liking) return;
-    setLikeCount(post.likeCount);
-    setLikedByUser(post.likedByCurrentUser);
-  }, [post.likeCount, post.likedByCurrentUser, liking]);
+  const { liked: likedByUser, count: likeCount, toggle: handleLike } =
+    useLikeState(post.postId, post);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const { width: screenWidth } = useWindowDimensions();
   const navigation = useNavigation();
@@ -57,25 +51,6 @@ export function FeedPostCard({ post }: Props) {
   };
 
   const isOwnPost = post.username === user?.username;
-
-  const handleLike = async () => {
-    if (liking) return;
-
-    const wasLiked = likedByUser;
-    setLikedByUser(!wasLiked);
-    setLikeCount((prev) => (wasLiked ? prev - 1 : prev + 1));
-
-    try {
-      setLiking(true);
-      await socialFeedApi.toggleLike(post.postId);
-    } catch (error) {
-      setLikedByUser(wasLiked);
-      setLikeCount((prev) => (wasLiked ? prev + 1 : prev - 1));
-      console.error("Error toggling like:", error);
-    } finally {
-      setLiking(false);
-    }
-  };
 
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
@@ -266,11 +241,7 @@ export function FeedPostCard({ post }: Props) {
           },
         ]}
       >
-        <TouchableOpacity
-          style={styles.engagementItem}
-          onPress={handleLike}
-          disabled={liking}
-        >
+        <TouchableOpacity style={styles.engagementItem} onPress={handleLike}>
           <Ionicons
             name={likedByUser ? "heart" : "heart-outline"}
             size={24}
