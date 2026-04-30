@@ -7,18 +7,23 @@ import {
   TouchableOpacity,
   View,
   useColorScheme,
+  useWindowDimensions,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
 import { FeedPost, socialFeedApi } from "../../api/socialFeedApi";
-import { Avatar } from "../../components/Avatar";
 import { useNormalizeFeedPosts } from "../../context/LikesContext";
 import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
-import { formatDurationShort, formatTimeAgo } from "../../utils/date";
+import { CompactPostCard } from "../../components/CompactPostCard";
+import { FeedPostCard } from "../../components/FeedPostCard";
 
 const PAGE_SIZE = 20;
+const GRID_PADDING_HORIZONTAL = 12;
+const GRID_GAP = 10;
+
+type ViewMode = "grid" | "square";
 
 export function UserPosts() {
   const navigation = useNavigation() as any;
@@ -26,6 +31,7 @@ export function UserPosts() {
   const insets = useSafeAreaInsets();
   const scheme = useColorScheme();
   const isDark = scheme === "dark";
+  const { width: windowWidth } = useWindowDimensions();
 
   const userId: string = route.params?.userId;
   const username: string = route.params?.username ?? "";
@@ -55,7 +61,11 @@ export function UserPosts() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const normalizeFeedPosts = useNormalizeFeedPosts();
+
+  const cardWidth =
+    (windowWidth - GRID_PADDING_HORIZONTAL * 2 - GRID_GAP) / 2;
 
   useEffect(() => {
     let active = true;
@@ -96,14 +106,7 @@ export function UserPosts() {
     }
   };
 
-  const handleOpenPost = (post: FeedPost) => {
-    const parent = navigation.getParent?.() ?? navigation;
-    parent.navigate("DetailedHistory", {
-      workoutId: post.workoutId,
-      caption: post.caption,
-      workoutName: post.workoutName,
-    });
-  };
+  const isGrid = viewMode === "grid";
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
@@ -133,27 +136,46 @@ export function UserPosts() {
             </Text>
           ) : null}
         </View>
-        <View style={styles.backBtn} />
+        <TouchableOpacity
+          onPress={() => setViewMode((v) => (v === "grid" ? "square" : "grid"))}
+          hitSlop={10}
+          style={styles.toggleBtn}
+          accessibilityLabel="Toggle layout"
+        >
+          <Ionicons
+            name={isGrid ? "grid-outline" : "square-outline"}
+            size={24}
+            color={t.text}
+          />
+        </TouchableOpacity>
       </View>
 
       <FlatList
+        key={viewMode}
         data={posts}
-        renderItem={({ item }) => (
-          <CompactPostCard
-            post={item}
-            theme={t}
-            onPress={() => handleOpenPost(item)}
-          />
-        )}
+        renderItem={({ item }) =>
+          isGrid ? (
+            <CompactPostCard post={item} theme={t} width={cardWidth} />
+          ) : (
+            <FeedPostCard post={item} onOpenComments={() => {}} />
+          )
+        }
         keyExtractor={(item) => String(item.postId)}
-        numColumns={2}
-        columnWrapperStyle={styles.row}
-        contentContainerStyle={{
-          paddingHorizontal: 12,
-          paddingTop: 16,
-          paddingBottom: MINI_PLAYER_HEIGHT + 30,
-          gap: 10,
-        }}
+        numColumns={isGrid ? 2 : 1}
+        columnWrapperStyle={isGrid ? styles.row : undefined}
+        contentContainerStyle={
+          isGrid
+            ? {
+                paddingHorizontal: GRID_PADDING_HORIZONTAL,
+                paddingTop: 16,
+                paddingBottom: MINI_PLAYER_HEIGHT + 30,
+                gap: GRID_GAP,
+              }
+            : {
+                paddingTop: 16,
+                paddingBottom: MINI_PLAYER_HEIGHT + 30,
+              }
+        }
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
         ListEmptyComponent={
@@ -177,81 +199,6 @@ export function UserPosts() {
   );
 }
 
-type Theme = {
-  surface: string;
-  text: string;
-  textMuted: string;
-  textFaint: string;
-  border: string;
-  chipBg: string;
-};
-
-function CompactPostCard({
-  post,
-  theme: t,
-  onPress,
-}: {
-  post: FeedPost;
-  theme: Theme;
-  onPress: () => void;
-}) {
-  const time = post.durationMin ? formatDurationShort(post.durationMin) : "—";
-
-  return (
-    <TouchableOpacity
-      activeOpacity={0.85}
-      onPress={onPress}
-      style={[
-        styles.card,
-        { backgroundColor: t.surface, borderColor: t.border },
-      ]}
-    >
-      <View style={styles.cardHeader}>
-        <Avatar
-          username={post.username}
-          profilePictureUrl={post.userProfilePictureUrl}
-          size={24}
-        />
-        <Text style={[styles.timeAgo, { color: t.textFaint }]}>
-          {formatTimeAgo(post.createdAt)}
-        </Text>
-      </View>
-
-      <Text style={[styles.workoutName, { color: t.text }]} numberOfLines={2}>
-        {post.workoutName}
-      </Text>
-
-      <View style={styles.metricsRow}>
-        <View>
-          <Text style={[styles.metricValue, { color: t.text }]}>{time}</Text>
-          <Text style={[styles.metricLabel, { color: t.textFaint }]}>TIME</Text>
-        </View>
-        <View>
-          <Text style={[styles.metricValue, { color: t.text }]}>
-            {post.setCount}
-          </Text>
-          <Text style={[styles.metricLabel, { color: t.textFaint }]}>SETS</Text>
-        </View>
-      </View>
-
-      <View style={[styles.cardFooter, { borderTopColor: t.border }]}>
-        <View style={styles.footerItem}>
-          <Ionicons name="heart-outline" size={15} color={t.textMuted} />
-          <Text style={[styles.footerText, { color: t.textMuted }]}>
-            {post.likeCount}
-          </Text>
-        </View>
-        <View style={styles.footerItem}>
-          <Ionicons name="chatbubble-outline" size={15} color={t.textMuted} />
-          <Text style={[styles.footerText, { color: t.textMuted }]}>
-            {post.commentCount}
-          </Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-}
-
 const styles = StyleSheet.create({
   topBar: {
     flexDirection: "row",
@@ -264,6 +211,12 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     alignItems: "flex-start",
+    justifyContent: "center",
+  },
+  toggleBtn: {
+    width: 32,
+    height: 32,
+    alignItems: "flex-end",
     justifyContent: "center",
   },
   titleWrap: {
@@ -280,9 +233,8 @@ const styles = StyleSheet.create({
     marginTop: 1,
     fontVariant: ["tabular-nums"],
   },
-
   row: {
-    gap: 10,
+    gap: GRID_GAP,
   },
   loader: {
     padding: 32,
@@ -290,65 +242,5 @@ const styles = StyleSheet.create({
   empty: {
     padding: 32,
     alignItems: "center",
-  },
-
-  card: {
-    flex: 1,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: 12,
-    gap: 8,
-    minHeight: 156,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  timeAgo: {
-    fontSize: 11,
-    fontVariant: ["tabular-nums"],
-  },
-  workoutName: {
-    fontSize: 15,
-    fontWeight: "600",
-    letterSpacing: -0.3,
-    lineHeight: 18,
-  },
-  metricsRow: {
-    flexDirection: "row",
-    gap: 16,
-    marginTop: "auto",
-    alignItems: "flex-end",
-  },
-  metricValue: {
-    fontSize: 16,
-    fontWeight: "700",
-    letterSpacing: -0.3,
-    lineHeight: 16,
-    fontVariant: ["tabular-nums"],
-  },
-  metricLabel: {
-    fontSize: 9,
-    marginTop: 3,
-    letterSpacing: 0.8,
-    fontWeight: "600",
-  },
-  cardFooter: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 20,
-    paddingTop: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  footerItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  footerText: {
-    fontSize: 13,
-    fontVariant: ["tabular-nums"],
-    fontWeight: "500",
   },
 });
