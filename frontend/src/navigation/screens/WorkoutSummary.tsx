@@ -158,7 +158,10 @@ export function WorkoutSummary() {
                   .find((s) => s.reps !== "" && s.weight !== "") || null;
 
               return (
-                <View key={ex.workoutExerciseId} style={styles.exerciseCardWrapper}>
+                <View
+                  key={ex.workoutExerciseId}
+                  style={styles.exerciseCardWrapper}
+                >
                   <Swipeable {...getSwipeableProps(ex.workoutExerciseId)}>
                     <View
                       onTouchStart={(e) => {

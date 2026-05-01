@@ -192,7 +192,9 @@ export const ExerciseDetailContent = forwardRef<
 
   const [loggedSets, setLoggedSets] = useState<LoggedSet[]>(initialLogged);
   const [currentReps, setCurrentReps] = useState(exercise.draftReps ?? "");
-  const [currentWeight, setCurrentWeight] = useState(exercise.draftWeight ?? "");
+  const [currentWeight, setCurrentWeight] = useState(
+    exercise.draftWeight ?? "",
+  );
   const [note, setNote] = useState(exercise.note || "");
   const [noteModalVisible, setNoteModalVisible] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
@@ -282,7 +284,9 @@ export const ExerciseDetailContent = forwardRef<
       if (idx < 0) return;
       setLoggedSets((prev) => prev.filter((s) => s.id !== id));
       if (editing && idx < editing.originalIndex) {
-        setEditing((e) => (e ? { ...e, originalIndex: e.originalIndex - 1 } : e));
+        setEditing((e) =>
+          e ? { ...e, originalIndex: e.originalIndex - 1 } : e,
+        );
       }
     },
     deleteTitle: "Delete Set",
@@ -464,7 +468,9 @@ export const ExerciseDetailContent = forwardRef<
                 style={[
                   styles.topBarButton,
                   {
-                    backgroundColor: glassAvailable ? "transparent" : colors.chipBg,
+                    backgroundColor: glassAvailable
+                      ? "transparent"
+                      : colors.chipBg,
                     borderColor: glassAvailable ? "transparent" : colors.border,
                     borderWidth: glassAvailable ? 0 : StyleSheet.hairlineWidth,
                   },
@@ -472,7 +478,10 @@ export const ExerciseDetailContent = forwardRef<
               >
                 {glassAvailable && (
                   <GlassView
-                    style={[StyleSheet.absoluteFillObject, { borderRadius: 20 }]}
+                    style={[
+                      StyleSheet.absoluteFillObject,
+                      { borderRadius: 20 },
+                    ]}
                     glassEffectStyle="regular"
                     isInteractive
                   />
@@ -489,7 +498,9 @@ export const ExerciseDetailContent = forwardRef<
                 style={[
                   styles.topBarButton,
                   {
-                    backgroundColor: glassAvailable ? "transparent" : colors.chipBg,
+                    backgroundColor: glassAvailable
+                      ? "transparent"
+                      : colors.chipBg,
                     borderColor: glassAvailable ? "transparent" : colors.border,
                     borderWidth: glassAvailable ? 0 : StyleSheet.hairlineWidth,
                   },
@@ -497,7 +508,10 @@ export const ExerciseDetailContent = forwardRef<
               >
                 {glassAvailable && (
                   <GlassView
-                    style={[StyleSheet.absoluteFillObject, { borderRadius: 20 }]}
+                    style={[
+                      StyleSheet.absoluteFillObject,
+                      { borderRadius: 20 },
+                    ]}
                     glassEffectStyle="regular"
                     isInteractive
                   />
@@ -615,7 +629,9 @@ export const ExerciseDetailContent = forwardRef<
               <Text
                 style={[styles.logButtonText, { color: colors.accentText }]}
               >
-                {editing ? `Save set ${setNumberLabel}` : `Log set ${setNumberLabel}`}
+                {editing
+                  ? `Save set ${setNumberLabel}`
+                  : `Log set ${setNumberLabel}`}
               </Text>
               <Text
                 style={[styles.logButtonArrow, { color: colors.accentText }]}
