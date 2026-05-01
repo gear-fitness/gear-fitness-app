@@ -11,12 +11,10 @@ import {
   InputAccessoryView,
   Button,
   Modal,
-  ActionSheetIOS,
-  Alert,
   Animated,
   useColorScheme,
 } from "react-native";
-import { GlassView } from "expo-glass-effect";
+import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import {
   useState,
   useEffect,
@@ -29,6 +27,7 @@ import { ScrollView } from "react-native-gesture-handler";
 import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 import { useNavigation } from "@react-navigation/native";
 import { SymbolView } from "expo-symbols";
+import Svg, { Path } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import stopwatch from "../assets/stopwatch.png";
@@ -147,6 +146,7 @@ export const ExerciseDetailContent = forwardRef<
   const navigation = useNavigation<any>();
   const isDark = useColorScheme() === "dark";
   const insets = useSafeAreaInsets();
+  const glassAvailable = isLiquidGlassAvailable();
 
   const colors: ThemeColors = isDark
     ? {
@@ -416,31 +416,7 @@ export const ExerciseDetailContent = forwardRef<
   };
 
   const handleInfoPress = () => {
-    const noteLabel = note.trim() ? "Edit note" : "Add note";
-    const viewLabel = "View information";
-    if (Platform.OS === "ios") {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: [noteLabel, viewLabel, "Cancel"],
-          cancelButtonIndex: 2,
-          userInterfaceStyle: isDark ? "dark" : "light",
-        },
-        (i) => {
-          if (i === 0) openNoteModal();
-          else if (i === 1)
-            navigation.navigate("ExerciseHistory", { exercise });
-        },
-      );
-    } else {
-      Alert.alert(exercise.name, undefined, [
-        { text: noteLabel, onPress: openNoteModal },
-        {
-          text: viewLabel,
-          onPress: () => navigation.navigate("ExerciseHistory", { exercise }),
-        },
-        { text: "Cancel", style: "cancel" },
-      ]);
-    }
+    navigation.navigate("ExerciseHistory", { exercise });
   };
 
   return (
@@ -481,17 +457,58 @@ export const ExerciseDetailContent = forwardRef<
                 </Text>
               )}
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={handleInfoPress}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              style={[styles.infoButton, { backgroundColor: colors.chipBg }]}
-            >
-              <SymbolView
-                name={note.trim() ? "ellipsis.circle.fill" : "ellipsis.circle"}
-                tintColor={colors.text}
-                size={18}
-              />
-            </TouchableOpacity>
+            <View style={styles.topBarActions}>
+              <TouchableOpacity
+                onPress={openNoteModal}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={[
+                  styles.topBarButton,
+                  {
+                    backgroundColor: glassAvailable ? "transparent" : colors.chipBg,
+                    borderColor: glassAvailable ? "transparent" : colors.border,
+                    borderWidth: glassAvailable ? 0 : StyleSheet.hairlineWidth,
+                  },
+                ]}
+              >
+                {glassAvailable && (
+                  <GlassView
+                    style={[StyleSheet.absoluteFillObject, { borderRadius: 20 }]}
+                    glassEffectStyle="regular"
+                    isInteractive
+                  />
+                )}
+                <SymbolView
+                  name={note.trim() ? "note.text" : "square.and.pencil"}
+                  tintColor={colors.text}
+                  size={20}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleInfoPress}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={[
+                  styles.topBarButton,
+                  {
+                    backgroundColor: glassAvailable ? "transparent" : colors.chipBg,
+                    borderColor: glassAvailable ? "transparent" : colors.border,
+                    borderWidth: glassAvailable ? 0 : StyleSheet.hairlineWidth,
+                  },
+                ]}
+              >
+                {glassAvailable && (
+                  <GlassView
+                    style={[StyleSheet.absoluteFillObject, { borderRadius: 20 }]}
+                    glassEffectStyle="regular"
+                    isInteractive
+                  />
+                )}
+                <SymbolView
+                  name="chart.xyaxis.line"
+                  tintColor={colors.text}
+                  size={20}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
           <View
             style={[styles.divider, { borderBottomColor: colors.border }]}
@@ -779,6 +796,26 @@ export const ExerciseDetailContent = forwardRef<
   );
 });
 
+function EditPencilIcon({ color }: { color: string }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M4 20h4l10-10-4-4L4 16v4z"
+        stroke={color}
+        strokeWidth={1.6}
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <Path
+        d="M13.5 6.5l4 4"
+        stroke={color}
+        strokeWidth={1.6}
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
 function HeroInput({
   label,
   value,
@@ -868,18 +905,10 @@ function SetRow({
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           style={setStyles.editButton}
         >
-          <SymbolView
-            name="square.and.pencil"
-            tintColor={colors.text}
-            size={18}
-          />
+          <EditPencilIcon color={colors.text} />
         </TouchableOpacity>
       ) : (
-        <SymbolView
-          name="square.and.pencil"
-          tintColor={colors.text}
-          size={18}
-        />
+        <EditPencilIcon color={colors.text} />
       )}
     </View>
   );
@@ -1351,16 +1380,20 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
 
-  infoButton: {
+  topBarActions: {
     position: "absolute",
-    right: 20,
-    top: "50%",
-    transform: [{ translateY: -16 }],
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    right: 16,
+    top: 8,
+    flexDirection: "row",
+    gap: 8,
+  },
+  topBarButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
   },
 
   divider: {
