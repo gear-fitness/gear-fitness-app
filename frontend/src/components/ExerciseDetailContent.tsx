@@ -25,7 +25,8 @@ import {
   useRef,
   useMemo,
 } from "react";
-import { Swipeable, ScrollView } from "react-native-gesture-handler";
+import { ScrollView } from "react-native-gesture-handler";
+import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 import { useNavigation } from "@react-navigation/native";
 import { SymbolView } from "expo-symbols";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -617,10 +618,9 @@ export const ExerciseDetailContent = forwardRef<
                 <View>
                   {[...loggedSets].reverse().map((item, index) => (
                     <View key={item.id} style={styles.setRowWrapper}>
-                      <Swipeable
+                      <ReanimatedSwipeable
                         {...getSwipeableProps(item.id)}
-                        activeOffsetX={[-15, 15]}
-                        failOffsetY={[-10, 10]}
+                        containerStyle={stackStyles.swipeContainer}
                       >
                         <SetRow
                           colors={colors}
@@ -629,7 +629,7 @@ export const ExerciseDetailContent = forwardRef<
                           weight={item.weight}
                           onEdit={() => handleEditSet(item)}
                         />
-                      </Swipeable>
+                      </ReanimatedSwipeable>
                     </View>
                   ))}
                 </View>
@@ -642,6 +642,7 @@ export const ExerciseDetailContent = forwardRef<
                   onEditNewest={() =>
                     handleEditSet(loggedSets[loggedSets.length - 1])
                   }
+                  getSwipeableProps={getSwipeableProps}
                 />
               )}
             </View>
@@ -872,12 +873,14 @@ function StackedSets({
   onExpand,
   newestDisplayIdx,
   onEditNewest,
+  getSwipeableProps,
 }: {
   colors: ThemeColors;
   loggedSets: LoggedSet[];
   onExpand: () => void;
   newestDisplayIdx: number;
   onEditNewest: () => void;
+  getSwipeableProps: (id: string) => any;
 }) {
   const newest = loggedSets[loggedSets.length - 1];
   const behindCount = Math.min(2, loggedSets.length - 1);
@@ -903,13 +906,18 @@ function StackedSets({
         );
       })}
       <View style={stackStyles.top}>
-        <SetRow
-          colors={colors}
-          idx={newestDisplayIdx}
-          reps={newest.reps}
-          weight={newest.weight}
-          onEdit={onEditNewest}
-        />
+        <ReanimatedSwipeable
+          {...getSwipeableProps(newest.id)}
+          containerStyle={stackStyles.swipeContainer}
+        >
+          <SetRow
+            colors={colors}
+            idx={newestDisplayIdx}
+            reps={newest.reps}
+            weight={newest.weight}
+            onEdit={onEditNewest}
+          />
+        </ReanimatedSwipeable>
       </View>
       {loggedSets.length > 1 && (
         <TouchableOpacity onPress={onExpand} style={stackStyles.expand}>
@@ -1628,6 +1636,10 @@ const stackStyles = StyleSheet.create({
   },
   top: {
     zIndex: 3,
+  },
+  swipeContainer: {
+    borderRadius: 12,
+    overflow: "hidden",
   },
   expand: {
     position: "absolute",

@@ -7,7 +7,7 @@ import {
   useColorScheme,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Swipeable } from "react-native-gesture-handler";
+import Swipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 import { useNavigation } from "@react-navigation/native";
 import Svg, { Path } from "react-native-svg";
 import React, { useState } from "react";
@@ -158,7 +158,7 @@ export function WorkoutSummary() {
                   .find((s) => s.reps !== "" && s.weight !== "") || null;
 
               return (
-                <View key={ex.workoutExerciseId}>
+                <View key={ex.workoutExerciseId} style={styles.exerciseCardWrapper}>
                   <Swipeable {...getSwipeableProps(ex.workoutExerciseId)}>
                     <View
                       onTouchStart={(e) => {
@@ -417,6 +417,10 @@ const styles = StyleSheet.create({
   },
   exerciseList: {
     gap: 6,
+  },
+  exerciseCardWrapper: {
+    borderRadius: 12,
+    overflow: "hidden",
   },
   exerciseCard: {
     flexDirection: "row",
