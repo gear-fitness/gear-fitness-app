@@ -227,6 +227,11 @@ export function CreateExerciseScreen() {
             {MUSCLE_GROUPS.map((bp) => {
               const targetType = getTargetType(bp);
               const isSelected = targetType !== null;
+              const activeBg = isDark ? "#fff" : "#000";
+              const activeText = isDark ? "#000" : "#fff";
+              const inactiveBorder = isDark
+                ? "rgba(255,255,255,0.22)"
+                : "rgba(0,0,0,0.18)";
 
               return (
                 <TouchableOpacity
@@ -235,31 +240,34 @@ export function CreateExerciseScreen() {
                   style={[
                     styles.chip,
                     {
-                      backgroundColor: isSelected
-                        ? isDark
-                          ? "#fff"
-                          : "#000"
-                        : colors.inputBg,
-                      borderColor: isSelected
-                        ? isDark
-                          ? "#fff"
-                          : "#000"
-                        : colors.border,
+                      backgroundColor: isSelected ? activeBg : "transparent",
+                      borderColor: isSelected ? activeBg : inactiveBorder,
                     },
                   ]}
                 >
                   <Text
                     style={{
-                      color: isSelected ? "#fff" : colors.text,
+                      color: isSelected ? activeText : colors.text,
                       fontSize: 13,
-                      fontWeight: isSelected ? "600" : "400",
+                      fontWeight: "600",
                     }}
                   >
                     {bp}
                   </Text>
                   {isSelected && (
-                    <View style={styles.targetBadge}>
-                      <Text style={styles.targetBadgeText}>
+                    <View
+                      style={[
+                        styles.targetBadge,
+                        {
+                          backgroundColor: isDark
+                            ? "rgba(0,0,0,0.18)"
+                            : "rgba(255,255,255,0.3)",
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[styles.targetBadgeText, { color: activeText }]}
+                      >
                         {TARGET_LABELS[targetType]}
                       </Text>
                     </View>
@@ -352,22 +360,20 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   chip: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 16,
-    borderWidth: 1,
+    borderRadius: 20,
+    borderWidth: 1.5,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
   },
   targetBadge: {
-    backgroundColor: "rgba(255,255,255,0.3)",
     borderRadius: 8,
     paddingHorizontal: 5,
     paddingVertical: 1,
   },
   targetBadgeText: {
-    color: "#fff",
     fontSize: 10,
     fontWeight: "700",
   },
