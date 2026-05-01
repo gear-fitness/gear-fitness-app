@@ -1,12 +1,11 @@
-import { useRef } from "react";
-import {
-  Alert,
-  Animated,
-  TouchableOpacity,
-  Image,
-  StyleSheet,
-} from "react-native";
-import { Swipeable } from "react-native-gesture-handler";
+import React, { useRef } from "react";
+import { Alert, TouchableOpacity, Image, StyleSheet } from "react-native";
+import { SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
+import Reanimated, {
+  SharedValue,
+  interpolate,
+  useAnimatedStyle,
+} from "react-native-reanimated";
 import trashIcon from "../assets/trash.png";
 
 interface UseSwipeableDeleteConfig {
@@ -15,15 +14,56 @@ interface UseSwipeableDeleteConfig {
   deleteMessage: string;
 }
 
+function DeleteAction({
+  progress,
+  onPress,
+}: {
+  progress: SharedValue<number>;
+  onPress: () => void;
+}) {
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: interpolate(progress.value, [0, 1], [80, 0]) },
+      { scale: interpolate(progress.value, [0, 1], [0.7, 1]) },
+    ],
+  }));
+
+  return (
+    <TouchableOpacity
+      style={styles.deleteBackground}
+      onPress={onPress}
+      activeOpacity={0.9}
+    >
+      <Reanimated.View style={animatedStyle}>
+        <Image
+          source={trashIcon}
+          style={{ width: 26, height: 26, tintColor: "#fff" }}
+        />
+      </Reanimated.View>
+    </TouchableOpacity>
+  );
+}
+
 export function useSwipeableDelete({
   onDelete,
   deleteTitle,
   deleteMessage,
 }: UseSwipeableDeleteConfig) {
-  const swipeRefs = useRef<Map<string, Swipeable>>(new Map());
+  const swipeRefs = useRef<
+    Map<string, React.RefObject<SwipeableMethods | null>>
+  >(new Map());
+
+  const getRefForId = (id: string) => {
+    let ref = swipeRefs.current.get(id);
+    if (!ref) {
+      ref = React.createRef<SwipeableMethods | null>();
+      swipeRefs.current.set(id, ref);
+    }
+    return ref;
+  };
 
   const closeSwipe = (id: string) => {
-    swipeRefs.current.get(id)?.close();
+    swipeRefs.current.get(id)?.current?.close();
   };
 
   const confirmDelete = (id: string) => {
@@ -44,50 +84,15 @@ export function useSwipeableDelete({
     ]);
   };
 
-  const renderRightActions = (
-    progress: Animated.AnimatedInterpolation<number>,
-    dragX: Animated.AnimatedInterpolation<number>,
-    id: string,
-  ) => {
-    const translateX = progress.interpolate({
-      inputRange: [0, 1],
-      outputRange: [80, 0],
-      extrapolate: "clamp",
-    });
-
-    const scale = progress.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0.7, 1],
-      extrapolate: "clamp",
-    });
-
-    return (
-      <TouchableOpacity
-        style={styles.deleteBackground}
-        onPress={() => confirmDelete(id)}
-        activeOpacity={0.9}
-      >
-        <Animated.View style={{ transform: [{ translateX }, { scale }] }}>
-          <Image
-            source={trashIcon}
-            style={{ width: 26, height: 26, tintColor: "#fff" }}
-          />
-        </Animated.View>
-      </TouchableOpacity>
-    );
-  };
-
   const getSwipeableProps = (id: string) => ({
-    ref: (r: Swipeable | null) => {
-      if (r) swipeRefs.current.set(id, r);
-    },
+    ref: getRefForId(id),
     overshootRight: false,
     rightThreshold: 40,
     onSwipeableWillOpen: () => confirmDelete(id),
     renderRightActions: (
-      prog: Animated.AnimatedInterpolation<number>,
-      drag: Animated.AnimatedInterpolation<number>,
-    ) => renderRightActions(prog, drag, id),
+      progress: SharedValue<number>,
+      _drag: SharedValue<number>,
+    ) => <DeleteAction progress={progress} onPress={() => confirmDelete(id)} />,
   });
 
   return { getSwipeableProps, swipeRefs, closeSwipe };

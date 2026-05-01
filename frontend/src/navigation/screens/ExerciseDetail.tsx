@@ -16,12 +16,16 @@ export function ExerciseDetail() {
   const route = useRoute<any>();
   const exercise = route.params.exercise;
 
-  const { start, exercises, setCurrentExercise } = useWorkoutTimer();
+  const { start, exercises, setCurrentExercise, setActiveExercise } =
+    useWorkoutTimer();
   const contentRef = useRef<ExerciseDetailContentRef>(null);
 
   useEffect(() => {
     start();
-  }, []);
+    if (exercise.workoutExerciseId) {
+      setActiveExercise(exercise.workoutExerciseId);
+    }
+  }, [exercise.workoutExerciseId]);
 
   // Save before leaving screen
   useEffect(() => {

@@ -13,7 +13,7 @@ import { Calendar } from "react-native-calendars";
 import React, { useMemo, useState, useEffect } from "react";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
-import { Swipeable } from "react-native-gesture-handler";
+import Swipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 import { useAuth } from "../../context/AuthContext";
 import { getUserWorkouts, deleteWorkout } from "../../api/workoutService";
 import { Workout } from "../../api/types";

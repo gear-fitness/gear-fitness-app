@@ -8,7 +8,7 @@ import {
   Animated,
   Easing,
 } from "react-native";
-import { Swipeable } from "react-native-gesture-handler";
+import Swipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 import {
   SafeAreaView,
   useSafeAreaInsets,
