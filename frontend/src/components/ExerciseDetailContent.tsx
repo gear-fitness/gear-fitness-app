@@ -45,6 +45,9 @@ interface ExerciseDetailContentProps {
     sets?: WorkoutSet[];
     note?: string;
     bodyParts?: BodyPartDTO[];
+    durationSeconds?: number;
+    draftReps?: string;
+    draftWeight?: string;
   };
   onSummary: () => void;
   onAddExercise: () => void;
@@ -134,7 +137,13 @@ export const ExerciseDetailContent = forwardRef<
   ExerciseDetailContentRef,
   ExerciseDetailContentProps
 >(({ exercise, onSummary, onAddExercise }, ref) => {
-  const { seconds, exercises, addExercise } = useWorkoutTimer();
+  const {
+    seconds,
+    exercises,
+    addExercise,
+    activeExerciseId,
+    activeExerciseStartedAt,
+  } = useWorkoutTimer();
   const navigation = useNavigation<any>();
   const isDark = useColorScheme() === "dark";
   const insets = useSafeAreaInsets();
@@ -182,14 +191,14 @@ export const ExerciseDetailContent = forwardRef<
     .map((s, i) => ({ id: `seed-${i}`, reps: s.reps, weight: s.weight }));
 
   const [loggedSets, setLoggedSets] = useState<LoggedSet[]>(initialLogged);
-  const [currentReps, setCurrentReps] = useState("");
-  const [currentWeight, setCurrentWeight] = useState("");
+  const [currentReps, setCurrentReps] = useState(exercise.draftReps ?? "");
+  const [currentWeight, setCurrentWeight] = useState(exercise.draftWeight ?? "");
   const [note, setNote] = useState(exercise.note || "");
   const [noteModalVisible, setNoteModalVisible] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
   const [expanded, setExpanded] = useState(false);
   const [showingTotal, setShowingTotal] = useState(false);
-  const [exerciseSeconds, setExerciseSeconds] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
   const [platesEnabled, setPlatesEnabled] = useState(false);
   const [platesOpen, setPlatesOpen] = useState(false);
   const [plateMode, setPlateMode] = useState<PlateMode>("dual");
@@ -241,9 +250,18 @@ export const ExerciseDetailContent = forwardRef<
   };
 
   useEffect(() => {
-    const id = setInterval(() => setExerciseSeconds((s) => s + 1), 1000);
+    const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
+
+  const isActiveExercise =
+    !!exercise.workoutExerciseId &&
+    activeExerciseId === exercise.workoutExerciseId;
+  const liveDelta =
+    isActiveExercise && activeExerciseStartedAt !== null
+      ? Math.max(0, Math.floor((now - activeExerciseStartedAt) / 1000))
+      : 0;
+  const exerciseSeconds = (exercise.durationSeconds ?? 0) + liveDelta;
 
   useEffect(() => {
     if (!showingTotal) return;
@@ -282,20 +300,20 @@ export const ExerciseDetailContent = forwardRef<
       if (r && w) {
         allSets.splice(editing.originalIndex, 0, { reps: r, weight: w });
       }
-    } else if (currentReps.trim() && currentWeight.trim()) {
-      allSets.push({ reps: currentReps.trim(), weight: currentWeight.trim() });
     }
-    if (allSets.length > 0) {
-      addExercise({
-        workoutExerciseId: exercise.workoutExerciseId || Date.now().toString(),
-        exerciseId: exercise.exerciseId,
-        name: exercise.name,
-        bodyParts: exercise.bodyParts,
-
-        sets: allSets,
-        note: note.trim(),
-      });
-    }
+    const setsToPersist: WorkoutSet[] =
+      allSets.length > 0 ? allSets : [{ reps: "", weight: "" }];
+    addExercise({
+      workoutExerciseId: exercise.workoutExerciseId || Date.now().toString(),
+      exerciseId: exercise.exerciseId,
+      name: exercise.name,
+      bodyParts: exercise.bodyParts,
+      sets: setsToPersist,
+      note: note.trim(),
+      durationSeconds: exercise.durationSeconds,
+      draftReps: currentReps,
+      draftWeight: currentWeight,
+    });
   };
 
   useImperativeHandle(ref, () => ({ save: saveExercise }));
