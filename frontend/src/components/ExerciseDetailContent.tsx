@@ -74,6 +74,15 @@ type ThemeColors = {
 
 type LoggedSet = WorkoutSet & { id: string };
 
+type EditingState = {
+  id: string;
+  originalIndex: number;
+  originalReps: string;
+  originalWeight: string;
+  previousReps: string;
+  previousWeight: string;
+} | null;
+
 const BAR_WEIGHT = 45;
 const PLATE_OPTIONS = [45, 35, 25, 10, 5, 2.5];
 const PLATE_HEIGHTS: Record<string, number> = {
@@ -184,6 +193,7 @@ export const ExerciseDetailContent = forwardRef<
   const [platesOpen, setPlatesOpen] = useState(false);
   const [plateMode, setPlateMode] = useState<PlateMode>("dual");
   const [plateBarOn, setPlateBarOn] = useState(false);
+  const [editing, setEditing] = useState<EditingState>(null);
 
   const plateBar = plateBarOn ? BAR_WEIGHT : 0;
   const plateMultiplier = plateMode === "single" ? 1 : 2;
@@ -248,20 +258,32 @@ export const ExerciseDetailContent = forwardRef<
   }, [exercises, exercise.workoutExerciseId]);
 
   const { getSwipeableProps } = useSwipeableDelete({
-    onDelete: (id) => setLoggedSets((prev) => prev.filter((s) => s.id !== id)),
+    onDelete: (id) => {
+      const idx = loggedSets.findIndex((s) => s.id === id);
+      if (idx < 0) return;
+      setLoggedSets((prev) => prev.filter((s) => s.id !== id));
+      if (editing && idx < editing.originalIndex) {
+        setEditing((e) => (e ? { ...e, originalIndex: e.originalIndex - 1 } : e));
+      }
+    },
     deleteTitle: "Delete Set",
     deleteMessage: "Are you sure you want to delete this set?",
   });
 
   const saveExercise = () => {
-    const pending: WorkoutSet[] =
-      currentReps.trim() && currentWeight.trim()
-        ? [{ reps: currentReps.trim(), weight: currentWeight.trim() }]
-        : [];
-    const allSets: WorkoutSet[] = [
-      ...loggedSets.map(({ reps, weight }) => ({ reps, weight })),
-      ...pending,
-    ];
+    const allSets: WorkoutSet[] = loggedSets.map(({ reps, weight }) => ({
+      reps,
+      weight,
+    }));
+    if (editing) {
+      const r = currentReps.trim() || editing.originalReps;
+      const w = currentWeight.trim() || editing.originalWeight;
+      if (r && w) {
+        allSets.splice(editing.originalIndex, 0, { reps: r, weight: w });
+      }
+    } else if (currentReps.trim() && currentWeight.trim()) {
+      allSets.push({ reps: currentReps.trim(), weight: currentWeight.trim() });
+    }
     if (allSets.length > 0) {
       addExercise({
         workoutExerciseId: exercise.workoutExerciseId || Date.now().toString(),
@@ -284,6 +306,22 @@ export const ExerciseDetailContent = forwardRef<
 
   const handleLogSet = () => {
     if (!currentReps.trim() || !currentWeight.trim()) return;
+    if (editing) {
+      const reps = currentReps.trim();
+      const weight = currentWeight.trim();
+      const editingId = editing.id;
+      const insertAt = editing.originalIndex;
+      setLoggedSets((prev) => {
+        const next = [...prev];
+        next.splice(insertAt, 0, { id: editingId, reps, weight });
+        return next;
+      });
+      setCurrentReps(editing.previousReps);
+      setCurrentWeight(editing.previousWeight);
+      setEditing(null);
+      Keyboard.dismiss();
+      return;
+    }
     setLoggedSets((prev) => [
       ...prev,
       {
@@ -296,12 +334,54 @@ export const ExerciseDetailContent = forwardRef<
     Keyboard.dismiss();
   };
 
+  const handleEditSet = (set: LoggedSet) => {
+    let workingSets = loggedSets;
+    let stashedPrevReps = currentReps;
+    let stashedPrevWeight = currentWeight;
+
+    if (editing) {
+      if (editing.id === set.id) return;
+      const reps = currentReps.trim() || editing.originalReps;
+      const weight = currentWeight.trim() || editing.originalWeight;
+      workingSets = [...loggedSets];
+      workingSets.splice(editing.originalIndex, 0, {
+        id: editing.id,
+        reps,
+        weight,
+      });
+      stashedPrevReps = editing.previousReps;
+      stashedPrevWeight = editing.previousWeight;
+    }
+
+    const idx = workingSets.findIndex((s) => s.id === set.id);
+    if (idx < 0) return;
+
+    setLoggedSets(workingSets.filter((s) => s.id !== set.id));
+    setEditing({
+      id: set.id,
+      originalIndex: idx,
+      originalReps: set.reps,
+      originalWeight: set.weight,
+      previousReps: stashedPrevReps,
+      previousWeight: stashedPrevWeight,
+    });
+    setCurrentReps(set.reps);
+    setCurrentWeight(set.weight);
+  };
+
+  const getDisplayIdx = (arrayIdx: number) =>
+    editing && arrayIdx >= editing.originalIndex ? arrayIdx + 1 : arrayIdx;
+
+  const setNumberLabel = editing
+    ? editing.originalIndex + 1
+    : loggedSets.length + 1;
+
   useEffect(() => {
     const listener = Keyboard.addListener("keyboardDidHide", () => {
       saveExercise();
     });
     return () => listener.remove();
-  }, [loggedSets, currentReps, currentWeight, note]);
+  }, [loggedSets, currentReps, currentWeight, note, editing]);
 
   const canLog = !!currentReps.trim() && !!currentWeight.trim();
   const timerValue = showingTotal ? seconds : exerciseSeconds;
@@ -407,7 +487,7 @@ export const ExerciseDetailContent = forwardRef<
           >
             <View style={styles.header}>
               <Text style={[styles.caption, { color: colors.textMuted }]}>
-                EXERCISE {exerciseNum} · SET {loggedSets.length + 1}
+                EXERCISE {exerciseNum} · SET {setNumberLabel}
               </Text>
               <Text
                 style={[styles.title, { color: colors.text }]}
@@ -499,7 +579,7 @@ export const ExerciseDetailContent = forwardRef<
               <Text
                 style={[styles.logButtonText, { color: colors.accentText }]}
               >
-                Log set {loggedSets.length + 1}
+                {editing ? `Save set ${setNumberLabel}` : `Log set ${setNumberLabel}`}
               </Text>
               <Text
                 style={[styles.logButtonArrow, { color: colors.accentText }]}
@@ -544,9 +624,10 @@ export const ExerciseDetailContent = forwardRef<
                       >
                         <SetRow
                           colors={colors}
-                          idx={loggedSets.length - 1 - index}
+                          idx={getDisplayIdx(loggedSets.length - 1 - index)}
                           reps={item.reps}
                           weight={item.weight}
+                          onEdit={() => handleEditSet(item)}
                         />
                       </Swipeable>
                     </View>
@@ -557,6 +638,10 @@ export const ExerciseDetailContent = forwardRef<
                   colors={colors}
                   loggedSets={loggedSets}
                   onExpand={() => setExpanded(true)}
+                  newestDisplayIdx={getDisplayIdx(loggedSets.length - 1)}
+                  onEditNewest={() =>
+                    handleEditSet(loggedSets[loggedSets.length - 1])
+                  }
                 />
               )}
             </View>
@@ -722,11 +807,13 @@ function SetRow({
   idx,
   reps,
   weight,
+  onEdit,
 }: {
   colors: ThemeColors;
   idx: number;
   reps: string;
   weight: string;
+  onEdit?: () => void;
 }) {
   return (
     <View
@@ -756,7 +843,25 @@ function SetRow({
           </Text>
         </Text>
       </View>
-      <SymbolView name="checkmark" tintColor={colors.text} size={14} />
+      {onEdit ? (
+        <TouchableOpacity
+          onPress={onEdit}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={setStyles.editButton}
+        >
+          <SymbolView
+            name="square.and.pencil"
+            tintColor={colors.text}
+            size={18}
+          />
+        </TouchableOpacity>
+      ) : (
+        <SymbolView
+          name="square.and.pencil"
+          tintColor={colors.text}
+          size={18}
+        />
+      )}
     </View>
   );
 }
@@ -765,13 +870,16 @@ function StackedSets({
   colors,
   loggedSets,
   onExpand,
+  newestDisplayIdx,
+  onEditNewest,
 }: {
   colors: ThemeColors;
   loggedSets: LoggedSet[];
   onExpand: () => void;
+  newestDisplayIdx: number;
+  onEditNewest: () => void;
 }) {
   const newest = loggedSets[loggedSets.length - 1];
-  const newestIdx = loggedSets.length - 1;
   const behindCount = Math.min(2, loggedSets.length - 1);
   return (
     <View style={stackStyles.container}>
@@ -797,9 +905,10 @@ function StackedSets({
       <View style={stackStyles.top}>
         <SetRow
           colors={colors}
-          idx={newestIdx}
+          idx={newestDisplayIdx}
           reps={newest.reps}
           weight={newest.weight}
+          onEdit={onEditNewest}
         />
       </View>
       {loggedSets.length > 1 && (
@@ -1498,6 +1607,10 @@ const setStyles = StyleSheet.create({
   unit: {
     fontSize: 12,
     fontWeight: "400",
+  },
+  editButton: {
+    padding: 4,
+    marginRight: -4,
   },
 });
 
