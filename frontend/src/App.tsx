@@ -148,7 +148,9 @@ function AppContent({
   }, [isNavigationReady, isLoading, fontsLoaded]);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView
+      style={{ flex: 1, backgroundColor: theme.colors.background }}
+    >
       <SafeAreaProvider>
         <WorkoutTimerProvider>
           <LikesProvider>
