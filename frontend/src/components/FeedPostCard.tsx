@@ -127,6 +127,11 @@ export function FeedPostCard({ post }: Props) {
 
   const hasDuration = post.durationMin != null && post.durationMin > 0;
   const hasMuscles = Array.isArray(post.bodyTags) && post.bodyTags.length > 0;
+  const hasPhotos = photos.length > 0;
+  const contentPaddingHorizontal =
+    hasPhotos && scrollWidth > 0
+      ? 14 + Math.max(0, (scrollWidth - 300) / 2)
+      : 16;
 
   return (
     <View
@@ -216,7 +221,12 @@ export function FeedPostCard({ post }: Props) {
           });
         }}
       >
-        <View style={styles.titleBlock}>
+        <View
+          style={[
+            styles.titleBlock,
+            hasPhotos && { paddingHorizontal: contentPaddingHorizontal },
+          ]}
+        >
           <Text style={[styles.dateOverline, textMuted]}>
             {formatOverlineDate(post.datePerformed)}
           </Text>
@@ -225,7 +235,12 @@ export function FeedPostCard({ post }: Props) {
           </Text>
         </View>
 
-        <View style={styles.metricsRow}>
+        <View
+          style={[
+            styles.metricsRow,
+            hasPhotos && { paddingHorizontal: contentPaddingHorizontal },
+          ]}
+        >
           {hasDuration && (
             <View style={styles.metric}>
               <Text style={[styles.metricLabel, textMuted]}>Time</Text>
@@ -240,10 +255,23 @@ export function FeedPostCard({ post }: Props) {
               {post.exerciseCount}
             </Text>
           </View>
+          {!hasPhotos && hasMuscles && (
+            <View style={styles.metric}>
+              <Text style={[styles.metricLabel, textMuted]}>Muscles</Text>
+              <Text style={[styles.musclesText, { color: colors.text }]}>
+                {post.bodyTags.map(formatTag).join(", ")}
+              </Text>
+            </View>
+          )}
         </View>
 
-        {hasMuscles && (
-          <View style={styles.musclesRow}>
+        {hasPhotos && hasMuscles && (
+          <View
+            style={[
+              styles.musclesRow,
+              { paddingHorizontal: contentPaddingHorizontal },
+            ]}
+          >
             <Text style={[styles.metricLabel, textMuted]}>Muscles</Text>
             <Text style={[styles.musclesText, { color: colors.text }]}>
               {post.bodyTags.map(formatTag).join(", ")}
@@ -252,7 +280,13 @@ export function FeedPostCard({ post }: Props) {
         )}
 
         {post.caption && (
-          <Text style={[styles.caption, { color: colors.text }]}>
+          <Text
+            style={[
+              styles.caption,
+              { color: colors.text },
+              hasPhotos && { paddingHorizontal: contentPaddingHorizontal },
+            ]}
+          >
             {post.caption}
           </Text>
         )}
@@ -348,37 +382,32 @@ const styles = StyleSheet.create({
   },
   titleBlock: {
     paddingHorizontal: 16,
-    alignItems: "center",
   },
   dateOverline: {
     fontSize: 12,
     fontWeight: "600",
     letterSpacing: 1.2,
     marginBottom: 6,
-    textAlign: "center",
   },
   workoutName: {
     fontSize: 26,
     fontWeight: "700",
     letterSpacing: -0.8,
     lineHeight: 28,
-    textAlign: "center",
   },
   metricsRow: {
     flexDirection: "row",
     paddingHorizontal: 16,
     paddingTop: 18,
-    paddingBottom: 12,
+    paddingBottom: 16,
     gap: 12,
-    justifyContent: "center",
   },
   metric: {
-    alignItems: "center",
+    flex: 1,
   },
   metricLabel: {
     fontSize: 13,
     fontWeight: "500",
-    textAlign: "center",
   },
   metricValue: {
     fontSize: 22,
@@ -386,12 +415,10 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     marginTop: 2,
     fontVariant: ["tabular-nums"],
-    textAlign: "center",
   },
   musclesRow: {
     paddingHorizontal: 16,
     paddingBottom: 16,
-    alignItems: "center",
   },
   musclesText: {
     fontSize: 18,
@@ -399,14 +426,12 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
     lineHeight: 24,
     marginTop: 2,
-    textAlign: "center",
   },
   caption: {
     paddingHorizontal: 16,
     paddingBottom: 14,
     fontSize: 14,
     lineHeight: 20,
-    textAlign: "center",
   },
   engagement: {
     marginHorizontal: 12,

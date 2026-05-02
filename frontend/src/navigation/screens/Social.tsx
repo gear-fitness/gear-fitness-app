@@ -12,9 +12,16 @@ import {
   ActivityIndicator,
   RefreshControl,
   TouchableOpacity,
+  Animated,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Platform,
 } from "react-native";
 import { Text } from "@react-navigation/elements";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import {
@@ -44,6 +51,7 @@ export function Social() {
   const navigation = useNavigation();
   const { user } = useAuth();
   const glassAvailable = isLiquidGlassAvailable();
+  const insets = useSafeAreaInsets();
 
   const feed = useSocialFeed();
 
@@ -57,6 +65,28 @@ export function Social() {
   const flatListRef = useRef<FlatList<FeedPost>>(null);
   const restoredRef = useRef(false);
   const enableEndReachedRef = useRef(false);
+
+  const SEARCH_ROW_HEIGHT = 64;
+  const HEADER_HEIGHT = SEARCH_ROW_HEIGHT + insets.top;
+  const headerAnim = useRef(new Animated.Value(0)).current;
+  const isHiddenRef = useRef(false);
+  const lastYRef = useRef(0);
+
+  const setHeaderHidden = (hidden: boolean) => {
+    if (isHiddenRef.current === hidden) return;
+    isHiddenRef.current = hidden;
+    Animated.timing(headerAnim, {
+      toValue: hidden ? 1 : 0,
+      duration: 220,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const headerTranslateY = headerAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -SEARCH_ROW_HEIGHT],
+    extrapolate: "clamp",
+  });
 
   // Cold-start load: only fires when the store is still in the "idle" state.
   useEffect(() => {
@@ -92,6 +122,22 @@ export function Social() {
 
   const handleOpenComments = (postId: string) => {
     navigation.navigate("Comments", { postId });
+  };
+
+  const isIOS = Platform.OS === "ios";
+
+  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const y = e.nativeEvent.contentOffset.y;
+    const delta = y - lastYRef.current;
+    lastYRef.current = y;
+    feed.setScrollOffset(y);
+
+    if (y <= SEARCH_ROW_HEIGHT) {
+      setHeaderHidden(false);
+      return;
+    }
+    if (delta > 3) setHeaderHidden(true);
+    else if (delta < -3) setHeaderHidden(false);
   };
 
   // Search users
@@ -171,9 +217,26 @@ export function Social() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      {/* Search Bar */}
-      <View style={styles.searchRow}>
+    <SafeAreaView style={styles.container} edges={[]}>
+      {/* Sticky safe-area strip — covers the notch/Dynamic Island, never animates */}
+      <View
+        style={[
+          styles.safeAreaStrip,
+          { height: insets.top, backgroundColor: colors.background },
+        ]}
+      />
+
+      {/* Search Bar — slides up/down under the safe-area strip */}
+      <Animated.View
+        style={[
+          styles.searchRow,
+          {
+            top: insets.top,
+            backgroundColor: colors.background,
+            transform: [{ translateY: headerTranslateY }],
+          },
+        ]}
+      >
         <SearchBar
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -203,12 +266,14 @@ export function Social() {
             {hasUnreadActivity && <View style={styles.redDot} />}
           </View>
         </TouchableOpacity>
-      </View>
+      </Animated.View>
 
       {searchQuery.length > 0 ? (
         <FlatList
           data={userResults}
           keyExtractor={(item) => String(item.userId)}
+          contentContainerStyle={{ paddingTop: HEADER_HEIGHT }}
+          scrollIndicatorInsets={{ top: HEADER_HEIGHT }}
           renderItem={({ item }) => (
             <UserSearchCard
               username={item.username}
@@ -238,19 +303,31 @@ export function Social() {
           keyExtractor={(item) => String(item.postId)}
           contentContainerStyle={
             feed.posts.length === 0
-              ? { ...styles.emptyContainer }
-              : { ...styles.feedList, paddingBottom: MINI_PLAYER_HEIGHT + 30 }
+              ? {
+                  ...styles.emptyContainer,
+                  paddingTop: isIOS ? 0 : HEADER_HEIGHT - insets.top,
+                }
+              : {
+                  paddingTop: isIOS ? 0 : HEADER_HEIGHT - insets.top,
+                  paddingBottom: MINI_PLAYER_HEIGHT + 30,
+                }
           }
+          contentInset={isIOS ? { top: HEADER_HEIGHT - insets.top } : undefined}
+          contentOffset={
+            isIOS ? { x: 0, y: -(HEADER_HEIGHT - insets.top) } : undefined
+          }
+          scrollIndicatorInsets={{ top: HEADER_HEIGHT }}
           ListEmptyComponent={renderEmpty}
           ListFooterComponent={renderFooter}
           refreshControl={
             <RefreshControl
               refreshing={feed.refreshing}
               onRefresh={feed.refresh}
+              progressViewOffset={HEADER_HEIGHT}
             />
           }
-          onScroll={(e) => feed.setScrollOffset(e.nativeEvent.contentOffset.y)}
-          scrollEventThrottle={32}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
           onEndReached={() => {
             if (!enableEndReachedRef.current) return;
             void feed.loadMore();
@@ -270,7 +347,20 @@ export function Social() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
 
+  safeAreaStrip: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 11,
+  },
+
   searchRow: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    height: 64,
+    zIndex: 10,
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
