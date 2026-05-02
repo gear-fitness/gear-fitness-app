@@ -16,7 +16,7 @@ import { Text } from "@react-navigation/elements";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useTheme } from "@react-navigation/native";
 import { FeedPost } from "../api/socialFeedApi";
-import { parseLocalDate } from "../utils/date";
+import { parseLocalDate, formatTimeAgo } from "../utils/date";
 import { formatTag } from "../utils/formatTag";
 import { useAuth } from "../context/AuthContext";
 import { useLikeState } from "../context/LikesContext";
@@ -67,18 +67,6 @@ export function FeedPostCard({ post }: Props) {
   };
 
   const isOwnPost = post.username === user?.username;
-
-  const formatTimeAgo = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-    if (seconds < 60) return "just now";
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-    if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
-    return `${Math.floor(seconds / 604800)}w ago`;
-  };
 
   const formatOverlineDate = (dateString: string) => {
     return parseLocalDate(dateString)

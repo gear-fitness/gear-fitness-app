@@ -18,6 +18,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme, useRoute, useNavigation } from "@react-navigation/native";
 import { socialFeedApi, Comment } from "../api/socialFeedApi";
+import { parseServerDate } from "../utils/date";
 import { Avatar } from "./Avatar";
 
 export function CommentsScreen() {
@@ -105,7 +106,7 @@ export function CommentsScreen() {
 
   const formatTimeAgo = (dateString?: string) => {
     if (!dateString) return "Just now";
-    const date = new Date(dateString);
+    const date = parseServerDate(dateString);
     if (isNaN(date.getTime())) return "Just now";
     const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
     const minutes = Math.floor(seconds / 60);
