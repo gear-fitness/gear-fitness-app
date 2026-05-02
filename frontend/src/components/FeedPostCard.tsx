@@ -167,14 +167,18 @@ export function FeedPostCard({ post }: Props) {
                 key={`${url}-${i}`}
                 onPress={openImageViewer}
               >
-                <Image
-                  source={{ uri: url }}
-                  style={[
-                    styles.image,
-                    { width: scrollWidth, borderColor: colors.border },
-                  ]}
-                  resizeMode="cover"
-                />
+                <View
+                  style={{ width: scrollWidth, alignItems: "center" }}
+                >
+                  <Image
+                    source={{ uri: url }}
+                    style={[
+                      styles.image,
+                      { height: scrollWidth + 60, borderColor: colors.border },
+                    ]}
+                    resizeMode="cover"
+                  />
+                </View>
               </TouchableWithoutFeedback>
             ))}
           </ScrollView>
@@ -236,15 +240,16 @@ export function FeedPostCard({ post }: Props) {
               {post.exerciseCount}
             </Text>
           </View>
-          {hasMuscles && (
-            <View style={styles.metric}>
-              <Text style={[styles.metricLabel, textMuted]}>Muscles</Text>
-              <Text style={[styles.musclesText, { color: colors.text }]}>
-                {post.bodyTags.map(formatTag).join(", ")}
-              </Text>
-            </View>
-          )}
         </View>
+
+        {hasMuscles && (
+          <View style={styles.musclesRow}>
+            <Text style={[styles.metricLabel, textMuted]}>Muscles</Text>
+            <Text style={[styles.musclesText, { color: colors.text }]}>
+              {post.bodyTags.map(formatTag).join(", ")}
+            </Text>
+          </View>
+        )}
 
         {post.caption && (
           <Text style={[styles.caption, { color: colors.text }]}>
@@ -326,7 +331,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   image: {
-    height: 220,
+    width: 300,
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
   },
@@ -343,32 +348,37 @@ const styles = StyleSheet.create({
   },
   titleBlock: {
     paddingHorizontal: 16,
+    alignItems: "center",
   },
   dateOverline: {
     fontSize: 12,
     fontWeight: "600",
     letterSpacing: 1.2,
     marginBottom: 6,
+    textAlign: "center",
   },
   workoutName: {
     fontSize: 26,
     fontWeight: "700",
     letterSpacing: -0.8,
     lineHeight: 28,
+    textAlign: "center",
   },
   metricsRow: {
     flexDirection: "row",
     paddingHorizontal: 16,
     paddingTop: 18,
-    paddingBottom: 16,
+    paddingBottom: 12,
     gap: 12,
+    justifyContent: "center",
   },
   metric: {
-    flex: 1,
+    alignItems: "center",
   },
   metricLabel: {
     fontSize: 13,
     fontWeight: "500",
+    textAlign: "center",
   },
   metricValue: {
     fontSize: 22,
@@ -376,6 +386,12 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     marginTop: 2,
     fontVariant: ["tabular-nums"],
+    textAlign: "center",
+  },
+  musclesRow: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    alignItems: "center",
   },
   musclesText: {
     fontSize: 18,
@@ -383,12 +399,14 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
     lineHeight: 24,
     marginTop: 2,
+    textAlign: "center",
   },
   caption: {
     paddingHorizontal: 16,
     paddingBottom: 14,
     fontSize: 14,
     lineHeight: 20,
+    textAlign: "center",
   },
   engagement: {
     marginHorizontal: 12,
