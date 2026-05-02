@@ -171,7 +171,7 @@ export function Social() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Search Bar */}
       <View style={styles.searchRow}>
         <SearchBar
