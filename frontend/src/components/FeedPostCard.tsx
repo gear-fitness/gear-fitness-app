@@ -16,7 +16,7 @@ import { Text } from "@react-navigation/elements";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useTheme } from "@react-navigation/native";
 import { FeedPost } from "../api/socialFeedApi";
-import { parseLocalDate } from "../utils/date";
+import { parseLocalDate, formatTimeAgo } from "../utils/date";
 import { formatTag } from "../utils/formatTag";
 import { useAuth } from "../context/AuthContext";
 import { useLikeState } from "../context/LikesContext";
@@ -68,18 +68,6 @@ export function FeedPostCard({ post }: Props) {
 
   const isOwnPost = post.username === user?.username;
 
-  const formatTimeAgo = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-    if (seconds < 60) return "just now";
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-    if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
-    return `${Math.floor(seconds / 604800)}w ago`;
-  };
-
   const formatOverlineDate = (dateString: string) => {
     return parseLocalDate(dateString)
       .toLocaleDateString("en-US", {
@@ -127,6 +115,11 @@ export function FeedPostCard({ post }: Props) {
 
   const hasDuration = post.durationMin != null && post.durationMin > 0;
   const hasMuscles = Array.isArray(post.bodyTags) && post.bodyTags.length > 0;
+  const hasPhotos = photos.length > 0;
+  const contentPaddingHorizontal =
+    hasPhotos && scrollWidth > 0
+      ? 14 + Math.max(0, (scrollWidth - 300) / 2)
+      : 16;
 
   return (
     <View
@@ -167,14 +160,18 @@ export function FeedPostCard({ post }: Props) {
                 key={`${url}-${i}`}
                 onPress={openImageViewer}
               >
-                <Image
-                  source={{ uri: url }}
-                  style={[
-                    styles.image,
-                    { width: scrollWidth, borderColor: colors.border },
-                  ]}
-                  resizeMode="cover"
-                />
+                <View
+                  style={{ width: scrollWidth, alignItems: "center" }}
+                >
+                  <Image
+                    source={{ uri: url }}
+                    style={[
+                      styles.image,
+                      { height: scrollWidth + 60, borderColor: colors.border },
+                    ]}
+                    resizeMode="cover"
+                  />
+                </View>
               </TouchableWithoutFeedback>
             ))}
           </ScrollView>
@@ -212,7 +209,12 @@ export function FeedPostCard({ post }: Props) {
           });
         }}
       >
-        <View style={styles.titleBlock}>
+        <View
+          style={[
+            styles.titleBlock,
+            hasPhotos && { paddingHorizontal: contentPaddingHorizontal },
+          ]}
+        >
           <Text style={[styles.dateOverline, textMuted]}>
             {formatOverlineDate(post.datePerformed)}
           </Text>
@@ -221,7 +223,12 @@ export function FeedPostCard({ post }: Props) {
           </Text>
         </View>
 
-        <View style={styles.metricsRow}>
+        <View
+          style={[
+            styles.metricsRow,
+            hasPhotos && { paddingHorizontal: contentPaddingHorizontal },
+          ]}
+        >
           {hasDuration && (
             <View style={styles.metric}>
               <Text style={[styles.metricLabel, textMuted]}>Time</Text>
@@ -236,7 +243,7 @@ export function FeedPostCard({ post }: Props) {
               {post.exerciseCount}
             </Text>
           </View>
-          {hasMuscles && (
+          {!hasPhotos && hasMuscles && (
             <View style={styles.metric}>
               <Text style={[styles.metricLabel, textMuted]}>Muscles</Text>
               <Text style={[styles.musclesText, { color: colors.text }]}>
@@ -246,8 +253,28 @@ export function FeedPostCard({ post }: Props) {
           )}
         </View>
 
+        {hasPhotos && hasMuscles && (
+          <View
+            style={[
+              styles.musclesRow,
+              { paddingHorizontal: contentPaddingHorizontal },
+            ]}
+          >
+            <Text style={[styles.metricLabel, textMuted]}>Muscles</Text>
+            <Text style={[styles.musclesText, { color: colors.text }]}>
+              {post.bodyTags.map(formatTag).join(", ")}
+            </Text>
+          </View>
+        )}
+
         {post.caption && (
-          <Text style={[styles.caption, { color: colors.text }]}>
+          <Text
+            style={[
+              styles.caption,
+              { color: colors.text },
+              hasPhotos && { paddingHorizontal: contentPaddingHorizontal },
+            ]}
+          >
             {post.caption}
           </Text>
         )}
@@ -326,7 +353,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   image: {
-    height: 220,
+    width: 300,
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
   },
@@ -376,6 +403,10 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     marginTop: 2,
     fontVariant: ["tabular-nums"],
+  },
+  musclesRow: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
   musclesText: {
     fontSize: 18,

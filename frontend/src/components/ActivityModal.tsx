@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { notificationService } from "../api/notificationService";
+import { parseServerDate } from "../utils/date";
 import { Avatar } from "./Avatar";
 
 type ActivityModalProps = {
@@ -70,7 +71,7 @@ export function ActivityModal({ visible, onClose }: ActivityModalProps) {
   }, [visible]);
 
   const formatTimeAgo = (dateString: string) => {
-    const date = new Date(dateString);
+    const date = parseServerDate(dateString);
     const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
 
     const minutes = Math.floor(seconds / 60);

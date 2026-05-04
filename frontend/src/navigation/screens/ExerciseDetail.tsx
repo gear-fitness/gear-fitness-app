@@ -14,14 +14,22 @@ export function ExerciseDetail() {
 
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const exercise = route.params.exercise;
+  const routeExercise = route.params.exercise;
 
-  const { start, exercises, setCurrentExercise } = useWorkoutTimer();
+  const { start, exercises, setCurrentExercise, setActiveExercise } =
+    useWorkoutTimer();
+  const liveExercise = exercises.find(
+    (e) => e.workoutExerciseId === routeExercise.workoutExerciseId,
+  );
+  const exercise = liveExercise ?? routeExercise;
   const contentRef = useRef<ExerciseDetailContentRef>(null);
 
   useEffect(() => {
     start();
-  }, []);
+    if (exercise.workoutExerciseId) {
+      setActiveExercise(exercise.workoutExerciseId);
+    }
+  }, [exercise.workoutExerciseId]);
 
   // Save before leaving screen
   useEffect(() => {

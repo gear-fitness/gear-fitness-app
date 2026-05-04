@@ -22,6 +22,9 @@ export interface WorkoutExercise {
   sets: WorkoutSet[];
   note?: string;
   bodyParts?: BodyPartDTO[];
+  durationSeconds?: number;
+  draftReps?: string;
+  draftWeight?: string;
 }
 
 export type LastModalScreen = "WorkoutSummary" | "ExerciseDetail" | null;
@@ -37,6 +40,8 @@ interface PersistedWorkoutState {
   currentExerciseId: string | null;
   activeTab: string;
   lastModalScreen: LastModalScreen;
+  activeExerciseId: string | null;
+  activeExerciseStartedAt: number | null;
 }
 
 const WORKOUT_STATE_VERSION = 1;
@@ -98,6 +103,11 @@ interface WorkoutContextValue {
   hidePlayer: () => void;
   setCurrentExercise: (id: string) => void;
 
+  // Active-exercise timing (the exercise whose per-exercise clock is ticking)
+  activeExerciseId: string | null;
+  activeExerciseStartedAt: number | null;
+  setActiveExercise: (id: string) => void;
+
   // Tab tracking
   activeTab: string;
   setActiveTab: (tab: string) => void;
@@ -137,6 +147,12 @@ export function WorkoutTimerProvider({
   const [activeTab, setActiveTab] = useState("Home"); // Default to Home tab
   const [lastModalScreen, setLastModalScreen] = useState<LastModalScreen>(null);
 
+  // Active-exercise timing
+  const [activeExerciseId, setActiveExerciseId] = useState<string | null>(null);
+  const [activeExerciseStartedAt, setActiveExerciseStartedAt] = useState<
+    number | null
+  >(null);
+
   // Persistence state
   const [isRestoringState, setIsRestoringState] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -159,6 +175,8 @@ export function WorkoutTimerProvider({
         currentExerciseId,
         activeTab,
         lastModalScreen,
+        activeExerciseId,
+        activeExerciseStartedAt,
       };
 
       try {
@@ -228,6 +246,8 @@ export function WorkoutTimerProvider({
       setCurrentExerciseId(parsed.currentExerciseId);
       setActiveTab(parsed.activeTab);
       setLastModalScreen(parsed.lastModalScreen ?? null);
+      setActiveExerciseId(parsed.activeExerciseId ?? null);
+      setActiveExerciseStartedAt(parsed.activeExerciseStartedAt ?? null);
       restoreTimerState(parsed);
     } catch (error) {
       console.error("Failed to restore workout state:", error);
@@ -271,6 +291,8 @@ export function WorkoutTimerProvider({
     activeTab,
     lastModalScreen,
     totalElapsedSeconds,
+    activeExerciseId,
+    activeExerciseStartedAt,
     isRestoringState,
   ]);
 
@@ -327,6 +349,8 @@ export function WorkoutTimerProvider({
     currentExerciseId,
     activeTab,
     lastModalScreen,
+    activeExerciseId,
+    activeExerciseStartedAt,
   ]);
 
   // ---------------- EXERCISES LIST ----------------
@@ -363,6 +387,44 @@ export function WorkoutTimerProvider({
     );
   };
 
+  // Freeze the currently-active exercise's per-exercise timer by merging the
+  // elapsed delta into its durationSeconds, then clear the active pointer.
+  const freezeActiveExercise = () => {
+    if (activeExerciseId === null || activeExerciseStartedAt === null) return;
+    const delta = Math.floor((Date.now() - activeExerciseStartedAt) / 1000);
+    if (delta > 0) {
+      const targetId = activeExerciseId;
+      setExercises((prev) =>
+        prev.map((ex) =>
+          ex.workoutExerciseId === targetId
+            ? { ...ex, durationSeconds: (ex.durationSeconds ?? 0) + delta }
+            : ex,
+        ),
+      );
+    }
+    setActiveExerciseId(null);
+    setActiveExerciseStartedAt(null);
+  };
+
+  const setActiveExercise = (id: string) => {
+    if (id === activeExerciseId) return;
+    if (activeExerciseId !== null && activeExerciseStartedAt !== null) {
+      const delta = Math.floor((Date.now() - activeExerciseStartedAt) / 1000);
+      if (delta > 0) {
+        const prevId = activeExerciseId;
+        setExercises((prev) =>
+          prev.map((ex) =>
+            ex.workoutExerciseId === prevId
+              ? { ...ex, durationSeconds: (ex.durationSeconds ?? 0) + delta }
+              : ex,
+          ),
+        );
+      }
+    }
+    setActiveExerciseId(id);
+    setActiveExerciseStartedAt(Date.now());
+  };
+
   const start = () => {
     setRunning(true);
     // Only set timestamp if not already set (prevents resetting timer when adding exercises)
@@ -385,6 +447,7 @@ export function WorkoutTimerProvider({
   };
 
   const reset = async () => {
+    freezeActiveExercise();
     setRunning(false);
     setSeconds(0);
     setStartTimestamp(null);
@@ -433,6 +496,8 @@ export function WorkoutTimerProvider({
     setStartTimestamp(null);
     setTotalElapsedSeconds(0);
     setExercises(newExercises);
+    setActiveExerciseId(null);
+    setActiveExerciseStartedAt(null);
 
     if (newExercises.length > 0) {
       setRunning(true);
@@ -459,6 +524,9 @@ export function WorkoutTimerProvider({
         showPlayer,
         hidePlayer,
         setCurrentExercise: setCurrentExerciseId,
+        activeExerciseId,
+        activeExerciseStartedAt,
+        setActiveExercise,
         // Tab tracking
         activeTab,
         setActiveTab,

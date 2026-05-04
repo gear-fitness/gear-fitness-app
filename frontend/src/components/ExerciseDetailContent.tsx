@@ -11,12 +11,10 @@ import {
   InputAccessoryView,
   Button,
   Modal,
-  ActionSheetIOS,
-  Alert,
   Animated,
   useColorScheme,
 } from "react-native";
-import { GlassView } from "expo-glass-effect";
+import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import {
   useState,
   useEffect,
@@ -25,9 +23,11 @@ import {
   useRef,
   useMemo,
 } from "react";
-import { Swipeable, ScrollView } from "react-native-gesture-handler";
+import { ScrollView } from "react-native-gesture-handler";
+import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 import { useNavigation } from "@react-navigation/native";
 import { SymbolView } from "expo-symbols";
+import Svg, { Path } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import stopwatch from "../assets/stopwatch.png";
@@ -44,6 +44,9 @@ interface ExerciseDetailContentProps {
     sets?: WorkoutSet[];
     note?: string;
     bodyParts?: BodyPartDTO[];
+    durationSeconds?: number;
+    draftReps?: string;
+    draftWeight?: string;
   };
   onSummary: () => void;
   onAddExercise: () => void;
@@ -73,6 +76,15 @@ type ThemeColors = {
 };
 
 type LoggedSet = WorkoutSet & { id: string };
+
+type EditingState = {
+  id: string;
+  originalIndex: number;
+  originalReps: string;
+  originalWeight: string;
+  previousReps: string;
+  previousWeight: string;
+} | null;
 
 const BAR_WEIGHT = 45;
 const PLATE_OPTIONS = [45, 35, 25, 10, 5, 2.5];
@@ -124,10 +136,17 @@ export const ExerciseDetailContent = forwardRef<
   ExerciseDetailContentRef,
   ExerciseDetailContentProps
 >(({ exercise, onSummary, onAddExercise }, ref) => {
-  const { seconds, exercises, addExercise } = useWorkoutTimer();
+  const {
+    seconds,
+    exercises,
+    addExercise,
+    activeExerciseId,
+    activeExerciseStartedAt,
+  } = useWorkoutTimer();
   const navigation = useNavigation<any>();
   const isDark = useColorScheme() === "dark";
   const insets = useSafeAreaInsets();
+  const glassAvailable = isLiquidGlassAvailable();
 
   const colors: ThemeColors = isDark
     ? {
@@ -172,18 +191,21 @@ export const ExerciseDetailContent = forwardRef<
     .map((s, i) => ({ id: `seed-${i}`, reps: s.reps, weight: s.weight }));
 
   const [loggedSets, setLoggedSets] = useState<LoggedSet[]>(initialLogged);
-  const [currentReps, setCurrentReps] = useState("");
-  const [currentWeight, setCurrentWeight] = useState("");
+  const [currentReps, setCurrentReps] = useState(exercise.draftReps ?? "");
+  const [currentWeight, setCurrentWeight] = useState(
+    exercise.draftWeight ?? "",
+  );
   const [note, setNote] = useState(exercise.note || "");
   const [noteModalVisible, setNoteModalVisible] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
   const [expanded, setExpanded] = useState(false);
   const [showingTotal, setShowingTotal] = useState(false);
-  const [exerciseSeconds, setExerciseSeconds] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
   const [platesEnabled, setPlatesEnabled] = useState(false);
   const [platesOpen, setPlatesOpen] = useState(false);
   const [plateMode, setPlateMode] = useState<PlateMode>("dual");
   const [plateBarOn, setPlateBarOn] = useState(false);
+  const [editing, setEditing] = useState<EditingState>(null);
 
   const plateBar = plateBarOn ? BAR_WEIGHT : 0;
   const plateMultiplier = plateMode === "single" ? 1 : 2;
@@ -230,9 +252,18 @@ export const ExerciseDetailContent = forwardRef<
   };
 
   useEffect(() => {
-    const id = setInterval(() => setExerciseSeconds((s) => s + 1), 1000);
+    const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
+
+  const isActiveExercise =
+    !!exercise.workoutExerciseId &&
+    activeExerciseId === exercise.workoutExerciseId;
+  const liveDelta =
+    isActiveExercise && activeExerciseStartedAt !== null
+      ? Math.max(0, Math.floor((now - activeExerciseStartedAt) / 1000))
+      : 0;
+  const exerciseSeconds = (exercise.durationSeconds ?? 0) + liveDelta;
 
   useEffect(() => {
     if (!showingTotal) return;
@@ -248,31 +279,45 @@ export const ExerciseDetailContent = forwardRef<
   }, [exercises, exercise.workoutExerciseId]);
 
   const { getSwipeableProps } = useSwipeableDelete({
-    onDelete: (id) => setLoggedSets((prev) => prev.filter((s) => s.id !== id)),
+    onDelete: (id) => {
+      const idx = loggedSets.findIndex((s) => s.id === id);
+      if (idx < 0) return;
+      setLoggedSets((prev) => prev.filter((s) => s.id !== id));
+      if (editing && idx < editing.originalIndex) {
+        setEditing((e) =>
+          e ? { ...e, originalIndex: e.originalIndex - 1 } : e,
+        );
+      }
+    },
     deleteTitle: "Delete Set",
     deleteMessage: "Are you sure you want to delete this set?",
   });
 
   const saveExercise = () => {
-    const pending: WorkoutSet[] =
-      currentReps.trim() && currentWeight.trim()
-        ? [{ reps: currentReps.trim(), weight: currentWeight.trim() }]
-        : [];
-    const allSets: WorkoutSet[] = [
-      ...loggedSets.map(({ reps, weight }) => ({ reps, weight })),
-      ...pending,
-    ];
-    if (allSets.length > 0) {
-      addExercise({
-        workoutExerciseId: exercise.workoutExerciseId || Date.now().toString(),
-        exerciseId: exercise.exerciseId,
-        name: exercise.name,
-        bodyParts: exercise.bodyParts,
-
-        sets: allSets,
-        note: note.trim(),
-      });
+    const allSets: WorkoutSet[] = loggedSets.map(({ reps, weight }) => ({
+      reps,
+      weight,
+    }));
+    if (editing) {
+      const r = currentReps.trim() || editing.originalReps;
+      const w = currentWeight.trim() || editing.originalWeight;
+      if (r && w) {
+        allSets.splice(editing.originalIndex, 0, { reps: r, weight: w });
+      }
     }
+    const setsToPersist: WorkoutSet[] =
+      allSets.length > 0 ? allSets : [{ reps: "", weight: "" }];
+    addExercise({
+      workoutExerciseId: exercise.workoutExerciseId || Date.now().toString(),
+      exerciseId: exercise.exerciseId,
+      name: exercise.name,
+      bodyParts: exercise.bodyParts,
+      sets: setsToPersist,
+      note: note.trim(),
+      durationSeconds: exercise.durationSeconds,
+      draftReps: currentReps,
+      draftWeight: currentWeight,
+    });
   };
 
   useImperativeHandle(ref, () => ({ save: saveExercise }));
@@ -284,6 +329,22 @@ export const ExerciseDetailContent = forwardRef<
 
   const handleLogSet = () => {
     if (!currentReps.trim() || !currentWeight.trim()) return;
+    if (editing) {
+      const reps = currentReps.trim();
+      const weight = currentWeight.trim();
+      const editingId = editing.id;
+      const insertAt = editing.originalIndex;
+      setLoggedSets((prev) => {
+        const next = [...prev];
+        next.splice(insertAt, 0, { id: editingId, reps, weight });
+        return next;
+      });
+      setCurrentReps(editing.previousReps);
+      setCurrentWeight(editing.previousWeight);
+      setEditing(null);
+      Keyboard.dismiss();
+      return;
+    }
     setLoggedSets((prev) => [
       ...prev,
       {
@@ -296,12 +357,54 @@ export const ExerciseDetailContent = forwardRef<
     Keyboard.dismiss();
   };
 
+  const handleEditSet = (set: LoggedSet) => {
+    let workingSets = loggedSets;
+    let stashedPrevReps = currentReps;
+    let stashedPrevWeight = currentWeight;
+
+    if (editing) {
+      if (editing.id === set.id) return;
+      const reps = currentReps.trim() || editing.originalReps;
+      const weight = currentWeight.trim() || editing.originalWeight;
+      workingSets = [...loggedSets];
+      workingSets.splice(editing.originalIndex, 0, {
+        id: editing.id,
+        reps,
+        weight,
+      });
+      stashedPrevReps = editing.previousReps;
+      stashedPrevWeight = editing.previousWeight;
+    }
+
+    const idx = workingSets.findIndex((s) => s.id === set.id);
+    if (idx < 0) return;
+
+    setLoggedSets(workingSets.filter((s) => s.id !== set.id));
+    setEditing({
+      id: set.id,
+      originalIndex: idx,
+      originalReps: set.reps,
+      originalWeight: set.weight,
+      previousReps: stashedPrevReps,
+      previousWeight: stashedPrevWeight,
+    });
+    setCurrentReps(set.reps);
+    setCurrentWeight(set.weight);
+  };
+
+  const getDisplayIdx = (arrayIdx: number) =>
+    editing && arrayIdx >= editing.originalIndex ? arrayIdx + 1 : arrayIdx;
+
+  const setNumberLabel = editing
+    ? editing.originalIndex + 1
+    : loggedSets.length + 1;
+
   useEffect(() => {
     const listener = Keyboard.addListener("keyboardDidHide", () => {
       saveExercise();
     });
     return () => listener.remove();
-  }, [loggedSets, currentReps, currentWeight, note]);
+  }, [loggedSets, currentReps, currentWeight, note, editing]);
 
   const canLog = !!currentReps.trim() && !!currentWeight.trim();
   const timerValue = showingTotal ? seconds : exerciseSeconds;
@@ -317,31 +420,7 @@ export const ExerciseDetailContent = forwardRef<
   };
 
   const handleInfoPress = () => {
-    const noteLabel = note.trim() ? "Edit note" : "Add note";
-    const viewLabel = "View information";
-    if (Platform.OS === "ios") {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: [noteLabel, viewLabel, "Cancel"],
-          cancelButtonIndex: 2,
-          userInterfaceStyle: isDark ? "dark" : "light",
-        },
-        (i) => {
-          if (i === 0) openNoteModal();
-          else if (i === 1)
-            navigation.navigate("ExerciseHistory", { exercise });
-        },
-      );
-    } else {
-      Alert.alert(exercise.name, undefined, [
-        { text: noteLabel, onPress: openNoteModal },
-        {
-          text: viewLabel,
-          onPress: () => navigation.navigate("ExerciseHistory", { exercise }),
-        },
-        { text: "Cancel", style: "cancel" },
-      ]);
-    }
+    navigation.navigate("ExerciseHistory", { exercise });
   };
 
   return (
@@ -382,17 +461,68 @@ export const ExerciseDetailContent = forwardRef<
                 </Text>
               )}
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={handleInfoPress}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              style={[styles.infoButton, { backgroundColor: colors.chipBg }]}
-            >
-              <SymbolView
-                name={note.trim() ? "ellipsis.circle.fill" : "ellipsis.circle"}
-                tintColor={colors.text}
-                size={18}
-              />
-            </TouchableOpacity>
+            <View style={styles.topBarActions}>
+              <TouchableOpacity
+                onPress={openNoteModal}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={[
+                  styles.topBarButton,
+                  {
+                    backgroundColor: glassAvailable
+                      ? "transparent"
+                      : colors.chipBg,
+                    borderColor: glassAvailable ? "transparent" : colors.border,
+                    borderWidth: glassAvailable ? 0 : StyleSheet.hairlineWidth,
+                  },
+                ]}
+              >
+                {glassAvailable && (
+                  <GlassView
+                    style={[
+                      StyleSheet.absoluteFillObject,
+                      { borderRadius: 20 },
+                    ]}
+                    glassEffectStyle="regular"
+                    isInteractive
+                  />
+                )}
+                <SymbolView
+                  name={note.trim() ? "note.text" : "square.and.pencil"}
+                  tintColor={colors.text}
+                  size={20}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleInfoPress}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={[
+                  styles.topBarButton,
+                  {
+                    backgroundColor: glassAvailable
+                      ? "transparent"
+                      : colors.chipBg,
+                    borderColor: glassAvailable ? "transparent" : colors.border,
+                    borderWidth: glassAvailable ? 0 : StyleSheet.hairlineWidth,
+                  },
+                ]}
+              >
+                {glassAvailable && (
+                  <GlassView
+                    style={[
+                      StyleSheet.absoluteFillObject,
+                      { borderRadius: 20 },
+                    ]}
+                    glassEffectStyle="regular"
+                    isInteractive
+                  />
+                )}
+                <SymbolView
+                  name="chart.xyaxis.line"
+                  tintColor={colors.text}
+                  size={20}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
           <View
             style={[styles.divider, { borderBottomColor: colors.border }]}
@@ -407,7 +537,7 @@ export const ExerciseDetailContent = forwardRef<
           >
             <View style={styles.header}>
               <Text style={[styles.caption, { color: colors.textMuted }]}>
-                EXERCISE {exerciseNum} · SET {loggedSets.length + 1}
+                EXERCISE {exerciseNum} · SET {setNumberLabel}
               </Text>
               <Text
                 style={[styles.title, { color: colors.text }]}
@@ -499,7 +629,9 @@ export const ExerciseDetailContent = forwardRef<
               <Text
                 style={[styles.logButtonText, { color: colors.accentText }]}
               >
-                Log set {loggedSets.length + 1}
+                {editing
+                  ? `Save set ${setNumberLabel}`
+                  : `Log set ${setNumberLabel}`}
               </Text>
               <Text
                 style={[styles.logButtonArrow, { color: colors.accentText }]}
@@ -537,18 +669,18 @@ export const ExerciseDetailContent = forwardRef<
                 <View>
                   {[...loggedSets].reverse().map((item, index) => (
                     <View key={item.id} style={styles.setRowWrapper}>
-                      <Swipeable
+                      <ReanimatedSwipeable
                         {...getSwipeableProps(item.id)}
-                        activeOffsetX={[-15, 15]}
-                        failOffsetY={[-10, 10]}
+                        containerStyle={stackStyles.swipeContainer}
                       >
                         <SetRow
                           colors={colors}
-                          idx={loggedSets.length - 1 - index}
+                          idx={getDisplayIdx(loggedSets.length - 1 - index)}
                           reps={item.reps}
                           weight={item.weight}
+                          onEdit={() => handleEditSet(item)}
                         />
-                      </Swipeable>
+                      </ReanimatedSwipeable>
                     </View>
                   ))}
                 </View>
@@ -557,6 +689,11 @@ export const ExerciseDetailContent = forwardRef<
                   colors={colors}
                   loggedSets={loggedSets}
                   onExpand={() => setExpanded(true)}
+                  newestDisplayIdx={getDisplayIdx(loggedSets.length - 1)}
+                  onEditNewest={() =>
+                    handleEditSet(loggedSets[loggedSets.length - 1])
+                  }
+                  getSwipeableProps={getSwipeableProps}
                 />
               )}
             </View>
@@ -675,6 +812,26 @@ export const ExerciseDetailContent = forwardRef<
   );
 });
 
+function EditPencilIcon({ color }: { color: string }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M4 20h4l10-10-4-4L4 16v4z"
+        stroke={color}
+        strokeWidth={1.6}
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <Path
+        d="M13.5 6.5l4 4"
+        stroke={color}
+        strokeWidth={1.6}
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
 function HeroInput({
   label,
   value,
@@ -722,11 +879,13 @@ function SetRow({
   idx,
   reps,
   weight,
+  onEdit,
 }: {
   colors: ThemeColors;
   idx: number;
   reps: string;
   weight: string;
+  onEdit?: () => void;
 }) {
   return (
     <View
@@ -756,7 +915,17 @@ function SetRow({
           </Text>
         </Text>
       </View>
-      <SymbolView name="checkmark" tintColor={colors.text} size={14} />
+      {onEdit ? (
+        <TouchableOpacity
+          onPress={onEdit}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={setStyles.editButton}
+        >
+          <EditPencilIcon color={colors.text} />
+        </TouchableOpacity>
+      ) : (
+        <EditPencilIcon color={colors.text} />
+      )}
     </View>
   );
 }
@@ -765,13 +934,18 @@ function StackedSets({
   colors,
   loggedSets,
   onExpand,
+  newestDisplayIdx,
+  onEditNewest,
+  getSwipeableProps,
 }: {
   colors: ThemeColors;
   loggedSets: LoggedSet[];
   onExpand: () => void;
+  newestDisplayIdx: number;
+  onEditNewest: () => void;
+  getSwipeableProps: (id: string) => any;
 }) {
   const newest = loggedSets[loggedSets.length - 1];
-  const newestIdx = loggedSets.length - 1;
   const behindCount = Math.min(2, loggedSets.length - 1);
   return (
     <View style={stackStyles.container}>
@@ -795,12 +969,18 @@ function StackedSets({
         );
       })}
       <View style={stackStyles.top}>
-        <SetRow
-          colors={colors}
-          idx={newestIdx}
-          reps={newest.reps}
-          weight={newest.weight}
-        />
+        <ReanimatedSwipeable
+          {...getSwipeableProps(newest.id)}
+          containerStyle={stackStyles.swipeContainer}
+        >
+          <SetRow
+            colors={colors}
+            idx={newestDisplayIdx}
+            reps={newest.reps}
+            weight={newest.weight}
+            onEdit={onEditNewest}
+          />
+        </ReanimatedSwipeable>
       </View>
       {loggedSets.length > 1 && (
         <TouchableOpacity onPress={onExpand} style={stackStyles.expand}>
@@ -1216,16 +1396,20 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
 
-  infoButton: {
+  topBarActions: {
     position: "absolute",
-    right: 20,
-    top: "50%",
-    transform: [{ translateY: -16 }],
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    right: 16,
+    top: 8,
+    flexDirection: "row",
+    gap: 8,
+  },
+  topBarButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
   },
 
   divider: {
@@ -1499,6 +1683,10 @@ const setStyles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "400",
   },
+  editButton: {
+    padding: 4,
+    marginRight: -4,
+  },
 });
 
 const stackStyles = StyleSheet.create({
@@ -1515,6 +1703,10 @@ const stackStyles = StyleSheet.create({
   },
   top: {
     zIndex: 3,
+  },
+  swipeContainer: {
+    borderRadius: 12,
+    overflow: "hidden",
   },
   expand: {
     position: "absolute",

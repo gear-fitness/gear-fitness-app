@@ -40,7 +40,7 @@ import { Platform } from "react-native";
 
 const majorVersionIOS = parseInt(Platform.Version, 10);
 const HomeTabs = createBottomTabNavigator({
-  initialRouteName: "Explore",
+  initialRouteName: "Workouts",
   ...(majorVersionIOS >= 26 && { implementation: "native" }),
   ...(majorVersionIOS < 26 && {
     tabBar: (props) => (

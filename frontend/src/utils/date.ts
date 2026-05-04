@@ -55,8 +55,21 @@ export function getCurrentLocalDateString(): string {
   return `${year}-${month}-${day}`;
 }
 
+/**
+ * Parse a server datetime string. The backend serializes java.time.LocalDateTime
+ * as a naive ISO string with no timezone suffix (e.g. "2025-05-02T22:00:00.123456")
+ * while the wall-clock value is actually UTC. JavaScript's Date constructor
+ * interprets a naive ISO datetime as local time, which shifts the parsed instant
+ * by the viewer's UTC offset. Append "Z" so it parses as UTC. Strings that
+ * already carry timezone info pass through untouched.
+ */
+export function parseServerDate(dateString: string): Date {
+  const hasTz = /Z$|[+-]\d{2}:?\d{2}$/.test(dateString);
+  return new Date(hasTz ? dateString : dateString + "Z");
+}
+
 export function formatTimeAgo(dateString: string): string {
-  const date = new Date(dateString);
+  const date = parseServerDate(dateString);
   const now = new Date();
   const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
