@@ -160,9 +160,7 @@ export function FeedPostCard({ post }: Props) {
                 key={`${url}-${i}`}
                 onPress={openImageViewer}
               >
-                <View
-                  style={{ width: scrollWidth, alignItems: "center" }}
-                >
+                <View style={{ width: scrollWidth, alignItems: "center" }}>
                   <Image
                     source={{ uri: url }}
                     style={[
