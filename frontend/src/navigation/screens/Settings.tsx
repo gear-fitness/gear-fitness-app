@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
+  Appearance,
   ColorValue,
   View,
   Text,
@@ -10,6 +11,7 @@ import {
   Linking,
   Platform,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
@@ -34,6 +36,7 @@ import {
 } from "../../utils/healthKitSync";
 import { updateUserProfile } from "../../api/userService";
 import { Height, Weight } from "../onboarding/types";
+import * as Notifications from "expo-notifications";
 
 const GENDER_LABELS: Record<string, string> = {
   male: "Male",
@@ -103,7 +106,6 @@ export function Settings() {
   const { pickAndUpload, uploading } = useProfilePhoto();
 
   const [isPrivate, setIsPrivate] = useState(user?.isPrivate ?? false);
-  const [muteNotifications, setMuteNotifications] = useState(false);
 
   // Apple Health state — reflects actual iOS auth status, refreshed on focus.
   const [healthSyncEnabled, setHealthSyncEnabled] = useState(false);
@@ -112,18 +114,55 @@ export function Settings() {
   );
   const [healthToggleBusy, setHealthToggleBusy] = useState(false);
 
+  // Push notifications — reflects actual OS auth status, refreshed on focus.
+  const [pushNotifsEnabled, setPushNotifsEnabled] = useState(false);
+  const [pushNotifsBusy, setPushNotifsBusy] = useState(false);
+
+  // Theme preference. "system" follows OS; "light"/"dark" force a scheme via
+  // Appearance.setColorScheme — affects every useColorScheme() caller.
+  const [themeMode, setThemeModeState] = useState<"system" | "light" | "dark">(
+    "system",
+  );
+
+  useEffect(() => {
+    AsyncStorage.getItem("@theme_override").then((stored) => {
+      if (stored === "light" || stored === "dark") {
+        setThemeModeState(stored);
+      }
+    });
+  }, []);
+
+  const setThemeMode = async (mode: "system" | "light" | "dark") => {
+    setThemeModeState(mode);
+    if (mode === "system") {
+      await AsyncStorage.removeItem("@theme_override");
+      // RN supports passing null at runtime to revert to the system scheme,
+      // but the bundled type signature doesn't allow it.
+      (Appearance.setColorScheme as (s: unknown) => void)(null);
+    } else {
+      await AsyncStorage.setItem("@theme_override", mode);
+      Appearance.setColorScheme(mode);
+    }
+  };
+
   const refreshHealthStatus = useCallback(async () => {
     const status = await getHealthKitSyncStatus();
     setHealthSyncEnabled(status === "enabled");
     setHealthUnavailable(status === "unavailable");
   }, []);
 
+  const refreshNotificationStatus = useCallback(async () => {
+    const { status } = await Notifications.getPermissionsAsync();
+    setPushNotifsEnabled(status === "granted");
+  }, []);
+
   // Re-check every time Settings comes into focus, because the user may
-  // have gone to iOS Settings → Health and changed permission while away.
+  // have gone to iOS Settings and changed permissions while away.
   useFocusEffect(
     useCallback(() => {
       refreshHealthStatus();
-    }, [refreshHealthStatus]),
+      refreshNotificationStatus();
+    }, [refreshHealthStatus, refreshNotificationStatus]),
   );
 
   const handleHealthToggle = async (next: boolean) => {
@@ -204,6 +243,44 @@ export function Settings() {
       );
     } finally {
       setHealthToggleBusy(false);
+    }
+  };
+
+  const handleNotificationsToggle = async (next: boolean) => {
+    if (pushNotifsBusy) return;
+
+    // Turning OFF — like HealthKit, we can't programmatically revoke
+    // notification permission. Send the user to iOS Settings.
+    if (!next) {
+      Alert.alert(
+        "Disable Push Notifications",
+        Platform.OS === "ios"
+          ? "Open iOS Settings → Notifications → Gear Fitness to turn off notifications."
+          : "Open device Settings → Apps → Gear Fitness → Notifications to turn off notifications.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Open Settings",
+            onPress: () => Linking.openSettings(),
+          },
+        ],
+      );
+      return;
+    }
+
+    setPushNotifsBusy(true);
+    try {
+      const { status } = await Notifications.requestPermissionsAsync();
+      const granted = status === "granted";
+      setPushNotifsEnabled(granted);
+      if (!granted) {
+        Alert.alert(
+          "Permission Denied",
+          "Notifications were not enabled. You can enable them in iOS Settings → Notifications → Gear Fitness.",
+        );
+      }
+    } finally {
+      setPushNotifsBusy(false);
     }
   };
 
@@ -331,6 +408,68 @@ export function Settings() {
               },
             ]
           : []),
+        {
+          key: "notifications",
+          title: "Notifications",
+          data: [
+            {
+              id: "push_notifications",
+              type: "toggle" as const,
+              label: "Push Notifications",
+              value: pushNotifsEnabled,
+              onValueChange: handleNotificationsToggle,
+              disabled: pushNotifsBusy,
+            },
+          ],
+          footer: pushNotifsEnabled
+            ? "You'll receive notifications about workouts, posts, and updates."
+            : "Enable to get notified about workouts, posts, and updates.",
+        },
+        {
+          key: "appearance",
+          title: "Appearance",
+          data: [
+            {
+              id: "use_system_theme",
+              type: "toggle" as const,
+              label: "Use System Theme",
+              value: themeMode === "system",
+              onValueChange: (next: boolean) => {
+                if (next) {
+                  setThemeMode("system");
+                } else {
+                  setThemeMode(
+                    Appearance.getColorScheme() === "dark" ? "dark" : "light",
+                  );
+                }
+              },
+            },
+            ...(themeMode !== "system"
+              ? [
+                  {
+                    id: "theme_light",
+                    type: "value" as const,
+                    label: "Light",
+                    value: themeMode === "light" ? "✓" : "",
+                    showArrow: false,
+                    onPress: () => setThemeMode("light"),
+                  },
+                  {
+                    id: "theme_dark",
+                    type: "value" as const,
+                    label: "Dark",
+                    value: themeMode === "dark" ? "✓" : "",
+                    showArrow: false,
+                    onPress: () => setThemeMode("dark"),
+                  },
+                ]
+              : []),
+          ],
+          footer:
+            themeMode === "system"
+              ? "Gear Fitness will match your device's appearance setting."
+              : "Choose a fixed appearance that overrides your device setting.",
+        },
         {
           key: "account",
           data: [

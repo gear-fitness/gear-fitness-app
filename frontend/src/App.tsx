@@ -6,7 +6,8 @@ import {
 import { createURL } from "expo-linking";
 import * as SplashScreen from "expo-splash-screen";
 import * as React from "react";
-import { useColorScheme } from "react-native";
+import { Appearance, useColorScheme } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Navigation } from "./navigation";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
@@ -61,6 +62,14 @@ export function App() {
     GoogleSignin.configure({
       iosClientId: process.env.EXPO_PUBLIC_IOS_CLIENT_ID,
       profileImageSize: 150,
+    });
+  }, []);
+
+  useEffect(() => {
+    AsyncStorage.getItem("@theme_override").then((stored) => {
+      if (stored === "light" || stored === "dark") {
+        Appearance.setColorScheme(stored);
+      }
     });
   }, []);
 
