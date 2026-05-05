@@ -11,6 +11,7 @@ type Props = {
   direction?: "down" | "left";
   position?: "left" | "right";
   icon?: "chevron" | "close";
+  inline?: boolean;
 };
 
 export function FloatingCloseButton({
@@ -19,6 +20,7 @@ export function FloatingCloseButton({
   direction = "down",
   position = "left",
   icon = "chevron",
+  inline = false,
 }: Props) {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
@@ -49,9 +51,11 @@ export function FloatingCloseButton({
       activeOpacity={0.7}
       style={[
         styles.button,
-        position === "right" ? { right: 16 } : { left: 16 },
+        !inline && [
+          position === "right" ? { right: 16 } : { left: 16 },
+          { top: insets.top + 8, position: "absolute", zIndex: 10 },
+        ],
         {
-          top: insets.top + 8,
           backgroundColor: glassAvailable ? "transparent" : surface,
           borderColor: glassAvailable ? "transparent" : border,
         },
@@ -79,8 +83,6 @@ export function FloatingCloseButton({
 
 const styles = StyleSheet.create({
   button: {
-    position: "absolute",
-    zIndex: 10,
     width: 40,
     height: 40,
     borderRadius: 20,

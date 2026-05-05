@@ -11,24 +11,22 @@ interface OnboardingTopBarProps {
 export function OnboardingTopBar({ progress, onBack }: OnboardingTopBarProps) {
   const colors = useOnboardingColors();
   return (
-    <>
+    <View style={styles.topbar}>
       <FloatingCloseButton
+        inline
         direction="left"
         accessibilityLabel="Back"
         onPress={onBack}
       />
-      <View style={styles.topbar}>
-        <View style={styles.spacer} />
-        <View style={[styles.trackWrap, { backgroundColor: colors.trackBg }]}>
-          <View
-            style={[
-              styles.fill,
-              { width: `${progress * 100}%`, backgroundColor: colors.accent },
-            ]}
-          />
-        </View>
+      <View style={[styles.trackWrap, { backgroundColor: colors.trackBg }]}>
+        <View
+          style={[
+            styles.fill,
+            { width: `${progress * 100}%`, backgroundColor: colors.accent },
+          ]}
+        />
       </View>
-    </>
+    </View>
   );
 }
 
@@ -40,10 +38,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingTop: 16,
     paddingBottom: 8,
-  },
-  spacer: {
-    width: 40,
-    height: 40,
   },
   trackWrap: {
     flex: 1,
