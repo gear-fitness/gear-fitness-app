@@ -54,7 +54,7 @@ export function Avatar({
     >
       <Text
         style={{
-          color: "#fff",
+          color: colors.background,
           fontSize: size * 0.43,
           fontWeight: "600",
           includeFontPadding: false,
