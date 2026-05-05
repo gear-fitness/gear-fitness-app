@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Image,
   NativeScrollEvent,
@@ -23,6 +23,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
+import { SnapbackZoom } from "react-native-zoom-toolkit";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 
 type RootStackParamList = {
@@ -45,6 +46,7 @@ export function ImageViewer({ route }: Props) {
   const [activeIndex, setActiveIndex] = useState(initialIndex);
 
   const translateY = useSharedValue(0);
+  const scrollRef = useRef<ScrollView>(null);
 
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const index = Math.round(e.nativeEvent.contentOffset.x / width);
@@ -56,6 +58,7 @@ export function ImageViewer({ route }: Props) {
   const panGesture = Gesture.Pan()
     .activeOffsetY([-10, 10])
     .failOffsetX([-12, 12])
+    .maxPointers(1)
     .onUpdate((e) => {
       translateY.value = e.translationY;
     })
@@ -73,7 +76,11 @@ export function ImageViewer({ route }: Props) {
           },
         );
       } else {
-        translateY.value = withSpring(0, { damping: 20, stiffness: 180 });
+        translateY.value = withSpring(0, {
+          damping: 5,
+          stiffness: 200,
+          overshootClamping: true,
+        });
       }
     });
 
@@ -109,6 +116,7 @@ export function ImageViewer({ route }: Props) {
       <GestureDetector gesture={panGesture}>
         <Animated.View style={[styles.carousel, carouselStyle]}>
           <ScrollView
+            ref={scrollRef}
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
@@ -126,11 +134,13 @@ export function ImageViewer({ route }: Props) {
                   alignItems: "center",
                 }}
               >
-                <Image
-                  source={{ uri }}
-                  style={{ width, height }}
-                  resizeMode="contain"
-                />
+                <SnapbackZoom scrollRef={scrollRef as never}>
+                  <Image
+                    source={{ uri }}
+                    style={{ width, height }}
+                    resizeMode="contain"
+                  />
+                </SnapbackZoom>
               </View>
             ))}
           </ScrollView>

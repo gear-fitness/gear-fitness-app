@@ -1,5 +1,11 @@
 import React from "react";
-import { View, Image, ImageStyle, ViewStyle } from "react-native";
+import {
+  View,
+  Image,
+  ImageStyle,
+  TouchableOpacity,
+  ViewStyle,
+} from "react-native";
 import { Text } from "@react-navigation/elements";
 import { useTheme } from "@react-navigation/native";
 
@@ -8,28 +14,31 @@ type Props = {
   profilePictureUrl?: string | null;
   size: number;
   style?: ViewStyle;
+  onPress?: () => void;
 };
 
-export function Avatar({ username, profilePictureUrl, size, style }: Props) {
+export function Avatar({
+  username,
+  profilePictureUrl,
+  size,
+  style,
+  onPress,
+}: Props) {
   const { colors } = useTheme();
 
-  if (profilePictureUrl) {
-    return (
-      <Image
-        source={{ uri: profilePictureUrl }}
-        style={[
-          {
-            width: size,
-            height: size,
-            borderRadius: size / 2,
-          },
-          style as ImageStyle,
-        ]}
-      />
-    );
-  }
-
-  return (
+  const inner = profilePictureUrl ? (
+    <Image
+      source={{ uri: profilePictureUrl }}
+      style={[
+        {
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+        },
+        style as ImageStyle,
+      ]}
+    />
+  ) : (
     <View
       style={[
         {
@@ -45,7 +54,7 @@ export function Avatar({ username, profilePictureUrl, size, style }: Props) {
     >
       <Text
         style={{
-          color: "#fff",
+          color: colors.background,
           fontSize: size * 0.43,
           fontWeight: "600",
           includeFontPadding: false,
@@ -55,4 +64,14 @@ export function Avatar({ username, profilePictureUrl, size, style }: Props) {
       </Text>
     </View>
   );
+
+  if (onPress) {
+    return (
+      <TouchableOpacity onPress={onPress} activeOpacity={0.85}>
+        {inner}
+      </TouchableOpacity>
+    );
+  }
+
+  return inner;
 }
