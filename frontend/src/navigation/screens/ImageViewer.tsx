@@ -76,7 +76,11 @@ export function ImageViewer({ route }: Props) {
           },
         );
       } else {
-        translateY.value = withSpring(0, { damping: 20, stiffness: 180 });
+        translateY.value = withSpring(0, {
+          damping: 5,
+          stiffness: 200,
+          overshootClamping: true,
+        });
       }
     });
 
