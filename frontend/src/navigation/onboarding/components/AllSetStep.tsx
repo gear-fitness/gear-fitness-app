@@ -53,6 +53,7 @@ export function AllSetStep({
             <Text style={shared.continueBtnText}>Sign up with Google</Text>
           </View>
         </Pressable>
+        {/* Apple sign-in stubbed until implemented
         <Pressable
           style={({ pressed }) => [
             shared.continueBtn,
@@ -68,6 +69,7 @@ export function AllSetStep({
             <Text style={shared.continueBtnText}>Sign up with Apple</Text>
           </View>
         </Pressable>
+        */}
       </View>
     </View>
   );
