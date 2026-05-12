@@ -8,10 +8,9 @@ import {
   Text,
   Keyboard,
   Platform,
-  InputAccessoryView,
-  Button,
   Modal,
   Animated,
+  Alert,
   useColorScheme,
 } from "react-native";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
@@ -50,6 +49,7 @@ interface ExerciseDetailContentProps {
   };
   onSummary: () => void;
   onAddExercise: () => void;
+  onSwapExercise?: () => void;
   isInPlayer?: boolean;
 }
 
@@ -57,7 +57,6 @@ export interface ExerciseDetailContentRef {
   save: () => void;
 }
 
-const inputAccessoryViewID = "exerciseDetailInput";
 
 type ThemeColors = {
   bg: string;
@@ -135,7 +134,7 @@ function plateMath(bar: number, sideTotal: number, mode: PlateMode): string {
 export const ExerciseDetailContent = forwardRef<
   ExerciseDetailContentRef,
   ExerciseDetailContentProps
->(({ exercise, onSummary, onAddExercise }, ref) => {
+>(({ exercise, onSummary, onAddExercise, onSwapExercise }, ref) => {
   const {
     seconds,
     exercises,
@@ -206,6 +205,24 @@ export const ExerciseDetailContent = forwardRef<
   const [plateMode, setPlateMode] = useState<PlateMode>("dual");
   const [plateBarOn, setPlateBarOn] = useState(false);
   const [editing, setEditing] = useState<EditingState>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showEvt =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvt =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSub = Keyboard.addListener(showEvt, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener(hideEvt, () => {
+      setKeyboardHeight(0);
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const plateBar = plateBarOn ? BAR_WEIGHT : 0;
   const plateMultiplier = plateMode === "single" ? 1 : 2;
@@ -423,6 +440,22 @@ export const ExerciseDetailContent = forwardRef<
     navigation.navigate("ExerciseHistory", { exercise });
   };
 
+  const handleSwapPress = () => {
+    if (!onSwapExercise) return;
+    Alert.alert(
+      "Swap exercise?",
+      "All current exercise data will be lost.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Swap",
+          style: "destructive",
+          onPress: () => onSwapExercise(),
+        },
+      ],
+    );
+  };
+
   return (
     <>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
@@ -539,12 +572,28 @@ export const ExerciseDetailContent = forwardRef<
               <Text style={[styles.caption, { color: colors.textMuted }]}>
                 EXERCISE {exerciseNum} · SET {setNumberLabel}
               </Text>
-              <Text
-                style={[styles.title, { color: colors.text }]}
-                numberOfLines={2}
+              <TouchableOpacity
+                onPress={handleSwapPress}
+                activeOpacity={0.6}
+                disabled={!onSwapExercise}
+                style={styles.titleRow}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               >
-                {exercise.name}
-              </Text>
+                <Text
+                  style={[styles.title, { color: colors.text }]}
+                  numberOfLines={2}
+                >
+                  {exercise.name}
+                </Text>
+                {onSwapExercise && (
+                  <SymbolView
+                    name="arrow.left.arrow.right"
+                    tintColor={colors.textMuted}
+                    size={22}
+                    style={styles.titleSwapIcon}
+                  />
+                )}
+              </TouchableOpacity>
             </View>
 
             <View
@@ -732,15 +781,30 @@ export const ExerciseDetailContent = forwardRef<
           </View>
         </View>
       </TouchableWithoutFeedback>
-      {Platform.OS === "ios" && (
-        <InputAccessoryView nativeID={inputAccessoryViewID}>
-          <View style={styles.keyboardToolbar}>
-            <View style={{ flex: 1 }} />
-            <GlassView style={{ borderRadius: 25, padding: 8 }}>
-              <Button title="Done" onPress={() => Keyboard.dismiss()} />
-            </GlassView>
-          </View>
-        </InputAccessoryView>
+      {keyboardHeight > 0 && (
+        <View
+          pointerEvents="box-none"
+          style={[
+            styles.floatingDismissContainer,
+            { bottom: keyboardHeight + 8 },
+          ]}
+        >
+          <GlassView style={styles.keyboardDismissPill}>
+            <TouchableOpacity
+              onPress={() => Keyboard.dismiss()}
+              accessibilityLabel="Dismiss keyboard"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={styles.keyboardDismissButton}
+            >
+              <SymbolView
+                key={isDark ? "dark" : "light"}
+                name="keyboard.chevron.compact.down"
+                tintColor={colors.text}
+                size={22}
+              />
+            </TouchableOpacity>
+          </GlassView>
+        </View>
       )}
       <Modal
         visible={noteModalVisible}
@@ -859,7 +923,6 @@ function HeroInput({
           keyboardType={allowDecimal ? "decimal-pad" : "number-pad"}
           placeholder="0"
           placeholderTextColor={colors.textFaint}
-          inputAccessoryViewID={inputAccessoryViewID}
           maxLength={6}
           style={[heroStyles.input, { color: colors.text }]}
           selectTextOnFocus
@@ -1429,11 +1492,23 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
 
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+
   title: {
+    flexShrink: 1,
     fontSize: 32,
     fontWeight: "700",
     letterSpacing: -0.8,
     lineHeight: 36,
+  },
+
+  titleSwapIcon: {
+    width: 22,
+    height: 22,
   },
 
   heroCard: {
@@ -1618,11 +1693,22 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
 
-  keyboardToolbar: {
-    flexDirection: "row",
+  floatingDismissContainer: {
+    position: "absolute",
+    right: 16,
+    alignItems: "flex-end",
+  },
+  keyboardDismissPill: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    overflow: "hidden",
+  },
+  keyboardDismissButton: {
+    width: 40,
+    height: 40,
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    justifyContent: "center",
   },
 });
 

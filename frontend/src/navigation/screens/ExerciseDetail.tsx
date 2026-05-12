@@ -55,12 +55,23 @@ export function ExerciseDetail() {
     }
   };
 
+  const handleSwapExercise = () => {
+    navigation.replace("ExerciseSelect", {
+      returnTo: "ExerciseDetail",
+      exercise,
+      swapTargetId: exercise.workoutExerciseId,
+    });
+  };
+
   return (
     <ExerciseDetailContent
       ref={contentRef}
       exercise={exercise}
       onSummary={() => navigation.replace("WorkoutSummary")}
       onAddExercise={handleNextExercise}
+      onSwapExercise={
+        exercise.workoutExerciseId ? handleSwapExercise : undefined
+      }
     />
   );
 }
