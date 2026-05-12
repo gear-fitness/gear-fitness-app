@@ -34,7 +34,9 @@ export default {
         backgroundColor: "#ffffff",
       },
       package: "com.gearfitness",
+      versionCode: 1,
       usesCleartextTraffic: true,
+      permissions: ["POST_NOTIFICATIONS", "READ_MEDIA_IMAGES"],
     },
     web: {
       favicon: "./assets/GearLogo.png",

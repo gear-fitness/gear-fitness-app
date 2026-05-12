@@ -6,7 +6,8 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.util.Collections;
+import java.util.ArrayList;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -16,13 +17,22 @@ public class GoogleTokenVerifier {
   @Value("${google.client-id}")
   private String clientId;
 
+  @Value("${google.android-client-id:}")
+  private String androidClientId;
+
   public GoogleIdToken.Payload verify(String idTokenString)
     throws GeneralSecurityException, IOException {
+    List<String> audiences = new ArrayList<>();
+    audiences.add(clientId);
+    if (androidClientId != null && !androidClientId.isBlank()) {
+      audiences.add(androidClientId);
+    }
+
     GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
       new NetHttpTransport(),
       new GsonFactory()
     )
-      .setAudience(Collections.singletonList(clientId))
+      .setAudience(audiences)
       .build();
 
     GoogleIdToken idToken = verifier.verify(idTokenString);

@@ -1,10 +1,10 @@
 import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
 import { useColorScheme } from "react-native";
-import { SymbolView } from "expo-symbols";
 
 import stopwatch from "../assets/stopwatch.png";
 import { useWorkoutTimer } from "../context/WorkoutContext";
-import { GlassView } from "expo-glass-effect";
+import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
+import { Icon } from "./ui/Icon";
 
 interface MiniPlayerProps {
   onTap: () => void;
@@ -15,6 +15,7 @@ export function MiniPlayer({ onTap, isVisible }: MiniPlayerProps) {
   const { seconds, running, start, pause, exercises, currentExerciseId } =
     useWorkoutTimer();
   const isDark = useColorScheme() === "dark";
+  const glassAvailable = isLiquidGlassAvailable();
 
   const colors = {
     bg: isDark ? "rgba(28, 28, 30, 0.8)" : "#fcfcfcc8",
@@ -100,10 +101,24 @@ export function MiniPlayer({ onTap, isVisible }: MiniPlayerProps) {
     },
   });
 
+  const Container: any = glassAvailable ? GlassView : View;
+  const containerProps = glassAvailable
+    ? { glassEffectStyle: "clear" as const }
+    : {};
+
   return (
-    <GlassView
-      style={[styles.container, { backgroundColor: colors.bg }]}
-      glassEffectStyle={"clear"}
+    <Container
+      style={[
+        styles.container,
+        {
+          backgroundColor: glassAvailable
+            ? colors.bg
+            : isDark
+              ? "#1c1c1e"
+              : "#fcfcfc",
+        },
+      ]}
+      {...containerProps}
     >
       <TouchableOpacity
         activeOpacity={0.8}
@@ -164,7 +179,7 @@ export function MiniPlayer({ onTap, isVisible }: MiniPlayerProps) {
               }}
               style={styles.playPauseButton}
             >
-              <SymbolView
+              <Icon
                 name={running ? "pause.fill" : "play.fill"}
                 tintColor={isDark ? "#fff" : "#000"}
                 size={14}
@@ -173,6 +188,6 @@ export function MiniPlayer({ onTap, isVisible }: MiniPlayerProps) {
           )}
         </View>
       </TouchableOpacity>
-    </GlassView>
+    </Container>
   );
 }

@@ -26,7 +26,7 @@ import {
 import { ScrollView } from "react-native-gesture-handler";
 import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 import { useNavigation } from "@react-navigation/native";
-import { SymbolView } from "expo-symbols";
+import { Icon } from "./ui/Icon";
 import Svg, { Path } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -486,7 +486,7 @@ export const ExerciseDetailContent = forwardRef<
                     isInteractive
                   />
                 )}
-                <SymbolView
+                <Icon
                   name={note.trim() ? "note.text" : "square.and.pencil"}
                   tintColor={colors.text}
                   size={20}
@@ -516,7 +516,7 @@ export const ExerciseDetailContent = forwardRef<
                     isInteractive
                   />
                 )}
-                <SymbolView
+                <Icon
                   name="chart.xyaxis.line"
                   tintColor={colors.text}
                   size={20}
@@ -1073,7 +1073,7 @@ function PlateLoaderToggle({
       </TouchableOpacity>
       <View style={plateStyles.toggleControls}>
         {enabled && (
-          <SymbolView
+          <Icon
             name={open ? "chevron.up" : "chevron.down"}
             tintColor={colors.textMuted}
             size={12}
