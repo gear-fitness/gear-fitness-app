@@ -7,7 +7,6 @@ import {
   Image,
   Text,
   Keyboard,
-  Platform,
   Modal,
   Animated,
   Alert,
@@ -34,6 +33,7 @@ import { useWorkoutTimer, WorkoutSet } from "../context/WorkoutContext";
 import { useSwipeableDelete } from "../hooks/useSwipeableDelete";
 import { BodyPartDTO } from "../api/exerciseService";
 import { FloatingCloseButton } from "./FloatingCloseButton";
+import { FloatingKeyboardDismiss } from "./FloatingKeyboardDismiss";
 
 interface ExerciseDetailContentProps {
   exercise: {
@@ -205,24 +205,6 @@ export const ExerciseDetailContent = forwardRef<
   const [plateMode, setPlateMode] = useState<PlateMode>("dual");
   const [plateBarOn, setPlateBarOn] = useState(false);
   const [editing, setEditing] = useState<EditingState>(null);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-
-  useEffect(() => {
-    const showEvt =
-      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvt =
-      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
-    const showSub = Keyboard.addListener(showEvt, (e) => {
-      setKeyboardHeight(e.endCoordinates.height);
-    });
-    const hideSub = Keyboard.addListener(hideEvt, () => {
-      setKeyboardHeight(0);
-    });
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
 
   const plateBar = plateBarOn ? BAR_WEIGHT : 0;
   const plateMultiplier = plateMode === "single" ? 1 : 2;
@@ -781,31 +763,7 @@ export const ExerciseDetailContent = forwardRef<
           </View>
         </View>
       </TouchableWithoutFeedback>
-      {keyboardHeight > 0 && (
-        <View
-          pointerEvents="box-none"
-          style={[
-            styles.floatingDismissContainer,
-            { bottom: keyboardHeight + 8 },
-          ]}
-        >
-          <GlassView style={styles.keyboardDismissPill}>
-            <TouchableOpacity
-              onPress={() => Keyboard.dismiss()}
-              accessibilityLabel="Dismiss keyboard"
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={styles.keyboardDismissButton}
-            >
-              <SymbolView
-                key={isDark ? "dark" : "light"}
-                name="keyboard.chevron.compact.down"
-                tintColor={colors.text}
-                size={22}
-              />
-            </TouchableOpacity>
-          </GlassView>
-        </View>
-      )}
+      <FloatingKeyboardDismiss />
       <Modal
         visible={noteModalVisible}
         transparent
@@ -1693,23 +1651,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
 
-  floatingDismissContainer: {
-    position: "absolute",
-    right: 16,
-    alignItems: "flex-end",
-  },
-  keyboardDismissPill: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    overflow: "hidden",
-  },
-  keyboardDismissButton: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
 });
 
 const heroStyles = StyleSheet.create({

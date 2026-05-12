@@ -16,6 +16,7 @@ import { OnboardingTopBar } from "./OnboardingTopBar";
 import { useOnboardingColors } from "./useOnboardingColors";
 import { makeOnboardingStyles } from "./makeOnboardingStyles";
 import { AvatarWithCameraOverlay } from "../../../components/AvatarWithCameraOverlay";
+import { FloatingKeyboardDismiss } from "../../../components/FloatingKeyboardDismiss";
 
 interface ProfileStepProps {
   profile?: OnboardingProfile;
@@ -234,6 +235,7 @@ export function ProfileStep({
           <Text style={shared.continueBtnText}>Continue</Text>
         </Pressable>
       </View>
+      <FloatingKeyboardDismiss />
     </View>
   );
 }
