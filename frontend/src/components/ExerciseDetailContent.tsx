@@ -371,7 +371,10 @@ export const ExerciseDetailContent = forwardRef<
       // Persist synchronously with the new state — don't rely on
       // keyboardDidHide (race) or closure-captured state (stale).
       saveExercise({
-        sets: nextLogged.map(({ reps: r, weight: w }) => ({ reps: r, weight: w })),
+        sets: nextLogged.map(({ reps: r, weight: w }) => ({
+          reps: r,
+          weight: w,
+        })),
         draftReps: previousReps,
         draftWeight: previousWeight,
         immediate: true,
