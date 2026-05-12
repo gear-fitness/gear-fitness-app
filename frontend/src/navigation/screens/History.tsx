@@ -14,6 +14,7 @@ import React, { useMemo, useState, useEffect } from "react";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import Swipeable from "react-native-gesture-handler/ReanimatedSwipeable";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
 import { getUserWorkouts, deleteWorkout } from "../../api/workoutService";
 import { Workout } from "../../api/types";
@@ -330,7 +331,10 @@ export function History() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={{ flex: 1 }}
     >
-      <View style={[styles.container, { backgroundColor: t.bg }]}>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: t.bg }]}
+        edges={["top"]}
+      >
         <FlatList
           data={filteredData}
           keyExtractor={(item) => item.workoutId}
@@ -339,7 +343,7 @@ export function History() {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ paddingBottom: MINI_PLAYER_HEIGHT + 30 }}
         />
-      </View>
+      </SafeAreaView>
     </KeyboardAvoidingView>
   );
 }
@@ -349,7 +353,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   calendarBlock: {
-    paddingTop: 40,
     paddingHorizontal: 8,
   },
   searchWrapper: {
