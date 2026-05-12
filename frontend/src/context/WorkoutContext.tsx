@@ -45,13 +45,17 @@ interface PersistedWorkoutState {
 }
 
 const WORKOUT_STATE_VERSION = 1;
-const STORAGE_KEY = "@workout_state";
+export const WORKOUT_STATE_STORAGE_KEY = "@workout_state";
+const STORAGE_KEY = WORKOUT_STATE_STORAGE_KEY;
 const SAVE_DEBOUNCE_MS = 500;
 const MAX_STATE_AGE_DAYS = 7;
+// If a workout was left "running" for longer than this, treat it as abandoned
+// on restore rather than rehydrating an inflated timer.
+const MAX_RESTORE_RUNNING_GAP_SECONDS = 4 * 60 * 60;
 
 // Local notification fired if the user backgrounds the app mid-workout
 // and doesn't return within this window.
-const UNFINISHED_WORKOUT_NOTIFICATION_ID = "unfinished-workout-reminder";
+export const UNFINISHED_WORKOUT_NOTIFICATION_ID = "unfinished-workout-reminder";
 const UNFINISHED_WORKOUT_DELAY_SECONDS = 20 * 60;
 
 async function scheduleUnfinishedWorkoutReminder() {
@@ -81,6 +85,16 @@ async function cancelUnfinishedWorkoutReminder() {
     );
   } catch {
     // No pending notification with this identifier; safe to ignore.
+  }
+  // Also clear any *delivered* copy of this notification from the tray so the
+  // user doesn't keep seeing "finish your workout" reminders after the workout
+  // has been posted.
+  try {
+    await Notifications.dismissNotificationAsync(
+      UNFINISHED_WORKOUT_NOTIFICATION_ID,
+    );
+  } catch {
+    // Not in tray; safe to ignore.
   }
 }
 
@@ -156,10 +170,18 @@ export function WorkoutTimerProvider({
   // Persistence state
   const [isRestoringState, setIsRestoringState] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Write barrier: when true, all storage writes and the in-memory mutators
+  // that side-effect handlers can hit (addExercise/updateExercise) become
+  // no-ops. Set inside reset() to prevent late writes — most notably the
+  // ExerciseDetail `beforeRemove` save() that fires during whole-stack
+  // unmount AFTER the workout has been posted and reset. Cleared the moment
+  // the user begins a new workout (start() / loadFromRoutine()).
+  const suppressWritesRef = useRef(false);
 
   // ---------------- PERSISTENCE FUNCTIONS ----------------
   const saveWorkoutState = (immediate = false) => {
     if (isRestoringState) return; // Don't save during restoration
+    if (suppressWritesRef.current) return; // Workout just ended; ignore.
 
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
 
@@ -240,6 +262,28 @@ export function WorkoutTimerProvider({
         return;
       }
 
+      // Abandoned shape: running with no exercises is a bug residue (Bug G or
+      // a side-effect write after reset). Don't rehydrate it.
+      if (parsed.running && parsed.exercises.length === 0) {
+        await AsyncStorage.removeItem(STORAGE_KEY);
+        setIsRestoringState(false);
+        return;
+      }
+
+      // Runaway timer: a workout left "running" for more than the cap means
+      // the user almost certainly abandoned it. Restoring would inflate the
+      // timer to many hours.
+      if (parsed.running && parsed.startTimestamp !== null) {
+        const elapsedSinceKill = Math.floor(
+          (Date.now() - parsed.startTimestamp) / 1000,
+        );
+        if (elapsedSinceKill > MAX_RESTORE_RUNNING_GAP_SECONDS) {
+          await AsyncStorage.removeItem(STORAGE_KEY);
+          setIsRestoringState(false);
+          return;
+        }
+      }
+
       // Restore state
       setExercises(parsed.exercises);
       setPlayerVisible(parsed.playerVisible);
@@ -277,10 +321,16 @@ export function WorkoutTimerProvider({
   // Auto-save on state changes
   useEffect(() => {
     if (isRestoringState) return; // Don't save during restoration
+    if (suppressWritesRef.current) return; // Workout just ended.
 
     // Only save if there's an active workout (exercises exist or timer is running)
     if (exercises.length > 0 || running || totalElapsedSeconds > 0) {
       saveWorkoutState(false);
+    } else if (saveTimeoutRef.current) {
+      // State went empty — kill any pending debounced save so it can't
+      // re-persist stale closure-captured state after reset().
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
     }
   }, [
     seconds,
@@ -328,6 +378,10 @@ export function WorkoutTimerProvider({
         } else if (nextAppState === "active") {
           cancelUnfinishedWorkoutReminder();
         } else if (nextAppState.match(/inactive|background/)) {
+          // Workout just ended — don't re-persist or arm a reminder. Without
+          // this guard, backgrounding the app between the success Alert and
+          // the navigation pop would write a zombie state back to storage.
+          if (suppressWritesRef.current) return;
           // App going to background - save immediately (no debounce)
           saveWorkoutState(true);
           if (running) {
@@ -355,6 +409,11 @@ export function WorkoutTimerProvider({
 
   // ---------------- EXERCISES LIST ----------------
   const addExercise = (exercise: WorkoutExercise) => {
+    // Block writes after a workout has been posted/reset. The most common
+    // caller this affects is ExerciseDetail's `beforeRemove` save(), which
+    // fires during whole-stack unmount and would otherwise resurrect the
+    // last-edited exercise into a fresh workout.
+    if (suppressWritesRef.current) return;
     setExercises((prev) => {
       const exists = prev.find(
         (e) => e.workoutExerciseId === exercise.workoutExerciseId,
@@ -372,6 +431,7 @@ export function WorkoutTimerProvider({
     workoutExerciseId: string,
     updatedFields: Partial<WorkoutExercise>,
   ) => {
+    if (suppressWritesRef.current) return;
     setExercises((prev) =>
       prev.map((ex) =>
         ex.workoutExerciseId === workoutExerciseId
@@ -382,9 +442,20 @@ export function WorkoutTimerProvider({
   };
 
   const removeExercise = (workoutExerciseId: string) => {
+    // If removing the last exercise, also stop the timer so we don't persist
+    // a "running with no exercises" zombie state.
+    const willBeEmpty =
+      exercises.length === 1 &&
+      exercises[0]?.workoutExerciseId === workoutExerciseId;
     setExercises((prev) =>
       prev.filter((ex) => ex.workoutExerciseId !== workoutExerciseId),
     );
+    if (willBeEmpty) {
+      setRunning(false);
+      setStartTimestamp(null);
+      setTotalElapsedSeconds(0);
+      setSeconds(0);
+    }
   };
 
   // Freeze the currently-active exercise's per-exercise timer by merging the
@@ -426,6 +497,9 @@ export function WorkoutTimerProvider({
   };
 
   const start = () => {
+    // Mounting ExerciseDetail (or any explicit start) means the user is
+    // actively working out — release the post-reset write barrier.
+    suppressWritesRef.current = false;
     setRunning(true);
     // Only set timestamp if not already set (prevents resetting timer when adding exercises)
     if (startTimestamp === null) {
@@ -447,13 +521,25 @@ export function WorkoutTimerProvider({
   };
 
   const reset = async () => {
-    freezeActiveExercise();
+    // Engage the write barrier *synchronously* before any state setter or
+    // await — this is what makes late side-effect writes (the ExerciseDetail
+    // `beforeRemove` save during stack unmount, a backgrounded AppState
+    // event, etc.) safely no-op.
+    suppressWritesRef.current = true;
+    // Kill any pending debounced save before it can fire with stale state
+    // captured in its closure.
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
     setRunning(false);
     setSeconds(0);
     setStartTimestamp(null);
     setTotalElapsedSeconds(0);
     setExercises([]);
     setLastModalScreen(null);
+    setActiveExerciseId(null);
+    setActiveExerciseStartedAt(null);
     hidePlayer();
 
     // Clear persisted state
@@ -479,7 +565,9 @@ export function WorkoutTimerProvider({
       bodyParts?: BodyPartDTO[];
     }>,
   ): Promise<void> => {
-    await clearPersistedState();
+    // Fully reset any prior workout first (also engages the write barrier
+    // and cancels notifications/pending saves).
+    await reset();
 
     const newExercises: WorkoutExercise[] = routineExercises.map(
       (ex, index) => ({
@@ -491,13 +579,10 @@ export function WorkoutTimerProvider({
       }),
     );
 
-    setRunning(false);
-    setSeconds(0);
-    setStartTimestamp(null);
-    setTotalElapsedSeconds(0);
+    // Release the write barrier before setting new state so the autosave
+    // effect can persist this fresh workout.
+    suppressWritesRef.current = false;
     setExercises(newExercises);
-    setActiveExerciseId(null);
-    setActiveExerciseStartedAt(null);
 
     if (newExercises.length > 0) {
       setRunning(true);
