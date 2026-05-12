@@ -49,9 +49,6 @@ export const WORKOUT_STATE_STORAGE_KEY = "@workout_state";
 const STORAGE_KEY = WORKOUT_STATE_STORAGE_KEY;
 const SAVE_DEBOUNCE_MS = 500;
 const MAX_STATE_AGE_DAYS = 7;
-// If a workout was left "running" for longer than this, treat it as abandoned
-// on restore rather than rehydrating an inflated timer.
-const MAX_RESTORE_RUNNING_GAP_SECONDS = 4 * 60 * 60;
 
 // Local notification fired if the user backgrounds the app mid-workout
 // and doesn't return within this window.
@@ -106,9 +103,21 @@ interface WorkoutContextValue {
   reset: () => void;
 
   exercises: WorkoutExercise[];
-  addExercise: (ex: WorkoutExercise) => void;
-  updateExercise: (id: string, fields: Partial<WorkoutExercise>) => void;
-  removeExercise: (id: string) => void;
+  // Pass `{ immediate: true }` for discrete user actions (Log Set, edit-set,
+  // swipe-delete) so the new state is flushed to AsyncStorage synchronously
+  // instead of waiting on the 500ms autosave debounce. Without this, killing
+  // the app right after tapping Log Set would lose the set.
+  addExercise: (ex: WorkoutExercise, options?: { immediate?: boolean }) => void;
+  updateExercise: (
+    id: string,
+    fields: Partial<WorkoutExercise>,
+    options?: { immediate?: boolean },
+  ) => void;
+  removeExercise: (id: string, options?: { immediate?: boolean }) => void;
+  // True when there's an in-flight workout: any exercises, a running timer,
+  // or accumulated elapsed time. Use this to gate new-workout entry points
+  // (routines etc.) so a Start tap doesn't silently destroy a live workout.
+  hasActiveWorkout: boolean;
 
   // Player state
   playerVisible: boolean;
@@ -177,6 +186,13 @@ export function WorkoutTimerProvider({
   // unmount AFTER the workout has been posted and reset. Cleared the moment
   // the user begins a new workout (start() / loadFromRoutine()).
   const suppressWritesRef = useRef(false);
+  // Bumped by mutators called with `{ immediate: true }`. A dedicated effect
+  // below watches this and triggers an immediate (non-debounced) write to
+  // AsyncStorage on the render after the state mutation, so closure values
+  // are fresh. Discrete user actions (Log Set, edit, delete) use this so a
+  // kill right after tapping doesn't lose data.
+  const [immediateSaveCounter, setImmediateSaveCounter] = useState(0);
+  const immediateSaveSkipInitialRef = useRef(true);
 
   // ---------------- PERSISTENCE FUNCTIONS ----------------
   const saveWorkoutState = (immediate = false) => {
@@ -262,28 +278,6 @@ export function WorkoutTimerProvider({
         return;
       }
 
-      // Abandoned shape: running with no exercises is a bug residue (Bug G or
-      // a side-effect write after reset). Don't rehydrate it.
-      if (parsed.running && parsed.exercises.length === 0) {
-        await AsyncStorage.removeItem(STORAGE_KEY);
-        setIsRestoringState(false);
-        return;
-      }
-
-      // Runaway timer: a workout left "running" for more than the cap means
-      // the user almost certainly abandoned it. Restoring would inflate the
-      // timer to many hours.
-      if (parsed.running && parsed.startTimestamp !== null) {
-        const elapsedSinceKill = Math.floor(
-          (Date.now() - parsed.startTimestamp) / 1000,
-        );
-        if (elapsedSinceKill > MAX_RESTORE_RUNNING_GAP_SECONDS) {
-          await AsyncStorage.removeItem(STORAGE_KEY);
-          setIsRestoringState(false);
-          return;
-        }
-      }
-
       // Restore state
       setExercises(parsed.exercises);
       setPlayerVisible(parsed.playerVisible);
@@ -317,6 +311,21 @@ export function WorkoutTimerProvider({
     // window only restarts on the next background event.
     cancelUnfinishedWorkoutReminder();
   }, []);
+
+  // Immediate-save trigger: fires on the render after a mutator was called
+  // with `{ immediate: true }`. By the time this effect runs, the queued
+  // setExercises has propagated, so saveWorkoutState reads fresh state from
+  // closure and writes synchronously to AsyncStorage.
+  useEffect(() => {
+    if (immediateSaveSkipInitialRef.current) {
+      immediateSaveSkipInitialRef.current = false;
+      return;
+    }
+    if (isRestoringState) return;
+    if (suppressWritesRef.current) return;
+    saveWorkoutState(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [immediateSaveCounter]);
 
   // Auto-save on state changes
   useEffect(() => {
@@ -408,12 +417,18 @@ export function WorkoutTimerProvider({
   ]);
 
   // ---------------- EXERCISES LIST ----------------
-  const addExercise = (exercise: WorkoutExercise) => {
+  const addExercise = (
+    exercise: WorkoutExercise,
+    options?: { immediate?: boolean },
+  ) => {
     // Block writes after a workout has been posted/reset. The most common
     // caller this affects is ExerciseDetail's `beforeRemove` save(), which
     // fires during whole-stack unmount and would otherwise resurrect the
     // last-edited exercise into a fresh workout.
     if (suppressWritesRef.current) return;
+    if (options?.immediate) {
+      setImmediateSaveCounter((c) => c + 1);
+    }
     setExercises((prev) => {
       const exists = prev.find(
         (e) => e.workoutExerciseId === exercise.workoutExerciseId,
@@ -430,8 +445,12 @@ export function WorkoutTimerProvider({
   const updateExercise = (
     workoutExerciseId: string,
     updatedFields: Partial<WorkoutExercise>,
+    options?: { immediate?: boolean },
   ) => {
     if (suppressWritesRef.current) return;
+    if (options?.immediate) {
+      setImmediateSaveCounter((c) => c + 1);
+    }
     setExercises((prev) =>
       prev.map((ex) =>
         ex.workoutExerciseId === workoutExerciseId
@@ -441,21 +460,16 @@ export function WorkoutTimerProvider({
     );
   };
 
-  const removeExercise = (workoutExerciseId: string) => {
-    // If removing the last exercise, also stop the timer so we don't persist
-    // a "running with no exercises" zombie state.
-    const willBeEmpty =
-      exercises.length === 1 &&
-      exercises[0]?.workoutExerciseId === workoutExerciseId;
+  const removeExercise = (
+    workoutExerciseId: string,
+    options?: { immediate?: boolean },
+  ) => {
+    if (options?.immediate) {
+      setImmediateSaveCounter((c) => c + 1);
+    }
     setExercises((prev) =>
       prev.filter((ex) => ex.workoutExerciseId !== workoutExerciseId),
     );
-    if (willBeEmpty) {
-      setRunning(false);
-      setStartTimestamp(null);
-      setTotalElapsedSeconds(0);
-      setSeconds(0);
-    }
   };
 
   // Freeze the currently-active exercise's per-exercise timer by merging the
@@ -592,6 +606,9 @@ export function WorkoutTimerProvider({
     }
   };
 
+  const hasActiveWorkout =
+    exercises.length > 0 || running || totalElapsedSeconds > 0;
+
   return (
     <WorkoutTimerContext.Provider
       value={{
@@ -604,6 +621,7 @@ export function WorkoutTimerProvider({
         addExercise,
         updateExercise,
         removeExercise,
+        hasActiveWorkout,
         playerVisible,
         currentExerciseId,
         showPlayer,
