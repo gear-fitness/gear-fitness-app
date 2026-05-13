@@ -501,6 +501,12 @@ export function WorkoutTimerProvider({
           : ex,
       ),
     );
+    // If we're swapping the active exercise, reset its live ticker so the
+    // per-exercise clock starts fresh from zero. setActiveExercise() can't do
+    // this from the callsite — it early-returns when the id is unchanged.
+    if (activeExerciseId === workoutExerciseId) {
+      setActiveExerciseStartedAt(Date.now());
+    }
   };
 
   // Freeze the currently-active exercise's per-exercise timer by merging the
@@ -552,6 +558,12 @@ export function WorkoutTimerProvider({
     if (startTimestamp === null) {
       setStartTimestamp(Date.now());
     }
+    // If we resumed with an active exercise that was frozen on pause, restart
+    // its live ticker so it accumulates from now forward — without this the
+    // per-exercise display would jump by the entire pause gap on resume.
+    if (activeExerciseId !== null && activeExerciseStartedAt === null) {
+      setActiveExerciseStartedAt(Date.now());
+    }
   };
 
   const pause = () => {
@@ -560,6 +572,25 @@ export function WorkoutTimerProvider({
       const now = Date.now();
       const currentElapsed = Math.floor((now - startTimestamp) / 1000);
       setTotalElapsedSeconds((prev) => prev + currentElapsed);
+    }
+    // Freeze the active-exercise live ticker into durationSeconds and clear
+    // its started-at. Without this, the per-exercise time would keep growing
+    // while the workout is paused (and would catch up the entire kill gap on
+    // restore-while-paused). The activeExerciseId pointer is preserved so a
+    // subsequent start() can resume the same exercise.
+    if (activeExerciseId !== null && activeExerciseStartedAt !== null) {
+      const delta = Math.floor((Date.now() - activeExerciseStartedAt) / 1000);
+      if (delta > 0) {
+        const targetId = activeExerciseId;
+        setExercises((prev) =>
+          prev.map((ex) =>
+            ex.workoutExerciseId === targetId
+              ? { ...ex, durationSeconds: (ex.durationSeconds ?? 0) + delta }
+              : ex,
+          ),
+        );
+      }
+      setActiveExerciseStartedAt(null);
     }
 
     setRunning(false);
