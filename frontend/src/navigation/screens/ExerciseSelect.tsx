@@ -17,7 +17,7 @@ export function ExerciseSelect() {
   const route = useRoute<any>();
   const isDark = useColorScheme() === "dark";
   const { exercises } = useExerciseList();
-  const { showPlayer, start, addExercise, setActiveExercise } =
+  const { showPlayer, start, swapExercise, setActiveExercise } =
     useWorkoutTimer();
   const insets = useSafeAreaInsets();
   const swapTargetId: string | undefined = route.params?.swapTargetId;
@@ -26,20 +26,21 @@ export function ExerciseSelect() {
     start();
 
     if (swapTargetId) {
-      const swapped = {
-        workoutExerciseId: swapTargetId,
+      swapExercise(swapTargetId, {
         exerciseId: exercise.exerciseId,
         name: exercise.name,
         bodyParts: exercise.bodyParts,
-        sets: [],
-        note: "",
-        durationSeconds: 0,
-        draftReps: "",
-        draftWeight: "",
-      };
-      addExercise(swapped);
+      });
       setActiveExercise(swapTargetId);
-      navigation.replace("ExerciseDetail", { exercise: swapped });
+      navigation.replace("ExerciseDetail", {
+        exercise: {
+          workoutExerciseId: swapTargetId,
+          exerciseId: exercise.exerciseId,
+          name: exercise.name,
+          bodyParts: exercise.bodyParts,
+          sets: [],
+        },
+      });
       return;
     }
 

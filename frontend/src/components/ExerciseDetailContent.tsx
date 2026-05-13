@@ -287,11 +287,9 @@ export const ExerciseDetailContent = forwardRef<
           e ? { ...e, originalIndex: e.originalIndex - 1 } : e,
         );
       }
-      // Persist immediately so a kill right after deletion can't restore the
-      // deleted set.
+      // Persist with the new state explicitly — addExercise is write-through.
       saveExercise({
         sets: nextLogged.map(({ reps, weight }) => ({ reps, weight })),
-        immediate: true,
       });
     },
     deleteTitle: "Delete Set",
@@ -307,7 +305,6 @@ export const ExerciseDetailContent = forwardRef<
     sets?: WorkoutSet[];
     draftReps?: string;
     draftWeight?: string;
-    immediate?: boolean;
   }) => {
     let allSets: WorkoutSet[];
     if (overrides?.sets) {
@@ -327,20 +324,17 @@ export const ExerciseDetailContent = forwardRef<
     }
     const setsToPersist: WorkoutSet[] =
       allSets.length > 0 ? allSets : [{ reps: "", weight: "" }];
-    addExercise(
-      {
-        workoutExerciseId: exercise.workoutExerciseId || Date.now().toString(),
-        exerciseId: exercise.exerciseId,
-        name: exercise.name,
-        bodyParts: exercise.bodyParts,
-        sets: setsToPersist,
-        note: note.trim(),
-        durationSeconds: exercise.durationSeconds,
-        draftReps: overrides?.draftReps ?? currentReps,
-        draftWeight: overrides?.draftWeight ?? currentWeight,
-      },
-      { immediate: overrides?.immediate },
-    );
+    addExercise({
+      workoutExerciseId: exercise.workoutExerciseId || Date.now().toString(),
+      exerciseId: exercise.exerciseId,
+      name: exercise.name,
+      bodyParts: exercise.bodyParts,
+      sets: setsToPersist,
+      note: note.trim(),
+      durationSeconds: exercise.durationSeconds,
+      draftReps: overrides?.draftReps ?? currentReps,
+      draftWeight: overrides?.draftWeight ?? currentWeight,
+    });
   };
 
   useImperativeHandle(ref, () => ({ save: saveExercise }));
@@ -366,8 +360,8 @@ export const ExerciseDetailContent = forwardRef<
       setCurrentWeight(previousWeight);
       setEditing(null);
       Keyboard.dismiss();
-      // Persist synchronously with the new state — don't rely on
-      // keyboardDidHide (race) or closure-captured state (stale).
+      // Pass the new state explicitly — addExercise is write-through, but it
+      // would otherwise read stale closure values from loggedSets/currentReps.
       saveExercise({
         sets: nextLogged.map(({ reps: r, weight: w }) => ({
           reps: r,
@@ -375,7 +369,6 @@ export const ExerciseDetailContent = forwardRef<
         })),
         draftReps: previousReps,
         draftWeight: previousWeight,
-        immediate: true,
       });
       return;
     }
@@ -394,7 +387,6 @@ export const ExerciseDetailContent = forwardRef<
       sets: nextLogged.map(({ reps, weight }) => ({ reps, weight })),
       draftReps: "",
       draftWeight: currentWeight,
-      immediate: true,
     });
   };
 
