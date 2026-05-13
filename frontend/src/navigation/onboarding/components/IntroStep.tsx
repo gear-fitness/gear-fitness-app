@@ -71,6 +71,7 @@ export function IntroStep({ onGetStarted, onGoogleSignIn }: IntroStepProps) {
           >
             <Image source={{ uri: GOOGLE_LOGO_URI }} style={styles.iconLogo} />
           </Pressable>
+          {/* Apple sign-in stubbed until implemented
           <Pressable
             style={[styles.iconBtn, { backgroundColor: colors.accent }]}
           >
@@ -80,6 +81,7 @@ export function IntroStep({ onGetStarted, onGoogleSignIn }: IntroStepProps) {
               resizeMode="contain"
             />
           </Pressable>
+          */}
         </View>
         <Text style={[styles.terms, { color: colors.secondary }]}>
           By continuing you agree to our{" "}
