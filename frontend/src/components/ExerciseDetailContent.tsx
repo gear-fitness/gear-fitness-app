@@ -57,7 +57,6 @@ export interface ExerciseDetailContentRef {
   save: () => void;
 }
 
-
 type ThemeColors = {
   bg: string;
   surface: string;
@@ -424,18 +423,14 @@ export const ExerciseDetailContent = forwardRef<
 
   const handleSwapPress = () => {
     if (!onSwapExercise) return;
-    Alert.alert(
-      "Swap exercise?",
-      "All current exercise data will be lost.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Swap",
-          style: "destructive",
-          onPress: () => onSwapExercise(),
-        },
-      ],
-    );
+    Alert.alert("Swap exercise?", "All current exercise data will be lost.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Swap",
+        style: "destructive",
+        onPress: () => onSwapExercise(),
+      },
+    ]);
   };
 
   return (
@@ -1650,7 +1645,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     letterSpacing: -0.2,
   },
-
 });
 
 const heroStyles = StyleSheet.create({
