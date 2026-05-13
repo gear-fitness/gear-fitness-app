@@ -230,6 +230,15 @@ export function Profile() {
             username={profile.username}
             profilePictureUrl={profile.profilePictureUrl}
             size={96}
+            onPress={
+              profile.profilePictureUrl
+                ? () =>
+                    navigation.navigate("ImageViewer", {
+                      photos: [profile.profilePictureUrl!],
+                      initialIndex: 0,
+                    })
+                : undefined
+            }
           />
           <View style={styles.identityText}>
             <Text

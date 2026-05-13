@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
 import Svg, { Path } from "react-native-svg";
@@ -12,7 +12,7 @@ import { StartCountdownOverlay } from "./StartCountdownOverlay";
 export function TodaysRoutines() {
   const navigation = useNavigation();
   const isDark = useColorScheme() === "dark";
-  const { loadFromRoutine } = useWorkoutTimer();
+  const { loadFromRoutine, hasActiveWorkout } = useWorkoutTimer();
   const [todaysRoutines, setTodaysRoutines] = useState<Routine[]>([]);
   const pendingRoutineRef = useRef<Routine | null>(null);
 
@@ -67,6 +67,27 @@ export function TodaysRoutines() {
   const handleQuickStartPress = (routine: Routine) => {
     if (!routine.exercises.length) return;
     pendingRoutineRef.current = routine;
+    if (hasActiveWorkout) {
+      Alert.alert(
+        "Workout in progress",
+        "You have a workout in progress. Discard it and start this routine?",
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
+            onPress: () => {
+              pendingRoutineRef.current = null;
+            },
+          },
+          {
+            text: "Discard & Start",
+            style: "destructive",
+            onPress: () => startCountdown(),
+          },
+        ],
+      );
+      return;
+    }
     startCountdown();
   };
 

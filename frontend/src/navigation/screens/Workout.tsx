@@ -65,7 +65,8 @@ export function Workout() {
   const isDark = scheme === "dark";
 
   const { user, refreshUser } = useAuth();
-  const { playerVisible, seconds, running, exercises } = useWorkoutTimer();
+  const { playerVisible, seconds, running, exercises, reset } =
+    useWorkoutTimer();
   const {
     isCountdownVisible,
     countdownValue,
@@ -150,6 +151,10 @@ export function Workout() {
     if (inProgress) {
       navigation.navigate("WorkoutFlow", { screen: "WorkoutComplete" });
     } else {
+      // Starting a fresh workout — explicitly clear any leftover state
+      // (timer, exercises, persisted storage) before the countdown. The
+      // ExerciseDetail mount-effect's start() will release the barrier.
+      reset();
       startCountdown();
     }
   };

@@ -29,7 +29,6 @@ import {
 } from "../../api/workoutService";
 import { getCurrentLocalDateString } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 import { formatTag } from "../../utils/formatTag";
 import { getAllBodyPartNames } from "../../utils/exerciseUtils";
@@ -228,7 +227,12 @@ export function WorkoutComplete() {
       };
 
       await submitWorkout(submission);
-      await AsyncStorage.removeItem("@workout_state");
+      // Clear in-memory + persisted state BEFORE the Alert so that any path
+      // out of this screen — tapping OK, backgrounding, force-quitting — is
+      // safe. reset() also engages the write barrier so late side-effect
+      // writes (ExerciseDetail.beforeRemove, AppState background) can't
+      // resurrect state during the unmount that follows popOutOfFlow.
+      await reset();
 
       if (createPost) invalidateFeed();
 
@@ -237,15 +241,7 @@ export function WorkoutComplete() {
         createPost
           ? "Workout saved and posted!"
           : "Workout saved successfully!",
-        [
-          {
-            text: "OK",
-            onPress: () => {
-              reset();
-              popOutOfFlow();
-            },
-          },
-        ],
+        [{ text: "OK", onPress: popOutOfFlow }],
       );
     } catch (error) {
       console.error("Failed to save workout:", error);

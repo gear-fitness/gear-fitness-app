@@ -282,42 +282,67 @@ export const ExerciseDetailContent = forwardRef<
     onDelete: (id) => {
       const idx = loggedSets.findIndex((s) => s.id === id);
       if (idx < 0) return;
-      setLoggedSets((prev) => prev.filter((s) => s.id !== id));
+      const nextLogged = loggedSets.filter((s) => s.id !== id);
+      setLoggedSets(nextLogged);
       if (editing && idx < editing.originalIndex) {
         setEditing((e) =>
           e ? { ...e, originalIndex: e.originalIndex - 1 } : e,
         );
       }
+      // Persist immediately so a kill right after deletion can't restore the
+      // deleted set.
+      saveExercise({
+        sets: nextLogged.map(({ reps, weight }) => ({ reps, weight })),
+        immediate: true,
+      });
     },
     deleteTitle: "Delete Set",
     deleteMessage: "Are you sure you want to delete this set?",
   });
 
-  const saveExercise = () => {
-    const allSets: WorkoutSet[] = loggedSets.map(({ reps, weight }) => ({
-      reps,
-      weight,
-    }));
-    if (editing) {
-      const r = currentReps.trim() || editing.originalReps;
-      const w = currentWeight.trim() || editing.originalWeight;
-      if (r && w) {
-        allSets.splice(editing.originalIndex, 0, { reps: r, weight: w });
+  // `overrides` lets discrete callers (Log Set, edit, delete) pass the new
+  // state explicitly, bypassing React's batched-setState closure staleness.
+  // Without this, a save triggered right after setLoggedSets/setCurrentReps
+  // would persist the PRE-update values — which is the root cause of the
+  // "logged set returns to the hero on kill" bug.
+  const saveExercise = (overrides?: {
+    sets?: WorkoutSet[];
+    draftReps?: string;
+    draftWeight?: string;
+    immediate?: boolean;
+  }) => {
+    let allSets: WorkoutSet[];
+    if (overrides?.sets) {
+      allSets = overrides.sets;
+    } else {
+      allSets = loggedSets.map(({ reps, weight }) => ({
+        reps,
+        weight,
+      }));
+      if (editing) {
+        const r = currentReps.trim() || editing.originalReps;
+        const w = currentWeight.trim() || editing.originalWeight;
+        if (r && w) {
+          allSets.splice(editing.originalIndex, 0, { reps: r, weight: w });
+        }
       }
     }
     const setsToPersist: WorkoutSet[] =
       allSets.length > 0 ? allSets : [{ reps: "", weight: "" }];
-    addExercise({
-      workoutExerciseId: exercise.workoutExerciseId || Date.now().toString(),
-      exerciseId: exercise.exerciseId,
-      name: exercise.name,
-      bodyParts: exercise.bodyParts,
-      sets: setsToPersist,
-      note: note.trim(),
-      durationSeconds: exercise.durationSeconds,
-      draftReps: currentReps,
-      draftWeight: currentWeight,
-    });
+    addExercise(
+      {
+        workoutExerciseId: exercise.workoutExerciseId || Date.now().toString(),
+        exerciseId: exercise.exerciseId,
+        name: exercise.name,
+        bodyParts: exercise.bodyParts,
+        sets: setsToPersist,
+        note: note.trim(),
+        durationSeconds: exercise.durationSeconds,
+        draftReps: overrides?.draftReps ?? currentReps,
+        draftWeight: overrides?.draftWeight ?? currentWeight,
+      },
+      { immediate: overrides?.immediate },
+    );
   };
 
   useImperativeHandle(ref, () => ({ save: saveExercise }));
@@ -334,27 +359,45 @@ export const ExerciseDetailContent = forwardRef<
       const weight = currentWeight.trim();
       const editingId = editing.id;
       const insertAt = editing.originalIndex;
-      setLoggedSets((prev) => {
-        const next = [...prev];
-        next.splice(insertAt, 0, { id: editingId, reps, weight });
-        return next;
-      });
-      setCurrentReps(editing.previousReps);
-      setCurrentWeight(editing.previousWeight);
+      const previousReps = editing.previousReps;
+      const previousWeight = editing.previousWeight;
+      const nextLogged = [...loggedSets];
+      nextLogged.splice(insertAt, 0, { id: editingId, reps, weight });
+      setLoggedSets(nextLogged);
+      setCurrentReps(previousReps);
+      setCurrentWeight(previousWeight);
       setEditing(null);
       Keyboard.dismiss();
+      // Persist synchronously with the new state — don't rely on
+      // keyboardDidHide (race) or closure-captured state (stale).
+      saveExercise({
+        sets: nextLogged.map(({ reps: r, weight: w }) => ({
+          reps: r,
+          weight: w,
+        })),
+        draftReps: previousReps,
+        draftWeight: previousWeight,
+        immediate: true,
+      });
       return;
     }
-    setLoggedSets((prev) => [
-      ...prev,
+    const nextLogged: LoggedSet[] = [
+      ...loggedSets,
       {
         id: Date.now().toString(),
         reps: currentReps.trim(),
         weight: currentWeight.trim(),
       },
-    ]);
+    ];
+    setLoggedSets(nextLogged);
     setCurrentReps("");
     Keyboard.dismiss();
+    saveExercise({
+      sets: nextLogged.map(({ reps, weight }) => ({ reps, weight })),
+      draftReps: "",
+      draftWeight: currentWeight,
+      immediate: true,
+    });
   };
 
   const handleEditSet = (set: LoggedSet) => {
