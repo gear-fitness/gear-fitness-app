@@ -1,11 +1,5 @@
 import React, { forwardRef, useMemo } from "react";
-import {
-  Image,
-  StyleSheet,
-  Text,
-  View,
-  type ColorValue,
-} from "react-native";
+import { Image, StyleSheet, Text, View, type ColorValue } from "react-native";
 import { MuscleDiagram, type BodyVariant } from "./MuscleDiagram";
 import {
   computeActivations,
@@ -93,14 +87,7 @@ function paletteFor(theme: ShareCardTheme): Palette {
  */
 export const ShareWorkoutCard = forwardRef<View, ShareWorkoutCardProps>(
   function ShareWorkoutCard(
-    {
-      durationMin,
-      exerciseCount,
-      exercises,
-      bodyVariant,
-      theme,
-      width = 320,
-    },
+    { durationMin, exerciseCount, exercises, bodyVariant, theme, width = 320 },
     ref,
   ) {
     const height = Math.round(width / ASPECT);
@@ -147,9 +134,24 @@ export const ShareWorkoutCard = forwardRef<View, ShareWorkoutCardProps>(
         <View
           style={[styles.metricsRow, { marginTop: 8 * scale, gap: 14 * scale }]}
         >
-          <Metric label="TIME" value={formatDuration(durationMin)} palette={palette} scale={scale} />
-          <Metric label="EXERCISES" value={`${exerciseCount} ex.`} palette={palette} scale={scale} />
-          <Metric label="MUSCLES" value={`${muscleCount} groups`} palette={palette} scale={scale} />
+          <Metric
+            label="TIME"
+            value={formatDuration(durationMin)}
+            palette={palette}
+            scale={scale}
+          />
+          <Metric
+            label="EXERCISES"
+            value={`${exerciseCount} ex.`}
+            palette={palette}
+            scale={scale}
+          />
+          <Metric
+            label="MUSCLES"
+            value={`${muscleCount} groups`}
+            palette={palette}
+            scale={scale}
+          />
         </View>
 
         <View style={[styles.diagramRow, { gap: 6 * scale }]}>
@@ -177,7 +179,11 @@ export const ShareWorkoutCard = forwardRef<View, ShareWorkoutCardProps>(
           <Image
             source={G_LOGO}
             style={[
-              { width: gLogoSize, height: gLogoSize, transform: [{ translateX: -1 * scale }] },
+              {
+                width: gLogoSize,
+                height: gLogoSize,
+                transform: [{ translateX: -1 * scale }],
+              },
               theme === "light" && styles.gLogoInverted,
             ]}
             resizeMode="contain"

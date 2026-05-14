@@ -155,11 +155,7 @@ export function FeedPostCard({ post }: Props) {
           hitSlop={10}
           accessibilityLabel="More options"
         >
-          <Ionicons
-            name="ellipsis-horizontal"
-            size={20}
-            color={colors.text}
-          />
+          <Ionicons name="ellipsis-horizontal" size={20} color={colors.text} />
         </TouchableOpacity>
       </View>
 

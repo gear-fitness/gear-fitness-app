@@ -65,7 +65,9 @@ export function computeExerciseActivations(
   bodyParts: BodyPartDTO[],
 ): MuscleActivation[] {
   const primaryGroups = new Set(
-    bodyParts.filter((bp) => bp.targetType === "PRIMARY").map((bp) => bp.bodyPart),
+    bodyParts
+      .filter((bp) => bp.targetType === "PRIMARY")
+      .map((bp) => bp.bodyPart),
   );
   const secondaryGroups = new Set(
     bodyParts
@@ -146,9 +148,7 @@ export function resolveBodyVariant(
  */
 export function defaultDiagramPalette(isDark: boolean) {
   const baseColor = isDark ? "#222" : "#cfcfcf";
-  const outlineColor = isDark
-    ? "rgba(255,255,255,0.06)"
-    : "rgba(0,0,0,0.08)";
+  const outlineColor = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)";
   return {
     baseColor,
     outlineColor,

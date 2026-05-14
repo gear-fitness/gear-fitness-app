@@ -25,10 +25,7 @@ import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { Ionicons } from "@expo/vector-icons";
 import { useLikeState } from "../../context/LikesContext";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
-import {
-  MusclesPair,
-  type BodyVariant,
-} from "../../components/MuscleDiagram";
+import { MusclesPair, type BodyVariant } from "../../components/MuscleDiagram";
 import { useAuth } from "../../context/AuthContext";
 import { usePostMenu } from "../../hooks/usePostMenu";
 import {
@@ -139,9 +136,7 @@ export function DetailedHistory({ route }: Props) {
         styles.dotsButton,
         {
           top: insets.top + 8,
-          backgroundColor: glassAvailable
-            ? "transparent"
-            : colors.background,
+          backgroundColor: glassAvailable ? "transparent" : colors.background,
           borderColor: glassAvailable ? "transparent" : colors.border,
         },
       ]}

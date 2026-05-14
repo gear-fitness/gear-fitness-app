@@ -1,10 +1,5 @@
 import React, { useMemo } from "react";
-import {
-  StyleSheet,
-  View,
-  type StyleProp,
-  type ViewStyle,
-} from "react-native";
+import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import Svg, { G, Path } from "react-native-svg";
 
 import {

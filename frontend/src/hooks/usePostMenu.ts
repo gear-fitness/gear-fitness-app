@@ -77,10 +77,7 @@ export function usePostMenu(args: {
             }
             invalidate();
           } catch {
-            Alert.alert(
-              "Couldn't update",
-              "Failed to update follow status.",
-            );
+            Alert.alert("Couldn't update", "Failed to update follow status.");
           }
         },
       },

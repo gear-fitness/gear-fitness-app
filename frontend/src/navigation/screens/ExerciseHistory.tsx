@@ -27,10 +27,7 @@ import {
   renderBodyParts,
 } from "../../utils/exerciseUtils";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
-import {
-  MusclesPair,
-  type BodyVariant,
-} from "../../components/MuscleDiagram";
+import { MusclesPair, type BodyVariant } from "../../components/MuscleDiagram";
 import {
   computeExerciseActivations,
   defaultDiagramPalette,

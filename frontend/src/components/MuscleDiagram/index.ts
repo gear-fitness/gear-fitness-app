@@ -1,8 +1,5 @@
 export { MuscleDiagram, default } from "./MuscleDiagram";
-export type {
-  MuscleActivation,
-  MuscleDiagramProps,
-} from "./MuscleDiagram";
+export type { MuscleActivation, MuscleDiagramProps } from "./MuscleDiagram";
 export { MusclesPair } from "./MusclesPair";
 export type { MusclesPairProps } from "./MusclesPair";
 export {

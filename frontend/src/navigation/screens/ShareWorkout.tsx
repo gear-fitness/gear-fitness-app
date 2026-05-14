@@ -116,7 +116,9 @@ export function ShareWorkout({ route }: Props) {
     [isDarkScreen],
   );
 
-  async function captureActiveCard(result: "tmpfile" | "base64"): Promise<string> {
+  async function captureActiveCard(
+    result: "tmpfile" | "base64",
+  ): Promise<string> {
     const node = cardRefs.current[activeIndex];
     if (!node) throw new Error("card not mounted");
     return captureRef(node, { format: "png", quality: 1, result });
@@ -164,7 +166,10 @@ export function ShareWorkout({ route }: Props) {
     try {
       const uri = await captureActiveCard("tmpfile");
       if (!(await Sharing.isAvailableAsync())) {
-        Alert.alert("Share not available", "Sharing isn't supported on this device.");
+        Alert.alert(
+          "Share not available",
+          "Sharing isn't supported on this device.",
+        );
         return;
       }
       await Sharing.shareAsync(uri, {
@@ -230,10 +235,7 @@ export function ShareWorkout({ route }: Props) {
             style={styles.pager}
           >
             {THEMES.map((theme, i) => (
-              <View
-                key={theme}
-                style={[styles.page, { width: screenWidth }]}
-              >
+              <View key={theme} style={[styles.page, { width: screenWidth }]}>
                 <View
                   style={[
                     styles.cardOuter,
@@ -301,10 +303,7 @@ export function ShareWorkout({ route }: Props) {
           </View>
 
           <View
-            style={[
-              styles.actionsBar,
-              { borderTopColor: screenTheme.divider },
-            ]}
+            style={[styles.actionsBar, { borderTopColor: screenTheme.divider }]}
           >
             <Text style={[styles.actionsLabel, { color: screenTheme.text }]}>
               Share to

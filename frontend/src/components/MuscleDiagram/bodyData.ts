@@ -72,10 +72,7 @@ export function getViewBox(variant: BodyVariant): string {
   return variant === "female" ? FEMALE_VIEW_BOX : MALE_VIEW_BOX;
 }
 
-export function getMuscles(
-  variant: BodyVariant,
-  side: BodySide,
-): MuscleDef[] {
+export function getMuscles(variant: BodyVariant, side: BodySide): MuscleDef[] {
   if (variant === "female") {
     return side === "front" ? bodyFemaleFront : bodyFemaleBack;
   }
@@ -668,7 +665,8 @@ export const bodyFemaleFront: MuscleDef<FrontMuscleSlug>[] = [
         "m 429.01,1362.5 c 1.17,9.01 1.97,18.19 3.1,26.72 0.13,0.98 0.26,1.92 0.78,2.79 q 3.21,5.33 2.84,13.44 -0.1,2.05 -1.78,3.29 c -12.07,8.93 -22.71,21.31 -32.45,33.67 q -0.48,0.61 -1.15,0.95 a 0.24,0.24 0 0 1 -0.34,-0.16 q -5.23,-21.38 1.99,-42.64 2.82,-8.31 6.7,-16.77 c 4.2,-9.17 9.45,-18.49 19,-22.07 a 0.98,0.97 -14.1 0 1 1.31,0.78 z",
       ],
     },
-  },];
+  },
+];
 
 export const bodyFemaleBack: MuscleDef<BackMuscleSlug>[] = [
   {
