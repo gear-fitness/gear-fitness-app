@@ -13,16 +13,15 @@ import { Calendar } from "react-native-calendars";
 import React, { useMemo, useState, useEffect } from "react";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
-import Swipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
-import { getUserWorkouts, deleteWorkout } from "../../api/workoutService";
+import { getUserWorkouts } from "../../api/workoutService";
 import { Workout } from "../../api/types";
 import { parseLocalDate, getCurrentLocalDateString } from "../../utils/date";
-import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
 import { SearchBar } from "../../components/SearchBar";
+import { Ionicons } from "@expo/vector-icons";
 
 type RootStackParamList = {
   HomeTabs: undefined;
@@ -32,6 +31,10 @@ type RootStackParamList = {
     workoutId: string;
     caption?: string;
     workoutName?: string;
+  };
+  ShareWorkout: {
+    workoutId: string;
+    ownerUserId?: string;
   };
   NotFound: undefined;
 };
@@ -106,23 +109,6 @@ export function History() {
     }, []),
   );
 
-  const handleDeleteWorkout = async (workoutId: string) => {
-    try {
-      await deleteWorkout(workoutId);
-      setData((prevData) => prevData.filter((w) => w.workoutId !== workoutId));
-    } catch (error) {
-      console.error("Error deleting workout:", error);
-      fetchWorkouts();
-    }
-  };
-
-  const { getSwipeableProps } = useSwipeableDelete({
-    onDelete: handleDeleteWorkout,
-    deleteTitle: "Delete Workout",
-    deleteMessage:
-      "Are you sure you want to delete this workout? This action cannot be undone.",
-  });
-
   const todayStr = getCurrentLocalDateString();
 
   const markedDates = useMemo(() => {
@@ -195,63 +181,77 @@ export function History() {
 
     return (
       <View style={styles.rowWrapper}>
-        <Swipeable {...getSwipeableProps(item.workoutId)}>
+        <TouchableOpacity
+          style={[
+            styles.workoutCard,
+            { backgroundColor: t.surface, borderColor: t.border },
+          ]}
+          activeOpacity={0.7}
+          onPress={() =>
+            navigation.getParent()?.navigate("DetailedHistory", {
+              workoutId: item.workoutId,
+            })
+          }
+        >
           <TouchableOpacity
-            style={[
-              styles.workoutCard,
-              { backgroundColor: t.surface, borderColor: t.border },
-            ]}
-            activeOpacity={0.7}
             onPress={() =>
-              navigation.getParent()?.navigate("DetailedHistory", {
-                workoutId: item.workoutId,
-              })
+              navigation
+                .getParent()
+                ?.navigate("ShareWorkout", { workoutId: item.workoutId })
             }
+            hitSlop={10}
+            style={styles.dotsBtn}
+            accessibilityLabel="More options"
           >
-            <Text
-              style={[styles.workoutDate, { color: t.textMuted }]}
-              numberOfLines={1}
-            >
-              {dateLabel}
-            </Text>
-            <Text style={[styles.workoutTitle, { color: t.text }]}>
-              {item.name}
-            </Text>
+            <Ionicons
+              name="ellipsis-horizontal"
+              size={20}
+              color={t.textMuted}
+            />
+          </TouchableOpacity>
+          <Text
+            style={[styles.workoutDate, { color: t.textMuted }]}
+            numberOfLines={1}
+          >
+            {dateLabel}
+          </Text>
+          <Text style={[styles.workoutTitle, { color: t.text }]}>
+            {item.name}
+          </Text>
 
-            {hasMetrics && (
-              <View style={styles.metricsRow}>
-                {hasDuration && (
-                  <View style={styles.metricCell}>
-                    <Text style={[styles.metricLabel, { color: t.textMuted }]}>
-                      Time
-                    </Text>
-                    <Text style={[styles.metricValue, { color: t.text }]}>
-                      {formatDuration(item.durationMin!)}
-                    </Text>
-                  </View>
-                )}
+          {hasMetrics && (
+            <View style={styles.metricsRow}>
+              {hasDuration && (
                 <View style={styles.metricCell}>
                   <Text style={[styles.metricLabel, { color: t.textMuted }]}>
-                    Exercises
+                    Time
                   </Text>
                   <Text style={[styles.metricValue, { color: t.text }]}>
-                    {item.exerciseCount}
+                    {formatDuration(item.durationMin!)}
                   </Text>
                 </View>
-                {hasMuscles && (
-                  <View style={styles.metricCell}>
-                    <Text style={[styles.metricLabel, { color: t.textMuted }]}>
-                      Muscles
-                    </Text>
-                    <Text style={[styles.musclesText, { color: t.text }]}>
-                      {item.bodyTags.map(formatBodyTag).join(", ")}
-                    </Text>
-                  </View>
-                )}
+              )}
+              <View style={styles.metricCell}>
+                <Text style={[styles.metricLabel, { color: t.textMuted }]}>
+                  Exercises
+                </Text>
+                <Text style={[styles.metricValue, { color: t.text }]}>
+                  {item.exerciseCount}
+                </Text>
               </View>
-            )}
-          </TouchableOpacity>
-        </Swipeable>
+              {hasMuscles && (
+                <View style={styles.metricCell}>
+                  <Text style={[styles.metricLabel, { color: t.textMuted }]}>
+                    Muscles
+                  </Text>
+                  <Text style={[styles.musclesText, { color: t.text }]}>
+                    {item.bodyTags.map(formatBodyTag).join(", ")}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
     );
   };
@@ -402,6 +402,13 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
+  },
+  dotsBtn: {
+    position: "absolute",
+    top: 10,
+    right: 12,
+    padding: 4,
+    zIndex: 1,
   },
   workoutDate: {
     fontSize: 12,

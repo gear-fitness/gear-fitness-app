@@ -27,6 +27,13 @@ import {
   renderBodyParts,
 } from "../../utils/exerciseUtils";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
+import { MusclesPair, type BodyVariant } from "../../components/MuscleDiagram";
+import {
+  computeExerciseActivations,
+  defaultDiagramPalette,
+  resolveBodyVariant,
+} from "../../utils/muscleActivations";
+import { useAuth } from "../../context/AuthContext";
 
 const CHART_HEIGHT = 200;
 const CHART_PADDING = { top: 24, right: 20, bottom: 30, left: 50 };
@@ -99,6 +106,8 @@ export function ExerciseHistory() {
 
   const screenWidth = Dimensions.get("window").width;
   const chartWidth = screenWidth - 70;
+  const { user } = useAuth();
+  const bodyVariant: BodyVariant = resolveBodyVariant(user?.gender);
 
   const chartTypes: ChartType[] = ["pr", "session_max", "volume"];
   const activeChart = chartTypes[activeChartIndex];
@@ -650,6 +659,26 @@ export function ExerciseHistory() {
             </View>
           )}
         </View>
+
+        {/* Muscles Worked */}
+        {(() => {
+          const bodyParts = history?.bodyParts ?? exercise?.bodyParts ?? [];
+          if (bodyParts.length === 0) return null;
+          return (
+            <View style={styles.musclesSection}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Muscles Worked
+              </Text>
+              <MusclesPair
+                activations={computeExerciseActivations(bodyParts)}
+                variant={bodyVariant}
+                width={140}
+                captionStyle={{ color: colors.subtle }}
+                {...defaultDiagramPalette(isDark)}
+              />
+            </View>
+          );
+        })()}
       </ScrollView>
     </SafeAreaView>
   );
@@ -901,5 +930,10 @@ const styles = StyleSheet.create({
   backLink: {
     fontSize: 16,
     fontWeight: "600",
+  },
+
+  musclesSection: {
+    marginTop: 8,
+    marginBottom: 20,
   },
 });

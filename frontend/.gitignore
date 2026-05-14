@@ -9,6 +9,12 @@ dist/
 web-build/
 expo-env.d.ts
 
+# Native projects — managed workflow regenerates these via `expo prebuild`.
+# Without these gitignore entries, EAS uploads the local copies (with absolute
+# paths baked into pbxproj) and skips prebuild in the cloud.
+ios/
+android/
+
 # Native
 *.orig.*
 *.jks
