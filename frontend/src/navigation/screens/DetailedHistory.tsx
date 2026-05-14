@@ -25,6 +25,17 @@ import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { Ionicons } from "@expo/vector-icons";
 import { useLikeState } from "../../context/LikesContext";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
+import {
+  MuscleDiagram,
+  type BodyVariant,
+} from "../../components/MuscleDiagram";
+import { useAuth } from "../../context/AuthContext";
+import { usePostMenu } from "../../hooks/usePostMenu";
+import {
+  computeActivations,
+  redFor,
+  resolveBodyVariant,
+} from "../../utils/muscleActivations";
 
 type RootStackParamList = {
   DetailedHistory: {
@@ -32,6 +43,13 @@ type RootStackParamList = {
     caption?: string;
     workoutName?: string;
     postId?: string;
+    /** When viewing a post, the post's author id — used to render the
+     *  correct gendered body for one's own posts. Absent when navigating
+     *  from one's own workout history. */
+    ownerUserId?: string;
+    /** Author's username — needed for the follow/unfollow flow when the
+     *  3-dots menu is tapped on someone else's workout. */
+    ownerUsername?: string;
     initialLikeCount?: number;
     initialLikedByUser?: boolean;
   };
@@ -51,8 +69,27 @@ export function DetailedHistory({ route }: Props) {
   const accent = isDark ? "#fff" : "#000";
 
   const insets = useSafeAreaInsets();
-  const { workoutId, caption, postId, initialLikeCount, initialLikedByUser } =
-    route.params;
+  const {
+    workoutId,
+    caption,
+    postId,
+    ownerUserId,
+    ownerUsername,
+    initialLikeCount,
+    initialLikedByUser,
+  } = route.params;
+
+  const onMenuPress = usePostMenu({ workoutId, ownerUserId, ownerUsername });
+
+  const { user } = useAuth();
+  // Treat "this is the viewer's own workout" as: navigated from own history
+  // (no ownerUserId) OR the post's author is the current user. Anything else
+  // falls back to male — we don't have other users' genders client-side.
+  const isOwnWorkout =
+    ownerUserId === undefined || ownerUserId === user?.userId;
+  const bodyVariant: BodyVariant = isOwnWorkout
+    ? resolveBodyVariant(user?.gender)
+    : "male";
 
   const [workout, setWorkout] = useState<WorkoutDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -92,6 +129,33 @@ export function DetailedHistory({ route }: Props) {
   const glassAvailable = isLiquidGlassAvailable();
 
   const backButton = <FloatingCloseButton direction="left" />;
+
+  const dotsButton = (
+    <TouchableOpacity
+      onPress={onMenuPress}
+      hitSlop={10}
+      accessibilityLabel="More options"
+      style={[
+        styles.dotsButton,
+        {
+          top: insets.top + 8,
+          backgroundColor: glassAvailable
+            ? "transparent"
+            : colors.background,
+          borderColor: glassAvailable ? "transparent" : colors.border,
+        },
+      ]}
+    >
+      {glassAvailable && (
+        <GlassView
+          style={[StyleSheet.absoluteFillObject, { borderRadius: 18 }]}
+          glassEffectStyle="regular"
+          isInteractive
+        />
+      )}
+      <Ionicons name="ellipsis-horizontal" size={20} color={colors.text} />
+    </TouchableOpacity>
+  );
 
   const floatingActions = postId ? (
     <View style={[styles.floatingActions, { bottom: insets.bottom + 16 }]}>
@@ -157,6 +221,7 @@ export function DetailedHistory({ route }: Props) {
         ]}
       >
         {backButton}
+        {dotsButton}
         {floatingActions}
         <ActivityIndicator size="large" color={colors.text} />
         <Text style={[styles.loadingText, { color: colors.text }]}>
@@ -176,6 +241,7 @@ export function DetailedHistory({ route }: Props) {
         ]}
       >
         {backButton}
+        {dotsButton}
         {floatingActions}
         <Text style={[styles.errorText, { color: colors.text }]}>
           Error: {error}
@@ -197,6 +263,7 @@ export function DetailedHistory({ route }: Props) {
         ]}
       >
         {backButton}
+        {dotsButton}
         {floatingActions}
         <Text style={[styles.errorText, { color: colors.text }]}>
           Workout not found
@@ -218,6 +285,7 @@ export function DetailedHistory({ route }: Props) {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {backButton}
+      {dotsButton}
       {floatingActions}
       <ScrollView
         contentContainerStyle={{
@@ -317,7 +385,76 @@ export function DetailedHistory({ route }: Props) {
             </Text>
           </View>
         )}
+
+        {workout.exercises && workout.exercises.length > 0 && (
+          <MusclesSection
+            exercises={workout.exercises}
+            isDark={isDark}
+            textMuted={textMuted}
+            variant={bodyVariant}
+          />
+        )}
       </ScrollView>
+    </View>
+  );
+}
+
+type MusclesSectionProps = {
+  exercises: WorkoutExercise[];
+  isDark: boolean;
+  textMuted: StyleProp<TextStyle>;
+  variant: BodyVariant;
+};
+
+function MusclesSection({
+  exercises,
+  isDark,
+  textMuted,
+  variant,
+}: MusclesSectionProps) {
+  const activations = React.useMemo(
+    () => computeActivations(exercises),
+    [exercises],
+  );
+
+  const baseColor = isDark ? "#222" : "#cfcfcf";
+  const outlineColor = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)";
+
+  const intensityToColor = React.useCallback(
+    (intensity: number) => redFor(intensity, isDark, baseColor),
+    [isDark, baseColor],
+  );
+
+  return (
+    <View style={styles.musclesSection}>
+      <Text style={[styles.musclesOverline, textMuted]}>MUSCLES WORKED</Text>
+
+      <View style={styles.diagramRow}>
+        <View style={styles.diagramCell}>
+          <MuscleDiagram
+            side="front"
+            variant={variant}
+            activations={activations}
+            baseColor={baseColor}
+            outlineColor={outlineColor}
+            intensityToColor={intensityToColor}
+            width={150}
+          />
+          <Text style={[styles.diagramCaption, textMuted]}>Front</Text>
+        </View>
+        <View style={styles.diagramCell}>
+          <MuscleDiagram
+            side="back"
+            variant={variant}
+            activations={activations}
+            baseColor={baseColor}
+            outlineColor={outlineColor}
+            intensityToColor={intensityToColor}
+            width={150}
+          />
+          <Text style={[styles.diagramCaption, textMuted]}>Back</Text>
+        </View>
+      </View>
     </View>
   );
 }
@@ -471,6 +608,18 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 23,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  dotsButton: {
+    position: "absolute",
+    right: 16,
+    zIndex: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: "center",
     justifyContent: "center",
@@ -634,5 +783,30 @@ const styles = StyleSheet.create({
   noSetsText: {
     fontSize: 13,
     fontStyle: "italic",
+  },
+  musclesSection: {
+    paddingHorizontal: 20,
+    paddingTop: 36,
+  },
+  musclesOverline: {
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 1.2,
+    marginBottom: 16,
+  },
+  diagramRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "flex-start",
+    paddingVertical: 8,
+  },
+  diagramCell: {
+    alignItems: "center",
+  },
+  diagramCaption: {
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 1.2,
+    marginTop: 10,
   },
 });

@@ -7,6 +7,7 @@ import { FeedPost } from "../api/socialFeedApi";
 import { Avatar } from "./Avatar";
 import { formatDurationShort, formatTimeAgo } from "../utils/date";
 import { useLikeState } from "../context/LikesContext";
+import { usePostMenu } from "../hooks/usePostMenu";
 
 export type CompactPostCardTheme = {
   surface: string;
@@ -30,6 +31,11 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
     count: likeCount,
     toggle: handleLike,
   } = useLikeState(post.postId, post);
+  const onMenuPress = usePostMenu({
+    workoutId: post.workoutId,
+    ownerUserId: post.userId,
+    ownerUsername: post.username,
+  });
   const time = post.durationMin ? formatDurationShort(post.durationMin) : "—";
 
   const photos =
@@ -54,6 +60,8 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
       caption: post.caption,
       workoutName: post.workoutName,
       postId: post.postId,
+      ownerUserId: post.userId,
+      ownerUsername: post.username,
       initialLikeCount: likeCount,
       initialLikedByUser: likedByUser,
     });
@@ -74,9 +82,23 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
           profilePictureUrl={post.userProfilePictureUrl}
           size={24}
         />
-        <Text style={[styles.timeAgo, { color: t.textFaint }]}>
+        <Text
+          style={[styles.timeAgo, { color: t.textFaint }]}
+          numberOfLines={1}
+        >
           {formatTimeAgo(post.createdAt)}
         </Text>
+        <View style={{ flex: 1 }} />
+        <TouchableOpacity
+          onPress={(e) => {
+            e.stopPropagation?.();
+            onMenuPress();
+          }}
+          hitSlop={10}
+          accessibilityLabel="More options"
+        >
+          <Ionicons name="ellipsis-horizontal" size={16} color={t.text} />
+        </TouchableOpacity>
       </View>
 
       <Text style={[styles.workoutName, { color: t.text }]} numberOfLines={2}>

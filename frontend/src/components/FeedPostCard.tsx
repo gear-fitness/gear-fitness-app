@@ -20,6 +20,7 @@ import { parseLocalDate, formatTimeAgo } from "../utils/date";
 import { formatTag } from "../utils/formatTag";
 import { useAuth } from "../context/AuthContext";
 import { useLikeState } from "../context/LikesContext";
+import { usePostMenu } from "../hooks/usePostMenu";
 import { Avatar } from "./Avatar";
 
 interface Props {
@@ -40,6 +41,11 @@ export function FeedPostCard({ post }: Props) {
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [scrollWidth, setScrollWidth] = useState(0);
   const navigation = useNavigation();
+  const onMenuPress = usePostMenu({
+    workoutId: post.workoutId,
+    ownerUserId: post.userId,
+    ownerUsername: post.username,
+  });
 
   const photos =
     post.photoUrls && post.photoUrls.length > 0
@@ -130,7 +136,7 @@ export function FeedPostCard({ post }: Props) {
     >
       <View style={styles.header}>
         {isOwnPost ? (
-          userHeader
+          <View style={styles.userInfoWrap}>{userHeader}</View>
         ) : (
           <TouchableOpacity
             activeOpacity={0.7}
@@ -139,10 +145,22 @@ export function FeedPostCard({ post }: Props) {
                 username: post.username,
               })
             }
+            style={styles.userInfoWrap}
           >
             {userHeader}
           </TouchableOpacity>
         )}
+        <TouchableOpacity
+          onPress={onMenuPress}
+          hitSlop={10}
+          accessibilityLabel="More options"
+        >
+          <Ionicons
+            name="ellipsis-horizontal"
+            size={20}
+            color={colors.text}
+          />
+        </TouchableOpacity>
       </View>
 
       {photos.length > 0 && (
@@ -202,6 +220,8 @@ export function FeedPostCard({ post }: Props) {
             caption: post.caption,
             workoutName: post.workoutName,
             postId: post.postId,
+            ownerUserId: post.userId,
+            ownerUsername: post.username,
             initialLikeCount: likeCount,
             initialLikedByUser: likedByUser,
           });
@@ -330,6 +350,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  userInfoWrap: {
+    flex: 1,
+    minWidth: 0,
   },
   userInfo: {
     flexDirection: "row",
