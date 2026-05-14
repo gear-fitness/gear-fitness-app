@@ -137,3 +137,22 @@ export function resolveBodyVariant(
 ): BodyVariant {
   return gender?.trim().toLowerCase() === "female" ? "female" : "male";
 }
+
+/**
+ * Default muscle-diagram palette derived from light/dark mode. Used by
+ * in-app screens (history, exercise detail) so they don't each redefine
+ * the same base/outline/red-ramp triple. Share card themes that aren't
+ * tied to `isDark` build their own palette and skip this helper.
+ */
+export function defaultDiagramPalette(isDark: boolean) {
+  const baseColor = isDark ? "#222" : "#cfcfcf";
+  const outlineColor = isDark
+    ? "rgba(255,255,255,0.06)"
+    : "rgba(0,0,0,0.08)";
+  return {
+    baseColor,
+    outlineColor,
+    intensityToColor: (intensity: number) =>
+      redFor(intensity, isDark, baseColor),
+  };
+}

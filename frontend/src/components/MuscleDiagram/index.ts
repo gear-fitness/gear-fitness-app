@@ -3,6 +3,8 @@ export type {
   MuscleActivation,
   MuscleDiagramProps,
 } from "./MuscleDiagram";
+export { MusclesPair } from "./MusclesPair";
+export type { MusclesPairProps } from "./MusclesPair";
 export {
   FEMALE_VIEW_BOX,
   MALE_VIEW_BOX,

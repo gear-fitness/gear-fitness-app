@@ -28,12 +28,12 @@ import {
 } from "../../utils/exerciseUtils";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 import {
-  MuscleDiagram,
+  MusclesPair,
   type BodyVariant,
 } from "../../components/MuscleDiagram";
 import {
   computeExerciseActivations,
-  redFor,
+  defaultDiagramPalette,
   resolveBodyVariant,
 } from "../../utils/muscleActivations";
 import { useAuth } from "../../context/AuthContext";
@@ -667,52 +667,18 @@ export function ExerciseHistory() {
         {(() => {
           const bodyParts = history?.bodyParts ?? exercise?.bodyParts ?? [];
           if (bodyParts.length === 0) return null;
-          const activations = computeExerciseActivations(bodyParts);
-          const diagramBase = isDark ? "#222" : "#cfcfcf";
-          const diagramOutline = isDark
-            ? "rgba(255,255,255,0.06)"
-            : "rgba(0,0,0,0.08)";
-          const intensityToColor = (intensity: number) =>
-            redFor(intensity, isDark, diagramBase);
           return (
             <View style={styles.musclesSection}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
                 Muscles Worked
               </Text>
-              <View style={styles.diagramRow}>
-                <View style={styles.diagramCell}>
-                  <MuscleDiagram
-                    side="front"
-                    variant={bodyVariant}
-                    activations={activations}
-                    baseColor={diagramBase}
-                    outlineColor={diagramOutline}
-                    intensityToColor={intensityToColor}
-                    width={140}
-                  />
-                  <Text
-                    style={[styles.diagramCaption, { color: colors.subtle }]}
-                  >
-                    Front
-                  </Text>
-                </View>
-                <View style={styles.diagramCell}>
-                  <MuscleDiagram
-                    side="back"
-                    variant={bodyVariant}
-                    activations={activations}
-                    baseColor={diagramBase}
-                    outlineColor={diagramOutline}
-                    intensityToColor={intensityToColor}
-                    width={140}
-                  />
-                  <Text
-                    style={[styles.diagramCaption, { color: colors.subtle }]}
-                  >
-                    Back
-                  </Text>
-                </View>
-              </View>
+              <MusclesPair
+                activations={computeExerciseActivations(bodyParts)}
+                variant={bodyVariant}
+                width={140}
+                captionStyle={{ color: colors.subtle }}
+                {...defaultDiagramPalette(isDark)}
+              />
             </View>
           );
         })()}
@@ -972,20 +938,5 @@ const styles = StyleSheet.create({
   musclesSection: {
     marginTop: 8,
     marginBottom: 20,
-  },
-  diagramRow: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "flex-start",
-    paddingVertical: 12,
-  },
-  diagramCell: {
-    alignItems: "center",
-  },
-  diagramCaption: {
-    fontSize: 12,
-    fontWeight: "600",
-    letterSpacing: 1.2,
-    marginTop: 8,
   },
 });

@@ -26,14 +26,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLikeState } from "../../context/LikesContext";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 import {
-  MuscleDiagram,
+  MusclesPair,
   type BodyVariant,
 } from "../../components/MuscleDiagram";
 import { useAuth } from "../../context/AuthContext";
 import { usePostMenu } from "../../hooks/usePostMenu";
 import {
   computeActivations,
-  redFor,
+  defaultDiagramPalette,
   resolveBodyVariant,
 } from "../../utils/muscleActivations";
 
@@ -416,45 +416,18 @@ function MusclesSection({
     () => computeActivations(exercises),
     [exercises],
   );
-
-  const baseColor = isDark ? "#222" : "#cfcfcf";
-  const outlineColor = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)";
-
-  const intensityToColor = React.useCallback(
-    (intensity: number) => redFor(intensity, isDark, baseColor),
-    [isDark, baseColor],
-  );
+  const palette = React.useMemo(() => defaultDiagramPalette(isDark), [isDark]);
 
   return (
     <View style={styles.musclesSection}>
       <Text style={[styles.musclesOverline, textMuted]}>MUSCLES WORKED</Text>
-
-      <View style={styles.diagramRow}>
-        <View style={styles.diagramCell}>
-          <MuscleDiagram
-            side="front"
-            variant={variant}
-            activations={activations}
-            baseColor={baseColor}
-            outlineColor={outlineColor}
-            intensityToColor={intensityToColor}
-            width={150}
-          />
-          <Text style={[styles.diagramCaption, textMuted]}>Front</Text>
-        </View>
-        <View style={styles.diagramCell}>
-          <MuscleDiagram
-            side="back"
-            variant={variant}
-            activations={activations}
-            baseColor={baseColor}
-            outlineColor={outlineColor}
-            intensityToColor={intensityToColor}
-            width={150}
-          />
-          <Text style={[styles.diagramCaption, textMuted]}>Back</Text>
-        </View>
-      </View>
+      <MusclesPair
+        activations={activations}
+        variant={variant}
+        width={150}
+        captionStyle={textMuted}
+        {...palette}
+      />
     </View>
   );
 }
@@ -793,20 +766,5 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     letterSpacing: 1.2,
     marginBottom: 16,
-  },
-  diagramRow: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "flex-start",
-    paddingVertical: 8,
-  },
-  diagramCell: {
-    alignItems: "center",
-  },
-  diagramCaption: {
-    fontSize: 12,
-    fontWeight: "600",
-    letterSpacing: 1.2,
-    marginTop: 10,
   },
 });
