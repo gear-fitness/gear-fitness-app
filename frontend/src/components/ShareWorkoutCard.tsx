@@ -109,7 +109,7 @@ export const ShareWorkoutCard = forwardRef<View, ShareWorkoutCardProps>(
       [palette.diagramIsDark, palette.diagramBase],
     );
 
-    const diagramWidth = Math.round(width * 0.36);
+    const diagramWidth = Math.round(width * 0.33);
     const gLogoSize = Math.round(40 * scale);
 
     return (
@@ -175,7 +175,12 @@ export const ShareWorkoutCard = forwardRef<View, ShareWorkoutCardProps>(
           />
         </View>
 
-        <View style={[styles.brandBlock, { gap: 6 * scale }]}>
+        <View
+          style={[
+            styles.brandBlock,
+            { gap: 6 * scale, transform: [{ translateY: -22 * scale }] },
+          ]}
+        >
           <Image
             source={G_LOGO}
             style={[
@@ -224,7 +229,7 @@ function Metric({
           styles.metricLabel,
           {
             color: palette.text,
-            fontSize: 12 * scale,
+            fontSize: 14 * scale,
             letterSpacing: 1.5 * scale,
           },
         ]}
@@ -234,7 +239,12 @@ function Metric({
       <Text
         style={[
           styles.metricValue,
-          { color: palette.text, fontSize: 28 * scale },
+          {
+            color: palette.text,
+            fontSize: 32 * scale,
+            letterSpacing: 1.5 * scale,
+            marginTop: -4 * scale,
+          },
         ]}
       >
         {value}
@@ -264,7 +274,6 @@ const styles = StyleSheet.create({
   },
   metricValue: {
     fontWeight: "700",
-    letterSpacing: -0.5,
     fontVariant: ["tabular-nums"],
   },
   diagramRow: {
