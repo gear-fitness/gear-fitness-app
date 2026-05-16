@@ -19,6 +19,8 @@ export default {
         ITSAppUsesNonExemptEncryption: false,
         NSPhotoLibraryUsageDescription:
           "Allow Gear Fitness to access your photos to set a profile picture.",
+        NSCameraUsageDescription:
+          "Allow Gear Fitness to take photos of your workouts.",
         NSAppTransportSecurity: {
           NSExceptionDomains: {
             "gear-fitness.us-west-2.elasticbeanstalk.com": {
@@ -74,6 +76,14 @@ export default {
         {
           photosPermission:
             "Allow Gear Fitness to access your photos to set a profile picture.",
+        },
+      ],
+      [
+        "expo-camera",
+        {
+          cameraPermission:
+            "Allow Gear Fitness to use your camera to take workout photos.",
+          recordAudioAndroid: false,
         },
       ],
       [

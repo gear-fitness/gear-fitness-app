@@ -18,7 +18,6 @@ import Svg, { Path } from "react-native-svg";
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { useSocialFeed } from "../../context/SocialFeedContext";
@@ -30,6 +29,7 @@ import {
 import { getCurrentLocalDateString } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
+import { WorkoutCameraModal } from "../../components/WorkoutCameraModal";
 import { formatTag } from "../../utils/formatTag";
 import { getAllBodyPartNames } from "../../utils/exerciseUtils";
 import { MUSCLE_GROUPS } from "../../constants/muscleGroups";
@@ -76,6 +76,7 @@ export function WorkoutComplete() {
   const [loadingAction, setLoadingAction] = useState<"save" | "post" | null>(
     null,
   );
+  const [cameraOpen, setCameraOpen] = useState(false);
   const loading = loadingAction !== null;
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -125,28 +126,9 @@ export function WorkoutComplete() {
     0,
   );
 
-  const pickPhoto = async () => {
+  const pickPhoto = () => {
     if (photos.length >= MAX_PHOTOS) return;
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert(
-        "Photo Access Required",
-        "Please allow photo library access in Settings to attach photos.",
-        [{ text: "OK" }],
-      );
-      return;
-    }
-    const remaining = MAX_PHOTOS - photos.length;
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsMultipleSelection: remaining > 1,
-      selectionLimit: remaining,
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets?.length) {
-      const uris = result.assets.map((a) => a.uri).slice(0, remaining);
-      setPhotos((prev) => [...prev, ...uris].slice(0, MAX_PHOTOS));
-    }
+    setCameraOpen(true);
   };
 
   const removePhoto = (index: number) => {
@@ -578,6 +560,14 @@ export function WorkoutComplete() {
           </View>
         </View>
       )}
+      <WorkoutCameraModal
+        visible={cameraOpen}
+        remaining={MAX_PHOTOS - photos.length}
+        onClose={() => setCameraOpen(false)}
+        onCaptured={(uris) =>
+          setPhotos((prev) => [...prev, ...uris].slice(0, MAX_PHOTOS))
+        }
+      />
     </KeyboardAvoidingView>
   );
 }
