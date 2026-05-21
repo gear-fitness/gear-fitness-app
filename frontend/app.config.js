@@ -19,13 +19,6 @@ export default {
         ITSAppUsesNonExemptEncryption: false,
         NSPhotoLibraryUsageDescription:
           "Allow Gear Fitness to access your photos to set a profile picture.",
-        NSAppTransportSecurity: {
-          NSExceptionDomains: {
-            "gear-fitness.us-west-2.elasticbeanstalk.com": {
-              NSExceptionAllowsInsecureHTTPLoads: true,
-            },
-          },
-        },
       },
     },
     android: {
@@ -34,7 +27,7 @@ export default {
         backgroundColor: "#ffffff",
       },
       package: "com.gearfitness",
-      usesCleartextTraffic: true,
+      usesCleartextTraffic: false,
     },
     web: {
       favicon: "./assets/GearLogo.png",
