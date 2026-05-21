@@ -19,13 +19,6 @@ export default {
         ITSAppUsesNonExemptEncryption: false,
         NSPhotoLibraryUsageDescription:
           "Allow Gear Fitness to access your photos to set a profile picture.",
-        NSAppTransportSecurity: {
-          NSExceptionDomains: {
-            "gear-fitness.us-west-2.elasticbeanstalk.com": {
-              NSExceptionAllowsInsecureHTTPLoads: true,
-            },
-          },
-        },
       },
     },
     android: {
@@ -34,7 +27,7 @@ export default {
         backgroundColor: "#ffffff",
       },
       package: "com.gearfitness",
-      usesCleartextTraffic: true,
+      usesCleartextTraffic: false,
     },
     web: {
       favicon: "./assets/GearLogo.png",
@@ -77,6 +70,17 @@ export default {
         },
       ],
       [
+        "expo-media-library",
+        {
+          photosPermission:
+            "Allow Gear Fitness to save workout share cards to your photo library.",
+          savePhotosPermission:
+            "Allow Gear Fitness to save workout share cards to your photo library.",
+          isAccessMediaLocationEnabled: false,
+        },
+      ],
+      "expo-sharing",
+      [
         "@kingstinct/react-native-healthkit",
         {
           NSHealthShareUsageDescription:
@@ -85,19 +89,22 @@ export default {
             "Gear Fitness updates your height and weight in Apple Health when you change them in the app.",
         },
       ],
-      [
-        "expo-widgets",
-        {
-          widgets: [
-            {
-              name: "MyWidget",
-              displayName: "My Widget",
-              description: "A sample home screen widget",
-              supportedFamilies: ["systemSmall", "systemMedium", "systemLarge"],
-            },
-          ],
-        },
-      ],
+      // Temporarily disabled — the plugin embeds an absolute local path into
+      // the generated Xcode project, which breaks EAS cloud builds. Re-enable
+      // once that's resolved (pin to a known-good version and bisect).
+      // [
+      //   "expo-widgets",
+      //   {
+      //     widgets: [
+      //       {
+      //         name: "MyWidget",
+      //         displayName: "My Widget",
+      //         description: "A sample home screen widget",
+      //         supportedFamilies: ["systemSmall", "systemMedium", "systemLarge"],
+      //       },
+      //     ],
+      //   },
+      // ],
     ],
     extra: {
       eas: {

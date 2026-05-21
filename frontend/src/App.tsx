@@ -14,7 +14,11 @@ import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { useEffect } from "react";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { WorkoutTimerProvider } from "./context/WorkoutContext";
+import {
+  WorkoutTimerProvider,
+  WORKOUT_STATE_STORAGE_KEY,
+  UNFINISHED_WORKOUT_NOTIFICATION_ID,
+} from "./context/WorkoutContext";
 import { LikesProvider } from "./context/LikesContext";
 import { SocialFeedProvider } from "./context/SocialFeedContext";
 import { WorkoutPlayer } from "./components/WorkoutPlayer";
@@ -141,9 +145,38 @@ function AppContent({
         }
         break;
       case "UNFINISHED_WORKOUT":
-        navigationRef.current.navigate("WorkoutFlow", {
-          screen: "WorkoutSummary",
-        });
+        // Always dismiss the tapped notification, regardless of whether we
+        // navigate. Only route to WorkoutSummary if storage actually has an
+        // in-progress workout — otherwise the notification is stale and
+        // jerking the user to an empty Summary screen is worse UX.
+        (async () => {
+          try {
+            await Notifications.dismissNotificationAsync(
+              UNFINISHED_WORKOUT_NOTIFICATION_ID,
+            );
+          } catch {
+            // Already cleared.
+          }
+          try {
+            const stored = await AsyncStorage.getItem(
+              WORKOUT_STATE_STORAGE_KEY,
+            );
+            const parsed = stored ? JSON.parse(stored) : null;
+            const hasActive =
+              parsed &&
+              ((Array.isArray(parsed.exercises) &&
+                parsed.exercises.length > 0) ||
+                parsed.running === true);
+            if (hasActive) {
+              navigationRef.current?.navigate("WorkoutFlow", {
+                screen: "WorkoutSummary",
+              });
+            }
+          } catch {
+            // Storage read failed — silently dismiss is still better than
+            // navigating somewhere arbitrary.
+          }
+        })();
         break;
       // No default — notifications without a type just open the app
     }

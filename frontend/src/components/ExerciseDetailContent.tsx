@@ -7,11 +7,9 @@ import {
   Image,
   Text,
   Keyboard,
-  Platform,
-  InputAccessoryView,
-  Button,
   Modal,
   Animated,
+  Alert,
   useColorScheme,
 } from "react-native";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
@@ -35,6 +33,7 @@ import { useWorkoutTimer, WorkoutSet } from "../context/WorkoutContext";
 import { useSwipeableDelete } from "../hooks/useSwipeableDelete";
 import { BodyPartDTO } from "../api/exerciseService";
 import { FloatingCloseButton } from "./FloatingCloseButton";
+import { FloatingKeyboardDismiss } from "./FloatingKeyboardDismiss";
 
 interface ExerciseDetailContentProps {
   exercise: {
@@ -50,14 +49,13 @@ interface ExerciseDetailContentProps {
   };
   onSummary: () => void;
   onAddExercise: () => void;
+  onSwapExercise?: () => void;
   isInPlayer?: boolean;
 }
 
 export interface ExerciseDetailContentRef {
   save: () => void;
 }
-
-const inputAccessoryViewID = "exerciseDetailInput";
 
 type ThemeColors = {
   bg: string;
@@ -135,7 +133,7 @@ function plateMath(bar: number, sideTotal: number, mode: PlateMode): string {
 export const ExerciseDetailContent = forwardRef<
   ExerciseDetailContentRef,
   ExerciseDetailContentProps
->(({ exercise, onSummary, onAddExercise }, ref) => {
+>(({ exercise, onSummary, onAddExercise, onSwapExercise }, ref) => {
   const {
     seconds,
     exercises,
@@ -282,27 +280,46 @@ export const ExerciseDetailContent = forwardRef<
     onDelete: (id) => {
       const idx = loggedSets.findIndex((s) => s.id === id);
       if (idx < 0) return;
-      setLoggedSets((prev) => prev.filter((s) => s.id !== id));
+      const nextLogged = loggedSets.filter((s) => s.id !== id);
+      setLoggedSets(nextLogged);
       if (editing && idx < editing.originalIndex) {
         setEditing((e) =>
           e ? { ...e, originalIndex: e.originalIndex - 1 } : e,
         );
       }
+      // Persist with the new state explicitly — addExercise is write-through.
+      saveExercise({
+        sets: nextLogged.map(({ reps, weight }) => ({ reps, weight })),
+      });
     },
     deleteTitle: "Delete Set",
     deleteMessage: "Are you sure you want to delete this set?",
   });
 
-  const saveExercise = () => {
-    const allSets: WorkoutSet[] = loggedSets.map(({ reps, weight }) => ({
-      reps,
-      weight,
-    }));
-    if (editing) {
-      const r = currentReps.trim() || editing.originalReps;
-      const w = currentWeight.trim() || editing.originalWeight;
-      if (r && w) {
-        allSets.splice(editing.originalIndex, 0, { reps: r, weight: w });
+  // `overrides` lets discrete callers (Log Set, edit, delete) pass the new
+  // state explicitly, bypassing React's batched-setState closure staleness.
+  // Without this, a save triggered right after setLoggedSets/setCurrentReps
+  // would persist the PRE-update values — which is the root cause of the
+  // "logged set returns to the hero on kill" bug.
+  const saveExercise = (overrides?: {
+    sets?: WorkoutSet[];
+    draftReps?: string;
+    draftWeight?: string;
+  }) => {
+    let allSets: WorkoutSet[];
+    if (overrides?.sets) {
+      allSets = overrides.sets;
+    } else {
+      allSets = loggedSets.map(({ reps, weight }) => ({
+        reps,
+        weight,
+      }));
+      if (editing) {
+        const r = currentReps.trim() || editing.originalReps;
+        const w = currentWeight.trim() || editing.originalWeight;
+        if (r && w) {
+          allSets.splice(editing.originalIndex, 0, { reps: r, weight: w });
+        }
       }
     }
     const setsToPersist: WorkoutSet[] =
@@ -315,8 +332,8 @@ export const ExerciseDetailContent = forwardRef<
       sets: setsToPersist,
       note: note.trim(),
       durationSeconds: exercise.durationSeconds,
-      draftReps: currentReps,
-      draftWeight: currentWeight,
+      draftReps: overrides?.draftReps ?? currentReps,
+      draftWeight: overrides?.draftWeight ?? currentWeight,
     });
   };
 
@@ -334,27 +351,43 @@ export const ExerciseDetailContent = forwardRef<
       const weight = currentWeight.trim();
       const editingId = editing.id;
       const insertAt = editing.originalIndex;
-      setLoggedSets((prev) => {
-        const next = [...prev];
-        next.splice(insertAt, 0, { id: editingId, reps, weight });
-        return next;
-      });
-      setCurrentReps(editing.previousReps);
-      setCurrentWeight(editing.previousWeight);
+      const previousReps = editing.previousReps;
+      const previousWeight = editing.previousWeight;
+      const nextLogged = [...loggedSets];
+      nextLogged.splice(insertAt, 0, { id: editingId, reps, weight });
+      setLoggedSets(nextLogged);
+      setCurrentReps(previousReps);
+      setCurrentWeight(previousWeight);
       setEditing(null);
       Keyboard.dismiss();
+      // Pass the new state explicitly — addExercise is write-through, but it
+      // would otherwise read stale closure values from loggedSets/currentReps.
+      saveExercise({
+        sets: nextLogged.map(({ reps: r, weight: w }) => ({
+          reps: r,
+          weight: w,
+        })),
+        draftReps: previousReps,
+        draftWeight: previousWeight,
+      });
       return;
     }
-    setLoggedSets((prev) => [
-      ...prev,
+    const nextLogged: LoggedSet[] = [
+      ...loggedSets,
       {
         id: Date.now().toString(),
         reps: currentReps.trim(),
         weight: currentWeight.trim(),
       },
-    ]);
+    ];
+    setLoggedSets(nextLogged);
     setCurrentReps("");
     Keyboard.dismiss();
+    saveExercise({
+      sets: nextLogged.map(({ reps, weight }) => ({ reps, weight })),
+      draftReps: "",
+      draftWeight: currentWeight,
+    });
   };
 
   const handleEditSet = (set: LoggedSet) => {
@@ -421,6 +454,18 @@ export const ExerciseDetailContent = forwardRef<
 
   const handleInfoPress = () => {
     navigation.navigate("ExerciseHistory", { exercise });
+  };
+
+  const handleSwapPress = () => {
+    if (!onSwapExercise) return;
+    Alert.alert("Swap exercise?", "All current exercise data will be lost.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Swap",
+        style: "destructive",
+        onPress: () => onSwapExercise(),
+      },
+    ]);
   };
 
   return (
@@ -539,12 +584,28 @@ export const ExerciseDetailContent = forwardRef<
               <Text style={[styles.caption, { color: colors.textMuted }]}>
                 EXERCISE {exerciseNum} · SET {setNumberLabel}
               </Text>
-              <Text
-                style={[styles.title, { color: colors.text }]}
-                numberOfLines={2}
+              <TouchableOpacity
+                onPress={handleSwapPress}
+                activeOpacity={0.6}
+                disabled={!onSwapExercise}
+                style={styles.titleRow}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               >
-                {exercise.name}
-              </Text>
+                <Text
+                  style={[styles.title, { color: colors.text }]}
+                  numberOfLines={2}
+                >
+                  {exercise.name}
+                </Text>
+                {onSwapExercise && (
+                  <SymbolView
+                    name="arrow.left.arrow.right"
+                    tintColor={colors.textMuted}
+                    size={22}
+                    style={styles.titleSwapIcon}
+                  />
+                )}
+              </TouchableOpacity>
             </View>
 
             <View
@@ -732,16 +793,7 @@ export const ExerciseDetailContent = forwardRef<
           </View>
         </View>
       </TouchableWithoutFeedback>
-      {Platform.OS === "ios" && (
-        <InputAccessoryView nativeID={inputAccessoryViewID}>
-          <View style={styles.keyboardToolbar}>
-            <View style={{ flex: 1 }} />
-            <GlassView style={{ borderRadius: 25, padding: 8 }}>
-              <Button title="Done" onPress={() => Keyboard.dismiss()} />
-            </GlassView>
-          </View>
-        </InputAccessoryView>
-      )}
+      <FloatingKeyboardDismiss />
       <Modal
         visible={noteModalVisible}
         transparent
@@ -859,7 +911,6 @@ function HeroInput({
           keyboardType={allowDecimal ? "decimal-pad" : "number-pad"}
           placeholder="0"
           placeholderTextColor={colors.textFaint}
-          inputAccessoryViewID={inputAccessoryViewID}
           maxLength={6}
           style={[heroStyles.input, { color: colors.text }]}
           selectTextOnFocus
@@ -1429,11 +1480,23 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
 
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+
   title: {
+    flexShrink: 1,
     fontSize: 32,
     fontWeight: "700",
     letterSpacing: -0.8,
     lineHeight: 36,
+  },
+
+  titleSwapIcon: {
+    width: 22,
+    height: 22,
   },
 
   heroCard: {
@@ -1616,13 +1679,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     letterSpacing: -0.2,
-  },
-
-  keyboardToolbar: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
   },
 });
 

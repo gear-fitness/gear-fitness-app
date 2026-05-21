@@ -4,7 +4,10 @@ import com.gearfitness.gear_api.entity.AppUser;
 import com.gearfitness.gear_api.entity.Follow;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -52,5 +55,23 @@ public interface FollowRepository
     AppUser follower,
     AppUser followee,
     Follow.FollowStatus status
+  );
+
+  /**
+   * Fetch all ACCEPTED follow edges between the current user and the given
+   * other users in either direction. Used to populate relationship flags on
+   * user search results in a single batched query.
+   */
+  @Query(
+    """
+        SELECT f FROM Follow f
+        WHERE f.status = com.gearfitness.gear_api.entity.Follow.FollowStatus.ACCEPTED
+          AND ((f.follower.userId = :currentUserId AND f.followee.userId IN :otherUserIds)
+            OR (f.followee.userId = :currentUserId AND f.follower.userId IN :otherUserIds))
+    """
+  )
+  List<Follow> findAcceptedEdgesBetween(
+    @Param("currentUserId") UUID currentUserId,
+    @Param("otherUserIds") List<UUID> otherUserIds
   );
 }

@@ -175,7 +175,7 @@ export function RoutineDetail({
   route: { params: { routineId: string } };
 }) {
   const { routineId } = route.params;
-  const { loadFromRoutine } = useWorkoutTimer();
+  const { loadFromRoutine, hasActiveWorkout } = useWorkoutTimer();
   const navigation = useNavigation<any>();
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
@@ -243,6 +243,22 @@ export function RoutineDetail({
       Alert.alert(
         "No exercises",
         "This routine has no exercises to start a workout with.",
+      );
+      return;
+    }
+
+    if (hasActiveWorkout) {
+      Alert.alert(
+        "Workout in progress",
+        "You have a workout in progress. Discard it and start this routine?",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Discard & Start",
+            style: "destructive",
+            onPress: () => startCountdown(),
+          },
+        ],
       );
       return;
     }

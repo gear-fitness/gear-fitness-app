@@ -53,6 +53,15 @@ export interface FollowerUser {
   isFollowing: boolean;
 }
 
+export interface SearchUserResult {
+  userId: string;
+  username: string;
+  displayName: string | null;
+  profilePictureUrl: string | null;
+  currentUserFollows: boolean;
+  followsCurrentUser: boolean;
+}
+
 export interface FollowersResponse {
   followers: FollowerUser[];
 }

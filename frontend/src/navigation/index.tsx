@@ -18,6 +18,7 @@ import { NotFound } from "./screens/NotFound";
 import { History } from "./screens/History";
 import { PR } from "./screens/PR";
 import { DetailedHistory } from "./screens/DetailedHistory";
+import { ShareWorkout } from "./screens/ShareWorkout";
 import { PostDetail } from "./screens/PostDetail";
 import { WorkoutFlowNavigator } from "./WorkoutFlowNavigator";
 import { OnboardingScreen } from "./screens/Onboarding";
@@ -153,6 +154,15 @@ const RootStack = createNativeStackNavigator({
       screen: DetailedHistory,
       options: {
         title: "Workout",
+        headerShown: false,
+        gestureEnabled: true,
+      },
+    },
+
+    ShareWorkout: {
+      screen: ShareWorkout,
+      options: {
+        presentation: "modal",
         headerShown: false,
         gestureEnabled: true,
       },
