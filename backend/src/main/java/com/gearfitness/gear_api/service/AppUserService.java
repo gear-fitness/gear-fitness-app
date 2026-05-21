@@ -3,6 +3,7 @@ package com.gearfitness.gear_api.service;
 import com.gearfitness.gear_api.dto.UpdateUserProfileRequest;
 import com.gearfitness.gear_api.dto.UserDTO;
 import com.gearfitness.gear_api.dto.UserProfileDTO;
+import com.gearfitness.gear_api.dto.UserSearchResultDTO;
 import com.gearfitness.gear_api.dto.UsernameAvailabilityResponse;
 import com.gearfitness.gear_api.dto.WorkoutStatsDTO;
 import com.gearfitness.gear_api.entity.AppUser;
@@ -16,10 +17,13 @@ import java.time.LocalDate;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +33,7 @@ public class AppUserService {
 
   private static final int MIN_USERNAME_LENGTH = 3;
   private static final String USERNAME_REGEX = "^[a-z0-9._]+$";
+  private static final int SEARCH_RESULT_LIMIT = 20;
 
   private final AppUserRepository userRepository;
   private final WorkoutRepository workoutRepository;
@@ -387,13 +392,57 @@ public class AppUserService {
   }
 
   /**
-   * Search users by partial username (case-insensitive)
+   * Ranked user search for the social tab. Results are ordered server-side by
+   * relationship to the current user (mutual > current follows them > they
+   * follow current > stranger) and then by text-match quality (username
+   * starts-with > username contains > display name starts-with > display name
+   * contains), tiebroken alphabetically by username.
    */
-  public List<UserDTO> searchUsersByUsername(String query) {
-    return userRepository
-      .searchByUsername(query)
+  public List<UserSearchResultDTO> searchUsers(
+    String query,
+    UUID currentUserId
+  ) {
+    List<AppUser> results = userRepository.rankedSearch(
+      query,
+      currentUserId,
+      PageRequest.of(0, SEARCH_RESULT_LIMIT)
+    );
+    if (results.isEmpty()) {
+      return List.of();
+    }
+
+    List<UUID> resultIds = results.stream().map(AppUser::getUserId).toList();
+    List<Follow> edges = followRepository.findAcceptedEdgesBetween(
+      currentUserId,
+      resultIds
+    );
+
+    Set<UUID> currentUserFollows = new HashSet<>();
+    Set<UUID> followsCurrentUser = new HashSet<>();
+    for (Follow edge : edges) {
+      UUID followerId = edge.getFollower().getUserId();
+      UUID followeeId = edge.getFollowee().getUserId();
+      if (followerId.equals(currentUserId)) {
+        currentUserFollows.add(followeeId);
+      }
+      if (followeeId.equals(currentUserId)) {
+        followsCurrentUser.add(followerId);
+      }
+    }
+
+    return results
       .stream()
-      .map(this::convertToDTO)
+      .map(u ->
+        UserSearchResultDTO
+          .builder()
+          .userId(u.getUserId())
+          .username(u.getUsername())
+          .displayName(u.getDisplayName())
+          .profilePictureUrl(u.getProfilePictureUrl())
+          .currentUserFollows(currentUserFollows.contains(u.getUserId()))
+          .followsCurrentUser(followsCurrentUser.contains(u.getUserId()))
+          .build()
+      )
       .toList();
   }
 

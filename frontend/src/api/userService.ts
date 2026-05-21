@@ -4,6 +4,7 @@ import {
   FollowerUser,
   FollowStatusResponse,
   FollowResponse,
+  SearchUserResult,
   UsernameAvailabilityResponse,
 } from "./types";
 import { getCurrentLocalDateString } from "../utils/date";
@@ -82,7 +83,9 @@ export async function updateUserProfile(
   return data;
 }
 
-export async function searchUsers(query: string) {
+export async function searchUsers(
+  query: string,
+): Promise<SearchUserResult[]> {
   const { data } = await apiClient.get("/users/search", {
     params: { q: query },
   });

@@ -3,6 +3,7 @@ package com.gearfitness.gear_api.controller;
 import com.gearfitness.gear_api.dto.UpdateUserProfileRequest;
 import com.gearfitness.gear_api.dto.UserDTO;
 import com.gearfitness.gear_api.dto.UserProfileDTO;
+import com.gearfitness.gear_api.dto.UserSearchResultDTO;
 import com.gearfitness.gear_api.dto.UsernameAvailabilityResponse;
 import com.gearfitness.gear_api.entity.AppUser;
 import com.gearfitness.gear_api.repository.AppUserRepository;
@@ -159,11 +160,22 @@ public class AppUserController {
   }
 
   @GetMapping("/search")
-  public ResponseEntity<List<UserDTO>> searchUsers(@RequestParam String q) {
+  public ResponseEntity<List<UserSearchResultDTO>> searchUsers(
+    @RequestParam String q,
+    @RequestHeader("Authorization") String authHeader
+  ) {
     if (q == null || q.trim().isEmpty()) {
       return ResponseEntity.ok(List.of());
     }
-    return ResponseEntity.ok(userService.searchUsersByUsername(q.trim()));
+    try {
+      String token = authHeader.substring(7);
+      UUID currentUserId = jwtService.extractUserId(token);
+      return ResponseEntity.ok(
+        userService.searchUsers(q.trim(), currentUserId)
+      );
+    } catch (Exception e) {
+      return ResponseEntity.badRequest().build();
+    }
   }
 
   @GetMapping("/username-availability")

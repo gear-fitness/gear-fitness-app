@@ -4,13 +4,28 @@ import { Avatar } from "./Avatar";
 
 type Props = {
   username: string;
+  displayName?: string | null;
   profilePictureUrl?: string | null;
+  followsCurrentUser?: boolean;
   onPress: () => void;
 };
 
+function buildSubtext(
+  displayName: string | null | undefined,
+  followsCurrentUser: boolean | undefined,
+): string | null {
+  const name = displayName?.trim() ?? "";
+  if (name && followsCurrentUser) return `${name} · Follows you`;
+  if (name) return name;
+  if (followsCurrentUser) return "Follows you";
+  return null;
+}
+
 export function UserSearchCard({
   username,
+  displayName,
   profilePictureUrl,
+  followsCurrentUser,
   onPress,
 }: Props) {
   const { colors } = useTheme();
@@ -32,9 +47,14 @@ export function UserSearchCard({
         <Text style={[styles.username, { color: colors.text }]}>
           {username}
         </Text>
-        <Text style={[styles.subtext, { color: colors.border }]}>
-          View profile
-        </Text>
+        {(() => {
+          const subtext = buildSubtext(displayName, followsCurrentUser);
+          return subtext ? (
+            <Text style={[styles.subtext, { color: colors.border }]}>
+              {subtext}
+            </Text>
+          ) : null;
+        })()}
       </View>
     </TouchableOpacity>
   );
