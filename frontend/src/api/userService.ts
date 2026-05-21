@@ -83,9 +83,7 @@ export async function updateUserProfile(
   return data;
 }
 
-export async function searchUsers(
-  query: string,
-): Promise<SearchUserResult[]> {
+export async function searchUsers(query: string): Promise<SearchUserResult[]> {
   const { data } = await apiClient.get("/users/search", {
     params: { q: query },
   });

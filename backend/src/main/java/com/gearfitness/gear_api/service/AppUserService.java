@@ -433,8 +433,7 @@ public class AppUserService {
     return results
       .stream()
       .map(u ->
-        UserSearchResultDTO
-          .builder()
+        UserSearchResultDTO.builder()
           .userId(u.getUserId())
           .username(u.getUsername())
           .displayName(u.getDisplayName())
