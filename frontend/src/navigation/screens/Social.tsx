@@ -31,6 +31,7 @@ import {
 } from "@react-navigation/native";
 
 import { FeedPost } from "../../api/socialFeedApi";
+import { SearchUserResult } from "../../api/types";
 import { searchUsers } from "../../api/userService";
 import { notificationService } from "../../api/notificationService";
 import { FeedPostCard } from "../../components/FeedPostCard";
@@ -56,7 +57,7 @@ export function Social() {
   const feed = useSocialFeed();
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [userResults, setUserResults] = useState<any[]>([]);
+  const [userResults, setUserResults] = useState<SearchUserResult[]>([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
 
   const [showActivity, setShowActivity] = useState(false);
@@ -140,7 +141,7 @@ export function Social() {
     else if (delta < -3) setHeaderHidden(false);
   };
 
-  // Search users
+  // Search users (debounced so a fast typist doesn't fire a request per keystroke)
   useFocusEffect(
     useCallback(() => {
       if (!searchQuery.trim()) {
@@ -148,22 +149,22 @@ export function Social() {
         return;
       }
 
-      const fetchUsers = async () => {
+      const timer = setTimeout(async () => {
         try {
           setSearchingUsers(true);
           const results = await searchUsers(searchQuery);
 
           const filteredResults = user
-            ? results.filter((u: any) => u.userId !== user.userId)
+            ? results.filter((u) => u.userId !== user.userId)
             : results;
 
           setUserResults(filteredResults);
         } finally {
           setSearchingUsers(false);
         }
-      };
+      }, 200);
 
-      fetchUsers();
+      return () => clearTimeout(timer);
     }, [searchQuery, user]),
   );
 
@@ -277,7 +278,9 @@ export function Social() {
           renderItem={({ item }) => (
             <UserSearchCard
               username={item.username}
+              displayName={item.displayName}
               profilePictureUrl={item.profilePictureUrl}
+              followsCurrentUser={item.followsCurrentUser}
               onPress={() => {
                 setSearchQuery("");
                 setUserResults([]);

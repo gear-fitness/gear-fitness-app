@@ -4,6 +4,7 @@ import com.gearfitness.gear_api.entity.AppUser;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -17,10 +18,32 @@ public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
   @Query(
     """
         SELECT u FROM AppUser u
-        WHERE LOWER(u.username) LIKE LOWER(CONCAT('%', :query, '%'))
+        LEFT JOIN Follow f
+          ON f.follower.userId = :currentUserId AND f.followee = u
+             AND f.status = com.gearfitness.gear_api.entity.Follow.FollowStatus.ACCEPTED
+        LEFT JOIN Follow f2
+          ON f2.followee.userId = :currentUserId AND f2.follower = u
+             AND f2.status = com.gearfitness.gear_api.entity.Follow.FollowStatus.ACCEPTED
+        WHERE u.userId <> :currentUserId
+          AND (LOWER(u.username)    LIKE LOWER(CONCAT('%', :query, '%'))
+            OR LOWER(u.displayName) LIKE LOWER(CONCAT('%', :query, '%')))
+        ORDER BY
+          CASE WHEN f IS NOT NULL THEN 0 ELSE 1 END,
+          CASE WHEN f2 IS NOT NULL THEN 0 ELSE 1 END,
+          CASE
+            WHEN LOWER(u.username)    LIKE LOWER(CONCAT(:query, '%')) THEN 0
+            WHEN LOWER(u.username)    LIKE LOWER(CONCAT('%', :query, '%')) THEN 1
+            WHEN LOWER(u.displayName) LIKE LOWER(CONCAT(:query, '%')) THEN 2
+            ELSE 3
+          END,
+          LOWER(u.username) ASC
     """
   )
-  List<AppUser> searchByUsername(@Param("query") String query);
+  List<AppUser> rankedSearch(
+    @Param("query") String query,
+    @Param("currentUserId") UUID currentUserId,
+    Pageable pageable
+  );
 
   boolean existsByEmail(String email);
   boolean existsByUsername(String username);

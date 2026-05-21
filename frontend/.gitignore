@@ -16,6 +16,8 @@ ios/
 android/
 
 # Native
+ios/
+android/
 *.orig.*
 *.jks
 *.p8
