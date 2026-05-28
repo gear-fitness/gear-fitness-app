@@ -30,6 +30,10 @@ public class SecurityConfig {
       )
       .authorizeHttpRequests(auth ->
         auth
+          .requestMatchers("/health")
+          .permitAll()
+          .requestMatchers("/actuator/health")
+          .permitAll()
           .requestMatchers("/api/auth/**")
           .permitAll()
           .requestMatchers("/api/public/**")
