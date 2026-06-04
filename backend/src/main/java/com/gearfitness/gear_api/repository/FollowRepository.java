@@ -58,6 +58,16 @@ public interface FollowRepository
   );
 
   /**
+   * Check if a directed follow with a specific status exists, by user IDs.
+   * Used for visibility checks that only have UUIDs on hand.
+   */
+  boolean existsByFollower_UserIdAndFollowee_UserIdAndStatus(
+    UUID followerUserId,
+    UUID followeeUserId,
+    Follow.FollowStatus status
+  );
+
+  /**
    * Fetch all ACCEPTED follow edges between the current user and the given
    * other users in either direction. Used to populate relationship flags on
    * user search results in a single batched query.

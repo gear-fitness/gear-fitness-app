@@ -8,7 +8,6 @@ import com.gearfitness.gear_api.entity.Post;
 import com.gearfitness.gear_api.entity.PostComment;
 import com.gearfitness.gear_api.entity.PostLike;
 import com.gearfitness.gear_api.repository.AppUserRepository;
-import com.gearfitness.gear_api.repository.FollowRepository;
 import com.gearfitness.gear_api.repository.NotificationRepository;
 import com.gearfitness.gear_api.repository.PostCommentRepository;
 import com.gearfitness.gear_api.repository.PostLikeRepository;
@@ -35,13 +34,17 @@ public class PostInteractionService {
   private final PostCommentRepository postCommentRepository;
   private final AppUserRepository appUserRepository;
   private final NotificationRepository notificationRepository;
-  private final FollowRepository followRepository;
+  private final PostVisibilityService postVisibilityService;
   private final ExpoPushService expoPushService;
 
   public LikeResponse toggleLike(UUID userId, UUID postId) {
     Post post = postRepository
       .findById(postId)
-      .orElseThrow(() -> new RuntimeException("Post not found"));
+      .orElseThrow(() ->
+        new ResponseStatusException(HttpStatus.NOT_FOUND, "Post not found")
+      );
+
+    postVisibilityService.assertCanView(post, userId);
 
     AppUser user = appUserRepository
       .findById(userId)
@@ -93,6 +96,14 @@ public class PostInteractionService {
   }
 
   public Page<CommentDTO> getComments(UUID postId, UUID viewingUserId, int page, int size) {
+    Post post = postRepository
+      .findById(postId)
+      .orElseThrow(() ->
+        new ResponseStatusException(HttpStatus.NOT_FOUND, "Post not found")
+      );
+
+    postVisibilityService.assertCanView(post, viewingUserId);
+
     Pageable pageable = PageRequest.of(
       page,
       size,
@@ -108,15 +119,17 @@ public class PostInteractionService {
   public CommentDTO addComment(UUID userId, UUID postId, String body) {
     Post post = postRepository
       .findById(postId)
-      .orElseThrow(() -> new RuntimeException("Post not found"));
+      .orElseThrow(() ->
+        new ResponseStatusException(HttpStatus.NOT_FOUND, "Post not found")
+      );
+
+    // Folds the block check into the centralized visibility rule: a user who
+    // cannot see the post (blocked, or not allowed by visibility) gets a 404.
+    postVisibilityService.assertCanView(post, userId);
 
     AppUser user = appUserRepository
       .findById(userId)
       .orElseThrow(() -> new RuntimeException("User not found"));
-
-    if (followRepository.existsBlockBetween(userId, post.getUser().getUserId())) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cannot comment on this post");
-    }
 
     PostComment comment = PostComment.builder()
       .post(post)

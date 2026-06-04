@@ -30,6 +30,7 @@ public class SocialFeedService {
   private final PostLikeRepository postLikeRepository;
   private final PostCommentRepository postCommentRepository;
   private final AppUserRepository appUserRepository;
+  private final PostVisibilityService postVisibilityService;
 
   public Page<FeedPostDTO> getFeed(UUID userId, int page, int size) {
     Pageable pageable = PageRequest.of(page, size);
@@ -85,7 +86,11 @@ public class SocialFeedService {
   public FeedPostDTO getPost(UUID postId, UUID viewingUserId) {
     Post post = postRepository
       .findById(postId)
-      .orElseThrow(() -> new RuntimeException("Post not found"));
+      .orElseThrow(() ->
+        new ResponseStatusException(HttpStatus.NOT_FOUND, "Post not found")
+      );
+
+    postVisibilityService.assertCanView(post, viewingUserId);
 
     List<UUID> postIds = Collections.singletonList(postId);
     Map<UUID, Long> likeCounts = postLikeRepository.countByPostIds(postIds);
