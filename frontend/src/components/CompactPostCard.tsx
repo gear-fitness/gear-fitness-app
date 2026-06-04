@@ -8,6 +8,9 @@ import { Avatar } from "./Avatar";
 import { formatDurationShort, formatTimeAgo } from "../utils/date";
 import { useLikeState } from "../context/LikesContext";
 import { usePostMenu } from "../hooks/usePostMenu";
+import { useAuth } from "../context/AuthContext";
+import { PostVisibilitySheet } from "./PostVisibilitySheet";
+import { PostActionsSheet } from "./PostActionsSheet";
 
 export type CompactPostCardTheme = {
   surface: string;
@@ -26,16 +29,38 @@ type Props = {
 
 export function CompactPostCard({ post, theme: t, width }: Props) {
   const navigation = useNavigation<any>();
+  const { user } = useAuth();
   const {
     liked: likedByUser,
     count: likeCount,
     toggle: handleLike,
   } = useLikeState(post.postId, post);
-  const onMenuPress = usePostMenu({
+  const {
+    onPress: onMenuPress,
+    showVisibilitySheet,
+    closeVisibilitySheet,
+    pendingVisibility,
+    handleVisibilitySelect,
+    showActionsSheet,
+    closeActionsSheet,
+    handleShare,
+    handleEditVisibility,
+  } = usePostMenu({
     workoutId: post.workoutId,
+    postId: post.postId,
     ownerUserId: post.userId,
     ownerUsername: post.username,
+    currentVisibility: post.visibility ?? "PUBLIC",
   });
+  const isOwnPost =
+    post.userId === user?.userId || post.username === user?.username;
+  const visibility = post.visibility ?? "PUBLIC";
+  const visibilityIcon =
+    isOwnPost && visibility === "FRIENDS"
+      ? "people-outline"
+      : isOwnPost && visibility === "PRIVATE"
+        ? "lock-closed-outline"
+        : null;
   const time = post.durationMin ? formatDurationShort(post.durationMin) : "—";
 
   const photos =
@@ -76,6 +101,18 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
         { backgroundColor: t.surface, borderColor: t.border, width },
       ]}
     >
+      <PostActionsSheet
+        visible={showActionsSheet}
+        onShare={handleShare}
+        onEditVisibility={handleEditVisibility}
+        onClose={closeActionsSheet}
+      />
+      <PostVisibilitySheet
+        visible={showVisibilitySheet}
+        current={pendingVisibility}
+        onSelect={handleVisibilitySelect}
+        onClose={closeVisibilitySheet}
+      />
       <View style={styles.cardHeader}>
         <Avatar
           username={post.username}
@@ -88,6 +125,14 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
         >
           {formatTimeAgo(post.createdAt)}
         </Text>
+        {visibilityIcon && (
+          <Ionicons
+            name={visibilityIcon}
+            size={12}
+            color={t.text}
+            style={{ opacity: 0.5 }}
+          />
+        )}
         <View style={{ flex: 1 }} />
         <TouchableOpacity
           onPress={(e) => {

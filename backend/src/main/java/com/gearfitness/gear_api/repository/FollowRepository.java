@@ -74,4 +74,20 @@ public interface FollowRepository
     @Param("currentUserId") UUID currentUserId,
     @Param("otherUserIds") List<UUID> otherUserIds
   );
+
+  /**
+   * Check whether a block exists in either direction between two users.
+   */
+  @Query(
+    """
+        SELECT COUNT(b) > 0 FROM Follow b
+        WHERE b.status = 'BLOCKED'
+          AND ((b.follower.userId = :userA AND b.followee.userId = :userB)
+            OR (b.follower.userId = :userB AND b.followee.userId = :userA))
+    """
+  )
+  boolean existsBlockBetween(
+    @Param("userA") UUID userA,
+    @Param("userB") UUID userB
+  );
 }

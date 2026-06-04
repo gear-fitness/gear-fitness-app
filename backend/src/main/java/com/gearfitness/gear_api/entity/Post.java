@@ -21,6 +21,12 @@ import org.hibernate.annotations.CreationTimestamp;
 @Builder
 public class Post {
 
+  public enum PostVisibility {
+    PUBLIC,
+    FRIENDS,
+    PRIVATE,
+  }
+
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
   @Column(name = "post_id")
@@ -40,6 +46,11 @@ public class Post {
 
   @Column(name = "image_url")
   private String imageUrl;
+
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false)
+  @Builder.Default
+  private PostVisibility visibility = PostVisibility.PUBLIC;
 
   @Column(columnDefinition = "TEXT")
   private String caption;

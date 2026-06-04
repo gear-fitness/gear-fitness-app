@@ -40,14 +40,17 @@ public class PostInteractionController {
   @GetMapping("/{postId}/comments")
   public ResponseEntity<Page<CommentDTO>> getComments(
     @PathVariable UUID postId,
+    @RequestHeader(value = "Authorization", required = false) String authHeader,
     @RequestParam(defaultValue = "0") int page,
     @RequestParam(defaultValue = "20") int size
   ) {
-    Page<CommentDTO> comments = postInteractionService.getComments(
-      postId,
-      page,
-      size
-    );
+    UUID viewingUserId = null;
+    if (authHeader != null && authHeader.startsWith("Bearer ")) {
+      try {
+        viewingUserId = jwtService.extractUserId(authHeader.substring(7));
+      } catch (Exception ignored) {}
+    }
+    Page<CommentDTO> comments = postInteractionService.getComments(postId, viewingUserId, page, size);
     return ResponseEntity.ok(comments);
   }
 

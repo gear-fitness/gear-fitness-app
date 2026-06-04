@@ -27,6 +27,7 @@ public class NotificationService {
         NotificationDTO.builder()
           .notificationId(n.getNotificationId())
           .type(n.getType().name())
+          .actorUserId(n.getActor().getUserId())
           .actorUsername(n.getActor().getUsername())
           .actorProfilePictureUrl(n.getActor().getProfilePictureUrl())
           .postId(n.getPost() != null ? n.getPost().getPostId() : null)

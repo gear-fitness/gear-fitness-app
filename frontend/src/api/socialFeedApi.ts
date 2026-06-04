@@ -30,6 +30,7 @@ export interface FeedPost {
   likeCount: number;
   commentCount: number;
   likedByCurrentUser: boolean;
+  visibility?: "PUBLIC" | "FRIENDS" | "PRIVATE";
 }
 
 export interface Comment {
@@ -87,5 +88,12 @@ export const socialFeedApi = {
       body,
     });
     return data;
+  },
+
+  updatePostVisibility: async (
+    postId: string,
+    visibility: "PUBLIC" | "FRIENDS" | "PRIVATE",
+  ): Promise<void> => {
+    await apiClient.patch(`/feed/posts/${postId}/visibility`, { visibility });
   },
 };

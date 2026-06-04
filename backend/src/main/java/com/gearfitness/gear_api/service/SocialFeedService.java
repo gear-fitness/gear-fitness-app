@@ -2,6 +2,7 @@ package com.gearfitness.gear_api.service;
 
 import com.gearfitness.gear_api.dto.FeedPostDTO;
 import com.gearfitness.gear_api.entity.Post;
+import com.gearfitness.gear_api.repository.AppUserRepository;
 import com.gearfitness.gear_api.repository.PostCommentRepository;
 import com.gearfitness.gear_api.repository.PostLikeRepository;
 import com.gearfitness.gear_api.repository.PostRepository;
@@ -16,7 +17,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +29,7 @@ public class SocialFeedService {
   private final PostRepository postRepository;
   private final PostLikeRepository postLikeRepository;
   private final PostCommentRepository postCommentRepository;
+  private final AppUserRepository appUserRepository;
 
   public Page<FeedPostDTO> getFeed(UUID userId, int page, int size) {
     Pageable pageable = PageRequest.of(page, size);
@@ -57,7 +61,7 @@ public class SocialFeedService {
     int size
   ) {
     Pageable pageable = PageRequest.of(page, size);
-    Page<Post> posts = postRepository.findPostsByUser(targetUserId, pageable);
+    Page<Post> posts = postRepository.findPostsByUser(targetUserId, viewingUserId, pageable);
 
     List<UUID> postIds = posts
       .getContent()
@@ -137,6 +141,19 @@ public class SocialFeedService {
       .likeCount(likeCounts.getOrDefault(post.getPostId(), 0L))
       .commentCount(commentCounts.getOrDefault(post.getPostId(), 0L))
       .likedByCurrentUser(likedPostIds.contains(post.getPostId()))
+      .visibility(post.getVisibility() != null ? post.getVisibility().name() : "PUBLIC")
       .build();
+  }
+
+  public void updatePostVisibility(UUID postId, UUID userId, String visibility) {
+    Post post = postRepository.findById(postId)
+      .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Post not found"));
+
+    if (!post.getUser().getUserId().equals(userId)) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not your post");
+    }
+
+    post.setVisibility(Post.PostVisibility.valueOf(visibility));
+    postRepository.save(post);
   }
 }

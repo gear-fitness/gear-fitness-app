@@ -52,6 +52,7 @@ public class Notification {
 
   public enum NotificationType {
     FOLLOW,
+    FOLLOW_REQUEST,
     COMMENT,
     LIKE,
   }

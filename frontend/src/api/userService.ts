@@ -83,6 +83,10 @@ export async function updateUserProfile(
   return data;
 }
 
+export async function updateUserPrivacy(isPrivate: boolean): Promise<void> {
+  await apiClient.patch("/users/me/privacy", { isPrivate });
+}
+
 export async function searchUsers(query: string): Promise<SearchUserResult[]> {
   const { data } = await apiClient.get("/users/search", {
     params: { q: query },

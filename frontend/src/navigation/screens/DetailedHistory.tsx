@@ -28,6 +28,8 @@ import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 import { MusclesPair, type BodyVariant } from "../../components/MuscleDiagram";
 import { useAuth } from "../../context/AuthContext";
 import { usePostMenu } from "../../hooks/usePostMenu";
+import { PostVisibilitySheet } from "../../components/PostVisibilitySheet";
+import { PostActionsSheet } from "../../components/PostActionsSheet";
 import {
   computeActivations,
   defaultDiagramPalette,
@@ -76,7 +78,17 @@ export function DetailedHistory({ route }: Props) {
     initialLikedByUser,
   } = route.params;
 
-  const onMenuPress = usePostMenu({ workoutId, ownerUserId, ownerUsername });
+  const {
+    onPress: onMenuPress,
+    showVisibilitySheet,
+    closeVisibilitySheet,
+    pendingVisibility,
+    handleVisibilitySelect,
+    showActionsSheet,
+    closeActionsSheet,
+    handleShare,
+    handleEditVisibility,
+  } = usePostMenu({ workoutId, postId, ownerUserId, ownerUsername });
 
   const { user } = useAuth();
   // Treat "this is the viewer's own workout" as: navigated from own history
@@ -282,6 +294,18 @@ export function DetailedHistory({ route }: Props) {
       {backButton}
       {dotsButton}
       {floatingActions}
+      <PostActionsSheet
+        visible={showActionsSheet}
+        onShare={handleShare}
+        onEditVisibility={handleEditVisibility}
+        onClose={closeActionsSheet}
+      />
+      <PostVisibilitySheet
+        visible={showVisibilitySheet}
+        current={pendingVisibility}
+        onSelect={handleVisibilitySelect}
+        onClose={closeVisibilitySheet}
+      />
       <ScrollView
         contentContainerStyle={{
           paddingTop: bodyPaddingTop,

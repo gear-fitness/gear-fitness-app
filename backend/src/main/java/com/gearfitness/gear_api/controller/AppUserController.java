@@ -7,8 +7,10 @@ import com.gearfitness.gear_api.dto.UserSearchResultDTO;
 import com.gearfitness.gear_api.dto.UsernameAvailabilityResponse;
 import com.gearfitness.gear_api.entity.AppUser;
 import com.gearfitness.gear_api.repository.AppUserRepository;
+import com.gearfitness.gear_api.repository.FollowRepository;
 import com.gearfitness.gear_api.security.JwtService;
 import com.gearfitness.gear_api.service.AppUserService;
+import com.gearfitness.gear_api.service.FollowService;
 import com.gearfitness.gear_api.service.S3StorageService;
 import java.util.List;
 import java.util.Set;
@@ -28,6 +30,7 @@ public class AppUserController {
   private final JwtService jwtService;
   private final S3StorageService s3StorageService;
   private final AppUserRepository userRepository;
+  private final FollowService followService;
 
   /**
    * GET /api/users/me
@@ -123,7 +126,31 @@ public class AppUserController {
         viewingUserId,
         localDate
       );
-      // TODO: Filter response based on privacy settings
+
+      boolean isOwnProfile = viewingUserId != null && viewingUserId.equals(profile.getUserId());
+
+      // Block in either direction → 404 (as if the profile doesn't exist)
+      if (!isOwnProfile && viewingUserId != null && followService.isBlocked(viewingUserId, profile.getUserId())) {
+        return ResponseEntity.notFound().build();
+      }
+
+      // Private account: redact everything except the minimal header fields
+      if (!isOwnProfile && Boolean.TRUE.equals(profile.getIsPrivate())
+          && !"ACCEPTED".equals(profile.getFollowStatus())) {
+        UserProfileDTO redacted = UserProfileDTO.builder()
+          .userId(profile.getUserId())
+          .username(profile.getUsername())
+          .displayName(profile.getDisplayName())
+          .profilePictureUrl(profile.getProfilePictureUrl())
+          .isPrivate(true)
+          .isFollowing(false)
+          .followStatus(profile.getFollowStatus())
+          .followersCount(null)
+          .followingCount(null)
+          .build();
+        return ResponseEntity.ok(redacted);
+      }
+
       return ResponseEntity.ok(profile);
     } catch (RuntimeException e) {
       return ResponseEntity.notFound().build();

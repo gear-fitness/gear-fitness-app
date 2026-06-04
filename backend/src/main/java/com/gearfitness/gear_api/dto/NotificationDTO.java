@@ -13,6 +13,7 @@ public class NotificationDTO {
 
   private UUID notificationId;
   private String type;
+  private UUID actorUserId;
   private String actorUsername;
   private String actorProfilePictureUrl;
   private UUID postId;

@@ -22,6 +22,8 @@ import { useAuth } from "../context/AuthContext";
 import { useLikeState } from "../context/LikesContext";
 import { usePostMenu } from "../hooks/usePostMenu";
 import { Avatar } from "./Avatar";
+import { PostVisibilitySheet } from "./PostVisibilitySheet";
+import { PostActionsSheet } from "./PostActionsSheet";
 
 interface Props {
   post: FeedPost;
@@ -41,10 +43,22 @@ export function FeedPostCard({ post }: Props) {
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [scrollWidth, setScrollWidth] = useState(0);
   const navigation = useNavigation();
-  const onMenuPress = usePostMenu({
+  const {
+    onPress: onMenuPress,
+    showVisibilitySheet,
+    closeVisibilitySheet,
+    pendingVisibility,
+    handleVisibilitySelect,
+    showActionsSheet,
+    closeActionsSheet,
+    handleShare,
+    handleEditVisibility,
+  } = usePostMenu({
     workoutId: post.workoutId,
+    postId: post.postId,
     ownerUserId: post.userId,
     ownerUsername: post.username,
+    currentVisibility: post.visibility ?? "PUBLIC",
   });
 
   const photos =
@@ -101,6 +115,14 @@ export function FeedPostCard({ post }: Props) {
   const textMuted: StyleProp<TextStyle> = { color: colors.text, opacity: 0.5 };
   const textFaint: StyleProp<TextStyle> = { color: colors.text, opacity: 0.4 };
 
+  const visibility = post.visibility ?? "PUBLIC";
+  const visibilityIcon =
+    isOwnPost && visibility === "FRIENDS"
+      ? "people-outline"
+      : isOwnPost && visibility === "PRIVATE"
+        ? "lock-closed-outline"
+        : null;
+
   const userHeader = (
     <View style={styles.userInfo}>
       <Avatar
@@ -108,10 +130,20 @@ export function FeedPostCard({ post }: Props) {
         profilePictureUrl={post.userProfilePictureUrl}
         size={40}
       />
-      <View>
-        <Text style={[styles.username, { color: colors.text }]}>
-          {post.username}
-        </Text>
+      <View style={styles.userNameRow}>
+        <View style={styles.userNameLine}>
+          <Text style={[styles.username, { color: colors.text }]}>
+            {post.username}
+          </Text>
+          {visibilityIcon && (
+            <Ionicons
+              name={visibilityIcon}
+              size={13}
+              color={colors.text}
+              style={styles.visIcon}
+            />
+          )}
+        </View>
         <Text style={[styles.timestamp, textFaint]}>
           {formatTimeAgo(post.createdAt)}
         </Text>
@@ -134,6 +166,18 @@ export function FeedPostCard({ post }: Props) {
         { backgroundColor: cardBg, borderColor: colors.border },
       ]}
     >
+      <PostActionsSheet
+        visible={showActionsSheet}
+        onShare={handleShare}
+        onEditVisibility={handleEditVisibility}
+        onClose={closeActionsSheet}
+      />
+      <PostVisibilitySheet
+        visible={showVisibilitySheet}
+        current={pendingVisibility}
+        onSelect={handleVisibilitySelect}
+        onClose={closeVisibilitySheet}
+      />
       <View style={styles.header}>
         {isOwnPost ? (
           <View style={styles.userInfoWrap}>{userHeader}</View>
@@ -358,6 +402,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+  },
+  userNameRow: {
+    flexShrink: 1,
+  },
+  userNameLine: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  visIcon: {
+    opacity: 0.5,
   },
   username: {
     fontSize: 15,

@@ -8,6 +8,7 @@ import com.gearfitness.gear_api.entity.Post;
 import com.gearfitness.gear_api.entity.PostComment;
 import com.gearfitness.gear_api.entity.PostLike;
 import com.gearfitness.gear_api.repository.AppUserRepository;
+import com.gearfitness.gear_api.repository.FollowRepository;
 import com.gearfitness.gear_api.repository.NotificationRepository;
 import com.gearfitness.gear_api.repository.PostCommentRepository;
 import com.gearfitness.gear_api.repository.PostLikeRepository;
@@ -20,7 +21,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +35,7 @@ public class PostInteractionService {
   private final PostCommentRepository postCommentRepository;
   private final AppUserRepository appUserRepository;
   private final NotificationRepository notificationRepository;
+  private final FollowRepository followRepository;
   private final ExpoPushService expoPushService;
 
   public LikeResponse toggleLike(UUID userId, UUID postId) {
@@ -88,16 +92,15 @@ public class PostInteractionService {
     return LikeResponse.builder().liked(liked).likeCount(likeCount).build();
   }
 
-  public Page<CommentDTO> getComments(UUID postId, int page, int size) {
+  public Page<CommentDTO> getComments(UUID postId, UUID viewingUserId, int page, int size) {
     Pageable pageable = PageRequest.of(
       page,
       size,
       Sort.by("createdAt").descending()
     );
-    Page<PostComment> comments = postCommentRepository.findByPost_PostId(
-      postId,
-      pageable
-    );
+    Page<PostComment> comments = (viewingUserId != null)
+      ? postCommentRepository.findVisibleComments(postId, viewingUserId, pageable)
+      : postCommentRepository.findByPost_PostId(postId, pageable);
 
     return comments.map(this::mapToDTO);
   }
@@ -110,6 +113,10 @@ public class PostInteractionService {
     AppUser user = appUserRepository
       .findById(userId)
       .orElseThrow(() -> new RuntimeException("User not found"));
+
+    if (followRepository.existsBlockBetween(userId, post.getUser().getUserId())) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cannot comment on this post");
+    }
 
     PostComment comment = PostComment.builder()
       .post(post)

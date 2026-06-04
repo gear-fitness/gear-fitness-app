@@ -27,6 +27,11 @@ public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
         WHERE u.userId <> :currentUserId
           AND (LOWER(u.username)    LIKE LOWER(CONCAT('%', :query, '%'))
             OR LOWER(u.displayName) LIKE LOWER(CONCAT('%', :query, '%')))
+          AND NOT EXISTS (
+            SELECT b FROM Follow b WHERE
+            (b.follower.userId = :currentUserId AND b.followee.userId = u.userId AND b.status = 'BLOCKED')
+            OR (b.follower.userId = u.userId AND b.followee.userId = :currentUserId AND b.status = 'BLOCKED')
+          )
         ORDER BY
           CASE WHEN f IS NOT NULL THEN 0 ELSE 1 END,
           CASE WHEN f2 IS NOT NULL THEN 0 ELSE 1 END,

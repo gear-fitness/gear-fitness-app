@@ -166,6 +166,7 @@ public class AppUserService {
     );
 
     Boolean isFollowing = null;
+    String followStatus = null;
     if (viewingUserId != null && !viewingUserId.equals(user.getUserId())) {
       AppUser viewingUser = userRepository.findById(viewingUserId).orElse(null);
       if (viewingUser != null) {
@@ -174,6 +175,17 @@ public class AppUserService {
           user,
           Follow.FollowStatus.ACCEPTED
         );
+        var outboundFollow = followRepository.findByFollowerAndFollowee(viewingUser, user);
+        if (outboundFollow.isPresent()) {
+          followStatus = outboundFollow.get().getStatus().name();
+        } else {
+          var inboundBlock = followRepository.findByFollowerAndFollowee(user, viewingUser);
+          if (inboundBlock.isPresent() && inboundBlock.get().getStatus() == Follow.FollowStatus.BLOCKED) {
+            followStatus = "BLOCKED";
+          } else {
+            followStatus = "NONE";
+          }
+        }
       }
     }
 
@@ -193,6 +205,7 @@ public class AppUserService {
       .followersCount(followersCount)
       .followingCount(followingCount)
       .isFollowing(isFollowing)
+      .followStatus(followStatus)
       .build();
   }
 

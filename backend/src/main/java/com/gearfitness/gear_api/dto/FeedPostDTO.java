@@ -36,4 +36,5 @@ public class FeedPostDTO {
   private Long likeCount;
   private Long commentCount;
   private Boolean likedByCurrentUser;
+  private String visibility;
 }
