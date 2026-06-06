@@ -68,25 +68,6 @@ export async function submitWorkout(
 }
 
 /**
- * Upload a single workout photo to S3. Returns the public S3 URL.
- */
-export async function uploadWorkoutPhoto(
-  imageUri: string,
-): Promise<{ url: string }> {
-  const formData = new FormData();
-  formData.append("file", {
-    uri: imageUri,
-    type: "image/jpeg",
-    name: "workout-photo.jpg",
-  } as any);
-
-  const { data } = await apiClient.post("/workouts/photos", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
-  return data;
-}
-
-/**
  * Get weekly volume data for a user
  */
 export async function getWeeklyVolume(

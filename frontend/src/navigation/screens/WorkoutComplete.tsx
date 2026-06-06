@@ -22,11 +22,8 @@ import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { useSocialFeed } from "../../context/SocialFeedContext";
-import {
-  submitWorkout,
-  uploadWorkoutPhoto,
-  WorkoutSubmission,
-} from "../../api/workoutService";
+import { submitWorkout, WorkoutSubmission } from "../../api/workoutService";
+import { uploadPostImage } from "../../api/imageService";
 import { getCurrentLocalDateString } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
@@ -138,7 +135,7 @@ export function WorkoutComplete() {
     }
     const remaining = MAX_PHOTOS - photos.length;
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"],
       allowsMultipleSelection: remaining > 1,
       selectionLimit: remaining,
       quality: 0.8,
@@ -182,7 +179,7 @@ export function WorkoutComplete() {
     setLoadingAction(createPost ? "post" : "save");
 
     try {
-      let uploadedUrls: string[] = [];
+      let uploadedKeys: string[] = [];
       if (photos.length > 0) {
         try {
           const compressed = await Promise.all(
@@ -194,10 +191,9 @@ export function WorkoutComplete() {
               ),
             ),
           );
-          const results = await Promise.all(
-            compressed.map((m) => uploadWorkoutPhoto(m.uri)),
+          uploadedKeys = await Promise.all(
+            compressed.map((m) => uploadPostImage(m.uri)),
           );
-          uploadedUrls = results.map((r) => r.url);
         } catch (uploadError) {
           console.error("Failed to upload workout photos:", uploadError);
           Alert.alert("Error", "Failed to upload photos. Please try again.");
@@ -222,8 +218,8 @@ export function WorkoutComplete() {
         createPost,
         caption: createPost ? caption : undefined,
         imageUrl:
-          createPost && uploadedUrls.length > 0 ? uploadedUrls[0] : undefined,
-        photoUrls: uploadedUrls,
+          createPost && uploadedKeys.length > 0 ? uploadedKeys[0] : undefined,
+        photoUrls: uploadedKeys,
       };
 
       await submitWorkout(submission);

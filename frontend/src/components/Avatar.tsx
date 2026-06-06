@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { Text } from "@react-navigation/elements";
 import { useTheme } from "@react-navigation/native";
+import { usePresignedImage } from "../hooks/usePresignedImage";
 
 type Props = {
   username: string;
@@ -25,10 +26,13 @@ export function Avatar({
   onPress,
 }: Props) {
   const { colors } = useTheme();
+  // profilePictureUrl is a stored S3 key; resolve it to a presigned GET url.
+  // While it loads (uri null) we fall back to the initials placeholder.
+  const uri = usePresignedImage(profilePictureUrl);
 
-  const inner = profilePictureUrl ? (
+  const inner = uri ? (
     <Image
-      source={{ uri: profilePictureUrl }}
+      source={{ uri }}
       style={[
         {
           width: size,
