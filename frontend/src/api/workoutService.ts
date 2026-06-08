@@ -13,6 +13,8 @@ import {
   PersonalRecord,
 } from "./types";
 import { getCurrentLocalDateString } from "../utils/date";
+import { CACHE_KEYS, readCache, writeCache } from "../utils/offlineCache";
+import { isNetworkError } from "../utils/network";
 
 export interface WorkoutSubmission {
   name: string;
@@ -119,32 +121,106 @@ export async function getDailyVolume(
   return data;
 }
 
-/**
- * Get all workouts for a user
- */
-export async function getUserWorkouts(userId: string): Promise<Workout[]> {
-  const { data } = await apiClient.get(`/workouts/user/${userId}`);
-  return data;
+export async function getCachedUserWorkouts(
+  userId: string,
+): Promise<Workout[]> {
+  const cached = await readCache<Workout[]>(CACHE_KEYS.userWorkouts(userId));
+  return cached ?? [];
 }
 
 /**
- * Get detailed workout by ID
+ * Get all workouts for a user. Writes through to the per-user offline cache
+ * on success; falls back to the cached list when the device is offline.
+ */
+export async function getUserWorkouts(userId: string): Promise<Workout[]> {
+  try {
+    const { data } = await apiClient.get<Workout[]>(`/workouts/user/${userId}`);
+    const list = data ?? [];
+    await writeCache(CACHE_KEYS.userWorkouts(userId), list);
+    return list;
+  } catch (err) {
+    if (isNetworkError(err)) {
+      return getCachedUserWorkouts(userId);
+    }
+    throw err;
+  }
+}
+
+/**
+ * Build a minimal WorkoutDetail from a cached summary. The summary doesn't
+ * carry set-level data, so exercises is empty — DetailedHistory renders the
+ * high-level metadata and the empty exercise list is correctly handled by
+ * the existing "no exercises" path.
+ */
+function synthesizeDetailFromSummary(summary: Workout): WorkoutDetail {
+  return {
+    workoutId: summary.workoutId,
+    name: summary.name,
+    datePerformed: summary.datePerformed,
+    durationMin: summary.durationMin,
+    bodyTags: summary.bodyTags ?? [],
+    exercises: [],
+  };
+}
+
+/**
+ * Get detailed workout by ID. When offline, falls back to a synthesized
+ * detail built from the cached workout summary so the screen renders date,
+ * duration, name and tags — set-level data isn't available without network.
  */
 export async function getWorkoutDetails(
   workoutId: string,
 ): Promise<WorkoutDetail> {
-  const { data } = await apiClient.get(`/workouts/${workoutId}`);
-  return data;
+  try {
+    const { data } = await apiClient.get<WorkoutDetail>(
+      `/workouts/${workoutId}`,
+    );
+    return data;
+  } catch (err) {
+    if (isNetworkError(err)) {
+      // We don't know which user this workout belongs to from this call, so
+      // scan the current user's cache. The History/Profile flows are the
+      // only paths into DetailedHistory that hit this fallback usefully.
+      const activeUserId = await readCache<string>(CACHE_KEYS.lastUserId);
+      if (activeUserId) {
+        const cached = await getCachedUserWorkouts(activeUserId);
+        const summary = cached.find((w) => w.workoutId === workoutId);
+        if (summary) return synthesizeDetailFromSummary(summary);
+      }
+    }
+    throw err;
+  }
+}
+
+export async function getCachedPersonalRecords(
+  userId: string,
+): Promise<PersonalRecord[]> {
+  const cached = await readCache<PersonalRecord[]>(
+    CACHE_KEYS.personalRecords(userId),
+  );
+  return cached ?? [];
 }
 
 /**
- * Get personal records for a user
+ * Get personal records for a user. Writes through to the per-user offline
+ * cache on success; falls back to cache when the device is offline.
  */
 export async function getUserPersonalRecords(
   userId: string,
 ): Promise<PersonalRecord[]> {
-  const { data } = await apiClient.get(`/personal-records/user/${userId}`);
-  return data;
+  try {
+    const { data } = await apiClient.get<PersonalRecord[]>(
+      `/personal-records/user/${userId}`,
+    );
+    const list = data ?? [];
+    await writeCache(CACHE_KEYS.personalRecords(userId), list);
+    return list;
+  } catch (err) {
+    if (isNetworkError(err)) {
+      return getCachedPersonalRecords(userId);
+    }
+    throw err;
+  }
 }
 
 /**

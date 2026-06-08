@@ -25,6 +25,8 @@ import {
   unfollowUser,
 } from "../../api/userService";
 import { UserProfile } from "../../api/types";
+import { useAuth } from "../../context/AuthContext";
+import { subscribeOnlineStatus } from "../../utils/network";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { socialFeedApi, FeedPost } from "../../api/socialFeedApi";
 import { FeedPostCard } from "../../components/FeedPostCard";
@@ -77,8 +79,17 @@ export function Profile() {
 
   useTrackTab(isOtherUser ? "UserProfile" : "Profile");
 
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user: authUser } = useAuth();
+  // Seed the own-profile view with the cached auth user so the screen has
+  // content immediately and stays usable while offline. The network fetch
+  // below replaces it as soon as it lands. Other-user profiles aren't
+  // cached client-side, so they fall through to the spinner as before.
+  const [profile, setProfile] = useState<UserProfile | null>(
+    isOtherUser ? null : (authUser ?? null),
+  );
+  const [loading, setLoading] = useState(
+    isOtherUser ? true : authUser == null,
+  );
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [posts, setPosts] = useState<FeedPost[]>([]);
@@ -140,6 +151,28 @@ export function Profile() {
         loadUserPosts(profileData);
       }
     });
+  }, []);
+
+  // Keep the own-profile view in sync with the auth-context user. When the
+  // offline queue flushes and AuthContext re-fetches the profile, this picks
+  // up the new totals without needing a manual reload.
+  useEffect(() => {
+    if (isOtherUser) return;
+    if (authUser) setProfile(authUser);
+  }, [authUser, isOtherUser]);
+
+  // Refresh on reconnect so stale offline data is updated as soon as the
+  // device comes back online.
+  useEffect(() => {
+    return subscribeOnlineStatus((online) => {
+      if (!online) return;
+      loadProfile().then((profileData) => {
+        if (profileData) loadUserPosts(profileData);
+      });
+    });
+    // loadProfile/loadUserPosts are stable closures captured at mount; we
+    // intentionally don't re-subscribe each render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleFollowToggle = async () => {

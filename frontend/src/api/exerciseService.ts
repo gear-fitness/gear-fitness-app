@@ -4,6 +4,8 @@
  */
 
 import apiClient from "./apiClient";
+import { CACHE_KEYS, readCache, writeCache } from "../utils/offlineCache";
+import { isNetworkError } from "../utils/network";
 
 export interface Exercise {
   exerciseId: string;
@@ -41,11 +43,30 @@ export interface ExerciseHistory {
 }
 
 /**
- * Get all exercises
+ * Read the offline exercise catalog without touching the network.
+ */
+export async function getCachedExercises(): Promise<Exercise[]> {
+  const cached = await readCache<Exercise[]>(CACHE_KEYS.exercises);
+  return cached ?? [];
+}
+
+/**
+ * Get all exercises. Tries the network first and refreshes the offline
+ * catalog on success; falls back to the cached catalog when the request
+ * fails because the device is offline. Auth or server errors are rethrown.
  */
 export async function getAllExercises(): Promise<Exercise[]> {
-  const { data } = await apiClient.get<Exercise[]>("/exercises");
-  return data ?? [];
+  try {
+    const { data } = await apiClient.get<Exercise[]>("/exercises");
+    const list = data ?? [];
+    await writeCache(CACHE_KEYS.exercises, list);
+    return list;
+  } catch (err) {
+    if (isNetworkError(err)) {
+      return getCachedExercises();
+    }
+    throw err;
+  }
 }
 
 /**

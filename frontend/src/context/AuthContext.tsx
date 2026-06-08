@@ -5,6 +5,7 @@ import {
   useEffect,
   ReactNode,
 } from "react";
+import { AppState, AppStateStatus } from "react-native";
 import {
   storeTokens,
   clearAuthTokens,
@@ -19,6 +20,19 @@ import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 import { notificationService } from "../api/notificationService";
 import { logoutFromServer } from "../api/authService";
+import {
+  isNetworkError,
+  probeNetwork,
+  subscribeOnlineStatus,
+} from "../utils/network";
+import {
+  CACHE_KEYS,
+  clearCache,
+  readCache,
+  setActiveUserId,
+  writeCache,
+} from "../utils/offlineCache";
+import { flushWorkoutQueue } from "../utils/workoutQueue";
 
 export type User = UserProfile;
 
@@ -47,6 +61,53 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Initialize auth state on app start
   useEffect(() => {
     initializeAuth();
+  }, []);
+
+  // Flush any workouts that were saved while offline. Run once on mount for
+  // the case where the device was already online at launch, and again on
+  // every offline→online transition. Sign-out drops the queue, so this is a
+  // no-op when there's no active user.
+  useEffect(() => {
+    const tryFlush = async () => {
+      try {
+        const posted = await flushWorkoutQueue();
+        if (posted > 0) {
+          // Refresh the profile so the user sees new workout stats reflected,
+          // and pull a fresh profile snapshot into the cache.
+          try {
+            await refreshUser();
+          } catch {
+            // Ignore — the flush succeeded; profile will refresh on next open.
+          }
+        }
+      } catch (err) {
+        console.error("Failed to flush offline workout queue:", err);
+      }
+    };
+    tryFlush();
+    const unsubscribe = subscribeOnlineStatus((online) => {
+      if (online) tryFlush();
+    });
+
+    // Probe the API when the app comes back to the foreground. Without this,
+    // a device that's offline at launch and never makes any other request
+    // would never notice connectivity returning, leaving queued workouts
+    // stuck until the user manually triggers a refresh.
+    const probe = () => {
+      probeNetwork();
+    };
+    probe();
+    const sub = AppState.addEventListener(
+      "change",
+      (state: AppStateStatus) => {
+        if (state === "active") probe();
+      },
+    );
+
+    return () => {
+      unsubscribe();
+      sub.remove();
+    };
   }, []);
 
   const registerPushToken = async () => {
@@ -91,15 +152,45 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const hasTokens = await hasStoredTokens();
 
       if (hasTokens) {
+        // Paint from the cached profile first so the app is usable offline
+        // without waiting for the network round-trip. The last-known user id
+        // is used to scope per-user caches (routines, pending workouts).
+        const lastUserId = await readCache<string>(CACHE_KEYS.lastUserId);
+        let paintedFromCache = false;
+        if (lastUserId) {
+          const cachedProfile = await readCache<UserProfile>(
+            CACHE_KEYS.userProfile(lastUserId),
+          );
+          if (cachedProfile) {
+            setUser(cachedProfile);
+            paintedFromCache = true;
+          }
+        }
+
         try {
           const userProfile = await getCurrentUserProfile();
           setUser(userProfile);
+          await setActiveUserId(userProfile.userId);
+          await writeCache(
+            CACHE_KEYS.userProfile(userProfile.userId),
+            userProfile,
+          );
           await registerPushToken();
-        } catch (profileError) {
-          console.error("Failed to fetch user profile:", profileError);
-          await clearAuthTokens();
-          setUser(null);
-          setAuthError("Session expired. Please login again.");
+        } catch (profileError: any) {
+          if (isNetworkError(profileError)) {
+            // Offline at launch — keep the tokens and the cached profile so
+            // the user stays signed in. If we had no cached profile, fall
+            // through to a soft error that lets retryAuth re-attempt later.
+            if (!paintedFromCache) {
+              setAuthError("You're offline. Connect to sign in.");
+            }
+          } else {
+            console.error("Failed to fetch user profile:", profileError);
+            await clearAuthTokens();
+            await setActiveUserId(null);
+            setUser(null);
+            setAuthError("Session expired. Please login again.");
+          }
         }
       }
     } catch (error) {
@@ -122,6 +213,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       await storeTokens(accessToken, refreshToken);
       const userProfile = await getCurrentUserProfile();
       setUser(userProfile);
+      await setActiveUserId(userProfile.userId);
+      await writeCache(
+        CACHE_KEYS.userProfile(userProfile.userId),
+        userProfile,
+      );
       await registerPushToken();
     } catch (error) {
       console.error("Login failed:", error);
@@ -137,6 +233,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
    * Clears token and user state
    */
   const logout = async () => {
+    const currentUserId = user?.userId ?? null;
     try {
       await notificationService.unregisterToken();
       const refreshToken = await getRefreshToken();
@@ -147,6 +244,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setUser(null);
       // Clear any in-progress workout
       await AsyncStorage.removeItem("@workout_state");
+      // Drop the per-user offline caches so the next sign-in starts clean.
+      if (currentUserId) {
+        await clearCache(CACHE_KEYS.userProfile(currentUserId));
+        await clearCache(CACHE_KEYS.routines(currentUserId));
+        await clearCache(CACHE_KEYS.pendingWorkouts(currentUserId));
+      }
+      await setActiveUserId(null);
     } catch (error) {
       console.error("Logout failed:", error);
       // Still clear local state even if server call fails
@@ -164,6 +268,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       const userProfile = await getCurrentUserProfile();
       setUser(userProfile);
+      await setActiveUserId(userProfile.userId);
+      await writeCache(
+        CACHE_KEYS.userProfile(userProfile.userId),
+        userProfile,
+      );
     } catch (error) {
       console.error("Failed to refresh user:", error);
       throw error;

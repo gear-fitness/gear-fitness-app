@@ -15,8 +15,12 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
-import { getUserWorkouts } from "../../api/workoutService";
+import {
+  getCachedUserWorkouts,
+  getUserWorkouts,
+} from "../../api/workoutService";
 import { Workout } from "../../api/types";
+import { subscribeOnlineStatus } from "../../utils/network";
 import { parseLocalDate, getCurrentLocalDateString } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
@@ -89,11 +93,24 @@ export function History() {
   const [data, setData] = useState<Workout[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
+  // Paint from the offline cache immediately so the screen is usable while
+  // offline — fetchWorkouts below will overwrite with fresh data when the
+  // network call succeeds.
   useEffect(() => {
-    fetchWorkouts();
-  }, []);
+    if (!user?.userId) return;
+    let cancelled = false;
+    (async () => {
+      const cached = await getCachedUserWorkouts(user.userId);
+      if (!cancelled && cached.length > 0) {
+        setData((prev) => (prev.length === 0 ? cached : prev));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.userId]);
 
-  const fetchWorkouts = async () => {
+  const fetchWorkouts = React.useCallback(async () => {
     if (!user?.userId) return;
     try {
       const workouts = await getUserWorkouts(user.userId);
@@ -101,13 +118,25 @@ export function History() {
     } catch (err) {
       console.error("Error loading workouts:", err);
     }
-  };
+  }, [user?.userId]);
+
+  useEffect(() => {
+    fetchWorkouts();
+  }, [fetchWorkouts]);
 
   useFocusEffect(
     React.useCallback(() => {
       fetchWorkouts();
-    }, []),
+    }, [fetchWorkouts]),
   );
+
+  // Re-fetch when connectivity comes back so a workout posted from the
+  // offline queue shows up without requiring a manual pull-to-refresh.
+  useEffect(() => {
+    return subscribeOnlineStatus((online) => {
+      if (online) fetchWorkouts();
+    });
+  }, [fetchWorkouts]);
 
   const todayStr = getCurrentLocalDateString();
 

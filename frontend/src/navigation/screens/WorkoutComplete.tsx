@@ -27,6 +27,8 @@ import {
   uploadWorkoutPhoto,
   WorkoutSubmission,
 } from "../../api/workoutService";
+import { isNetworkError } from "../../utils/network";
+import { enqueueWorkout } from "../../utils/workoutQueue";
 import { getCurrentLocalDateString } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
@@ -181,8 +183,50 @@ export function WorkoutComplete() {
 
     setLoadingAction(createPost ? "post" : "save");
 
+    const buildSubmission = (
+      uploadedUrls: string[],
+    ): WorkoutSubmission => ({
+      name: workoutName,
+      durationMin,
+      datePerformed: getCurrentLocalDateString(),
+      bodyTags: bodyTags, // Send all selected tags to backend
+      exercises: exercises.map((ex) => ({
+        exerciseId: ex.exerciseId,
+        sets: ex.sets.map((set) => ({
+          reps: set.reps,
+          weight: set.weight,
+        })),
+        note: ex.note || "",
+      })),
+      createPost,
+      caption: createPost ? caption : undefined,
+      imageUrl:
+        createPost && uploadedUrls.length > 0 ? uploadedUrls[0] : undefined,
+      photoUrls: uploadedUrls,
+    });
+
+    const finishOffline = async (
+      alreadyUploadedUrls: string[],
+      stillPendingUris: string[],
+    ) => {
+      // Hand off to the queue. Photos that already made it to S3 are kept
+      // verbatim; the rest are kept as local URIs and uploaded at flush time.
+      await enqueueWorkout(
+        buildSubmission(alreadyUploadedUrls),
+        stillPendingUris,
+      );
+      await reset();
+      Alert.alert(
+        "Saved offline",
+        createPost
+          ? "You're offline. Your workout was saved on this device and will post automatically when you're back online."
+          : "You're offline. Your workout was saved on this device and will sync when you're back online.",
+        [{ text: "OK", onPress: popOutOfFlow }],
+      );
+    };
+
+    let uploadedUrls: string[] = [];
     try {
-      let uploadedUrls: string[] = [];
       if (photos.length > 0) {
         try {
           const compressed = await Promise.all(
@@ -199,6 +243,10 @@ export function WorkoutComplete() {
           );
           uploadedUrls = results.map((r) => r.url);
         } catch (uploadError) {
+          if (isNetworkError(uploadError)) {
+            await finishOffline([], [...photos]);
+            return;
+          }
           console.error("Failed to upload workout photos:", uploadError);
           Alert.alert("Error", "Failed to upload photos. Please try again.");
           setLoadingAction(null);
@@ -206,25 +254,7 @@ export function WorkoutComplete() {
         }
       }
 
-      const submission: WorkoutSubmission = {
-        name: workoutName,
-        durationMin,
-        datePerformed: getCurrentLocalDateString(),
-        bodyTags: bodyTags, // Send all selected tags to backend
-        exercises: exercises.map((ex) => ({
-          exerciseId: ex.exerciseId,
-          sets: ex.sets.map((set) => ({
-            reps: set.reps,
-            weight: set.weight,
-          })),
-          note: ex.note || "",
-        })),
-        createPost,
-        caption: createPost ? caption : undefined,
-        imageUrl:
-          createPost && uploadedUrls.length > 0 ? uploadedUrls[0] : undefined,
-        photoUrls: uploadedUrls,
-      };
+      const submission = buildSubmission(uploadedUrls);
 
       await submitWorkout(submission);
       // Clear in-memory + persisted state BEFORE the Alert so that any path
@@ -244,6 +274,16 @@ export function WorkoutComplete() {
         [{ text: "OK", onPress: popOutOfFlow }],
       );
     } catch (error) {
+      if (isNetworkError(error)) {
+        try {
+          // Photos already uploaded to S3 keep their URLs; the upload phase
+          // succeeded, so there are no remaining local URIs to re-try.
+          await finishOffline(uploadedUrls, []);
+          return;
+        } catch (queueErr) {
+          console.error("Failed to queue workout offline:", queueErr);
+        }
+      }
       console.error("Failed to save workout:", error);
       Alert.alert("Error", "Failed to save workout. Please try again.");
     } finally {
