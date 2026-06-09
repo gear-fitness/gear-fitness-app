@@ -27,12 +27,45 @@ const cache = new Map<string, CacheEntry>();
 let pending = new Map<string, ((entry: CacheEntry | null) => void)[]>();
 let flushScheduled = false;
 
+// Subscribers notified when a key's cached url is invalidated, so any mounted
+// <Image> showing that key can re-resolve a fresh presigned url.
+const invalidationListeners = new Set<(key: string) => void>();
+
+/** Subscribe to key invalidations. Returns an unsubscribe fn. */
+export function onImageKeyInvalidated(cb: (key: string) => void): () => void {
+  invalidationListeners.add(cb);
+  return () => invalidationListeners.delete(cb);
+}
+
+/**
+ * Drop a key's cached presigned url and notify subscribers to re-resolve. Use
+ * this after re-uploading to a deterministic key (e.g. a profile picture, whose
+ * key is stable across uploads) so the new bytes show without a remount.
+ */
+export function invalidateImageKey(key: string): void {
+  if (!key) return;
+  cache.delete(key);
+  invalidationListeners.forEach((cb) => cb(key));
+}
+
 function isFreshlyCached(key: string): CacheEntry | null {
   const entry = cache.get(key);
   if (entry && entry.expiresAt - EXPIRY_SKEW_MS > Date.now()) {
     return entry;
   }
   return null;
+}
+
+/**
+ * Synchronously return a fresh cached presigned url for a key, or null — without
+ * scheduling a fetch. Used to seed a hook's initial state so a remount whose url
+ * is already cached doesn't flash a placeholder for a frame. Mirrors the
+ * legacy-url passthrough in resolveImageKey.
+ */
+export function peekCachedImageUrl(key?: string | null): string | null {
+  if (!key) return null;
+  if (/^https?:\/\//i.test(key)) return key;
+  return isFreshlyCached(key)?.url ?? null;
 }
 
 async function fetchViewUrls(

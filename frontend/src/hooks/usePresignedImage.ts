@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
-import { resolveImageKey } from "../api/imageService";
+import {
+  resolveImageKey,
+  onImageKeyInvalidated,
+  peekCachedImageUrl,
+} from "../api/imageService";
 
 const REFRESH_SKEW_MS = 30_000;
 const MIN_REFRESH_MS = 5_000;
@@ -12,7 +16,19 @@ const MIN_REFRESH_MS = 5_000;
  * resolveImageKey.
  */
 export function usePresignedImage(key?: string | null): string | null {
-  const [uri, setUri] = useState<string | null>(null);
+  // Seed from the in-memory cache so a remount whose url is already cached shows
+  // the image immediately instead of flashing the placeholder for a frame.
+  const [uri, setUri] = useState<string | null>(() => peekCachedImageUrl(key));
+  // Bumped when this key is invalidated (e.g. a profile picture re-uploaded to
+  // its stable key), forcing the load effect below to re-resolve a fresh url.
+  const [bust, setBust] = useState(0);
+
+  useEffect(() => {
+    if (!key) return;
+    return onImageKeyInvalidated((invalidated) => {
+      if (invalidated === key) setBust((n) => n + 1);
+    });
+  }, [key]);
 
   useEffect(() => {
     if (!key) {
@@ -26,7 +42,9 @@ export function usePresignedImage(key?: string | null): string | null {
     const load = async () => {
       const entry = await resolveImageKey(key);
       if (!active) return;
-      setUri(entry?.url ?? null);
+      // Keep showing the last good url if a re-resolve transiently fails, rather
+      // than flashing back to the placeholder.
+      setUri((prev) => entry?.url ?? prev ?? null);
       if (entry && entry.expiresAt !== Number.MAX_SAFE_INTEGER) {
         const refreshIn = entry.expiresAt - Date.now() - REFRESH_SKEW_MS;
         timer = setTimeout(load, Math.max(refreshIn, MIN_REFRESH_MS));
@@ -38,7 +56,7 @@ export function usePresignedImage(key?: string | null): string | null {
       active = false;
       if (timer) clearTimeout(timer);
     };
-  }, [key]);
+  }, [key, bust]);
 
   return uri;
 }

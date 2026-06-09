@@ -454,7 +454,11 @@ export function Profile() {
           />
         }
       >
-        {profile ? <ProfileHeader /> : <ProfileHeaderSkeleton t={t} />}
+        {/* Call as a function (not <ProfileHeader />) so its output is inlined
+            into this tree; rendering it as a nested component type would remount
+            the subtree — and reset the Avatar's presigned-url state — on every
+            Profile re-render. ProfileHeader uses no hooks, so this is safe. */}
+        {profile ? ProfileHeader() : <ProfileHeaderSkeleton t={t} />}
 
         {profile ? (
           posts.length > 0 ? (
