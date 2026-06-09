@@ -9,17 +9,13 @@ import {
 } from "react-native";
 import { useOnboardingColors } from "./useOnboardingColors";
 import { makeOnboardingStyles } from "./makeOnboardingStyles";
-import { GOOGLE_LOGO_URI, appleBrandLogoUri } from "../socialAuthUris";
+import { GOOGLE_LOGO_URI } from "../socialAuthUris";
+import { StepProps } from "../stepProps";
 
 const gearLogo = require("../../../../assets/GearLogo288.png");
 const gearLogoInverse = require("../../../../assets/GearLogoInverse288.png");
 
-interface IntroStepProps {
-  onGetStarted: () => void;
-  onGoogleSignIn?: () => void;
-}
-
-export function IntroStep({ onGetStarted, onGoogleSignIn }: IntroStepProps) {
+export function WelcomeStep({ onNext, onGoogleSignIn }: StepProps) {
   const isDark = useColorScheme() === "dark";
   const colors = useOnboardingColors();
   const shared = useMemo(() => makeOnboardingStyles(colors), [colors]);
@@ -27,7 +23,7 @@ export function IntroStep({ onGetStarted, onGoogleSignIn }: IntroStepProps) {
   return (
     <View style={shared.screen}>
       <View style={styles.heroSection}>
-        <View style={[styles.logoBox, { backgroundColor: colors.screenBg }]}>
+        <View style={styles.brandRow}>
           <Image
             source={isDark ? gearLogo : gearLogoInverse}
             style={styles.logoImage}
@@ -35,17 +31,34 @@ export function IntroStep({ onGetStarted, onGoogleSignIn }: IntroStepProps) {
             fadeDuration={0}
           />
         </View>
+        {/* Placeholder hero — replaced later with photography of people
+            working out. */}
+        <View
+          style={[
+            styles.heroPlaceholder,
+            {
+              borderColor: colors.dashedBorder,
+              backgroundColor: colors.surface,
+            },
+          ]}
+        >
+          <Text style={styles.heroEmoji}>🏋️</Text>
+          <Text
+            style={[styles.heroPlaceholderText, { color: colors.secondary }]}
+          >
+            Workout imagery coming soon
+          </Text>
+        </View>
         <Text style={[shared.heading, styles.centeredHeading]}>
-          Ready to hop{"\n"}on Gear?
+          Train hard.{"\n"}Track everything.
         </Text>
         <Text style={[shared.subheading, styles.centeredSub]}>
-          Your fitness journey starts here. Let's set up your profile in under a
-          minute.
+          Gear builds your plan, logs your lifts, and keeps you accountable.
         </Text>
       </View>
       <View style={[shared.footer, styles.footerGap]}>
         <Pressable
-          onPress={onGetStarted}
+          onPress={onNext}
           style={({ pressed }) => [
             shared.continueBtn,
             pressed && styles.pressed,
@@ -71,17 +84,6 @@ export function IntroStep({ onGetStarted, onGoogleSignIn }: IntroStepProps) {
           >
             <Image source={{ uri: GOOGLE_LOGO_URI }} style={styles.iconLogo} />
           </Pressable>
-          {/* Apple sign-in stubbed until implemented
-          <Pressable
-            style={[styles.iconBtn, { backgroundColor: colors.accent }]}
-          >
-            <Image
-              source={{ uri: appleBrandLogoUri(colors.isDark) }}
-              style={styles.appleLogo}
-              resizeMode="contain"
-            />
-          </Pressable>
-          */}
         </View>
         <Text style={[styles.terms, { color: colors.secondary }]}>
           By continuing you agree to our{" "}
@@ -101,32 +103,45 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 36,
+    paddingHorizontal: 28,
   },
-  logoBox: {
-    width: 144,
-    height: 144,
-    borderRadius: 26,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 32,
-    overflow: "hidden",
+  brandRow: {
+    marginBottom: 18,
   },
   logoImage: {
-    width: 144,
-    height: 144,
+    width: 72,
+    height: 72,
+    borderRadius: 16,
+  },
+  heroPlaceholder: {
+    alignSelf: "stretch",
+    height: 180,
+    borderRadius: 28,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 26,
+    gap: 6,
+  },
+  heroEmoji: {
+    fontSize: 40,
+  },
+  heroPlaceholderText: {
+    fontSize: 13,
+    fontWeight: "500",
   },
   centeredHeading: {
     fontSize: 36,
     letterSpacing: -1.2,
     lineHeight: 40,
-    marginBottom: 14,
+    marginBottom: 12,
     textAlign: "center",
   },
   centeredSub: {
     fontSize: 15,
-    lineHeight: 24,
-    maxWidth: 260,
+    lineHeight: 23,
+    maxWidth: 280,
     textAlign: "center",
     marginBottom: 0,
   },
@@ -160,11 +175,6 @@ const styles = StyleSheet.create({
   iconLogo: {
     width: 22,
     height: 22,
-  },
-  appleLogo: {
-    width: 26,
-    height: 26,
-    marginTop: -3,
   },
   terms: {
     textAlign: "center",

@@ -9,7 +9,8 @@ import {
 } from "react-native";
 import * as Notifications from "expo-notifications";
 
-import { Height, Weight, OnboardingPermissions } from "../types";
+import { OnboardingPermissions } from "../types";
+import { StepProps } from "../stepProps";
 import { OnboardingTopBar } from "./OnboardingTopBar";
 import { useOnboardingColors } from "./useOnboardingColors";
 import { makeOnboardingStyles } from "./makeOnboardingStyles";
@@ -96,26 +97,23 @@ function PermCard({
   );
 }
 
-interface PermissionsStepProps {
-  permissions?: OnboardingPermissions;
-  height?: Height;
-  weight?: Weight;
-  onPermissionsChange: (p: OnboardingPermissions) => void;
-  onBack: () => void;
-  onContinue: () => void;
-}
-
 export function PermissionsStep({
-  permissions,
-  height,
-  weight,
-  onPermissionsChange,
+  draft,
+  updateDraft,
+  onNext,
   onBack,
-  onContinue,
-}: PermissionsStepProps) {
+  progress,
+}: StepProps) {
   const colors = useOnboardingColors();
   const shared = useMemo(() => makeOnboardingStyles(colors), [colors]);
   const [healthLoading, setHealthLoading] = useState(false);
+
+  const permissions = draft.permissions;
+  const height = draft.height;
+  const weight = draft.weight;
+  const onContinue = onNext;
+  const onPermissionsChange = (p: OnboardingPermissions) =>
+    updateDraft({ permissions: p });
 
   const health = permissions?.health ?? false;
   const location = permissions?.location ?? false;
@@ -185,7 +183,7 @@ export function PermissionsStep({
 
   return (
     <View style={shared.screen}>
-      <OnboardingTopBar progress={0.8} onBack={onBack} />
+      <OnboardingTopBar progress={progress} onBack={onBack} />
       <View style={shared.body}>
         <Text style={shared.heading}>First we need some permissions</Text>
         <Text style={shared.subheading}>

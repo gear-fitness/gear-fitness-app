@@ -13,17 +13,7 @@ import {
   isSuccessResponse,
 } from "@react-native-google-signin/google-signin";
 
-import {
-  OnboardingDraft,
-  OnboardingStep,
-  Gender,
-  Height,
-  Weight,
-  DOB,
-  OnboardingProfile,
-  OnboardingPermissions,
-  TOTAL_STEPS,
-} from "../onboarding/types";
+import { OnboardingDraft, OnboardingStep } from "../onboarding/types";
 import {
   clearOnboardingDraft,
   saveOnboardingDraft,
@@ -35,30 +25,18 @@ import {
   GoogleAuthIntent,
   loginWithGoogle,
 } from "../../api/authService";
-import { updateUserProfile, uploadProfilePicture } from "../../api/userService";
 import { useAuth } from "../../context/AuthContext";
 import { useOnboardingColors } from "../onboarding/components/useOnboardingColors";
-
-import { IntroStep } from "../onboarding/components/IntroStep";
-import { GenderStep } from "../onboarding/components/GenderStep";
-import { AboutYouStep } from "../onboarding/components/AboutYouStep";
-import { ProfileStep } from "../onboarding/components/ProfileStep";
-import { PermissionsStep } from "../onboarding/components/PermissionsStep";
-import { AllSetStep } from "../onboarding/components/AllSetStep";
-import { calcAge } from "../onboarding/calcAge";
 import { useTrackTab } from "../../hooks/useTrackTab";
+import { StepProps } from "../onboarding/stepProps";
+import { STEP_COMPONENTS } from "../onboarding/steps";
+import { runPostSignupSync } from "../onboarding/onboardingSync";
+import { TesterSkipButton } from "../onboarding/components/TesterSkipButton";
 
 const initialBg =
   Appearance.getColorScheme() === "dark" ? "#0a0a0a" : "#fafafa";
 
-const STEP_COMPONENTS = [
-  IntroStep,
-  GenderStep,
-  AboutYouStep,
-  ProfileStep,
-  PermissionsStep,
-  AllSetStep,
-] as const;
+const LAST_STEP = STEP_COMPONENTS.length - 1;
 
 const defaultDraft = (): OnboardingDraft => ({
   step: 0,
@@ -121,173 +99,127 @@ export function OnboardingScreen() {
     [updateDraft],
   );
   const goBack = useCallback(
-    () => goTo(Math.max(0, draft.step - 1) as OnboardingStep),
+    () => goTo(Math.max(0, draft.step - 1)),
     [goTo, draft.step],
   );
   const goNext = useCallback(
-    () => goTo(Math.min(TOTAL_STEPS, draft.step + 1) as OnboardingStep),
+    () => goTo(Math.min(LAST_STEP, draft.step + 1)),
     [goTo, draft.step],
   );
 
-  const syncOnboardingProfile = async () => {
-    // Sync collected profile data to backend (best-effort, non-blocking)
-    try {
-      const h = draft.height;
-      const w = draft.weight;
-      const heightInches =
-        h?.unit === "ft_in"
-          ? h.ft * 12 + h.inch
-          : h?.unit === "cm"
-            ? Math.round(h.cm / 2.54)
-            : null;
-      const weightLbs =
-        w?.unit === "lbs"
-          ? w.value
-          : w?.unit === "kg"
-            ? Math.round(w.value * 2.205)
-            : null;
-      const age = draft.dob
-        ? calcAge(draft.dob.year, draft.dob.month, draft.dob.day)
-        : null;
-
-      await updateUserProfile(
-        heightInches,
-        weightLbs,
-        age,
-        draft.profile?.username ?? null,
-        draft.profile?.name ?? null,
-        draft.gender ?? null,
-      );
-
-      if (draft.profile?.photoUri) {
-        await uploadProfilePicture(draft.profile.photoUri);
-        await refreshUser();
-      }
-    } catch (syncErr) {
-      // Profile sync failure should not block the user from proceeding
-      console.warn("Onboarding profile sync failed:", syncErr);
-    }
-  };
-
-  const completeAuthFlow = async () => {
+  const completeOnboarding = useCallback(async () => {
     await markOnboardingSeen();
     await clearOnboardingDraft();
     navigation.dispatch(
       CommonActions.reset({ index: 0, routes: [{ name: "HomeTabs" }] }),
     );
-  };
+  }, [navigation]);
 
-  const handleGoogleAuth = async (intent: GoogleAuthIntent) => {
-    if (isSigningIn) return;
-    setIsSigningIn(true);
-    try {
-      const response = await GoogleSignin.signIn();
-      if (isSuccessResponse(response)) {
-        const { idToken } = response.data;
-        if (!idToken) throw new Error("No ID token received from Google");
+  const handleGoogleAuth = useCallback(
+    async (intent: GoogleAuthIntent) => {
+      if (isSigningIn) return;
+      setIsSigningIn(true);
+      try {
+        const response = await GoogleSignin.signIn();
+        if (isSuccessResponse(response)) {
+          const { idToken } = response.data;
+          if (!idToken) throw new Error("No ID token received from Google");
 
-        const { token, refreshToken } = await loginWithGoogle(idToken, intent);
-        await login(token, refreshToken);
-
-        if (intent === "sign_up") {
-          await syncOnboardingProfile();
-        }
-        await completeAuthFlow();
-      }
-    } catch (error: any) {
-      if (error instanceof AuthApiError) {
-        if (intent === "sign_in" && error.code === "ACCOUNT_NOT_FOUND") {
-          Alert.alert(
-            "Account Not Found",
-            "No account exists for this Google account. Please sign up first.",
-            [{ text: "OK", onPress: () => goTo(0) }],
+          const { token, refreshToken } = await loginWithGoogle(
+            idToken,
+            intent,
           );
-          return;
+          await login(token, refreshToken);
+
+          if (intent === "sign_up") {
+            // Persist everything collected so far, then continue the flow
+            // (referral → paywall) rather than dropping into the app.
+            await runPostSignupSync(draft, refreshUser);
+            goNext();
+          } else {
+            // Returning user signing in — straight into the app.
+            await completeOnboarding();
+          }
         }
-        if (intent === "sign_up" && error.code === "ACCOUNT_ALREADY_EXISTS") {
-          Alert.alert(
-            "Account Already Exists",
-            "An account already exists for this Google account. Please sign in instead.",
-            [{ text: "Go to Sign In", onPress: () => goTo(0) }],
-          );
-          return;
+      } catch (error: any) {
+        if (error instanceof AuthApiError) {
+          if (intent === "sign_in" && error.code === "ACCOUNT_NOT_FOUND") {
+            Alert.alert(
+              "Account Not Found",
+              "No account exists for this Google account. Tap Get Started to create one.",
+              [{ text: "OK", onPress: () => goTo(0) }],
+            );
+            return;
+          }
+          if (intent === "sign_up" && error.code === "ACCOUNT_ALREADY_EXISTS") {
+            Alert.alert(
+              "Account Already Exists",
+              "An account already exists for this Google account. Signing you in…",
+              [{ text: "OK", onPress: () => completeOnboarding() }],
+            );
+            return;
+          }
         }
+        console.error("Sign-in error during onboarding:", error);
+        Alert.alert(
+          "Sign-in Failed",
+          "Something went wrong signing in with Google. Please try again.",
+          [{ text: "OK" }],
+        );
+      } finally {
+        setIsSigningIn(false);
       }
-      console.error("Sign-in error during onboarding:", error);
-      Alert.alert(
-        "Sign-in Failed",
-        "Something went wrong signing in with Google. Please try again.",
-        [{ text: "OK" }],
-      );
-    } finally {
-      setIsSigningIn(false);
+    },
+    [isSigningIn, login, draft, refreshUser, goNext, goTo, completeOnboarding],
+  );
+
+  const onGoogleSignIn = useCallback(
+    () => handleGoogleAuth("sign_in"),
+    [handleGoogleAuth],
+  );
+  const onGoogleSignUp = useCallback(
+    () => handleGoogleAuth("sign_up"),
+    [handleGoogleAuth],
+  );
+
+  // TESTING ONLY — advance past the current screen. On the final screen it
+  // finishes onboarding. Remove together with TesterSkipButton before release.
+  const onTesterSkip = useCallback(() => {
+    if (draft.step >= LAST_STEP) {
+      completeOnboarding();
+    } else {
+      goNext();
     }
-  };
+  }, [draft.step, goNext, completeOnboarding]);
 
-  const handleGoogleSignInExisting = async () => handleGoogleAuth("sign_in");
-
-  const handleGoogleSignUpNew = async () => handleGoogleAuth("sign_up");
-
-  // ─── Step props map ──────────────────────────────────────────
-  const stepProps = useMemo(() => {
-    const base = { onBack: goBack };
-    return [
-      { onGetStarted: goNext, onGoogleSignIn: handleGoogleSignInExisting },
-      {
-        selected: draft.gender,
-        onSelect: (g: Gender) => updateDraft({ gender: g }),
-        ...base,
-        onContinue: goNext,
-      },
-      {
-        height: draft.height,
-        weight: draft.weight,
-        dob: draft.dob,
-        onHeightChange: (h: Height) => updateDraft({ height: h }),
-        onWeightChange: (w: Weight) => updateDraft({ weight: w }),
-        onDobChange: (d: DOB) => updateDraft({ dob: d }),
-        ...base,
-        onContinue: goNext,
-      },
-      {
-        profile: draft.profile,
-        onProfileChange: (p: OnboardingProfile) => updateDraft({ profile: p }),
-        ...base,
-        onContinue: goNext,
-      },
-      {
-        permissions: draft.permissions,
-        // PermissionsStep needs the current draft height/weight so it
-        // can push them into HealthKit when the user toggles Apple Health on.
-        height: draft.height,
-        weight: draft.weight,
-        onPermissionsChange: (p: OnboardingPermissions) =>
-          updateDraft({ permissions: p }),
-        ...base,
-        onContinue: goNext,
-      },
-      { onSignIn: handleGoogleSignUpNew, ...base, isLoading: isSigningIn },
-    ] as const;
-  }, [
-    draft.step,
-    draft.gender,
-    draft.height,
-    draft.weight,
-    draft.dob,
-    draft.profile,
-    draft.permissions,
-    goBack,
-    goNext,
-    updateDraft,
-    isSigningIn,
-    handleGoogleSignInExisting,
-    handleGoogleSignUpNew,
-  ]);
+  const stepProps: StepProps = useMemo(
+    () => ({
+      draft,
+      updateDraft,
+      onNext: goNext,
+      onBack: goBack,
+      progress: LAST_STEP === 0 ? 1 : draft.step / LAST_STEP,
+      onGoogleSignIn,
+      onGoogleSignUp,
+      isSigningIn,
+      onFinish: completeOnboarding,
+    }),
+    [
+      draft,
+      updateDraft,
+      goNext,
+      goBack,
+      onGoogleSignIn,
+      onGoogleSignUp,
+      isSigningIn,
+      completeOnboarding,
+    ],
+  );
 
   if (!hydrated) return null;
 
-  const CurrentStep = STEP_COMPONENTS[draft.step] as React.ComponentType<any>;
-  const currentProps = stepProps[draft.step];
+  const safeStep = Math.min(Math.max(0, draft.step), LAST_STEP);
+  const CurrentStep = STEP_COMPONENTS[safeStep];
 
   return (
     <View
@@ -299,7 +231,8 @@ export function OnboardingScreen() {
         },
       ]}
     >
-      <CurrentStep {...currentProps} />
+      <CurrentStep {...stepProps} />
+      <TesterSkipButton onSkip={onTesterSkip} />
     </View>
   );
 }

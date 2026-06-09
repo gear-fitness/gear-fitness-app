@@ -12,27 +12,26 @@ import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { checkUsernameAvailability } from "../../../api/userService";
 import { OnboardingProfile } from "../types";
+import { StepProps } from "../stepProps";
 import { OnboardingTopBar } from "./OnboardingTopBar";
 import { useOnboardingColors } from "./useOnboardingColors";
 import { makeOnboardingStyles } from "./makeOnboardingStyles";
 import { AvatarWithCameraOverlay } from "../../../components/AvatarWithCameraOverlay";
 import { FloatingKeyboardDismiss } from "../../../components/FloatingKeyboardDismiss";
 
-interface ProfileStepProps {
-  profile?: OnboardingProfile;
-  onProfileChange: (p: OnboardingProfile) => void;
-  onBack: () => void;
-  onContinue: () => void;
-}
-
 export function ProfileStep({
-  profile,
-  onProfileChange,
+  draft,
+  updateDraft,
+  onNext,
   onBack,
-  onContinue,
-}: ProfileStepProps) {
+  progress,
+}: StepProps) {
   const colors = useOnboardingColors();
   const shared = useMemo(() => makeOnboardingStyles(colors), [colors]);
+
+  const profile = draft.profile;
+  const onContinue = onNext;
+  const onProfileChange = (p: OnboardingProfile) => updateDraft({ profile: p });
 
   const [name, setName] = useState(profile?.name ?? "");
   const [username, setUsername] = useState(profile?.username ?? "");
@@ -149,7 +148,7 @@ export function ProfileStep({
 
   return (
     <View style={shared.screen}>
-      <OnboardingTopBar progress={0.6} onBack={onBack} />
+      <OnboardingTopBar progress={progress} onBack={onBack} />
       <View style={shared.body}>
         <Text style={shared.heading}>Create your profile</Text>
         <Text style={shared.subheading}>

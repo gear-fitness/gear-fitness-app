@@ -1,47 +1,37 @@
-import React, { useMemo } from "react";
-import { View, Text, Pressable } from "react-native";
+import React from "react";
+import { StepProps } from "../stepProps";
+import { StepScaffold } from "./StepScaffold";
+import { OptionCardList } from "./OptionCardList";
 import { Gender } from "../types";
-import { OnboardingTopBar } from "./OnboardingTopBar";
-import { useOnboardingColors } from "./useOnboardingColors";
-import { makeOnboardingStyles } from "./makeOnboardingStyles";
-import { GenderCardList } from "./GenderCardList";
 
-interface GenderStepProps {
-  selected?: Gender;
-  onSelect: (g: Gender) => void;
-  onBack: () => void;
-  onContinue: () => void;
-}
+const GENDER_OPTIONS: { value: Gender; label: string; hint?: string }[] = [
+  { value: "male", label: "Male", hint: "He / Him" },
+  { value: "female", label: "Female", hint: "She / Her" },
+  { value: "non_binary", label: "Non-binary", hint: "They / Them" },
+  { value: "prefer_not_to_say", label: "Prefer not to say" },
+];
 
 export function GenderStep({
-  selected,
-  onSelect,
+  draft,
+  updateDraft,
+  onNext,
   onBack,
-  onContinue,
-}: GenderStepProps) {
-  const colors = useOnboardingColors();
-  const shared = useMemo(() => makeOnboardingStyles(colors), [colors]);
-
+  progress,
+}: StepProps) {
   return (
-    <View style={shared.screen}>
-      <OnboardingTopBar progress={0.2} onBack={onBack} />
-      <View style={shared.body}>
-        <Text style={shared.heading}>What's your gender?</Text>
-        <GenderCardList
-          selected={selected}
-          onSelect={onSelect}
-          colors={colors}
-        />
-      </View>
-      <View style={shared.footer}>
-        <Pressable
-          onPress={onContinue}
-          disabled={!selected}
-          style={[shared.continueBtn, !selected && shared.continueBtnDisabled]}
-        >
-          <Text style={shared.continueBtnText}>Continue</Text>
-        </Pressable>
-      </View>
-    </View>
+    <StepScaffold
+      progress={progress}
+      onBack={onBack}
+      heading="What's your gender?"
+      subheading="Used to calibrate your strength and body-stat baselines."
+      onContinue={onNext}
+      continueDisabled={!draft.gender}
+    >
+      <OptionCardList
+        options={GENDER_OPTIONS}
+        selected={draft.gender}
+        onSelect={(gender: Gender) => updateDraft({ gender })}
+      />
+    </StepScaffold>
   );
 }
