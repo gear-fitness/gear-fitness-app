@@ -4,6 +4,7 @@ node_modules/
 
 
 # Documentation files (keep README.md files visible)
+NEXT.md
 CLAUDE.md
 IMPLEMENTATION_SUMMARY.md
 SIGNUP_FEATURE_DOCUMENTATION.md
