@@ -41,11 +41,13 @@ export default {
       ],
       "expo-asset",
       "expo-font",
+      "expo-video",
       [
         "expo-splash-screen",
         {
           backgroundColor: "#ffffff",
           image: "./assets/GearLogoInverse.png",
+          imageWidth: 240,
           dark: {
             backgroundColor: "#000000",
             image: "./assets/GearLogo.png",

@@ -284,7 +284,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   brandBlock: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
   },
   gLogoInverted: {
     tintColor: "#0a0a0a",
