@@ -47,7 +47,7 @@ export default {
         {
           backgroundColor: "#ffffff",
           image: "./assets/GearLogoInverse.png",
-          imageWidth: 240,
+          imageWidth: 210,
           dark: {
             backgroundColor: "#000000",
             image: "./assets/GearLogo.png",
