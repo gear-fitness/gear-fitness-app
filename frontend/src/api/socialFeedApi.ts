@@ -31,6 +31,7 @@ export interface FeedPost {
   commentCount: number;
   likedByCurrentUser: boolean;
   visibility?: "PUBLIC" | "FRIENDS" | "PRIVATE";
+  viewerFollowsAuthor?: boolean;
 }
 
 export interface Comment {

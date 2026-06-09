@@ -2,8 +2,10 @@ package com.gearfitness.gear_api.repository;
 
 import com.gearfitness.gear_api.entity.AppUser;
 import com.gearfitness.gear_api.entity.Follow;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -84,6 +86,32 @@ public interface FollowRepository
     @Param("currentUserId") UUID currentUserId,
     @Param("otherUserIds") List<UUID> otherUserIds
   );
+
+  /**
+   * Of the given authors, which ones does the viewer follow with ACCEPTED
+   * status. Batched so a feed page resolves follow state in one query, the
+   * same way likes are resolved. Works on any surface (feed, profile, a future
+   * explore page) since it derives from the follow table, not feed membership.
+   */
+  @Query(
+    """
+        SELECT f.followee.userId FROM Follow f
+        WHERE f.follower.userId = :viewerId
+          AND f.followee.userId IN :authorIds
+          AND f.status = com.gearfitness.gear_api.entity.Follow.FollowStatus.ACCEPTED
+    """
+  )
+  List<UUID> findFollowedAuthorIdsRaw(
+    @Param("viewerId") UUID viewerId,
+    @Param("authorIds") List<UUID> authorIds
+  );
+
+  default Set<UUID> findFollowedAuthorIds(UUID viewerId, List<UUID> authorIds) {
+    if (authorIds == null || authorIds.isEmpty()) {
+      return Set.of();
+    }
+    return new HashSet<>(findFollowedAuthorIdsRaw(viewerId, authorIds));
+  }
 
   /**
    * Check whether a block exists in either direction between two users.

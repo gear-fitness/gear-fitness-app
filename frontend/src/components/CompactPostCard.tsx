@@ -11,6 +11,7 @@ import { usePostMenu } from "../hooks/usePostMenu";
 import { useAuth } from "../context/AuthContext";
 import { PostVisibilitySheet } from "./PostVisibilitySheet";
 import { PostActionsSheet } from "./PostActionsSheet";
+import { ReportPostSheet } from "./ReportPostSheet";
 
 export type CompactPostCardTheme = {
   surface: string;
@@ -37,19 +38,23 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
   } = useLikeState(post.postId, post);
   const {
     onPress: onMenuPress,
+    actions: menuActions,
     showVisibilitySheet,
     closeVisibilitySheet,
     pendingVisibility,
     handleVisibilitySelect,
     showActionsSheet,
     closeActionsSheet,
-    handleShare,
-    handleEditVisibility,
+    onActionsSheetClosed,
+    showReportSheet,
+    closeReportSheet,
+    submitReport,
   } = usePostMenu({
     workoutId: post.workoutId,
     postId: post.postId,
     ownerUserId: post.userId,
     ownerUsername: post.username,
+    viewerFollowsAuthor: post.viewerFollowsAuthor,
     currentVisibility: post.visibility ?? "PUBLIC",
   });
   const isOwnPost =
@@ -87,6 +92,7 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
       postId: post.postId,
       ownerUserId: post.userId,
       ownerUsername: post.username,
+      viewerFollowsAuthor: post.viewerFollowsAuthor,
       initialLikeCount: likeCount,
       initialLikedByUser: likedByUser,
     });
@@ -103,15 +109,20 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
     >
       <PostActionsSheet
         visible={showActionsSheet}
-        onShare={handleShare}
-        onEditVisibility={handleEditVisibility}
+        actions={menuActions}
         onClose={closeActionsSheet}
+        onClosed={onActionsSheetClosed}
       />
       <PostVisibilitySheet
         visible={showVisibilitySheet}
         current={pendingVisibility}
         onSelect={handleVisibilitySelect}
         onClose={closeVisibilitySheet}
+      />
+      <ReportPostSheet
+        visible={showReportSheet}
+        onSubmit={submitReport}
+        onClose={closeReportSheet}
       />
       <View style={styles.cardHeader}>
         <Avatar

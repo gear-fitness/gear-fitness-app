@@ -24,6 +24,7 @@ import { usePostMenu } from "../hooks/usePostMenu";
 import { Avatar } from "./Avatar";
 import { PostVisibilitySheet } from "./PostVisibilitySheet";
 import { PostActionsSheet } from "./PostActionsSheet";
+import { ReportPostSheet } from "./ReportPostSheet";
 
 interface Props {
   post: FeedPost;
@@ -45,19 +46,23 @@ export function FeedPostCard({ post }: Props) {
   const navigation = useNavigation();
   const {
     onPress: onMenuPress,
+    actions: menuActions,
     showVisibilitySheet,
     closeVisibilitySheet,
     pendingVisibility,
     handleVisibilitySelect,
     showActionsSheet,
     closeActionsSheet,
-    handleShare,
-    handleEditVisibility,
+    onActionsSheetClosed,
+    showReportSheet,
+    closeReportSheet,
+    submitReport,
   } = usePostMenu({
     workoutId: post.workoutId,
     postId: post.postId,
     ownerUserId: post.userId,
     ownerUsername: post.username,
+    viewerFollowsAuthor: post.viewerFollowsAuthor,
     currentVisibility: post.visibility ?? "PUBLIC",
   });
 
@@ -168,15 +173,20 @@ export function FeedPostCard({ post }: Props) {
     >
       <PostActionsSheet
         visible={showActionsSheet}
-        onShare={handleShare}
-        onEditVisibility={handleEditVisibility}
+        actions={menuActions}
         onClose={closeActionsSheet}
+        onClosed={onActionsSheetClosed}
       />
       <PostVisibilitySheet
         visible={showVisibilitySheet}
         current={pendingVisibility}
         onSelect={handleVisibilitySelect}
         onClose={closeVisibilitySheet}
+      />
+      <ReportPostSheet
+        visible={showReportSheet}
+        onSubmit={submitReport}
+        onClose={closeReportSheet}
       />
       <View style={styles.header}>
         {isOwnPost ? (
@@ -262,6 +272,7 @@ export function FeedPostCard({ post }: Props) {
             postId: post.postId,
             ownerUserId: post.userId,
             ownerUsername: post.username,
+            viewerFollowsAuthor: post.viewerFollowsAuthor,
             initialLikeCount: likeCount,
             initialLikedByUser: likedByUser,
           });

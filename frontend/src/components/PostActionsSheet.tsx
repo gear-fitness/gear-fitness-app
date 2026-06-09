@@ -1,94 +1,54 @@
-import { useRef } from "react";
 import {
-  Modal,
-  View,
+  Dimensions,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  StyleSheet,
-  Pressable,
-  Animated,
-  PanResponder,
+  View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@react-navigation/native";
+import { BottomSheet } from "./BottomSheet";
+
+// Fixed square tile sized to the 3-up layout so the 2-action (own post) menu
+// uses the same tile size as the 3-action (others' post) menu instead of
+// stretching to fill the row. 32 = row padding (16 x2), 24 = two 12px gaps.
+const TILE_SIZE = (Dimensions.get("window").width - 32 - 24) / 3;
+
+export interface PostAction {
+  key: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+  destructive?: boolean;
+}
 
 interface Props {
   visible: boolean;
-  onShare: () => void;
-  onEditVisibility: () => void;
+  actions: PostAction[];
   onClose: () => void;
+  onClosed?: () => void;
 }
 
-const SWIPE_CLOSE_DISTANCE = 80;
-const SWIPE_CLOSE_VELOCITY = 0.5;
+const DESTRUCTIVE_COLOR = "#e74c3c";
 
 export function PostActionsSheet({
   visible,
-  onShare,
-  onEditVisibility,
+  actions,
   onClose,
+  onClosed,
 }: Props) {
   const { colors } = useTheme();
-  const translateY = useRef(new Animated.Value(0)).current;
-
-  const resetPosition = () => {
-    Animated.spring(translateY, {
-      toValue: 0,
-      useNativeDriver: true,
-      bounciness: 4,
-    }).start();
-  };
-
-  const panResponder = useRef(
-    PanResponder.create({
-      // Claim start touches on the sheet so taps don't bubble to the
-      // backdrop Pressable and close the modal. Child TouchableOpacity
-      // still wins for taps on the tiles (bubble-phase, children first).
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gesture) =>
-        gesture.dy > 4 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
-      onPanResponderMove: (_, gesture) => {
-        if (gesture.dy > 0) translateY.setValue(gesture.dy);
-      },
-      onPanResponderRelease: (_, gesture) => {
-        if (
-          gesture.dy > SWIPE_CLOSE_DISTANCE ||
-          gesture.vy > SWIPE_CLOSE_VELOCITY
-        ) {
-          onClose();
-          translateY.setValue(0);
-        } else {
-          resetPosition();
-        }
-      },
-      onPanResponderTerminate: resetPosition,
-    }),
-  ).current;
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
-      <Pressable style={styles.container} onPress={onClose}>
-        <Animated.View
-          style={[
-            styles.sheet,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
-              transform: [{ translateY }],
-            },
-          ]}
-          {...panResponder.panHandlers}
-        >
-          <View style={[styles.grabber, { backgroundColor: colors.border }]} />
-          <View style={styles.row}>
+    <BottomSheet visible={visible} onClose={onClose} onClosed={onClosed}>
+      <View style={styles.row}>
+        {actions.map((action) => {
+          const tint = action.destructive ? DESTRUCTIVE_COLOR : colors.text;
+          return (
             <TouchableOpacity
+              key={action.key}
               activeOpacity={0.7}
-              onPress={onShare}
+              onPress={action.onPress}
               style={[
                 styles.tile,
                 {
@@ -97,63 +57,27 @@ export function PostActionsSheet({
                 },
               ]}
             >
-              <Ionicons name="arrow-redo-outline" size={32} color={colors.text} />
-              <Text style={[styles.tileLabel, { color: colors.text }]}>
-                Share
+              <Ionicons name={action.icon} size={32} color={tint} />
+              <Text style={[styles.tileLabel, { color: tint }]}>
+                {action.label}
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={onEditVisibility}
-              style={[
-                styles.tile,
-                {
-                  backgroundColor: colors.background,
-                  borderColor: colors.border,
-                },
-              ]}
-            >
-              <Ionicons name="eye-outline" size={32} color={colors.text} />
-              <Text style={[styles.tileLabel, { color: colors.text }]}>
-                Edit Visibility
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
-      </Pressable>
-    </Modal>
+          );
+        })}
+      </View>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "flex-end",
-  },
-  sheet: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderLeftWidth: StyleSheet.hairlineWidth,
-    borderRightWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 40,
-  },
-  grabber: {
-    alignSelf: "center",
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    marginBottom: 14,
-    opacity: 0.6,
-  },
   row: {
     flexDirection: "row",
     gap: 12,
+    paddingHorizontal: 16,
+    justifyContent: "center",
   },
   tile: {
-    flex: 1,
+    width: TILE_SIZE,
     aspectRatio: 1,
     borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,

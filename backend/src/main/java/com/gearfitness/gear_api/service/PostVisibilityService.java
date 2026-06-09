@@ -13,6 +13,7 @@ import org.springframework.web.server.ResponseStatusException;
  * Central authority for "can this viewer see this post?" used by single-resource
  * endpoints (getPost, like, comment). Mirrors the visibility rules already
  * encoded in the list queries in PostRepository.findPostsByUser:
+ *   - a non-VISIBLE moderation_status hides the post from everyone, owner included
  *   - owner always sees their own post
  *   - a block in either direction hides everything
  *   - PUBLIC  -> visible to everyone
@@ -29,6 +30,9 @@ public class PostVisibilityService {
 
   /** True if viewerId is allowed to see the post. */
   public boolean canView(Post post, UUID viewerId) {
+    // A post hidden or removed by moderation is served to no one, owner included.
+    if (post.getModerationStatus() != Post.ModerationStatus.VISIBLE) return false;
+
     UUID authorId = post.getUser().getUserId();
 
     if (authorId.equals(viewerId)) return true; // owner

@@ -27,6 +27,12 @@ public class Post {
     PRIVATE,
   }
 
+  public enum ModerationStatus {
+    VISIBLE,
+    HIDDEN,
+    REMOVED,
+  }
+
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
   @Column(name = "post_id")
@@ -51,6 +57,11 @@ public class Post {
   @Column(nullable = false)
   @Builder.Default
   private PostVisibility visibility = PostVisibility.PUBLIC;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "moderation_status", nullable = false)
+  @Builder.Default
+  private ModerationStatus moderationStatus = ModerationStatus.VISIBLE;
 
   @Column(columnDefinition = "TEXT")
   private String caption;
