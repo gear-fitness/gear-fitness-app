@@ -22,7 +22,8 @@ public class AuthController {
     try {
       AuthResponse response = authService.authenticateWithGoogle(
         request.getIdToken(),
-        request.getIntent()
+        request.getIntent(),
+        request.getConfirmRestore()
       );
       if (response.getError() != null) {
         return ResponseEntity.badRequest().body(response);

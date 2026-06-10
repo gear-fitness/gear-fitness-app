@@ -1,15 +1,15 @@
 package com.gearfitness.gear_api.dto;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class GoogleLoginRequest {
+public class DeleteAccountRequest {
 
-  private String idToken;
-  private String intent;
-  private Boolean confirmRestore;
+  private String usernameConfirmation;
 }

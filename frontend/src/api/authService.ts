@@ -16,6 +16,8 @@ interface GoogleLoginResponse {
   newUser: boolean;
   error?: string;
   errorCode?: string;
+  accountPendingDeletion?: boolean;
+  deletedAt?: string;
 }
 
 export class AuthApiError extends Error {
@@ -33,11 +35,13 @@ export class AuthApiError extends Error {
 export async function loginWithGoogle(
   idToken: string,
   intent: GoogleAuthIntent,
+  confirmRestore?: boolean,
 ): Promise<GoogleLoginResponse> {
   try {
     const { data } = await axios.post(`${API_BASE_URL}/api/auth/google`, {
       idToken,
       intent,
+      confirmRestore,
     });
     if (data?.error) {
       throw new AuthApiError(data.error, data.errorCode);

@@ -5,6 +5,7 @@ import com.gearfitness.gear_api.dto.UserDTO;
 import com.gearfitness.gear_api.entity.AppUser;
 import com.gearfitness.gear_api.entity.RefreshToken;
 import com.gearfitness.gear_api.repository.AppUserRepository;
+import com.gearfitness.gear_api.repository.ContentVisibilityRepository;
 import com.gearfitness.gear_api.repository.RefreshTokenRepository;
 import com.gearfitness.gear_api.security.GoogleTokenVerifier;
 import com.gearfitness.gear_api.security.JwtService;
@@ -12,6 +13,8 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,18 +35,60 @@ public class AuthService {
   private final GoogleTokenVerifier googleTokenVerifier;
   private final JwtService jwtService;
   private final RefreshTokenRepository refreshTokenRepository;
+  private final ContentVisibilityRepository contentVisibilityRepository;
 
   @Value("${jwt.refresh-expiration}")
   private Long refreshExpiration;
 
   @Transactional
-  public AuthResponse authenticateWithGoogle(String idToken, String intent)
-    throws GeneralSecurityException, IOException {
+  public AuthResponse authenticateWithGoogle(
+    String idToken,
+    String intent,
+    Boolean confirmRestore
+  ) throws GeneralSecurityException, IOException {
     // Verify the Google token
     GoogleIdToken.Payload payload = googleTokenVerifier.verify(idToken);
 
     String email = payload.getEmail();
     String name = (String) payload.get("name");
+
+    Optional<AppUser> softDeleted = userRepository
+      .findByEmailIncludingDeleted(email)
+      .filter(u -> u.getDeletedAt() != null);
+
+    if (softDeleted.isPresent()) {
+      AppUser user = softDeleted.get();
+
+      if (!Boolean.TRUE.equals(confirmRestore)) {
+        // No JWT issued yet — the client must confirm restore first.
+        return AuthResponse.builder()
+          .accountPendingDeletion(true)
+          .deletedAt(user.getDeletedAt())
+          .build();
+      }
+
+      LocalDateTime previousDeletedAt = user.getDeletedAt();
+      user.setDeletedAt(null);
+      userRepository.save(user);
+
+      contentVisibilityRepository.restoreAllContentForUser(
+        user.getUserId(),
+        previousDeletedAt
+      );
+
+      String jwtToken = jwtService.generateToken(
+        user.getUserId(),
+        user.getEmail()
+      );
+      String refreshToken = createRefreshToken(user);
+
+      return AuthResponse.builder()
+        .token(jwtToken)
+        .refreshToken(refreshToken)
+        .user(convertToDTO(user))
+        .newUser(false)
+        .build();
+    }
 
     boolean userExists = userRepository.existsByEmail(email);
     String normalizedIntent = normalizeIntent(intent);
@@ -84,13 +129,10 @@ public class AuthService {
           )
       : createNewUser(email, name);
 
-    // Generate JWT token
     String jwtToken = jwtService.generateToken(
       user.getUserId(),
       user.getEmail()
     );
-
-    // Generate new refresh token
     String refreshToken = createRefreshToken(user);
 
     return AuthResponse.builder()

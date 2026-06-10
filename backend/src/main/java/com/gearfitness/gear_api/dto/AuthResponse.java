@@ -1,5 +1,6 @@
 package com.gearfitness.gear_api.dto;
 
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -17,4 +18,6 @@ public class AuthResponse {
   private boolean newUser;
   private String error;
   private String errorCode;
+  private Boolean accountPendingDeletion;
+  private LocalDateTime deletedAt;
 }

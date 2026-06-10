@@ -10,10 +10,12 @@ import com.gearfitness.gear_api.entity.AppUser;
 import com.gearfitness.gear_api.entity.Follow;
 import com.gearfitness.gear_api.entity.Workout;
 import com.gearfitness.gear_api.repository.AppUserRepository;
+import com.gearfitness.gear_api.repository.ContentVisibilityRepository;
 import com.gearfitness.gear_api.repository.FollowRepository;
 import com.gearfitness.gear_api.repository.WorkoutRepository;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -38,6 +40,7 @@ public class AppUserService {
   private final AppUserRepository userRepository;
   private final WorkoutRepository workoutRepository;
   private final FollowRepository followRepository;
+  private final ContentVisibilityRepository contentVisibilityRepository;
 
   /**
    * Get user profile by user ID
@@ -79,7 +82,9 @@ public class AppUserService {
       !request.getUsername().equals(user.getUsername())
     ) {
       // Check if username is already taken
-      if (userRepository.existsByUsername(request.getUsername())) {
+      if (
+        userRepository.existsByUsernameIncludingDeleted(request.getUsername())
+      ) {
         throw new RuntimeException("Username already taken");
       }
       user.setUsername(request.getUsername());
@@ -470,10 +475,45 @@ public class AppUserService {
         .build();
     }
 
-    boolean taken = userRepository.existsByUsername(normalizedUsername);
+    boolean taken = userRepository.existsByUsernameIncludingDeleted(
+      normalizedUsername
+    );
     return UsernameAvailabilityResponse.builder()
       .available(!taken)
       .reason(taken ? "Username is already taken" : null)
       .build();
+  }
+
+  @Transactional
+  public void softDeleteAccount(UUID userId, String usernameConfirmation) {
+    AppUser user = userRepository
+      .findById(userId)
+      .orElseThrow(() -> new RuntimeException("User not found"));
+
+    if (usernameConfirmation == null || usernameConfirmation.isBlank()) {
+      throw new RuntimeException("Username confirmation is required");
+    }
+
+    if (!user.getUsername().equalsIgnoreCase(usernameConfirmation.trim())) {
+      throw new RuntimeException("Username does not match");
+    }
+
+    LocalDateTime now = LocalDateTime.now();
+
+    contentVisibilityRepository.hideAllContentForUser(userId, now);
+
+    user.setExpoPushToken(null);
+    user.setDeletedAt(now);
+    userRepository.save(user);
+  }
+
+  public UserDTO restoreAccount(UUID userId) {
+    AppUser user = userRepository
+      .findByIdIncludingDeleted(userId)
+      .orElseThrow(() -> new RuntimeException("User not found"));
+
+    user.setDeletedAt(null);
+    AppUser restored = userRepository.save(user);
+    return convertToDTO(restored);
   }
 }

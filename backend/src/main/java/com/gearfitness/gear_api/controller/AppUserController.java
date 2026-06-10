@@ -1,5 +1,6 @@
 package com.gearfitness.gear_api.controller;
 
+import com.gearfitness.gear_api.dto.DeleteAccountRequest;
 import com.gearfitness.gear_api.dto.UpdateUserProfileRequest;
 import com.gearfitness.gear_api.dto.UserDTO;
 import com.gearfitness.gear_api.dto.UserProfileDTO;
@@ -268,6 +269,25 @@ public class AppUserController {
       return ResponseEntity.ok(updatedUser);
     } catch (Exception e) {
       return ResponseEntity.badRequest().body(e.getMessage());
+    }
+  }
+
+  @DeleteMapping("/me")
+  public ResponseEntity<?> deleteCurrentUser(
+    @RequestHeader("Authorization") String authHeader,
+    @RequestBody DeleteAccountRequest request
+  ) {
+    try {
+      String token = authHeader.substring(7);
+      UUID userId = jwtService.extractUserId(token);
+      userService.softDeleteAccount(userId, request.getUsernameConfirmation());
+      return ResponseEntity.noContent().build();
+    } catch (RuntimeException e) {
+      return ResponseEntity.badRequest().body(e.getMessage());
+    } catch (Exception e) {
+      return ResponseEntity.internalServerError().body(
+        "Failed to delete account"
+      );
     }
   }
 }

@@ -182,18 +182,61 @@ export function OnboardingScreen() {
     setIsSigningIn(true);
     try {
       const response = await GoogleSignin.signIn();
-      if (isSuccessResponse(response)) {
-        const { idToken } = response.data;
-        if (!idToken) throw new Error("No ID token received from Google");
+      if (!isSuccessResponse(response)) return;
 
-        const { token, refreshToken } = await loginWithGoogle(idToken, intent);
-        await login(token, refreshToken);
+      const { idToken } = response.data;
+      if (!idToken) throw new Error("No ID token received from Google");
 
-        if (intent === "sign_up") {
-          await syncOnboardingProfile();
-        }
-        await completeAuthFlow();
+      const result = await loginWithGoogle(idToken, intent);
+
+      if (result.accountPendingDeletion) {
+        setIsSigningIn(false); // release the lock so the prompt's onPress can re-engage
+        Alert.alert(
+          "Restore account?",
+          "This account is scheduled for deletion. Would you like to restore it?",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Restore",
+              onPress: async () => {
+                setIsSigningIn(true);
+                try {
+                  const restored = await loginWithGoogle(
+                    idToken,
+                    "sign_in",
+                    true,
+                  );
+                  if (!restored.token || !restored.refreshToken) {
+                    throw new Error("Missing tokens in restore response");
+                  }
+                  await login(restored.token, restored.refreshToken);
+
+                  await completeAuthFlow();
+                } catch (err) {
+                  console.error("Restore failed:", err);
+                  Alert.alert(
+                    "Couldn't restore account",
+                    "Please try signing in again.",
+                  );
+                } finally {
+                  setIsSigningIn(false);
+                }
+              },
+            },
+          ],
+        );
+        return;
       }
+
+      if (!result.token || !result.refreshToken) {
+        throw new Error("Missing tokens in login response");
+      }
+      await login(result.token, result.refreshToken);
+
+      if (intent === "sign_up") {
+        await syncOnboardingProfile();
+      }
+      await completeAuthFlow();
     } catch (error: any) {
       if (error instanceof AuthApiError) {
         if (intent === "sign_in" && error.code === "ACCOUNT_NOT_FOUND") {

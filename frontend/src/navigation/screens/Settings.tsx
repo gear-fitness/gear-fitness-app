@@ -474,6 +474,12 @@ export function Settings() {
           key: "account",
           data: [
             {
+              id: "delete_account",
+              type: "destructive",
+              title: "Delete Account",
+              onPress: () => navigation.navigate("DeleteAccount"),
+            },
+            {
               id: "logout",
               type: "destructive",
               title: "Logout",
