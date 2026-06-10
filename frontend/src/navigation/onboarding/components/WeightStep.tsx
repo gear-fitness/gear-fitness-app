@@ -4,10 +4,9 @@ import { StepProps } from "../stepProps";
 import { StepScaffold } from "./StepScaffold";
 import { useOnboardingColors } from "./useOnboardingColors";
 import { WeightRuler } from "./RulerPicker";
-import { weightToLbs } from "../units";
 import { Weight } from "../types";
 
-export function GoalWeightStep({
+export function WeightStep({
   draft,
   updateDraft,
   onNext,
@@ -15,20 +14,10 @@ export function GoalWeightStep({
   progress,
 }: StepProps) {
   const colors = useOnboardingColors();
-  const [goal, setGoal] = useState<Weight | undefined>(draft.goalWeight);
-
-  // Live caption reflecting the goal relative to current weight.
-  const current = weightToLbs(draft.weight);
-  const goalLbs = weightToLbs(goal);
-  let caption: string | undefined;
-  if (current != null && goalLbs != null) {
-    const delta = goalLbs - current;
-    caption =
-      delta <= -2 ? "Lose weight" : delta >= 2 ? "Gain weight" : "Maintain";
-  }
+  const [weight, setWeight] = useState<Weight | undefined>(draft.weight);
 
   const handleContinue = () => {
-    if (goal) updateDraft({ goalWeight: goal });
+    if (weight) updateDraft({ weight });
     onNext();
   };
 
@@ -36,15 +25,14 @@ export function GoalWeightStep({
     <StepScaffold
       progress={progress}
       onBack={onBack}
-      heading="What's your goal weight?"
+      heading="How much do you weigh?"
       onContinue={handleContinue}
-      continueDisabled={!goal}
+      continueDisabled={!weight}
     >
       <View style={styles.center}>
         <WeightRuler
-          initial={draft.goalWeight ?? draft.weight}
-          caption={caption}
-          onChange={setGoal}
+          initial={draft.weight}
+          onChange={setWeight}
           colors={colors}
         />
       </View>

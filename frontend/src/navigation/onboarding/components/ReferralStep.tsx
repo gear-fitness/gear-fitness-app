@@ -1,8 +1,10 @@
-import React from "react";
-import { View, Text, StyleSheet, Share } from "react-native";
+import React, { useMemo } from "react";
+import { View, Text, StyleSheet, Share, Pressable } from "react-native";
+import { SymbolView } from "expo-symbols";
 import { StepProps } from "../stepProps";
-import { StepScaffold } from "./StepScaffold";
+import { OnboardingTopBar } from "./OnboardingTopBar";
 import { useOnboardingColors } from "./useOnboardingColors";
+import { makeOnboardingStyles } from "./makeOnboardingStyles";
 
 export function ReferralStep({
   draft,
@@ -12,12 +14,17 @@ export function ReferralStep({
   progress,
 }: StepProps) {
   const colors = useOnboardingColors();
+  const shared = useMemo(() => makeOnboardingStyles(colors), [colors]);
+
+  const username = draft.profile?.username;
+  const code = username ? `@${username}` : null;
 
   const handleInvite = async () => {
     try {
       await Share.share({
-        message:
-          "I'm starting my plan on Gear — come train with me and let's keep each other accountable. https://gearfitness.app",
+        message: code
+          ? `I'm starting my plan on Gear — come train with me. Find me at ${code} and let's keep each other accountable. https://gearfitness.app`
+          : "I'm starting my plan on Gear — come train with me and let's keep each other accountable. https://gearfitness.app",
       });
       updateDraft({ referralSent: true });
     } catch {
@@ -26,84 +33,144 @@ export function ReferralStep({
   };
 
   return (
-    <StepScaffold
-      progress={progress}
-      onBack={onBack}
-      heading="Bring your accountability circle"
-      subheading="People who train with friends are far more likely to stick with it. Invite 3 friends to unlock your free trial."
-      onContinue={handleInvite}
-      continueLabel="Invite friends"
-      footerExtra={
-        <Text
-          onPress={onNext}
-          style={[styles.skip, { color: colors.secondary }]}
-        >
-          {draft.referralSent ? "Continue" : "Maybe later"}
+    <View style={shared.screen}>
+      <OnboardingTopBar progress={progress} onBack={onBack} />
+      <View style={styles.body}>
+        <Text style={[styles.eyebrow, { color: colors.secondary }]}>
+          0 OF 3 FRIENDS JOINED
         </Text>
-      }
-    >
-      <View style={styles.center}>
-        <Text style={styles.emoji}>🤝</Text>
-        <View style={styles.avatarRow}>
+        <Text style={[styles.heading, { color: colors.text }]}>
+          Share with{"\n"}3 friends.
+        </Text>
+
+        <View style={styles.slots}>
           {[0, 1, 2].map((i) => (
             <View
               key={i}
               style={[
-                styles.avatar,
-                {
-                  backgroundColor: colors.surface,
-                  borderColor: colors.screenBg,
-                  marginLeft: i === 0 ? 0 : -16,
-                },
+                styles.slot,
+                { backgroundColor: colors.surface, borderColor: colors.border },
               ]}
             >
-              <Text style={styles.avatarPlus}>+</Text>
+              <SymbolView
+                name="ticket.fill"
+                size={44}
+                tintColor={colors.secondary}
+                resizeMode="scaleAspectFit"
+                style={styles.ticket}
+              />
             </View>
           ))}
         </View>
-        <Text style={[styles.caption, { color: colors.secondary }]}>
-          Your crew keeps you showing up.
+
+        <Text style={[styles.sub, { color: colors.secondary }]}>
+          Lifting with friends is more fun. Share with 3 friends for a 1-week
+          free Gear Premium trial.
         </Text>
+
+        {code && (
+          <>
+            <View style={[styles.codeBox, { borderColor: colors.border }]}>
+              <Text style={[styles.codeText, { color: colors.text }]}>
+                {code}
+              </Text>
+            </View>
+            <Text style={[styles.codeSub, { color: colors.secondary }]}>
+              Friends can find and follow you with this.
+            </Text>
+          </>
+        )}
       </View>
-    </StepScaffold>
+
+      <View style={shared.footer}>
+        <Pressable
+          onPress={handleInvite}
+          style={({ pressed }) => [
+            shared.continueBtn,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Text style={shared.continueBtnText}>Share with friends</Text>
+        </Pressable>
+        <Pressable onPress={onNext}>
+          <Text style={[styles.skip, { color: colors.secondary }]}>
+            {draft.referralSent ? "Continue" : "Maybe later"}
+          </Text>
+        </Pressable>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  center: {
+  body: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingBottom: 40,
-    gap: 18,
+    paddingHorizontal: 28,
+    gap: 16,
   },
-  emoji: {
-    fontSize: 56,
+  eyebrow: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 1.2,
   },
-  avatarRow: {
+  heading: {
+    fontSize: 34,
+    fontWeight: "800",
+    letterSpacing: -1,
+    lineHeight: 38,
+    textAlign: "center",
+  },
+  sub: {
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+    maxWidth: 320,
+  },
+  slots: {
     flexDirection: "row",
+    gap: 12,
+    marginTop: 4,
   },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    borderWidth: 3,
+  slot: {
+    width: 96,
+    height: 96,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarPlus: {
-    fontSize: 24,
-    color: "#999",
-    fontWeight: "300",
+  ticket: {
+    width: 44,
+    height: 44,
   },
-  caption: {
-    fontSize: 15,
-    fontWeight: "500",
+  codeBox: {
+    marginTop: 8,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  codeText: {
+    fontSize: 18,
+    fontWeight: "700",
+    letterSpacing: 1.5,
+  },
+  codeSub: {
+    fontSize: 13,
+    textAlign: "center",
+    maxWidth: 280,
   },
   skip: {
     textAlign: "center",
     fontSize: 15,
     fontWeight: "500",
     paddingVertical: 8,
+  },
+  pressed: {
+    opacity: 0.75,
   },
 });

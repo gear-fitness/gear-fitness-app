@@ -1,9 +1,47 @@
-import React, { useMemo } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import React from "react";
 import { StepProps } from "../stepProps";
 import { StepScaffold } from "./StepScaffold";
-import { useOnboardingColors } from "./useOnboardingColors";
-import { recommendRoutines } from "../routineTemplates";
+import { OptionCardList } from "./OptionCardList";
+import { routinesForSplit } from "../routineTemplates";
+import { RoutineSplit } from "../types";
+
+const SPLIT_OPTIONS: {
+  value: RoutineSplit;
+  label: string;
+  hint: string;
+  icon: string;
+}[] = [
+  {
+    value: "full_body",
+    label: "Full Body",
+    hint: "Train everything each session",
+    icon: "figure.arms.open",
+  },
+  {
+    value: "upper_lower",
+    label: "Upper / Lower",
+    hint: "Alternate upper and lower days",
+    icon: "arrow.up.and.down",
+  },
+  {
+    value: "push_pull_legs",
+    label: "Push / Pull / Legs",
+    hint: "Split by movement pattern",
+    icon: "arrow.left.arrow.right",
+  },
+  {
+    value: "anterior_posterior",
+    label: "Anterior / Posterior",
+    hint: "Front-body and back-body days",
+    icon: "figure.2",
+  },
+  {
+    value: "auto",
+    label: "Not sure yet",
+    hint: "We'll pick based on your schedule",
+    icon: "wand.and.stars",
+  },
+];
 
 export function RoutineIntroStep({
   draft,
@@ -12,89 +50,33 @@ export function RoutineIntroStep({
   onBack,
   progress,
 }: StepProps) {
-  const colors = useOnboardingColors();
-
-  const recommended = useMemo(
-    () =>
-      recommendRoutines({
+  const select = (split: RoutineSplit) => {
+    updateDraft({
+      split,
+      routines: routinesForSplit(split, {
         daysPerWeek: draft.daysPerWeek,
         trainingDays: draft.trainingDays,
         equipment: draft.equipment,
       }),
-    [draft.daysPerWeek, draft.trainingDays, draft.equipment],
-  );
-
-  const splitName =
-    recommended.length <= 2
-      ? "Full Body"
-      : recommended.length === 3
-        ? "Push / Pull / Legs"
-        : recommended.length === 4
-          ? "Upper / Lower"
-          : `${recommended.length}-Day Split`;
-
-  const handleContinue = () => {
-    // Seed the builder with the recommendation the first time through.
-    if (!draft.routines) updateDraft({ routines: recommended });
-    onNext();
+    });
   };
 
   return (
     <StepScaffold
       progress={progress}
       onBack={onBack}
-      heading="Your starter routines"
-      subheading="Built from your schedule and equipment. You'll tweak them next, then they save to your profile."
-      onContinue={handleContinue}
+      heading="What's your split?"
+      subheading="How do you want to structure your training week? You can fine-tune everything next."
+      onContinue={onNext}
       continueLabel="Review my routines"
+      continueDisabled={!draft.split}
     >
-      <View style={styles.center}>
-        <View
-          style={[
-            styles.badge,
-            { backgroundColor: colors.cardBg, borderColor: colors.border },
-          ]}
-        >
-          <Text style={styles.badgeEmoji}>🗓️</Text>
-          <Text style={[styles.split, { color: colors.text }]}>
-            {splitName}
-          </Text>
-          <Text style={[styles.meta, { color: colors.secondary }]}>
-            {recommended.length} routines ·{" "}
-            {draft.daysPerWeek ?? recommended.length} days / week
-          </Text>
-        </View>
-      </View>
+      <OptionCardList
+        minimal
+        options={SPLIT_OPTIONS}
+        selected={draft.split}
+        onSelect={select}
+      />
     </StepScaffold>
   );
 }
-
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingBottom: 40,
-  },
-  badge: {
-    alignSelf: "stretch",
-    borderRadius: 28,
-    borderWidth: 1.5,
-    alignItems: "center",
-    paddingVertical: 36,
-    gap: 6,
-  },
-  badgeEmoji: {
-    fontSize: 48,
-    marginBottom: 8,
-  },
-  split: {
-    fontSize: 26,
-    fontWeight: "800",
-    letterSpacing: -0.5,
-  },
-  meta: {
-    fontSize: 15,
-    fontWeight: "500",
-  },
-});

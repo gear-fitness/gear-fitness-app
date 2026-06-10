@@ -3,16 +3,16 @@ import { Pressable, Text, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useOnboardingColors } from "./useOnboardingColors";
 
-/** TESTING ONLY — floating skip rendered on every onboarding screen so
- *  testers can step through the flow. Anchored bottom-right so it stays
- *  within thumb reach. Remove before release; real skip affordances live
- *  inside the individual steps. */
-export function TesterSkipButton({ onSkip }: { onSkip: () => void }) {
+/** TESTING ONLY — floating back rendered on every onboarding screen so
+ *  testers can step backwards, including on screens without a top-bar back
+ *  (e.g. the plan loading screen). Anchored bottom-left, mirroring the skip
+ *  button. Remove before release together with TesterSkipButton. */
+export function TesterBackButton({ onBack }: { onBack: () => void }) {
   const colors = useOnboardingColors();
   const insets = useSafeAreaInsets();
   return (
     <Pressable
-      onPress={onSkip}
+      onPress={onBack}
       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       style={({ pressed }) => [
         styles.pill,
@@ -23,9 +23,9 @@ export function TesterSkipButton({ onSkip }: { onSkip: () => void }) {
         },
         pressed && styles.pressed,
       ]}
-      accessibilityLabel="Skip (testing)"
+      accessibilityLabel="Back (testing)"
     >
-      <Text style={[styles.text, { color: colors.secondary }]}>Skip ›</Text>
+      <Text style={[styles.text, { color: colors.secondary }]}>‹ Back</Text>
     </Pressable>
   );
 }
@@ -33,7 +33,7 @@ export function TesterSkipButton({ onSkip }: { onSkip: () => void }) {
 const styles = StyleSheet.create({
   pill: {
     position: "absolute",
-    right: 16,
+    left: 16,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 999,

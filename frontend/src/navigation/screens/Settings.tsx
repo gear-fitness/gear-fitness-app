@@ -41,6 +41,7 @@ import * as Notifications from "expo-notifications";
 const GENDER_LABELS: Record<string, string> = {
   male: "Male",
   female: "Female",
+  other: "Other",
   non_binary: "Non-binary",
   prefer_not_to_say: "Prefer not to say",
 };

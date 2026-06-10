@@ -22,6 +22,7 @@ export function GoalStep({
       continueDisabled={!draft.goal}
     >
       <OptionCardList
+        minimal
         options={GOAL_OPTIONS}
         selected={draft.goal}
         onSelect={(goal: FitnessGoal) => updateDraft({ goal })}

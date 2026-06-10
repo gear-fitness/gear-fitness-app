@@ -32,11 +32,11 @@ export function ObstaclesStep({
       scroll
     >
       <OptionCardList
+        minimal
         options={OBSTACLE_OPTIONS}
         selected={selected}
         onSelect={toggle}
         multi
-        fill={false}
       />
     </StepScaffold>
   );

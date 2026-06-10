@@ -22,6 +22,7 @@ export function LocationStep({
       continueDisabled={!draft.trainingLocation}
     >
       <OptionCardList
+        minimal
         options={LOCATION_OPTIONS}
         selected={draft.trainingLocation}
         onSelect={(trainingLocation: TrainingLocation) =>

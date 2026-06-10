@@ -1,19 +1,52 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  useColorScheme,
+} from "react-native";
+import { useVideoPlayer, VideoView } from "expo-video";
 import { StepProps } from "../stepProps";
 import { useOnboardingColors } from "./useOnboardingColors";
+
+// Reuse the launch-screen gear-logo animation; loop just the first 5s.
+const LOOP_AT = 5;
+const loadingVideoDark = require("../../../../assets/loading-dark.mp4");
+const loadingVideoLight = require("../../../../assets/loading-light.mp4");
 
 const TASKS = [
   "Matching exercises to your equipment",
   "Balancing your weekly volume",
   "Setting your starting weights",
+  "Optimizing recovery",
   "Mapping your progress timeline",
 ];
 
 export function GeneratingPlanStep({ onNext }: StepProps) {
   const colors = useOnboardingColors();
+  const isDark = useColorScheme() === "dark";
   const [pct, setPct] = useState(0);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const player = useVideoPlayer(
+    isDark ? loadingVideoDark : loadingVideoLight,
+    (p) => {
+      p.loop = true;
+      p.muted = true;
+      p.timeUpdateEventInterval = 0.1;
+      p.play();
+    },
+  );
+
+  useEffect(() => {
+    const sub = player.addListener("timeUpdate", ({ currentTime }) => {
+      if (currentTime >= LOOP_AT) {
+        player.currentTime = 0;
+      }
+    });
+    return () => sub.remove();
+  }, [player]);
 
   useEffect(() => {
     timer.current = setInterval(() => {
@@ -22,22 +55,35 @@ export function GeneratingPlanStep({ onNext }: StepProps) {
           if (timer.current) clearInterval(timer.current);
           return 100;
         }
-        // Ease the climb so it feels like real work.
-        const step = prev < 70 ? 3 : prev < 90 ? 1.5 : 1;
+        // Ease the climb so it feels like real work — slow, deliberate build.
+        const step = prev < 70 ? 1.4 : prev < 90 ? 0.8 : 0.5;
         return Math.min(100, prev + step);
       });
-    }, 45);
+    }, 70);
     return () => {
       if (timer.current) clearInterval(timer.current);
     };
   }, []);
 
   const done = pct >= 100;
-  const activeTask = Math.min(TASKS.length - 1, Math.floor(pct / 25));
+  const activeTask = Math.min(
+    TASKS.length - 1,
+    Math.floor(pct / (100 / TASKS.length)),
+  );
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.screenBg }]}>
       <View style={styles.center}>
+        <View style={styles.logoWrap} pointerEvents="none">
+          <VideoView
+            player={player}
+            style={styles.logoVideo}
+            contentFit="contain"
+            nativeControls={false}
+            allowsPictureInPicture={false}
+            allowsVideoFrameAnalysis={false}
+          />
+        </View>
         <Text style={[styles.pct, { color: colors.text }]}>
           {Math.round(pct)}%
         </Text>
@@ -120,6 +166,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 36,
+  },
+  logoWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  logoVideo: {
+    width: 170,
+    height: 170,
+    borderRadius: 28,
   },
   pct: {
     fontSize: 72,

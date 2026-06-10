@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
+import { SymbolView } from "expo-symbols";
 import { useOnboardingColors } from "./useOnboardingColors";
 
 export interface OptionItem<V extends string | number> {
@@ -7,6 +8,8 @@ export interface OptionItem<V extends string | number> {
   label: string;
   hint?: string;
   emoji?: string;
+  /** SF Symbol name, rendered in place of an emoji for a cleaner look. */
+  icon?: string;
 }
 
 interface OptionCardListProps<V extends string | number> {
@@ -18,6 +21,9 @@ interface OptionCardListProps<V extends string | number> {
    *  Set false for longer, fixed-height lists; wrap the step body in a
    *  scroll container when the list can overflow. */
   fill?: boolean;
+  /** Compact, top-aligned cards with lighter borders — a cleaner look
+   *  than the full-height fill cards. Overrides `fill`. */
+  minimal?: boolean;
 }
 
 /** Single- or multi-select card list — the core intake control,
@@ -28,6 +34,7 @@ export function OptionCardList<V extends string | number>({
   onSelect,
   multi = false,
   fill = true,
+  minimal = false,
 }: OptionCardListProps<V>) {
   const colors = useOnboardingColors();
 
@@ -41,7 +48,11 @@ export function OptionCardList<V extends string | number>({
         key={String(opt.value)}
         style={[
           styles.card,
-          fill ? styles.cardFill : styles.cardFixed,
+          minimal
+            ? styles.cardMinimal
+            : fill
+              ? styles.cardFill
+              : styles.cardFixed,
           { backgroundColor: colors.cardBg, borderColor: colors.border },
           active && {
             backgroundColor: colors.accent,
@@ -50,7 +61,24 @@ export function OptionCardList<V extends string | number>({
         ]}
         onPress={() => onSelect(opt.value)}
       >
-        {opt.emoji && <Text style={styles.emoji}>{opt.emoji}</Text>}
+        {opt.icon ? (
+          <SymbolView
+            name={opt.icon as React.ComponentProps<typeof SymbolView>["name"]}
+            size={22}
+            tintColor={active ? colors.accentText : colors.accent}
+            style={styles.icon}
+            resizeMode="scaleAspectFit"
+          />
+        ) : opt.emoji ? (
+          <Text
+            style={[
+              styles.emoji,
+              { color: active ? colors.accentText : colors.accent },
+            ]}
+          >
+            {opt.emoji}
+          </Text>
+        ) : null}
         <View style={styles.cardText}>
           <Text
             style={[
@@ -88,6 +116,10 @@ export function OptionCardList<V extends string | number>({
     );
   });
 
+  if (minimal) {
+    return <View style={styles.minimalList}>{cards}</View>;
+  }
+
   if (!fill) {
     return <View style={styles.fixedList}>{cards}</View>;
   }
@@ -104,6 +136,10 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingBottom: 4,
   },
+  minimalList: {
+    gap: 10,
+    paddingTop: 4,
+  },
   card: {
     borderRadius: 24,
     borderWidth: 1.5,
@@ -119,8 +155,22 @@ const styles = StyleSheet.create({
     minHeight: 72,
     paddingVertical: 16,
   },
+  cardMinimal: {
+    minHeight: 60,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
   emoji: {
     fontSize: 24,
+    width: 26,
+    textAlign: "center",
+    marginRight: 14,
+  },
+  icon: {
+    width: 26,
+    height: 26,
     marginRight: 14,
   },
   cardText: { flex: 1 },

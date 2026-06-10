@@ -2,6 +2,7 @@ import {
   DraftRoutine,
   DraftRoutineExercise,
   EquipmentOption,
+  RoutineSplit,
   TrainingDay,
 } from "./types";
 
@@ -16,82 +17,62 @@ const ex = (name: string, ...bodyParts: Bp[]): DraftRoutineExercise => ({
 });
 
 // ─── Exercise pools ──────────────────────────────────────────
-const GYM = {
-  push: [
-    ex("Bench Press", p("CHEST"), s("TRICEPS"), s("SHOULDERS")),
-    ex("Overhead Press", p("SHOULDERS"), s("TRICEPS")),
-    ex("Incline Dumbbell Press", p("CHEST"), s("SHOULDERS")),
-    ex("Tricep Pushdown", p("TRICEPS")),
-  ],
-  pull: [
-    ex("Lat Pulldown", p("BACK"), s("BICEPS")),
-    ex("Barbell Row", p("BACK"), s("BICEPS")),
-    ex("Face Pull", p("SHOULDERS"), s("BACK")),
-    ex("Bicep Curl", p("BICEPS")),
-  ],
-  legs: [
-    ex("Barbell Squat", p("QUADS"), s("GLUTES")),
-    ex("Romanian Deadlift", p("HAMSTRINGS"), s("GLUTES"), s("BACK")),
-    ex("Leg Press", p("QUADS"), s("GLUTES")),
-    ex("Calf Raise", p("CALVES")),
-  ],
-  upper: [
-    ex("Bench Press", p("CHEST"), s("TRICEPS"), s("SHOULDERS")),
-    ex("Barbell Row", p("BACK"), s("BICEPS")),
-    ex("Overhead Press", p("SHOULDERS"), s("TRICEPS")),
-    ex("Lat Pulldown", p("BACK"), s("BICEPS")),
-  ],
-  lower: [
-    ex("Barbell Squat", p("QUADS"), s("GLUTES")),
-    ex("Romanian Deadlift", p("HAMSTRINGS"), s("GLUTES"), s("BACK")),
-    ex("Walking Lunge", p("QUADS"), s("GLUTES")),
-    ex("Calf Raise", p("CALVES")),
-  ],
-  full: [
-    ex("Barbell Squat", p("QUADS"), s("GLUTES")),
-    ex("Bench Press", p("CHEST"), s("TRICEPS"), s("SHOULDERS")),
-    ex("Barbell Row", p("BACK"), s("BICEPS")),
-    ex("Overhead Press", p("SHOULDERS"), s("TRICEPS")),
-  ],
-};
+// Names + body parts MUST mirror the seeded global exercises in the backend
+// (R__seed_data.sql) so the routines seeded here resolve to real exerciseIds
+// at sign-up instead of creating duplicate custom exercises. The seeded
+// catalog is currently gym-based, so there is a single pool; reintroduce an
+// equipment-specific pool once bodyweight/home exercises exist in the catalog.
+const BENCH = ex("Bench Press", p("CHEST"), s("TRICEPS"), s("SHOULDERS"));
+const INCLINE = ex(
+  "Incline Bench Press",
+  p("CHEST"),
+  s("SHOULDERS"),
+  s("TRICEPS"),
+  s("CORE"),
+);
+const OHP = ex("Overhead Press", p("SHOULDERS"), s("TRICEPS"), s("CORE"));
+const DIPS = ex("Tricep Dips", p("TRICEPS"), s("CHEST"), s("SHOULDERS"));
+const ROW = ex("Barbell Row", p("BACK"), s("BICEPS"), s("FOREARMS"), s("CORE"));
+const PULLDOWN = ex("Lat Pulldown", p("BACK"), s("BICEPS"), s("FOREARMS"));
+const PULLUP = ex("Pull Up", p("BACK"), s("BICEPS"), s("FOREARMS"));
+const CURL = ex("Dumbbell Curl", p("BICEPS"), s("FOREARMS"));
+const SQUAT = ex(
+  "Squat",
+  p("QUADS"),
+  s("GLUTES"),
+  s("HAMSTRINGS"),
+  s("CORE"),
+);
+const LEG_PRESS = ex("Leg Press", p("QUADS"), s("GLUTES"));
+const RDL = ex(
+  "Romanian Deadlift",
+  p("HAMSTRINGS"),
+  s("GLUTES"),
+  s("BACK"),
+  s("FOREARMS"),
+  s("CORE"),
+);
+const DEADLIFT = ex(
+  "Deadlift",
+  p("BACK"),
+  s("HAMSTRINGS"),
+  s("GLUTES"),
+  s("QUADS"),
+  s("FOREARMS"),
+  s("CORE"),
+);
+const LEG_CURL = ex("Leg Curl", p("HAMSTRINGS"), s("CALVES"));
+const CALF = ex("Calf Raise", p("CALVES"));
 
-const HOME = {
-  push: [
-    ex("Push-Up", p("CHEST"), s("TRICEPS"), s("SHOULDERS")),
-    ex("Pike Push-Up", p("SHOULDERS"), s("TRICEPS")),
-    ex("Dumbbell Shoulder Press", p("SHOULDERS"), s("TRICEPS")),
-    ex("Tricep Dip", p("TRICEPS"), s("CHEST")),
-  ],
-  pull: [
-    ex("Dumbbell Row", p("BACK"), s("BICEPS")),
-    ex("Band Pull-Apart", p("BACK"), s("SHOULDERS")),
-    ex("Dumbbell Curl", p("BICEPS")),
-    ex("Superman Hold", p("BACK"), s("GLUTES")),
-  ],
-  legs: [
-    ex("Goblet Squat", p("QUADS"), s("GLUTES")),
-    ex("Bulgarian Split Squat", p("QUADS"), s("GLUTES")),
-    ex("Glute Bridge", p("GLUTES"), s("HAMSTRINGS")),
-    ex("Standing Calf Raise", p("CALVES")),
-  ],
-  upper: [
-    ex("Push-Up", p("CHEST"), s("TRICEPS"), s("SHOULDERS")),
-    ex("Dumbbell Row", p("BACK"), s("BICEPS")),
-    ex("Pike Push-Up", p("SHOULDERS"), s("TRICEPS")),
-    ex("Dumbbell Curl", p("BICEPS")),
-  ],
-  lower: [
-    ex("Goblet Squat", p("QUADS"), s("GLUTES")),
-    ex("Bulgarian Split Squat", p("QUADS"), s("GLUTES")),
-    ex("Glute Bridge", p("GLUTES"), s("HAMSTRINGS")),
-    ex("Standing Calf Raise", p("CALVES")),
-  ],
-  full: [
-    ex("Goblet Squat", p("QUADS"), s("GLUTES")),
-    ex("Push-Up", p("CHEST"), s("TRICEPS"), s("SHOULDERS")),
-    ex("Dumbbell Row", p("BACK"), s("BICEPS")),
-    ex("Glute Bridge", p("GLUTES"), s("HAMSTRINGS")),
-  ],
+const POOL = {
+  push: [BENCH, OHP, INCLINE, DIPS],
+  pull: [PULLDOWN, ROW, PULLUP, CURL],
+  legs: [SQUAT, RDL, LEG_PRESS, CALF],
+  upper: [BENCH, ROW, OHP, PULLDOWN],
+  lower: [SQUAT, RDL, LEG_PRESS, CALF],
+  full: [SQUAT, BENCH, ROW, OHP],
+  anterior: [BENCH, SQUAT, OHP, LEG_PRESS],
+  posterior: [DEADLIFT, ROW, RDL, LEG_CURL],
 };
 
 const WEEK: TrainingDay[] = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
@@ -114,17 +95,69 @@ export interface TemplateInput {
   equipment?: EquipmentOption[];
 }
 
+/** Hard cap on routines seeded during onboarding, regardless of training days. */
+export const MAX_ROUTINES = 3;
+
+/** Build routines for a split the user explicitly chose. Respects their
+ *  preferred training days; everything stays editable in the builder. */
+export function routinesForSplit(
+  split: RoutineSplit,
+  input: TemplateInput,
+): DraftRoutine[] {
+  if (split === "auto") return recommendRoutines(input);
+
+  const pool = POOL;
+  const letter = (i: number) => String.fromCharCode(65 + i);
+
+  // Each split yields a fixed set of routines (max MAX_ROUTINES), independent
+  // of how many days per week the user chose. They can add/remove in the
+  // builder. Scheduled days are spread across their preferred training days.
+  if (split === "full_body") {
+    const variants = [pool.full, pool.upper, pool.lower].slice(0, MAX_ROUTINES);
+    const slots = pickDays(input.trainingDays, variants.length);
+    return variants.map((exercises, i) => ({
+      name: `Full Body ${letter(i)}`,
+      scheduledDays: [slots[i % slots.length]],
+      exercises,
+    }));
+  }
+
+  const allSeq: [string, DraftRoutineExercise[]][] =
+    split === "upper_lower"
+      ? [
+          ["Upper", pool.upper],
+          ["Lower", pool.lower],
+        ]
+      : split === "anterior_posterior"
+        ? [
+            ["Anterior", pool.anterior],
+            ["Posterior", pool.posterior],
+          ]
+        : [
+            ["Push", pool.push],
+            ["Pull", pool.pull],
+            ["Legs", pool.legs],
+          ];
+
+  const seq = allSeq.slice(0, MAX_ROUTINES);
+  const slots = pickDays(input.trainingDays, seq.length);
+  return seq.map(([name, exercises], i) => ({
+    name,
+    scheduledDays: [slots[i % slots.length]],
+    exercises,
+  }));
+}
+
 /** Recommend a starter split from the intake answers. Used to seed the
- *  in-onboarding routine builder; everything stays editable. */
+ *  in-onboarding routine builder; everything stays editable. Capped to
+ *  MAX_ROUTINES. */
 export function recommendRoutines(input: TemplateInput): DraftRoutine[] {
+  return buildRecommendation(input).slice(0, MAX_ROUTINES);
+}
+
+function buildRecommendation(input: TemplateInput): DraftRoutine[] {
   const days = Math.min(6, Math.max(2, input.daysPerWeek ?? 3));
-  const homeOnly =
-    input.equipment !== undefined &&
-    input.equipment.length > 0 &&
-    !input.equipment.includes("full_gym") &&
-    !input.equipment.includes("barbell") &&
-    !input.equipment.includes("machines");
-  const pool = homeOnly ? HOME : GYM;
+  const pool = POOL;
   const slots = pickDays(input.trainingDays, days);
   const day = (i: number) => [slots[i % slots.length]];
 

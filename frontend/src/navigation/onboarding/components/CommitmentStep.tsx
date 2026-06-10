@@ -1,11 +1,14 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, useWindowDimensions } from "react-native";
 import { StepProps } from "../stepProps";
 import { StepScaffold } from "./StepScaffold";
 import { useOnboardingColors } from "./useOnboardingColors";
+import { ProjectionChart } from "./ProjectionChart";
 
 export function CommitmentStep({ onNext, onBack, progress }: StepProps) {
   const colors = useOnboardingColors();
+  const { width } = useWindowDimensions();
+  const chartWidth = width - 80;
 
   return (
     <StepScaffold
@@ -16,13 +19,23 @@ export function CommitmentStep({ onNext, onBack, progress }: StepProps) {
       continueLabel="Let's build it"
     >
       <View style={styles.center}>
-        <Text style={styles.emoji}>📈</Text>
+        <View style={[styles.chart, { width: chartWidth }]}>
+          <ProjectionChart
+            width={chartWidth}
+            height={180}
+            startLabel="Today"
+            endLabel="12 weeks"
+            startValue="Start"
+            endValue="Stronger"
+            direction="up"
+          />
+        </View>
         <Text style={[styles.lead, { color: colors.text }]}>
           You don't need perfect. You need repeatable.
         </Text>
         <Text style={[styles.body, { color: colors.secondary }]}>
-          Gear keeps your plan short enough to finish and tracks every set so
-          the progress is impossible to ignore. Show up, log it, watch it climb.
+          Gear keeps you on track. It nudges you to your next session, logs
+          every set, and shows your progress so it's easy to stay consistent.
         </Text>
       </View>
     </StepScaffold>
@@ -37,9 +50,9 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     paddingHorizontal: 8,
   },
-  emoji: {
-    fontSize: 56,
-    marginBottom: 24,
+  chart: {
+    alignSelf: "center",
+    marginBottom: 20,
   },
   lead: {
     fontSize: 24,

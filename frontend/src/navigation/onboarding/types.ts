@@ -1,8 +1,13 @@
 export type OnboardingStep = number;
 
-export const TOTAL_STEPS = 30;
+export const TOTAL_STEPS = 33;
 
-export type Gender = "male" | "female" | "non_binary" | "prefer_not_to_say";
+export type Gender =
+  | "male"
+  | "female"
+  | "other"
+  | "non_binary"
+  | "prefer_not_to_say";
 
 export type HeightFtIn = { unit: "ft_in"; ft: number; inch: number };
 export type HeightCm = { unit: "cm"; cm: number };
@@ -22,13 +27,26 @@ export type FitnessGoal =
   | "lose_fat"
   | "build_muscle"
   | "improve_performance"
-  | "general_health";
+  | "improve_endurance"
+  | "general_health"
+  | "other";
 
 export type ActivityLevel = "sedentary" | "light" | "moderate" | "very_active";
 
-export type ExperienceLevel = "beginner" | "intermediate" | "advanced";
+export type RoutineSplit =
+  | "full_body"
+  | "upper_lower"
+  | "push_pull_legs"
+  | "anterior_posterior"
+  | "auto";
 
-export type TrainingLocation = "gym" | "home" | "both";
+export type ExperienceLevel =
+  | "none"
+  | "beginner"
+  | "intermediate"
+  | "advanced";
+
+export type TrainingLocation = "gym" | "home" | "both" | "other";
 
 export type EquipmentOption =
   | "full_gym"
@@ -69,7 +87,6 @@ export interface OnboardingProfile {
 
 export interface OnboardingPermissions {
   health?: boolean;
-  location?: boolean;
   notifications?: boolean;
 }
 
@@ -94,6 +111,7 @@ export interface OnboardingDraft {
   weight?: Weight;
   dob?: DOB;
   goal?: FitnessGoal;
+  split?: RoutineSplit;
   activityLevel?: ActivityLevel;
   experience?: ExperienceLevel;
   goalWeight?: Weight;

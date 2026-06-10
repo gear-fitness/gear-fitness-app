@@ -49,6 +49,16 @@ export async function getAllExercises(): Promise<Exercise[]> {
 }
 
 /**
+ * Get the global exercise catalog without authentication. Used during
+ * onboarding (before the user has an account) so the routine builder can
+ * reference real exercises. Returns global exercises only — never custom ones.
+ */
+export async function getPublicExerciseCatalog(): Promise<Exercise[]> {
+  const { data } = await apiClient.get<Exercise[]>("/public/exercises");
+  return data ?? [];
+}
+
+/**
  * Get exercise history for the authenticated user
  */
 export async function getExerciseHistory(

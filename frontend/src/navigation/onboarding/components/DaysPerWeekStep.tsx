@@ -4,15 +4,7 @@ import { StepProps } from "../stepProps";
 import { StepScaffold } from "./StepScaffold";
 import { useOnboardingColors } from "./useOnboardingColors";
 
-const CHOICES = [2, 3, 4, 5, 6];
-
-const SUBTITLE: Record<number, string> = {
-  2: "Two focused full-body days",
-  3: "A balanced push / pull / legs split",
-  4: "Upper / lower, twice each",
-  5: "A dedicated day per muscle group",
-  6: "Maximum volume — for the committed",
-};
+const CHOICES = [1, 2, 3, 4, 5, 6, 7];
 
 export function DaysPerWeekStep({
   draft,
@@ -29,7 +21,7 @@ export function DaysPerWeekStep({
       progress={progress}
       onBack={onBack}
       heading="How many days a week?"
-      subheading="Be honest — consistency beats ambition."
+      subheading="Be honest. Consistency beats ambition."
       onContinue={onNext}
       continueDisabled={!selected}
     >
@@ -65,11 +57,6 @@ export function DaysPerWeekStep({
             );
           })}
         </View>
-        {selected ? (
-          <Text style={[styles.caption, { color: colors.secondary }]}>
-            {SUBTITLE[selected]}
-          </Text>
-        ) : null}
       </View>
     </StepScaffold>
   );
@@ -84,23 +71,18 @@ const styles = StyleSheet.create({
   pillRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    gap: 10,
+    gap: 7,
   },
   pill: {
     flex: 1,
-    aspectRatio: 0.8,
-    borderRadius: 20,
+    aspectRatio: 0.62,
+    borderRadius: 14,
     borderWidth: 1.5,
     alignItems: "center",
     justifyContent: "center",
   },
   pillNum: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: "700",
-  },
-  caption: {
-    fontSize: 15,
-    textAlign: "center",
-    marginTop: 24,
   },
 });

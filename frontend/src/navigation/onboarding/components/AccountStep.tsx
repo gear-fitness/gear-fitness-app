@@ -1,18 +1,29 @@
 import React, { useMemo } from "react";
-import { View, Text, StyleSheet, Pressable, Image } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  Image,
+  ScrollView,
+} from "react-native";
 import { StepProps } from "../stepProps";
 import { OnboardingTopBar } from "./OnboardingTopBar";
 import { useOnboardingColors } from "./useOnboardingColors";
 import { makeOnboardingStyles } from "./makeOnboardingStyles";
+import { PlanSummary } from "./PlanSummary";
 import { GOOGLE_LOGO_URI } from "../socialAuthUris";
 
 const BENEFITS = [
   "Save your plan and routines",
   "Track every workout and PR",
   "Sync across all your devices",
+  "Follow friends and stay accountable",
+  "See your strength trends over time",
 ];
 
 export function AccountStep({
+  draft,
   onGoogleSignUp,
   isSigningIn,
   onBack,
@@ -24,11 +35,18 @@ export function AccountStep({
   return (
     <View style={shared.screen}>
       <OnboardingTopBar progress={progress} onBack={onBack} />
-      <View style={shared.body}>
-        <Text style={shared.heading}>Save your progress</Text>
+      <ScrollView
+        style={shared.body}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={shared.heading}>Don't lose your progress</Text>
         <Text style={shared.subheading}>
-          Create your free account so your plan is waiting for you.
+          Create your free account so your plan doesn't get lost.
         </Text>
+
+        <PlanSummary draft={draft} showProjection={false} />
+
         <View style={styles.benefits}>
           {BENEFITS.map((b) => (
             <View key={b} style={styles.benefitRow}>
@@ -43,7 +61,7 @@ export function AccountStep({
             </View>
           ))}
         </View>
-      </View>
+      </ScrollView>
       <View style={shared.footer}>
         <Pressable
           onPress={onGoogleSignUp}
@@ -70,9 +88,12 @@ export function AccountStep({
 }
 
 const styles = StyleSheet.create({
+  scrollContent: {
+    paddingBottom: 20,
+  },
   benefits: {
     gap: 16,
-    marginTop: 8,
+    marginTop: 24,
   },
   benefitRow: {
     flexDirection: "row",

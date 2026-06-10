@@ -31,22 +31,29 @@ export function ProjectionChart({
   endValue,
   direction,
   width,
-  height = 220,
+  height = 230,
 }: ProjectionChartProps) {
   const colors = useOnboardingColors();
 
-  const pad = { top: 44, bottom: 40, left: 26, right: 30 };
+  const pad = { top: 44, bottom: 60, left: 26, right: 30 };
   const x0 = pad.left;
   const x1 = width - pad.right;
   const yHigh = pad.top;
   const yLow = height - pad.bottom;
+  // Baseline (and the timeline row beneath it) sits well below the lowest
+  // point, leaving room for the bottom endpoint value in between.
+  const baselineY = yLow + 30;
   const startY = direction === "down" ? yHigh : yLow;
   const endY = direction === "down" ? yLow : yHigh;
+
+  // A top point's value goes above it; a bottom point's value tucks between
+  // the point and the baseline — never down in the timeline row.
+  const labelY = (y: number) => (y === yHigh ? yHigh - 16 : yLow + 21);
 
   const c1x = x0 + (x1 - x0) * 0.45;
   const c2x = x0 + (x1 - x0) * 0.6;
   const curve = `M ${x0} ${startY} C ${c1x} ${startY}, ${c2x} ${endY}, ${x1} ${endY}`;
-  const fill = `${curve} L ${x1} ${height - pad.bottom + 16} L ${x0} ${height - pad.bottom + 16} Z`;
+  const fill = `${curve} L ${x1} ${baselineY} L ${x0} ${baselineY} Z`;
 
   const lineColor = colors.text;
   const labelColor = colors.secondary;
@@ -66,9 +73,9 @@ export function ProjectionChart({
         </Defs>
         <Line
           x1={x0}
-          y1={yLow + 16}
+          y1={baselineY}
           x2={x1}
-          y2={yLow + 16}
+          y2={baselineY}
           stroke={colors.separator}
           strokeWidth={1}
         />
@@ -99,7 +106,7 @@ export function ProjectionChart({
         />
         <SvgText
           x={x0}
-          y={startY + (direction === "down" ? -16 : 24)}
+          y={labelY(startY)}
           fill={lineColor}
           fontSize={15}
           fontWeight="700"
@@ -109,7 +116,7 @@ export function ProjectionChart({
         </SvgText>
         <SvgText
           x={x1}
-          y={endY + (direction === "down" ? 28 : -16)}
+          y={labelY(endY)}
           fill={lineColor}
           fontSize={15}
           fontWeight="700"
@@ -138,7 +145,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: 14,
-    marginTop: -22,
+    marginTop: -24,
   },
   axisLabel: {
     fontSize: 13,

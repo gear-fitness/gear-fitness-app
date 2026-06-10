@@ -32,6 +32,7 @@ import { StepProps } from "../onboarding/stepProps";
 import { STEP_COMPONENTS } from "../onboarding/steps";
 import { runPostSignupSync } from "../onboarding/onboardingSync";
 import { TesterSkipButton } from "../onboarding/components/TesterSkipButton";
+import { TesterBackButton } from "../onboarding/components/TesterBackButton";
 
 const initialBg =
   Appearance.getColorScheme() === "dark" ? "#0a0a0a" : "#fafafa";
@@ -232,6 +233,7 @@ export function OnboardingScreen() {
       ]}
     >
       <CurrentStep {...stepProps} />
+      <TesterBackButton onBack={goBack} />
       <TesterSkipButton onSkip={onTesterSkip} />
     </View>
   );

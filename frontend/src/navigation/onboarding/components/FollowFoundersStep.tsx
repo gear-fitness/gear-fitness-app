@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, Image, Pressable, StyleSheet } from "react-native";
 import { StepProps } from "../stepProps";
 import { StepScaffold } from "./StepScaffold";
 import { useOnboardingColors } from "./useOnboardingColors";
@@ -32,7 +32,7 @@ export function FollowFoundersStep({
       progress={progress}
       onBack={onBack}
       heading="Build your accountability circle"
-      subheading="People who train together stick with it. Follow the founders and your crew to stay motivated."
+      subheading="People who train together stick with it. Follow the founders and your friends to stay motivated."
       onContinue={onNext}
       continueLabel={following.length > 0 ? "Continue" : "Maybe later"}
       footerExtra={
@@ -56,11 +56,20 @@ export function FollowFoundersStep({
                 { backgroundColor: colors.cardBg, borderColor: colors.border },
               ]}
             >
-              <View
-                style={[styles.avatar, { backgroundColor: colors.surface }]}
-              >
-                <Text style={styles.avatarEmoji}>{acct.emoji}</Text>
-              </View>
+              {acct.photoUri ? (
+                <Image
+                  source={{ uri: acct.photoUri }}
+                  style={styles.avatar}
+                />
+              ) : (
+                <View
+                  style={[styles.avatar, { backgroundColor: colors.photoBg }]}
+                >
+                  <Text style={[styles.avatarInitial, { color: colors.secondary }]}>
+                    {acct.name.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              )}
               <View style={styles.info}>
                 <Text style={[styles.name, { color: colors.text }]}>
                   {acct.name}
@@ -118,8 +127,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarEmoji: {
-    fontSize: 24,
+  avatarInitial: {
+    fontSize: 20,
+    fontWeight: "700",
   },
   info: {
     flex: 1,

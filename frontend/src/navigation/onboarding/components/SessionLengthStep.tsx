@@ -1,9 +1,22 @@
 import React from "react";
+import { View, StyleSheet } from "react-native";
 import { StepProps } from "../stepProps";
 import { StepScaffold } from "./StepScaffold";
-import { OptionCardList } from "./OptionCardList";
+import { ChoiceSlider, SliderOption } from "./ChoiceSlider";
+import { BatteryScene } from "./BatteryScene";
 import { SESSION_LENGTH_OPTIONS } from "../intakeOptions";
 import { SessionLength } from "../types";
+
+const SLIDER_OPTIONS: SliderOption<SessionLength>[] = SESSION_LENGTH_OPTIONS.map(
+  (o) => ({
+    value: o.value,
+    label: o.label,
+    short: `${o.value}m`,
+    hint: o.hint,
+  }),
+);
+
+const ORDER = SLIDER_OPTIONS.map((o) => o.value);
 
 export function SessionLengthStep({
   draft,
@@ -12,6 +25,8 @@ export function SessionLengthStep({
   onBack,
   progress,
 }: StepProps) {
+  const idx = Math.max(0, ORDER.indexOf(draft.sessionLength ?? 45));
+
   return (
     <StepScaffold
       progress={progress}
@@ -21,13 +36,28 @@ export function SessionLengthStep({
       onContinue={onNext}
       continueDisabled={!draft.sessionLength}
     >
-      <OptionCardList
-        options={SESSION_LENGTH_OPTIONS}
-        selected={draft.sessionLength}
-        onSelect={(sessionLength: SessionLength) =>
-          updateDraft({ sessionLength })
-        }
-      />
+      <View style={styles.body}>
+        <BatteryScene index={idx} />
+        <View style={styles.sliderWrap}>
+          <ChoiceSlider
+            options={SLIDER_OPTIONS}
+            value={draft.sessionLength}
+            defaultValue={45}
+            onChange={(sessionLength: SessionLength) =>
+              updateDraft({ sessionLength })
+            }
+          />
+        </View>
+      </View>
     </StepScaffold>
   );
 }
+
+const styles = StyleSheet.create({
+  body: {
+    flex: 1,
+  },
+  sliderWrap: {
+    flex: 1,
+  },
+});

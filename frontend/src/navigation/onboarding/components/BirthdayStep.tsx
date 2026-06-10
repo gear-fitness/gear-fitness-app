@@ -1,9 +1,10 @@
-import React, { useState } from "react";
-import { View, StyleSheet } from "react-native";
+import React, { useMemo, useState } from "react";
+import { View, Text, StyleSheet } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import { StepProps } from "../stepProps";
 import { StepScaffold } from "./StepScaffold";
 import { useOnboardingColors } from "./useOnboardingColors";
+import { makeOnboardingStyles } from "./makeOnboardingStyles";
 import { DOB_MONTHS, DOB_YEARS } from "../pickerConstants";
 
 function getDaysInMonth(month: number, year: number): number {
@@ -18,6 +19,7 @@ export function BirthdayStep({
   progress,
 }: StepProps) {
   const colors = useOnboardingColors();
+  const shared = useMemo(() => makeOnboardingStyles(colors), [colors]);
   const [month, setMonth] = useState(draft.dob?.month ?? 4);
   const [day, setDay] = useState(draft.dob?.day ?? 15);
   const [year, setYear] = useState(draft.dob?.year ?? 2000);
@@ -36,12 +38,12 @@ export function BirthdayStep({
     <StepScaffold
       progress={progress}
       onBack={onBack}
-      heading="When were you born?"
-      subheading="Age changes how we program recovery and progression."
       onContinue={handleContinue}
     >
-      <View style={styles.pickerRow}>
-        <Picker
+      <View style={styles.center}>
+        <Text style={[shared.heading, styles.heading]}>When were you born?</Text>
+        <View style={styles.pickerRow}>
+          <Picker
           selectedValue={month}
           onValueChange={(m: number) => {
             setMonth(m);
@@ -79,15 +81,22 @@ export function BirthdayStep({
           {DOB_YEARS.map((y) => (
             <Picker.Item key={y} label={`${y}`} value={y} />
           ))}
-        </Picker>
+          </Picker>
+        </View>
       </View>
     </StepScaffold>
   );
 }
 
 const styles = StyleSheet.create({
-  pickerRow: {
+  center: {
     flex: 1,
+    justifyContent: "center",
+  },
+  heading: {
+    marginBottom: 12,
+  },
+  pickerRow: {
     flexDirection: "row",
     alignItems: "center",
   },

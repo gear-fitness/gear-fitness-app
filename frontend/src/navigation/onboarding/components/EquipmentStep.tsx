@@ -29,14 +29,13 @@ export function EquipmentStep({
       subheading="Select everything you have access to."
       onContinue={onNext}
       continueDisabled={selected.length === 0}
-      scroll
     >
       <OptionCardList
+        minimal
         options={EQUIPMENT_OPTIONS}
         selected={selected}
         onSelect={toggle}
         multi
-        fill={false}
       />
     </StepScaffold>
   );

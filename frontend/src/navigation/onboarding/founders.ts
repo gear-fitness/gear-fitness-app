@@ -6,26 +6,32 @@ export interface SuggestedAccount {
   username: string;
   name: string;
   blurb: string;
-  emoji: string;
+  /** Real avatar URL once available from the DB; falls back to a placeholder. */
+  photoUri?: string;
 }
 
+// TODO: these are mock accounts. Pull the real founder/ambassador accounts
+// (and their photoUri) from the database once the onboarding suggestions
+// endpoint exists.
 export const FOUNDER_ACCOUNTS: SuggestedAccount[] = [
   {
-    username: "gear",
-    name: "Gear",
-    blurb: "Official account — tips, challenges, and updates",
-    emoji: "⚙️",
+    username: "alton",
+    name: "Alton",
+    blurb: "Co-founder · strength and powerlifting",
   },
   {
-    username: "founders",
-    name: "The Founders",
-    blurb: "Building Gear in public — follow the journey",
-    emoji: "🚀",
+    username: "bryant",
+    name: "Bryant",
+    blurb: "Co-founder · hypertrophy and aesthetics",
   },
   {
-    username: "gearcoach",
-    name: "Gear Coach",
-    blurb: "Weekly programming and form breakdowns",
-    emoji: "🏋️",
+    username: "kobe",
+    name: "Kobe",
+    blurb: "Co-founder · building Gear in public",
+  },
+  {
+    username: "max",
+    name: "Max",
+    blurb: "Co-founder · conditioning and athletics",
   },
 ];

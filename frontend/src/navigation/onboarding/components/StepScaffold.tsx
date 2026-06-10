@@ -7,7 +7,8 @@ import { makeOnboardingStyles } from "./makeOnboardingStyles";
 interface StepScaffoldProps {
   progress: number;
   onBack: () => void;
-  heading: string;
+  /** Omit to render no heading block — the step supplies its own body. */
+  heading?: string;
   subheading?: string;
   children: React.ReactNode;
   onContinue: () => void;
@@ -17,6 +18,8 @@ interface StepScaffoldProps {
   scroll?: boolean;
   /** Extra content rendered in the footer above/below the continue button. */
   footerExtra?: React.ReactNode;
+  /** Extra space above the heading, to push it down from the top bar. */
+  headingOffset?: number;
 }
 
 export function StepScaffold({
@@ -30,18 +33,30 @@ export function StepScaffold({
   continueDisabled = false,
   scroll = false,
   footerExtra,
+  headingOffset = 0,
 }: StepScaffoldProps) {
   const colors = useOnboardingColors();
   const shared = useMemo(() => makeOnboardingStyles(colors), [colors]);
 
   const body = (
     <>
-      <Text style={shared.heading}>{heading}</Text>
-      {subheading ? (
-        <Text style={shared.subheading}>{subheading}</Text>
-      ) : (
-        <View style={styles.headingGap} />
-      )}
+      {heading ? (
+        <>
+          <Text
+            style={[
+              shared.heading,
+              headingOffset ? { marginTop: headingOffset } : null,
+            ]}
+          >
+            {heading}
+          </Text>
+          {subheading ? (
+            <Text style={shared.subheading}>{subheading}</Text>
+          ) : (
+            <View style={styles.headingGap} />
+          )}
+        </>
+      ) : null}
       {children}
     </>
   );

@@ -12,9 +12,16 @@ import { StepProps } from "../stepProps";
 import { OnboardingTopBar } from "./OnboardingTopBar";
 import { useOnboardingColors } from "./useOnboardingColors";
 import { makeOnboardingStyles } from "./makeOnboardingStyles";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FloatingKeyboardDismiss } from "../../../components/FloatingKeyboardDismiss";
-import { recommendRoutines } from "../routineTemplates";
-import { EXERCISE_LIBRARY } from "../exerciseLibrary";
+import { FloatingCloseButton } from "../../../components/FloatingCloseButton";
+import { ExerciseListView } from "../../../components/ExerciseListView";
+import { useExerciseList } from "../../../hooks/useExerciseList";
+import {
+  Exercise,
+  getPublicExerciseCatalog,
+} from "../../../api/exerciseService";
+import { recommendRoutines, MAX_ROUTINES } from "../routineTemplates";
 import { DraftRoutine, DraftRoutineExercise, TrainingDay } from "../types";
 import { TRAINING_DAY_OPTIONS } from "../intakeOptions";
 
@@ -37,6 +44,9 @@ export function RoutineBuilderStep({
 }: StepProps) {
   const colors = useOnboardingColors();
   const shared = useMemo(() => makeOnboardingStyles(colors), [colors]);
+
+  // Real exercise catalog (global/public, no auth needed during onboarding).
+  const { exercises, loading } = useExerciseList(true, getPublicExerciseCatalog);
 
   const routines = useMemo<DraftRoutine[]>(
     () =>
@@ -204,14 +214,16 @@ export function RoutineBuilderStep({
           </View>
         ))}
 
-        <Pressable
-          onPress={addRoutine}
-          style={[styles.addRoutine, { borderColor: colors.dashedBorder }]}
-        >
-          <Text style={[styles.addRoutineText, { color: colors.secondary }]}>
-            + Add another routine
-          </Text>
-        </Pressable>
+        {routines.length < MAX_ROUTINES && (
+          <Pressable
+            onPress={addRoutine}
+            style={[styles.addRoutine, { borderColor: colors.dashedBorder }]}
+          >
+            <Text style={[styles.addRoutineText, { color: colors.secondary }]}>
+              + Add another routine
+            </Text>
+          </Pressable>
+        )}
       </ScrollView>
 
       <View style={shared.footer}>
@@ -229,14 +241,17 @@ export function RoutineBuilderStep({
 
       <ExercisePickerModal
         visible={pickerFor !== null}
-        existing={
-          pickerFor !== null
-            ? routines[pickerFor].exercises.map((e) => e.name)
-            : []
-        }
+        exercises={exercises}
+        loading={loading}
         onClose={() => setPickerFor(null)}
         onPick={(ex) => {
-          if (pickerFor !== null) addExercise(pickerFor, ex);
+          if (pickerFor !== null) {
+            addExercise(pickerFor, {
+              name: ex.name,
+              bodyParts: ex.bodyParts,
+            });
+          }
+          setPickerFor(null);
         }}
       />
       <FloatingKeyboardDismiss />
@@ -246,83 +261,42 @@ export function RoutineBuilderStep({
 
 function ExercisePickerModal({
   visible,
-  existing,
+  exercises,
+  loading,
   onClose,
   onPick,
 }: {
   visible: boolean;
-  existing: string[];
+  exercises: Exercise[];
+  loading: boolean;
   onClose: () => void;
-  onPick: (ex: DraftRoutineExercise) => void;
+  onPick: (ex: Exercise) => void;
 }) {
   const colors = useOnboardingColors();
+  const insets = useSafeAreaInsets();
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
-      <View style={styles.modalBackdrop}>
-        <View style={[styles.modalSheet, { backgroundColor: colors.bg }]}>
-          <View
-            style={[styles.modalHandle, { backgroundColor: colors.handle }]}
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <View style={[styles.pickerScreen, { backgroundColor: colors.bg }]}>
+        <FloatingCloseButton
+          direction="left"
+          accessibilityLabel="Back"
+          onPress={onClose}
+        />
+        <Text
+          style={[
+            styles.pickerTitle,
+            { top: insets.top + 10, color: colors.text },
+          ]}
+        >
+          Add Exercise
+        </Text>
+        <View style={{ flex: 1, paddingTop: insets.top + 60 }}>
+          <ExerciseListView
+            exercises={exercises}
+            onExercisePress={onPick}
+            loading={loading}
           />
-          <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>
-              Add an exercise
-            </Text>
-            <Pressable onPress={onClose} hitSlop={8}>
-              <Text style={[styles.modalDone, { color: colors.text }]}>
-                Done
-              </Text>
-            </Pressable>
-          </View>
-          <ScrollView
-            contentContainerStyle={styles.modalContent}
-            showsVerticalScrollIndicator={false}
-          >
-            {EXERCISE_LIBRARY.map((grp) => (
-              <View key={grp.group} style={styles.modalGroup}>
-                <Text
-                  style={[styles.modalGroupTitle, { color: colors.secondary }]}
-                >
-                  {grp.group.toUpperCase()}
-                </Text>
-                {grp.exercises.map((ex) => {
-                  const added = existing.includes(ex.name);
-                  return (
-                    <Pressable
-                      key={ex.name}
-                      onPress={() => !added && onPick(ex)}
-                      style={[
-                        styles.modalRow,
-                        {
-                          backgroundColor: colors.cardBg,
-                          borderColor: colors.border,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[styles.modalExName, { color: colors.text }]}
-                      >
-                        {ex.name}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.modalAdd,
-                          { color: added ? colors.secondary : colors.accent },
-                        ]}
-                      >
-                        {added ? "Added" : "+ Add"}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ))}
-          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -421,68 +395,18 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
   },
-  modalBackdrop: {
+  pickerScreen: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
   },
-  modalSheet: {
-    height: "82%",
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingBottom: 24,
-  },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 99,
-    alignSelf: "center",
-    marginTop: 10,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-  },
-  modalTitle: {
-    fontSize: 18,
+  pickerTitle: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    textAlign: "center",
+    height: 40,
+    lineHeight: 40,
+    fontSize: 24,
     fontWeight: "700",
-  },
-  modalDone: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  modalContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  modalGroup: {
-    marginBottom: 18,
-  },
-  modalGroupTitle: {
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 0.6,
-    marginBottom: 8,
-  },
-  modalRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 13,
-    marginBottom: 8,
-  },
-  modalExName: {
-    fontSize: 15,
-    fontWeight: "500",
-  },
-  modalAdd: {
-    fontSize: 14,
-    fontWeight: "700",
+    zIndex: 9,
   },
 });

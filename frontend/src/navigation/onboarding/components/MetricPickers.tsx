@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import { PickerSheet } from "./PickerSheet";
@@ -15,7 +15,7 @@ import {
 
 type Colors = ReturnType<typeof useOnboardingColors>;
 
-function UnitToggle({
+export function UnitToggle({
   active,
   options,
   onChange,
@@ -228,6 +228,140 @@ export function WeightPickerSheet({
   );
 }
 
+/** Inline height picker (unit toggle + wheels) for a full-screen step.
+ *  Emits the selected Height whenever it changes, including on mount. */
+export function HeightPickerInline({
+  initial,
+  onChange,
+  colors,
+}: {
+  initial?: Height;
+  onChange: (h: Height) => void;
+  colors: Colors;
+}) {
+  const [unit, setUnit] = useState<"ft_in" | "cm">(
+    initial?.unit === "cm" ? "cm" : "ft_in",
+  );
+  const [ft, setFt] = useState(initial?.unit === "ft_in" ? initial.ft : 5);
+  const [inch, setInch] = useState(
+    initial?.unit === "ft_in" ? initial.inch : 11,
+  );
+  const [cm, setCm] = useState(initial?.unit === "cm" ? initial.cm : 170);
+
+  useEffect(() => {
+    onChange(
+      unit === "ft_in" ? { unit: "ft_in", ft, inch } : { unit: "cm", cm },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unit, ft, inch, cm]);
+
+  return (
+    <View style={styles.inlineWrap}>
+      <View style={styles.toggleWrap}>
+        <UnitToggle
+          active={unit}
+          options={[
+            { label: "ft / in", value: "ft_in" },
+            { label: "cm", value: "cm" },
+          ]}
+          onChange={(v) => setUnit(v as "ft_in" | "cm")}
+          colors={colors}
+        />
+      </View>
+      <View style={styles.pickerRow}>
+        {unit === "ft_in" ? (
+          <>
+            <Picker
+              selectedValue={ft}
+              onValueChange={setFt}
+              style={styles.picker}
+              itemStyle={[styles.pickerItem, { color: colors.text }]}
+            >
+              {FT_VALUES.map((v) => (
+                <Picker.Item key={v} label={`${v} ft`} value={v} />
+              ))}
+            </Picker>
+            <Picker
+              selectedValue={inch}
+              onValueChange={setInch}
+              style={styles.picker}
+              itemStyle={[styles.pickerItem, { color: colors.text }]}
+            >
+              {IN_VALUES.map((v) => (
+                <Picker.Item key={v} label={`${v} in`} value={v} />
+              ))}
+            </Picker>
+          </>
+        ) : (
+          <Picker
+            selectedValue={cm}
+            onValueChange={setCm}
+            style={[styles.picker, { flex: 1 }]}
+            itemStyle={[styles.pickerItem, { color: colors.text }]}
+          >
+            {CM_VALUES.map((v) => (
+              <Picker.Item key={v} label={`${v} cm`} value={v} />
+            ))}
+          </Picker>
+        )}
+      </View>
+    </View>
+  );
+}
+
+/** Inline weight picker (unit toggle + wheel) for a full-screen step. */
+export function WeightPickerInline({
+  initial,
+  onChange,
+  colors,
+}: {
+  initial?: Weight;
+  onChange: (w: Weight) => void;
+  colors: Colors;
+}) {
+  const [unit, setUnit] = useState<"lbs" | "kg">(
+    initial?.unit === "kg" ? "kg" : "lbs",
+  );
+  const [val, setVal] = useState(initial?.value ?? 165);
+
+  useEffect(() => {
+    onChange({ unit, value: val });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unit, val]);
+
+  return (
+    <View style={styles.inlineWrap}>
+      <View style={styles.toggleWrap}>
+        <UnitToggle
+          active={unit}
+          options={[
+            { label: "lbs", value: "lbs" },
+            { label: "kg", value: "kg" },
+          ]}
+          onChange={(v) => {
+            const next = v as "lbs" | "kg";
+            setUnit(next);
+            setVal(next === "kg" ? 75 : 165);
+          }}
+          colors={colors}
+        />
+      </View>
+      <View style={styles.pickerRow}>
+        <Picker
+          selectedValue={val}
+          onValueChange={setVal}
+          style={[styles.picker, { flex: 1 }]}
+          itemStyle={[styles.pickerItem, { color: colors.text }]}
+        >
+          {(unit === "lbs" ? LB_VALUES : KG_VALUES).map((v) => (
+            <Picker.Item key={v} label={`${v} ${unit}`} value={v} />
+          ))}
+        </Picker>
+      </View>
+    </View>
+  );
+}
+
 export { formatHeight, formatWeight };
 
 const styles = StyleSheet.create({
@@ -275,6 +409,14 @@ const styles = StyleSheet.create({
   unitBtnText: {
     fontSize: 13,
     fontWeight: "500",
+  },
+  inlineWrap: {
+    alignSelf: "stretch",
+  },
+  toggleWrap: {
+    alignSelf: "center",
+    width: 160,
+    marginBottom: 16,
   },
   pickerRow: {
     flexDirection: "row",
