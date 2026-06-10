@@ -22,9 +22,16 @@ import { notificationService } from "../api/notificationService";
 import { logoutFromServer } from "../api/authService";
 import {
   isNetworkError,
+  isOnline,
   probeNetwork,
   subscribeOnlineStatus,
 } from "../utils/network";
+import { getAllExercises, getAllExerciseHistory } from "../api/exerciseService";
+import { getUserRoutines } from "../api/routineService";
+import {
+  getUserPersonalRecords,
+  getUserWorkouts,
+} from "../api/workoutService";
 import {
   CACHE_KEYS,
   clearCache,
@@ -33,6 +40,11 @@ import {
   writeCache,
 } from "../utils/offlineCache";
 import { flushWorkoutQueue } from "../utils/workoutQueue";
+import { flushRoutineQueue } from "../utils/routineQueue";
+import {
+  cacheProfilePicture,
+  loadProfilePictureCache,
+} from "../utils/profilePictureCache";
 
 export type User = UserProfile;
 
@@ -61,6 +73,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Initialize auth state on app start
   useEffect(() => {
     initializeAuth();
+    // Warm the in-memory profile picture cache map so Avatars rendering on
+    // first paint can resolve cached file URIs synchronously.
+    loadProfilePictureCache().catch((err) => {
+      console.error("Failed to load profile picture cache map:", err);
+    });
   }, []);
 
   // Flush any workouts that were saved while offline. Run once on mount for
@@ -82,6 +99,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       } catch (err) {
         console.error("Failed to flush offline workout queue:", err);
+      }
+      try {
+        await flushRoutineQueue();
+      } catch (err) {
+        console.error("Failed to flush offline routine queue:", err);
       }
     };
     tryFlush();
@@ -109,6 +131,37 @@ export function AuthProvider({ children }: AuthProviderProps) {
       sub.remove();
     };
   }, []);
+
+  /**
+   * Fire-and-forget the per-user cache fills so a first-time user who goes
+   * offline before browsing still has the exercise catalog, routines, history
+   * and PRs available. Each call is detached and isolated so one slow or
+   * failing endpoint can't block the others or surface in the auth UI. Only
+   * runs while online — offline would just thrash failing requests.
+   */
+  const prewarmOfflineCaches = (userId: string, profilePictureUrl?: string | null) => {
+    if (!isOnline()) return;
+    getAllExercises().catch((err) => {
+      console.error("Pre-warm exercises failed:", err);
+    });
+    getUserRoutines().catch((err) => {
+      console.error("Pre-warm routines failed:", err);
+    });
+    getUserWorkouts(userId).catch((err) => {
+      console.error("Pre-warm workouts failed:", err);
+    });
+    getUserPersonalRecords(userId).catch((err) => {
+      console.error("Pre-warm personal records failed:", err);
+    });
+    getAllExerciseHistory().catch((err) => {
+      console.error("Pre-warm exercise history failed:", err);
+    });
+    if (profilePictureUrl) {
+      cacheProfilePicture(profilePictureUrl).catch((err) => {
+        console.error("Pre-warm profile picture failed:", err);
+      });
+    }
+  };
 
   const registerPushToken = async () => {
     if (!Device.isDevice) return;
@@ -176,6 +229,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             userProfile,
           );
           await registerPushToken();
+          prewarmOfflineCaches(userProfile.userId, userProfile.profilePictureUrl);
         } catch (profileError: any) {
           if (isNetworkError(profileError)) {
             // Offline at launch — keep the tokens and the cached profile so
@@ -219,6 +273,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         userProfile,
       );
       await registerPushToken();
+      prewarmOfflineCaches(userProfile.userId, userProfile.profilePictureUrl);
     } catch (error) {
       console.error("Login failed:", error);
       await clearAuthTokens();
@@ -249,6 +304,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         await clearCache(CACHE_KEYS.userProfile(currentUserId));
         await clearCache(CACHE_KEYS.routines(currentUserId));
         await clearCache(CACHE_KEYS.pendingWorkouts(currentUserId));
+        await clearCache(CACHE_KEYS.pendingRoutines(currentUserId));
       }
       await setActiveUserId(null);
     } catch (error) {
@@ -273,6 +329,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         CACHE_KEYS.userProfile(userProfile.userId),
         userProfile,
       );
+      if (userProfile.profilePictureUrl) {
+        cacheProfilePicture(userProfile.profilePictureUrl).catch((err) => {
+          console.error("Refresh profile picture cache failed:", err);
+        });
+      }
     } catch (error) {
       console.error("Failed to refresh user:", error);
       throw error;

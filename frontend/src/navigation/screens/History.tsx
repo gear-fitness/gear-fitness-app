@@ -21,6 +21,7 @@ import {
 } from "../../api/workoutService";
 import { Workout } from "../../api/types";
 import { subscribeOnlineStatus } from "../../utils/network";
+import { getPendingWorkoutsAsWorkouts } from "../../utils/workoutQueue";
 import { parseLocalDate, getCurrentLocalDateString } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
@@ -100,9 +101,14 @@ export function History() {
     if (!user?.userId) return;
     let cancelled = false;
     (async () => {
-      const cached = await getCachedUserWorkouts(user.userId);
-      if (!cancelled && cached.length > 0) {
-        setData((prev) => (prev.length === 0 ? cached : prev));
+      const [cached, pending] = await Promise.all([
+        getCachedUserWorkouts(user.userId),
+        getPendingWorkoutsAsWorkouts(),
+      ]);
+      if (cancelled) return;
+      const seed = [...pending, ...cached];
+      if (seed.length > 0) {
+        setData((prev) => (prev.length === 0 ? seed : prev));
       }
     })();
     return () => {
@@ -113,8 +119,11 @@ export function History() {
   const fetchWorkouts = React.useCallback(async () => {
     if (!user?.userId) return;
     try {
-      const workouts = await getUserWorkouts(user.userId);
-      setData(workouts);
+      const [workouts, pending] = await Promise.all([
+        getUserWorkouts(user.userId),
+        getPendingWorkoutsAsWorkouts(),
+      ]);
+      setData([...pending, ...workouts]);
     } catch (err) {
       console.error("Error loading workouts:", err);
     }

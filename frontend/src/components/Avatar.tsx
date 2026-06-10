@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Image,
@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { Text } from "@react-navigation/elements";
 import { useTheme } from "@react-navigation/native";
+import { useCachedAvatarUri } from "../hooks/useCachedAvatarUri";
 
 type Props = {
   username: string;
@@ -25,10 +26,19 @@ export function Avatar({
   onPress,
 }: Props) {
   const { colors } = useTheme();
+  const resolvedUri = useCachedAvatarUri(profilePictureUrl);
+  const [loadFailed, setLoadFailed] = useState(false);
 
-  const inner = profilePictureUrl ? (
+  // Reset failure state when the URI changes — a new resolution attempt
+  // shouldn't carry over the previous failure.
+  useEffect(() => {
+    setLoadFailed(false);
+  }, [resolvedUri]);
+
+  const inner = resolvedUri && !loadFailed ? (
     <Image
-      source={{ uri: profilePictureUrl }}
+      source={{ uri: resolvedUri }}
+      onError={() => setLoadFailed(true)}
       style={[
         {
           width: size,

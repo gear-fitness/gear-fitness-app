@@ -18,9 +18,11 @@ import { useAuth } from "../../context/AuthContext";
 import { useThemeColors } from "../../hooks/useThemeColors";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { useProfilePhoto } from "../../hooks/useProfilePhoto";
+import { useOnlineStatus } from "../../hooks/useOnlineStatus";
 import { Avatar } from "../../components/Avatar";
 import { AvatarWithCameraOverlay } from "../../components/AvatarWithCameraOverlay";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
+import { OfflineNotice } from "../../components/OfflineNotice";
 import {
   SettingsDestructiveCell,
   SettingsCellPosition,
@@ -104,6 +106,7 @@ export function Settings() {
   const themeColors = useThemeColors();
   const insets = useSafeAreaInsets();
   const { pickAndUpload, uploading } = useProfilePhoto();
+  const online = useOnlineStatus();
 
   const [isPrivate, setIsPrivate] = useState(user?.isPrivate ?? false);
 
@@ -576,6 +579,19 @@ export function Settings() {
       />
     );
   };
+
+  if (!online) {
+    return (
+      <View style={[styles.container, { backgroundColor: themeColors.appBg }]}>
+        <FloatingCloseButton
+          direction="left"
+          accessibilityLabel="Back"
+          onPress={() => navigation.getParent()?.goBack()}
+        />
+        <OfflineNotice message="Go back online to change your settings." />
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: themeColors.appBg }]}>

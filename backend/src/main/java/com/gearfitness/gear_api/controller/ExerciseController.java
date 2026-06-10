@@ -15,7 +15,9 @@ import com.gearfitness.gear_api.repository.ExerciseRepository;
 import com.gearfitness.gear_api.repository.WorkoutExerciseRepository;
 import com.gearfitness.gear_api.security.JwtService;
 import java.math.BigDecimal;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -67,45 +69,11 @@ public class ExerciseController {
       String token = authHeader.substring(7);
       UUID userId = jwtService.extractUserId(token);
 
-      // Fetch all times this user performed this exercise
       List<WorkoutExercise> workoutExercises =
         workoutExerciseRepo.findByExercise_ExerciseIdAndWorkout_User_UserIdOrderByWorkout_DatePerformedDesc(
           exerciseId,
           userId
         );
-
-      // Build session DTOs
-      List<ExerciseSessionDTO> sessions = workoutExercises
-        .stream()
-        .map(we ->
-          new ExerciseSessionDTO(
-            we.getWorkout().getWorkoutId(),
-            we.getWorkout().getName(),
-            we.getWorkout().getDatePerformed(),
-            we
-              .getWorkoutSets()
-              .stream()
-              .map(s ->
-                new ExerciseSetDTO(
-                  s.getSetNumber(),
-                  s.getReps(),
-                  s.getWeightLbs(),
-                  s.getIsPr()
-                )
-              )
-              .toList()
-          )
-        )
-        .toList();
-
-      // Find personal record (highest weight across all sets)
-      BigDecimal pr = workoutExercises
-        .stream()
-        .flatMap(we -> we.getWorkoutSets().stream())
-        .map(s -> s.getWeightLbs())
-        .filter(w -> w != null)
-        .max(BigDecimal::compareTo)
-        .orElse(null);
 
       Exercise exercise;
       if (!workoutExercises.isEmpty()) {
@@ -116,22 +84,9 @@ public class ExerciseController {
           .orElseThrow(() -> new RuntimeException("Exercise not found"));
       }
 
-      List<BodyPartDTO> bodyPartDTOs = exercise
-        .getBodyParts()
-        .stream()
-        .map(bp -> new BodyPartDTO(bp.getBodyPart(), bp.getTargetType()))
-        .toList();
-
-      ExerciseHistoryDTO dto = new ExerciseHistoryDTO(
-        exerciseId,
-        exercise.getName(),
-        bodyPartDTOs,
-        sessions.size(),
-        pr,
-        sessions
+      return ResponseEntity.ok(
+        buildHistoryDTO(exerciseId, exercise, workoutExercises)
       );
-
-      return ResponseEntity.ok(dto);
     } catch (RuntimeException e) {
       System.err.println("=== RuntimeException: " + e.getMessage());
       e.printStackTrace();
@@ -140,6 +95,99 @@ public class ExerciseController {
       e.printStackTrace();
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
+  }
+
+  @Transactional(readOnly = true)
+  @GetMapping("/history/all")
+  public ResponseEntity<List<ExerciseHistoryDTO>> getAllExerciseHistory(
+    @RequestHeader("Authorization") String authHeader
+  ) {
+    try {
+      String token = authHeader.substring(7);
+      UUID userId = jwtService.extractUserId(token);
+
+      List<WorkoutExercise> all =
+        workoutExerciseRepo.findByWorkout_User_UserIdOrderByWorkout_DatePerformedDesc(
+          userId
+        );
+
+      // Preserve date-desc order: LinkedHashMap keeps first-seen insertion order,
+      // which matches the per-exercise endpoint (newest session first).
+      Map<UUID, List<WorkoutExercise>> byExercise = new LinkedHashMap<>();
+      for (WorkoutExercise we : all) {
+        byExercise
+          .computeIfAbsent(we.getExercise().getExerciseId(), k -> new java.util.ArrayList<>())
+          .add(we);
+      }
+
+      List<ExerciseHistoryDTO> result = byExercise
+        .entrySet()
+        .stream()
+        .map(entry -> {
+          UUID exerciseId = entry.getKey();
+          List<WorkoutExercise> rows = entry.getValue();
+          Exercise exercise = rows.get(0).getExercise();
+          return buildHistoryDTO(exerciseId, exercise, rows);
+        })
+        .toList();
+
+      return ResponseEntity.ok(result);
+    } catch (Exception e) {
+      e.printStackTrace();
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+    }
+  }
+
+  private ExerciseHistoryDTO buildHistoryDTO(
+    UUID exerciseId,
+    Exercise exercise,
+    List<WorkoutExercise> workoutExercises
+  ) {
+    List<ExerciseSessionDTO> sessions = workoutExercises
+      .stream()
+      .map(we ->
+        new ExerciseSessionDTO(
+          we.getWorkout().getWorkoutId(),
+          we.getWorkout().getName(),
+          we.getWorkout().getDatePerformed(),
+          we
+            .getWorkoutSets()
+            .stream()
+            .map(s ->
+              new ExerciseSetDTO(
+                s.getSetNumber(),
+                s.getReps(),
+                s.getWeightLbs(),
+                s.getIsPr()
+              )
+            )
+            .toList()
+        )
+      )
+      .toList();
+
+    BigDecimal pr = workoutExercises
+      .stream()
+      .flatMap(we -> we.getWorkoutSets().stream())
+      .map(s -> s.getWeightLbs())
+      .filter(w -> w != null)
+      .max(BigDecimal::compareTo)
+      .orElse(null);
+
+    List<BodyPartDTO> bodyPartDTOs = exercise
+      .getBodyParts()
+      .stream()
+      .map(bp -> new BodyPartDTO(bp.getBodyPart(), bp.getTargetType()))
+      .toList();
+
+    return new ExerciseHistoryDTO(
+      exerciseId,
+      exercise.getName(),
+      bodyPartDTOs,
+      sessions.size(),
+      pr,
+      sessions
+    );
   }
 
   @PostMapping

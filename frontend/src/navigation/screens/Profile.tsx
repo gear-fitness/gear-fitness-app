@@ -13,7 +13,7 @@ import {
   Easing,
 } from "react-native";
 import { Button } from "@react-navigation/elements";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useNavigation, useRoute, useFocusEffect } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import Svg, { Path } from "react-native-svg";
@@ -35,6 +35,7 @@ import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
 import { useSocialFeed } from "../../context/SocialFeedContext";
 import { Avatar } from "../../components/Avatar";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
+import { getPendingPosts, isPendingPostId } from "../../utils/pendingPosts";
 
 const WEEK_LABELS = ["S", "M", "T", "W", "T", "F", "S"] as const;
 const GRID_ROWS = 5;
@@ -175,6 +176,21 @@ export function Profile() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Re-pull pending posts whenever the screen regains focus. Posting offline
+  // from WorkoutComplete navigates back to this screen, so the synthesized
+  // "in-progress" card needs to appear without a manual refresh.
+  useFocusEffect(
+    React.useCallback(() => {
+      if (isOtherUser) return;
+      if (profile) {
+        loadUserPosts(profile);
+      }
+      // loadUserPosts is a closure captured at render — re-running it on
+      // every focus is the intended behavior.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [profile, isOtherUser]),
+  );
+
   const handleFollowToggle = async () => {
     if (!profile) return;
 
@@ -211,20 +227,37 @@ export function Profile() {
     }
   };
 
+  const loadPendingForCurrentUser = async (
+    targetProfile: UserProfile,
+  ): Promise<FeedPost[]> => {
+    if (isOtherUser) return [];
+    if (!authUser || authUser.userId !== targetProfile.userId) return [];
+    try {
+      return await getPendingPosts(authUser);
+    } catch (err) {
+      console.error("Error loading pending posts:", err);
+      return [];
+    }
+  };
+
   const loadUserPosts = async (profileData?: UserProfile) => {
     const targetProfile = profileData || profile;
     if (!targetProfile) return;
     try {
       setPostsLoading(true);
-      const response = await socialFeedApi.getUserPosts(
-        targetProfile.userId,
-        0,
-        1,
-      );
-      normalizeFeedPosts(response.content);
-      setPosts(response.content);
-    } catch (error) {
-      console.error("Error loading user posts:", error);
+      // Server posts and offline pending posts can be fetched in parallel —
+      // a pending post belongs only to the current user and never has a
+      // real workoutId, so it can't collide with anything the API returns.
+      const [response, pending] = await Promise.all([
+        socialFeedApi.getUserPosts(targetProfile.userId, 0, 1).catch((err) => {
+          console.error("Error loading user posts:", err);
+          return null;
+        }),
+        loadPendingForCurrentUser(targetProfile),
+      ]);
+      const serverPosts = response?.content ?? [];
+      normalizeFeedPosts(serverPosts);
+      setPosts([...pending, ...serverPosts]);
     } finally {
       setPostsLoading(false);
     }
@@ -491,7 +524,11 @@ export function Profile() {
 
         {profile ? (
           posts.length > 0 ? (
-            <FeedPostCard post={posts[0]} onOpenComments={handleOpenComments} />
+            <FeedPostCard
+              post={posts[0]}
+              onOpenComments={handleOpenComments}
+              isPending={isPendingPostId(posts[0].postId)}
+            />
           ) : postsLoading ? (
             <PostCardSkeleton t={t} />
           ) : (

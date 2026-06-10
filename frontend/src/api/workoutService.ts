@@ -4,7 +4,7 @@
  */
 
 import apiClient from "./apiClient";
-import { BodyPartDTO } from "./exerciseService";
+import { BodyPartDTO, getCachedExercises } from "./exerciseService";
 import {
   DailyVolumeData,
   WeeklyVolumeData,
@@ -15,6 +15,11 @@ import {
 import { getCurrentLocalDateString } from "../utils/date";
 import { CACHE_KEYS, readCache, writeCache } from "../utils/offlineCache";
 import { isNetworkError } from "../utils/network";
+import {
+  getPendingWorkouts,
+  isPendingWorkoutId,
+  PENDING_WORKOUT_PREFIX,
+} from "../utils/workoutQueue";
 
 export interface WorkoutSubmission {
   name: string;
@@ -163,6 +168,44 @@ function synthesizeDetailFromSummary(summary: Workout): WorkoutDetail {
   };
 }
 
+async function synthesizePendingDetail(
+  workoutId: string,
+): Promise<WorkoutDetail | null> {
+  if (!isPendingWorkoutId(workoutId)) return null;
+  const queueId = workoutId.slice(PENDING_WORKOUT_PREFIX.length);
+  const pending = await getPendingWorkouts();
+  const item = pending.find((p) => p.id === queueId);
+  if (!item) return null;
+  const catalog = await getCachedExercises();
+  const byId = new Map(catalog.map((e) => [e.exerciseId, e]));
+  return {
+    workoutId,
+    name: item.submission.name,
+    datePerformed:
+      item.submission.datePerformed ??
+      new Date(item.createdAt).toISOString().slice(0, 10),
+    durationMin: item.submission.durationMin,
+    bodyTags: item.submission.bodyTags ?? [],
+    exercises: item.submission.exercises.map((ex, position) => {
+      const match = byId.get(ex.exerciseId);
+      return {
+        workoutExerciseId: `${workoutId}_ex_${position}`,
+        exerciseName: match?.name ?? "Exercise",
+        bodyParts: match?.bodyParts ?? [],
+        position,
+        note: ex.note ?? null,
+        sets: ex.sets.map((s, idx) => ({
+          workoutSetId: `${workoutId}_ex_${position}_set_${idx}`,
+          setNumber: idx + 1,
+          reps: Number(s.reps) || 0,
+          weightLbs: s.weight ? Number(s.weight) : null,
+          isPr: false,
+        })),
+      };
+    }),
+  };
+}
+
 /**
  * Get detailed workout by ID. When offline, falls back to a synthesized
  * detail built from the cached workout summary so the screen renders date,
@@ -171,6 +214,11 @@ function synthesizeDetailFromSummary(summary: Workout): WorkoutDetail {
 export async function getWorkoutDetails(
   workoutId: string,
 ): Promise<WorkoutDetail> {
+  // Pending offline workouts only live in the queue — they have no server
+  // counterpart yet, so resolve them locally before attempting the API call.
+  const pendingDetail = await synthesizePendingDetail(workoutId);
+  if (pendingDetail) return pendingDetail;
+
   try {
     const { data } = await apiClient.get<WorkoutDetail>(
       `/workouts/${workoutId}`,

@@ -3,6 +3,7 @@ import {
   uploadWorkoutPhoto,
   WorkoutSubmission,
 } from "../api/workoutService";
+import { Workout } from "../api/types";
 import { isNetworkError } from "./network";
 import {
   CACHE_KEYS,
@@ -10,6 +11,12 @@ import {
   readCache,
   writeCache,
 } from "./offlineCache";
+
+export const PENDING_WORKOUT_PREFIX = "pending_workout_";
+
+export function isPendingWorkoutId(id: string): boolean {
+  return id.startsWith(PENDING_WORKOUT_PREFIX);
+}
 
 /**
  * A workout the user finished while offline. We keep the submission payload
@@ -46,6 +53,34 @@ export async function getPendingWorkoutCount(): Promise<number> {
   if (!userId) return 0;
   const queue = await loadQueue(userId);
   return queue.length;
+}
+
+export async function getPendingWorkouts(): Promise<PendingWorkout[]> {
+  const userId = await getActiveUserId();
+  if (!userId) return [];
+  return loadQueue(userId);
+}
+
+/**
+ * Render the offline queue as `Workout` summaries so screens that already
+ * consume the workouts list (History/calendar) can show entries created
+ * while offline. The synthesized `workoutId` carries the
+ * `pending_workout_` prefix so downstream code can opt out of behaviors
+ * that require a real server ID (e.g. sharing, deletion).
+ */
+export async function getPendingWorkoutsAsWorkouts(): Promise<Workout[]> {
+  const pending = await getPendingWorkouts();
+  return pending.map((p) => ({
+    workoutId: `${PENDING_WORKOUT_PREFIX}${p.id}`,
+    name: p.submission.name,
+    datePerformed:
+      p.submission.datePerformed ??
+      new Date(p.createdAt).toISOString().slice(0, 10),
+    createdAt: new Date(p.createdAt).toISOString(),
+    durationMin: p.submission.durationMin,
+    exerciseCount: p.submission.exercises.length,
+    bodyTags: p.submission.bodyTags,
+  }));
 }
 
 export async function enqueueWorkout(
