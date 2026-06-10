@@ -69,6 +69,21 @@ public class NotificationService {
   }
 
   @Transactional
+  public void deleteNotification(UUID userId, UUID notificationId) {
+    Notification notification = notificationRepository
+      .findById(notificationId)
+      .orElseThrow(() -> new RuntimeException("Notification not found"));
+
+    // Only the recipient may delete their own activity row. This removes the
+    // notification record only — the underlying like/comment/follow is untouched.
+    if (!notification.getRecipient().getUserId().equals(userId)) {
+      throw new RuntimeException("Not authorized to delete this notification");
+    }
+
+    notificationRepository.delete(notification);
+  }
+
+  @Transactional
   public void markAllAsRead(UUID userId) {
     List<Notification> notifications =
       notificationRepository.findByRecipient_UserIdOrderByCreatedAtDesc(userId);

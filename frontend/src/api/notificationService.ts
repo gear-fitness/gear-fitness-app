@@ -28,6 +28,10 @@ export const notificationService = {
     await apiClient.post("/notifications/mark-read");
   },
 
+  deleteNotification: async (notificationId: string): Promise<void> => {
+    await apiClient.delete(`/notifications/${notificationId}`);
+  },
+
   registerToken: async (pushToken: string): Promise<void> => {
     await apiClient.post("/notifications/token", { token: pushToken });
   },

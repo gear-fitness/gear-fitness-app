@@ -1,15 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   View,
   StyleSheet,
   TouchableOpacity,
   SectionList,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { Text } from "@react-navigation/elements";
 import { useTheme, useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Swipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 
 import {
   notificationService,
@@ -19,6 +21,7 @@ import { parseServerDate } from "../../utils/date";
 import { Avatar } from "../../components/Avatar";
 import { PresignedImage } from "../../components/PresignedImage";
 import { useTrackTab } from "../../hooks/useTrackTab";
+import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
 
 const THUMBNAIL_SIZE = 48;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -95,8 +98,15 @@ export function Activity() {
   const { colors } = useTheme();
   const navigation = useNavigation() as any;
 
-  const [sections, setSections] = useState<Section[]>([]);
+  const [notifications, setNotifications] = useState<NotificationDTO[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Sections are derived from the flat list so deletions recompute grouping
+  // (and drop now-empty section headers) without a refetch.
+  const sections = useMemo(
+    () => groupNotifications(notifications),
+    [notifications],
+  );
 
   useEffect(() => {
     let active = true;
@@ -106,7 +116,7 @@ export function Activity() {
         setLoading(true);
         const data = await notificationService.getNotifications();
         if (!active) return;
-        setSections(groupNotifications(data));
+        setNotifications(data);
         await notificationService.markNotificationsRead();
       } catch (error) {
         console.error("Failed to load notifications", error);
@@ -120,6 +130,30 @@ export function Activity() {
       active = false;
     };
   }, []);
+
+  // Optimistically remove the row, then call the backend. Restore on failure so
+  // the UI never drifts out of sync with the stored notifications.
+  const handleDelete = async (id: string) => {
+    let snapshot: NotificationDTO[] = [];
+    setNotifications((list) => {
+      snapshot = list;
+      return list.filter((n) => n.notificationId !== id);
+    });
+
+    try {
+      await notificationService.deleteNotification(id);
+    } catch (error) {
+      console.error("Failed to delete notification", error);
+      setNotifications(snapshot);
+      Alert.alert("Error", "Couldn't delete this activity. Please try again.");
+    }
+  };
+
+  const { getSwipeableProps } = useSwipeableDelete({
+    onDelete: handleDelete,
+    deleteTitle: "Delete Activity",
+    deleteMessage: "Are you sure you want to remove this activity?",
+  });
 
   const mutedColor = (colors.text as string) + "99";
 
@@ -141,47 +175,50 @@ export function Activity() {
     };
 
     return (
-      <TouchableOpacity
-        activeOpacity={0.7}
-        onPress={handlePress}
-        style={styles.row}
-      >
+      <Swipeable {...getSwipeableProps(item.notificationId)}>
+        {/* Opaque background so the red delete action stays hidden until swiped */}
         <TouchableOpacity
-          onPress={() =>
-            navigation.navigate("UserProfile", {
-              username: item.actorUsername,
-            })
-          }
-          style={styles.avatarWrapper}
+          activeOpacity={0.7}
+          onPress={handlePress}
+          style={[styles.row, { backgroundColor: colors.background }]}
         >
-          <Avatar
-            username={item.actorUsername}
-            profilePictureUrl={item.actorProfilePictureUrl}
-            size={44}
-          />
-        </TouchableOpacity>
-
-        <View style={styles.textContainer}>
-          <Text
-            style={[styles.description, { color: colors.text }]}
-            numberOfLines={2}
+          <TouchableOpacity
+            onPress={() =>
+              navigation.navigate("UserProfile", {
+                username: item.actorUsername,
+              })
+            }
+            style={styles.avatarWrapper}
           >
-            <Text style={styles.username}>{item.actorUsername}</Text>
-            {renderAction(item)}
-            <Text style={[styles.timestamp, { color: mutedColor }]}>
-              {"  ·  "}
-              {formatTimestamp(item.createdAt)}
-            </Text>
-          </Text>
-        </View>
+            <Avatar
+              username={item.actorUsername}
+              profilePictureUrl={item.actorProfilePictureUrl}
+              size={44}
+            />
+          </TouchableOpacity>
 
-        {hasThumbnail ? (
-          <PresignedImage
-            imageKey={item.postImageUrl}
-            style={[styles.thumbnail, { backgroundColor: colors.border }]}
-          />
-        ) : null}
-      </TouchableOpacity>
+          <View style={styles.textContainer}>
+            <Text
+              style={[styles.description, { color: colors.text }]}
+              numberOfLines={2}
+            >
+              <Text style={styles.username}>{item.actorUsername}</Text>
+              {renderAction(item)}
+              <Text style={[styles.timestamp, { color: mutedColor }]}>
+                {"  ·  "}
+                {formatTimestamp(item.createdAt)}
+              </Text>
+            </Text>
+          </View>
+
+          {hasThumbnail ? (
+            <PresignedImage
+              imageKey={item.postImageUrl}
+              style={[styles.thumbnail, { backgroundColor: colors.border }]}
+            />
+          ) : null}
+        </TouchableOpacity>
+      </Swipeable>
     );
   };
 

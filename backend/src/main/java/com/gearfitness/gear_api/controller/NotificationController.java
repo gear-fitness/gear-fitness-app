@@ -45,6 +45,17 @@ public class NotificationController {
     notificationService.markAllAsRead(userId);
   }
 
+  @DeleteMapping("/{notificationId}")
+  public void deleteNotification(
+    @RequestHeader("Authorization") String authHeader,
+    @PathVariable UUID notificationId
+  ) {
+    String token = authHeader.substring(7);
+    UUID userId = jwtService.extractUserId(token);
+
+    notificationService.deleteNotification(userId, notificationId);
+  }
+
   @PostMapping("/token")
   public void registerToken(
     @RequestHeader("Authorization") String authHeader,
