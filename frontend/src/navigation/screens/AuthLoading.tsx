@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { View, Image, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { useNavigation, useTheme } from "@react-navigation/native";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useAuth } from "../../context/AuthContext";
+import { useResumeVideoOnForeground } from "../../hooks/useResumeVideoOnForeground";
 
 // The launch animation plays its first 2.5s and then holds on that frame for as
 // long as auth takes. Light mode runs the colour-negated (black-on-white) copy
@@ -28,15 +29,23 @@ export function AuthLoadingScreen() {
     },
   );
 
+  // Once the intro reaches FREEZE_AT it holds on that frame; don't let a
+  // foreground resume restart the animation past the freeze.
+  const frozen = useRef(false);
   useEffect(() => {
     const sub = player.addListener("timeUpdate", ({ currentTime }) => {
       if (currentTime >= FREEZE_AT) {
         player.currentTime = FREEZE_AT;
         player.pause();
+        frozen.current = true;
       }
     });
     return () => sub.remove();
   }, [player]);
+
+  // expo-video pauses on background and won't resume on its own. Resume only if
+  // the intro was still playing when we left; stay frozen otherwise.
+  useResumeVideoOnForeground(player, () => !frozen.current);
 
   // The launch animation plays for a mandatory 2.5s before we navigate away,
   // even when auth resolves sooner.

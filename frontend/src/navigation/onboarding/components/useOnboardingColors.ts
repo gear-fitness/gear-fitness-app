@@ -4,6 +4,6 @@ export function useOnboardingColors() {
   const c = useThemeColors();
   return {
     ...c,
-    screenBg: c.isDark ? c.appBg : "#fff",
+    screenBg: c.isDark ? "#000" : "#fff",
   };
 }

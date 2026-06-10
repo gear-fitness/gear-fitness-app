@@ -9,6 +9,7 @@ import {
 import { useVideoPlayer, VideoView } from "expo-video";
 import { StepProps } from "../stepProps";
 import { useOnboardingColors } from "./useOnboardingColors";
+import { useResumeVideoOnForeground } from "../../../hooks/useResumeVideoOnForeground";
 
 // Reuse the launch-screen gear-logo animation; loop just the first 5s.
 const LOOP_AT = 5;
@@ -47,6 +48,10 @@ export function GeneratingPlanStep({ onNext }: StepProps) {
     });
     return () => sub.remove();
   }, [player]);
+
+  // expo-video pauses on background and won't resume on its own; re-play on
+  // foreground so the loop doesn't stay frozen.
+  useResumeVideoOnForeground(player);
 
   useEffect(() => {
     timer.current = setInterval(() => {

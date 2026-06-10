@@ -9,6 +9,7 @@ import {
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useOnboardingColors } from "./useOnboardingColors";
 import { makeOnboardingStyles } from "./makeOnboardingStyles";
+import { useResumeVideoOnForeground } from "../../../hooks/useResumeVideoOnForeground";
 import { StepProps } from "../stepProps";
 
 // Reuse the launch-screen gear-logo animation. We loop just the first 5s.
@@ -32,6 +33,10 @@ export function WelcomeStep({ onNext, onGoogleSignIn }: StepProps) {
       p.play();
     },
   );
+
+  // expo-video pauses on background and won't resume on its own; re-play on
+  // foreground so the loop doesn't stay frozen.
+  useResumeVideoOnForeground(player);
 
   // Restart from the top once we reach 5s so only the first 5 seconds repeat.
   useEffect(() => {

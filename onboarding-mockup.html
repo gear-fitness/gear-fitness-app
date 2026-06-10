@@ -3,21 +3,24 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Gear — Onboarding (30 screens) · design mockup</title>
+    <title>Gear — Onboarding (34 screens) · design mockup</title>
     <!--
-      STATIC DESIGN MOCKUP of the 30-screen Gear onboarding flow.
-      This is a non-functional visual reference — translated 1:1 from the
-      React Native implementation in
+      STATIC DESIGN MOCKUP of the Gear onboarding flow.
+      This is a non-functional visual reference — translated as faithfully as
+      possible from the React Native implementation in
         frontend/src/navigation/onboarding/
-      so the design can be reviewed and edited, then handed back to wire up.
+      so the design can be reviewed and edited.
+
+      33 ordered steps (0–32) from steps.ts, plus the Trial-boost overlay modal
+      that surfaces from the paywall — 34 phone cells total.
 
       Edit the design system in :root below — every screen reads from these
-      tokens (they mirror useThemeColors.ts, light mode).
+      tokens (they mirror useThemeColors.ts / useOnboardingColors.ts, light mode).
     -->
     <style>
       :root {
-        /* ── Theme tokens (mirror useThemeColors.ts — light mode) ── */
-        --app-bg: #fafafa;
+        /* ── Theme tokens (mirror useOnboardingColors — light mode) ── */
+        --app-bg: #ffffff;
         --bg: #ffffff;
         --card: #ffffff;
         --surface: #eff2f5;
@@ -268,6 +271,18 @@
       .opts.fixed {
         flex: 0 0 auto;
       }
+      /* Minimal cards — the current intake-card look (lighter border, compact) */
+      .opts.minimal {
+        flex: 0 0 auto;
+        gap: 10px;
+        padding-top: 4px;
+      }
+      .opts.minimal .opt {
+        min-height: 60px;
+        padding: 12px 18px;
+        border-radius: 16px;
+        border-width: 1px;
+      }
       .opt {
         border: 1.5px solid var(--border);
         background: var(--card);
@@ -282,7 +297,15 @@
         flex: 1;
       }
       .opt .emoji {
-        font-size: 24px;
+        font-size: 22px;
+        width: 26px;
+        text-align: center;
+      }
+      .opt .sym {
+        width: 26px;
+        text-align: center;
+        font-size: 20px;
+        color: var(--accent);
       }
       .opt-tx {
         flex: 1;
@@ -307,6 +330,9 @@
       }
       .opt.sel .hint {
         color: rgba(255, 255, 255, 0.6);
+      }
+      .opt.sel .sym {
+        color: var(--accent-text);
       }
       .opt .check {
         width: 26px;
@@ -394,6 +420,240 @@
         opacity: 1;
       }
 
+      /* ── Unit toggle (ft/in ⇄ cm, lbs ⇄ kg) ── */
+      .unit-toggle {
+        width: 160px;
+        display: flex;
+        background: var(--surface);
+        border-radius: 999px;
+        padding: 3px;
+        margin: 0 auto;
+      }
+      .unit-toggle .u {
+        flex: 1;
+        text-align: center;
+        padding: 6px 0;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--secondary);
+      }
+      .unit-toggle .u.on {
+        background: var(--card);
+        color: var(--text);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+      }
+
+      /* ── Ruler picker (weight / goal weight) ── */
+      .ruler-readout {
+        font-size: 46px;
+        font-weight: 700;
+        letter-spacing: -1.5px;
+        color: var(--text);
+        text-align: center;
+        margin-bottom: 24px;
+      }
+      .ruler-readout .ru {
+        font-size: 30px;
+        font-weight: 600;
+        letter-spacing: -0.5px;
+        color: var(--secondary);
+      }
+      .ruler-cap {
+        font-size: 17px;
+        font-weight: 500;
+        color: var(--secondary);
+        text-align: center;
+        margin-bottom: 6px;
+      }
+      .ruler-band {
+        position: relative;
+        height: 96px;
+        align-self: stretch;
+        display: flex;
+        align-items: center;
+        overflow: hidden;
+        margin-bottom: 28px;
+        -webkit-mask-image: linear-gradient(
+          90deg,
+          transparent,
+          #000 18%,
+          #000 82%,
+          transparent
+        );
+        mask-image: linear-gradient(
+          90deg,
+          transparent,
+          #000 18%,
+          #000 82%,
+          transparent
+        );
+      }
+      .ruler-ticks {
+        display: flex;
+        align-items: center;
+        gap: 8.5px;
+        padding-left: 50%;
+      }
+      .ruler-ticks i {
+        display: block;
+        width: 1.5px;
+        height: 26px;
+        background: var(--separator);
+        flex: 0 0 auto;
+      }
+      .ruler-ticks i.maj {
+        height: 40px;
+        background: var(--border);
+      }
+      .ruler-pointer {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: 2.5px;
+        height: 60px;
+        border-radius: 2px;
+        background: var(--accent);
+      }
+
+      /* ── Choice slider (activity / experience / time / session) ── */
+      .cslider {
+        align-self: stretch;
+      }
+      .cslider .big-label {
+        font-size: 30px;
+        font-weight: 700;
+        letter-spacing: -0.6px;
+        text-align: center;
+        color: var(--text);
+        margin-bottom: 6px;
+      }
+      .cslider .slider-hint {
+        font-size: 14px;
+        text-align: center;
+        color: var(--secondary);
+        line-height: 1.4;
+        margin-bottom: 28px;
+      }
+      .slider-track {
+        position: relative;
+        height: 4px;
+        border-radius: 99px;
+        background: var(--separator);
+        margin: 18px 6%;
+      }
+      .slider-track > .filled {
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%;
+        border-radius: 99px;
+        background: var(--accent);
+      }
+      .slider-track > .thumb {
+        position: absolute;
+        top: 50%;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 1px 6px rgba(0, 0, 0, 0.35);
+        transform: translate(-50%, -50%);
+      }
+      .slider-ticks {
+        display: flex;
+        margin-top: 10px;
+      }
+      .slider-ticks .tcol {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+      }
+      .slider-ticks .tlabel {
+        font-size: 12px;
+        text-align: center;
+        color: var(--secondary);
+        font-weight: 500;
+      }
+      .slider-ticks .tcol.on .tlabel {
+        color: var(--accent);
+        font-weight: 700;
+      }
+      .slider-ticks .critter {
+        font-size: 22px;
+        height: 28px;
+        line-height: 28px;
+      }
+
+      /* ── Sky scene (time of day) ── */
+      .sky {
+        align-self: stretch;
+        height: 172px;
+        border-radius: 28px;
+        overflow: hidden;
+        position: relative;
+        background: linear-gradient(180deg, #243056, #0c1326);
+      }
+      .sky .star {
+        position: absolute;
+        width: 2.5px;
+        height: 2.5px;
+        border-radius: 50%;
+        background: #fff;
+      }
+      .sky .moon {
+        position: absolute;
+        right: 28%;
+        bottom: -22px;
+        font-size: 42px;
+        line-height: 1;
+      }
+
+      /* ── Battery scene (session length) ── */
+      .battery-scene {
+        align-self: stretch;
+        height: 150px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .battery {
+        width: 210px;
+        height: 96px;
+        border: 3px solid var(--text);
+        border-radius: 22px;
+        background: var(--separator);
+        padding: 7px;
+        display: flex;
+        align-items: center;
+        position: relative;
+        overflow: hidden;
+      }
+      .battery .bfill {
+        height: 100%;
+        border-radius: 12px;
+      }
+      .battery .bolt {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 30px;
+        color: #fff;
+        text-shadow: 0 0 1px var(--text);
+      }
+      .battery-term {
+        width: 9px;
+        height: 44px;
+        background: var(--text);
+        margin-left: 4px;
+        border-top-right-radius: 5px;
+        border-bottom-right-radius: 5px;
+      }
+
       /* ── Generic card ── */
       .card {
         border: 1.5px solid var(--border);
@@ -424,13 +684,29 @@
         text-align: center;
         line-height: 1.4;
         max-width: 290px;
-        margin: 8px 0 26px;
+        margin: 8px 0 16px;
         color: var(--text);
       }
+      .quote-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
       .stars {
-        color: var(--gold);
+        color: var(--text);
         letter-spacing: 2px;
         font-size: 15px;
+      }
+      .qavatar {
+        width: 34px;
+        height: 34px;
+        border-radius: 17px;
+        background: var(--surface);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        color: #999;
       }
       .quote {
         font-size: 15px;
@@ -444,59 +720,132 @@
         color: var(--secondary);
       }
 
-      /* ── Permissions ── */
-      .perm {
-        border: 1.5px solid var(--border);
-        background: var(--card);
-        border-radius: 24px;
-        padding: 18px 20px;
-        display: flex;
-        align-items: center;
-        gap: 14px;
+      /* ── Permission hero scenes ── */
+      .perm-hero {
         flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding-bottom: 40px;
       }
-      .perm .picon {
-        width: 44px;
-        height: 44px;
-        border-radius: 16px;
+      .perm-title {
+        font-size: 30px;
+        font-weight: 700;
+        letter-spacing: -1px;
+        line-height: 1.13;
+        color: var(--text);
+        text-align: center;
+      }
+      .perm-desc {
+        font-size: 15px;
+        line-height: 1.46;
+        color: var(--secondary);
+        text-align: center;
+        max-width: 300px;
+        margin-top: 8px;
+      }
+
+      /* Health sync graphic */
+      .sync {
+        position: relative;
+        width: 300px;
+        height: 196px;
+        margin-bottom: 28px;
+      }
+      .sync .bg-circle {
+        position: absolute;
+        left: 56px;
+        top: 2px;
+        width: 188px;
+        height: 188px;
+        border-radius: 94px;
+        background: #f2f1f7;
+      }
+      .sync .tile {
+        position: absolute;
+        width: 74px;
+        height: 74px;
+        border-radius: 18px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 22px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.14);
+        font-size: 38px;
       }
-      .perm .ptx {
-        flex: 1;
+      .sync .health-tile {
+        left: 50px;
+        top: 96px;
+        background: #fff;
+        border: 1px solid rgba(0, 0, 0, 0.08);
       }
-      .perm .ptitle {
-        font-size: 15px;
-        font-weight: 600;
-        color: var(--text);
+      .sync .gear-tile {
+        left: 176px;
+        top: 22px;
+        background: #000;
+        color: #fff;
+        font-size: 34px;
       }
-      .perm .psub {
-        font-size: 13px;
-        color: var(--secondary);
-        line-height: 1.35;
-        margin-top: 2px;
-      }
-      .toggle {
-        width: 46px;
-        height: 27px;
-        border-radius: 999px;
-        background: var(--surface);
-        padding: 3px;
+      .sync .check {
+        position: absolute;
+        left: 135px;
+        top: 81px;
+        width: 30px;
+        height: 30px;
+        border-radius: 15px;
+        background: var(--text);
+        color: #fff;
         display: flex;
         align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        font-weight: 700;
       }
-      .toggle.on {
-        background: var(--accent);
-        justify-content: flex-end;
-      }
-      .toggle .knob {
-        width: 21px;
-        height: 21px;
-        border-radius: 11px;
+      .sync .pill {
+        position: absolute;
+        padding: 6px 12px;
+        border-radius: 13px;
         background: #fff;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+        white-space: nowrap;
+      }
+
+      /* iOS notification dialog */
+      .ios-dialog {
+        width: 290px;
+        background: #ececee;
+        border-radius: 28px;
+        padding: 26px;
+        box-shadow: 0 9px 20px rgba(0, 0, 0, 0.12);
+        margin-top: 24px;
+      }
+      .ios-dialog .dt {
+        font-size: 20px;
+        font-weight: 600;
+        line-height: 1.35;
+        color: var(--text);
+        margin-bottom: 24px;
+      }
+      .ios-dialog .dbtns {
+        display: flex;
+        gap: 14px;
+      }
+      .ios-dialog .db {
+        flex: 1;
+        background: #dedee1;
+        border-radius: 16px;
+        padding: 15px 0;
+        text-align: center;
+        font-size: 18px;
+        font-weight: 500;
+        color: var(--text);
+      }
+      .ios-dialog .db.allow {
+        font-weight: 700;
       }
 
       /* ── Follow rows ── */
@@ -517,7 +866,9 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 24px;
+        font-size: 20px;
+        font-weight: 700;
+        color: var(--secondary);
       }
       .frow .fi {
         flex: 1;
@@ -549,18 +900,18 @@
       /* ── Day pills / dots ── */
       .num-row {
         display: flex;
-        gap: 10px;
+        gap: 7px;
       }
       .num {
         flex: 1;
-        aspect-ratio: 0.8;
+        aspect-ratio: 0.62;
         border: 1.5px solid var(--border);
         background: var(--card);
-        border-radius: 20px;
+        border-radius: 14px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 28px;
+        font-size: 22px;
         font-weight: 700;
         color: var(--text);
       }
@@ -611,26 +962,26 @@
         flex-wrap: wrap;
         gap: 12px;
       }
-      .tile {
+      .tile2 {
         flex: 1 1 44%;
         border: 1.5px solid var(--border);
         background: var(--card);
         border-radius: 22px;
         padding: 16px;
       }
-      .tile .tv {
-        font-size: 30px;
+      .tile2 .tv {
+        font-size: 32px;
         font-weight: 800;
         letter-spacing: -1px;
         color: var(--text);
       }
-      .tile .tl {
+      .tile2 .tl {
         font-size: 15px;
         font-weight: 700;
         margin-top: 2px;
         color: var(--text);
       }
-      .tile .th {
+      .tile2 .th {
         font-size: 12px;
         color: var(--secondary);
         margin-top: 3px;
@@ -641,7 +992,7 @@
         justify-content: space-between;
         align-items: flex-end;
         height: 60px;
-        margin-top: 12px;
+        margin-top: 14px;
       }
       .bars .bcol {
         flex: 1;
@@ -682,7 +1033,7 @@
       }
       .rdot {
         flex: 1;
-        max-width: 36px;
+        max-width: 38px;
         aspect-ratio: 1;
         border: 1.5px solid var(--border);
         border-radius: 999px;
@@ -737,7 +1088,124 @@
         margin-top: 2px;
       }
 
-      /* ── Plan cards (paywall) ── */
+      /* ── Plan / routine summary rows ── */
+      .summ-row {
+        padding: 12px 0;
+      }
+      .summ-row + .summ-row {
+        border-top: 1px solid var(--separator);
+      }
+      .summ-name {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .summ-meta {
+        font-size: 13px;
+        color: var(--secondary);
+        margin-top: 2px;
+      }
+
+      /* ── Paywall comparison + timeline + plan cards ── */
+      .compare-head {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      .compare-head .spacer {
+        flex: 1;
+      }
+      .compare-head .col {
+        width: 64px;
+        text-align: center;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.6px;
+      }
+      .compare-head .col.free {
+        color: var(--secondary);
+      }
+      .compare-head .col.prem {
+        color: var(--text);
+      }
+      .compare-row {
+        display: flex;
+        align-items: center;
+        padding: 9px 0;
+      }
+      .compare-row .clabel {
+        flex: 1;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--text);
+      }
+      .compare-row .ccell {
+        width: 64px;
+        display: flex;
+        justify-content: center;
+      }
+      .ccheck {
+        width: 24px;
+        height: 24px;
+        border-radius: 12px;
+        background: var(--surface);
+        color: var(--secondary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 800;
+      }
+      .ccheck.accent {
+        background: var(--accent);
+        color: var(--accent-text);
+      }
+      .cdash {
+        color: var(--border);
+        font-size: 16px;
+        font-weight: 700;
+      }
+      .andmore {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text);
+        margin-top: 10px;
+      }
+      .timeline-row {
+        display: flex;
+        align-items: flex-start;
+      }
+      .timeline-icon-col {
+        width: 28px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .timeline-icon {
+        font-size: 18px;
+        line-height: 20px;
+        color: var(--text);
+      }
+      .timeline-line {
+        width: 1.5px;
+        flex: 1;
+        min-height: 16px;
+        margin: 4px 0;
+        background: var(--separator);
+      }
+      .timeline-text {
+        flex: 1;
+        font-size: 15px;
+        line-height: 1.33;
+        color: var(--text);
+        padding: 0 0 16px 8px;
+      }
+      .timeline-text.last {
+        padding-bottom: 0;
+      }
+      .timeline-text b {
+        font-weight: 700;
+      }
       .plan {
         display: flex;
         align-items: center;
@@ -804,17 +1272,10 @@
         display: flex;
         align-items: center;
         gap: 12px;
-        margin-bottom: 14px;
-      }
-      .benefit .bc {
-        color: var(--accent);
-        font-weight: 800;
-        font-size: 16px;
-        width: 22px;
-        text-align: center;
+        margin-bottom: 16px;
       }
       .benefit .bt {
-        font-size: 15px;
+        font-size: 16px;
         font-weight: 500;
         color: var(--text);
       }
@@ -829,20 +1290,7 @@
         justify-content: center;
         font-size: 13px;
         font-weight: 700;
-      }
-      .divider {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        color: var(--secondary);
-        font-size: 13px;
-      }
-      .divider::before,
-      .divider::after {
-        content: "";
-        flex: 1;
-        height: 1px;
-        background: var(--border);
+        flex: 0 0 auto;
       }
       .terms {
         text-align: center;
@@ -853,114 +1301,52 @@
       .terms b {
         color: var(--text);
       }
-      .hero-ph {
-        align-self: stretch;
-        height: 170px;
-        border: 1.5px dashed var(--dashed);
-        background: var(--surface);
+      /* Looping gear-logo video block */
+      .logo-video {
+        width: 220px;
+        height: 220px;
+        border-radius: 32px;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 84px;
+        color: var(--accent);
+      }
+      .logo-video.sm {
+        width: 150px;
+        height: 150px;
         border-radius: 28px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-        margin-bottom: 24px;
-      }
-      .hero-ph .he {
-        font-size: 40px;
-      }
-      .hero-ph .ht {
-        font-size: 13px;
-        font-weight: 500;
-        color: var(--secondary);
-      }
-      .logo {
-        width: 64px;
-        height: 64px;
-        border-radius: 16px;
-        background: var(--accent);
-        color: var(--accent-text);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 30px;
-        margin-bottom: 18px;
-      }
-      .icon-btn {
-        width: 48px;
-        height: 48px;
-        border-radius: 24px;
-        background: var(--accent);
-        color: #fff;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0 auto;
-      }
-      .photo-circle {
-        width: 96px;
-        height: 96px;
-        border-radius: 48px;
-        background: var(--surface);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 30px;
-        margin: 0 auto 10px;
-        position: relative;
-      }
-      .photo-circle::after {
-        content: "📷";
-        position: absolute;
-        right: -2px;
-        bottom: -2px;
-        width: 30px;
-        height: 30px;
-        border-radius: 15px;
-        background: var(--accent);
-        font-size: 14px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: 3px solid var(--app-bg);
+        font-size: 58px;
       }
       .input-group {
         border-radius: 20px;
-        background: var(--card);
-        border: 1px solid var(--separator);
+        background: var(--surface);
         overflow: hidden;
         margin-top: 8px;
       }
-      .input-row {
+      .input-single {
+        height: 52px;
         display: flex;
         align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        color: var(--text);
+      }
+      .input-at {
         height: 52px;
+        display: flex;
+        align-items: center;
         padding: 0 16px;
-        gap: 6px;
-      }
-      .input-row + .input-row {
-        border-top: 1px solid var(--separator);
-      }
-      .input-row .ilabel {
-        font-size: 15px;
-        font-weight: 500;
-        color: var(--text);
-        min-width: 90px;
-      }
-      .input-row .ival {
-        flex: 1;
-        text-align: right;
-        font-size: 15px;
+        gap: 2px;
+        font-size: 16px;
         color: var(--text);
       }
-      .input-row .iph {
-        flex: 1;
-        text-align: right;
-        font-size: 15px;
+      .input-at .at {
         color: var(--handle);
       }
       .gen-pct {
-        font-size: 70px;
+        font-size: 72px;
         font-weight: 800;
         letter-spacing: -3px;
         color: var(--text);
@@ -968,7 +1354,7 @@
       .gen-title {
         font-size: 20px;
         font-weight: 700;
-        margin: 4px 0 26px;
+        margin: 4px 0 28px;
         color: var(--text);
       }
       .gen-track {
@@ -977,7 +1363,7 @@
         border-radius: 99px;
         background: var(--track);
         overflow: hidden;
-        margin-bottom: 26px;
+        margin-bottom: 28px;
       }
       .gen-track > i {
         display: block;
@@ -1002,32 +1388,40 @@
         justify-content: center;
         font-size: 12px;
         font-weight: 700;
+        flex: 0 0 auto;
       }
       .gen-task .gt {
         font-size: 15px;
         color: var(--text);
       }
-      .avatars {
-        display: flex;
-        justify-content: center;
-      }
-      .avatars .a {
-        width: 56px;
-        height: 56px;
-        border-radius: 28px;
+      .photo-circle {
+        width: 120px;
+        height: 120px;
+        border-radius: 60px;
         background: var(--surface);
-        border: 3px solid var(--app-bg);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 24px;
-        color: #999;
+        font-size: 40px;
+        font-weight: 700;
+        color: var(--secondary);
+        margin: 0 auto 16px;
+        position: relative;
       }
-      .avatars .a + .a {
-        margin-left: -16px;
-      }
-      .center-emoji {
-        font-size: 56px;
+      .photo-circle::after {
+        content: "📷";
+        position: absolute;
+        right: 2px;
+        bottom: 2px;
+        width: 34px;
+        height: 34px;
+        border-radius: 17px;
+        background: var(--accent);
+        font-size: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 3px solid var(--app-bg);
       }
       .lead {
         font-size: 24px;
@@ -1035,31 +1429,102 @@
         letter-spacing: -0.5px;
         line-height: 1.25;
         color: var(--text);
+        text-align: center;
         margin: 0 0 14px;
       }
       .lead-body {
         font-size: 15px;
         line-height: 1.5;
         color: var(--secondary);
-        max-width: 300px;
+        text-align: center;
+        max-width: 320px;
       }
-      .skip-pill {
-        position: absolute;
-        right: 18px;
-        bottom: 22px;
+
+      /* ── Referral tickets ── */
+      .ref-slots {
+        display: flex;
+        gap: 12px;
+      }
+      .ref-slot {
+        width: 90px;
+        height: 90px;
+        border: 1.5px dashed var(--border);
         background: var(--surface);
+        border-radius: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 40px;
         color: var(--secondary);
+      }
+      .code-box {
+        border: 1.5px solid var(--border);
+        border-radius: 12px;
+        padding: 10px 20px;
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        color: var(--text);
+      }
+
+      /* ── Trial boost overlay ── */
+      .boost-badge {
+        width: 84px;
+        height: 84px;
+        border-radius: 42px;
+        background: var(--accent);
+        color: var(--accent-text);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 36px;
+        font-weight: 800;
+        letter-spacing: -1px;
+      }
+      .boost-compare {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-top: 8px;
+      }
+      .boost-box {
+        border: 1.5px solid var(--border);
+        background: var(--card);
+        border-radius: 18px;
+        padding: 16px 26px;
+        text-align: center;
+        min-width: 92px;
+      }
+      .boost-box.on {
+        background: var(--accent);
+        border-color: var(--accent);
+      }
+      .boost-box .bn {
+        font-size: 34px;
+        font-weight: 800;
+        letter-spacing: -1px;
+        color: var(--text);
+      }
+      .boost-box .bl {
         font-size: 13px;
         font-weight: 600;
-        padding: 8px 14px;
-        border-radius: 999px;
-        z-index: 5;
+        color: var(--secondary);
+        margin-top: 2px;
+      }
+      .boost-box.on .bn,
+      .boost-box.on .bl {
+        color: var(--accent-text);
+      }
+      .boost-arrow {
+        font-size: 26px;
+        font-weight: 700;
+        color: var(--secondary);
       }
     </style>
   </head>
   <body>
     <div class="page-head">
-      <h1>Gear · Onboarding — 30-screen design mockup</h1>
+      <h1>Gear · Onboarding — 34-screen design mockup</h1>
       <p>
         Static visual reference for the flow in
         <code>frontend/src/navigation/onboarding/</code>. Non-functional — for
@@ -1068,9 +1533,12 @@
         updates.
       </p>
       <p>
-        The grey <b>“Skip ›”</b> pill at the bottom-right of each screen is the
-        tester-only control (removed before release). Screens shown in a
-        representative selected/filled state.
+        33 ordered steps (0–32) from <code>steps.ts</code>, plus the
+        <b>Trial-boost overlay</b> that surfaces from the paywall — 34 phone
+        cells. The tester-only Skip / Back dev pills are intentionally omitted;
+        only real UI affordances (the top-bar back chevron, "Skip for now",
+        "Maybe later", "Sign in", etc.) are shown. Screens are rendered in a
+        representative selected / filled state.
       </p>
     </div>
 
@@ -1081,82 +1549,81 @@
         <div class="phone">
           <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
           <div class="screen">
-            <div class="body center" style="justify-content: center">
-              <div class="logo">⚙️</div>
-              <div class="hero-ph">
-                <div class="he">🏋️</div>
-                <div class="ht">Workout imagery coming soon</div>
+            <div class="body center" style="justify-content: flex-end; padding-bottom: 8px">
+              <div style="flex:1; display:flex; align-items:center; justify-content:center;">
+                <div class="logo-video">⚙️</div>
               </div>
-              <div class="h1" style="text-align: center">Train hard.<br />Track everything.</div>
-              <div class="sub" style="text-align: center; max-width: 280px">
-                Gear builds your plan, logs your lifts, and keeps you
-                accountable.
-              </div>
+              <div class="h1" style="text-align:center; font-size:36px; line-height:1.1; margin-bottom:12px;">Train hard.<br />Track everything.</div>
             </div>
-            <div class="footer">
+            <div class="footer" style="gap:12px;">
               <div class="btn">Get Started</div>
-              <div class="divider">or sign in with</div>
-              <div class="icon-btn"><span class="g" style="border:none">G</span></div>
-              <div class="terms">
-                By continuing you agree to our <b>Terms</b> and
-                <b>Privacy Policy</b>
+              <div style="text-align:center; font-size:14px; color:var(--secondary);">
+                Already have an account? <b style="color:var(--text); font-weight:700;">Sign in</b>
               </div>
             </div>
           </div>
-          <div class="skip-pill">Skip ›</div>
         </div>
       </div>
 
-      <!-- ════════════════ 02 · GOAL ════════════════ -->
+      <!-- ════════════════ 02 · NAME ════════════════ -->
       <div class="cell">
-        <div class="cap"><b>02</b> <span>Goal selection</span></div>
+        <div class="cap"><b>02</b> <span>Name</span></div>
         <div class="phone">
           <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
           <div class="screen">
             <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 3%"></i></div></div>
-            <div class="body">
-              <div class="h1">What's your main goal?</div>
-              <div class="sub">This shapes the plan we build for you.</div>
-              <div class="opts fill">
-                <div class="opt sel">
-                  <div class="emoji">🔥</div>
-                  <div class="opt-tx"><div class="label">Lose fat</div><div class="hint">Lean out while keeping your strength</div></div>
-                  <div class="check">✓</div>
-                </div>
-                <div class="opt">
-                  <div class="emoji">💪</div>
-                  <div class="opt-tx"><div class="label">Build muscle</div><div class="hint">Add size and get stronger</div></div>
-                </div>
-                <div class="opt">
-                  <div class="emoji">⚡</div>
-                  <div class="opt-tx"><div class="label">Improve performance</div><div class="hint">Train for sport, speed, and power</div></div>
-                </div>
-                <div class="opt">
-                  <div class="emoji">❤️</div>
-                  <div class="opt-tx"><div class="label">General health</div><div class="hint">Feel better, move better, live better</div></div>
-                </div>
+            <div class="body center">
+              <div style="width:100%;">
+                <div class="h1" style="text-align:center; margin-bottom:20px;">What's your name?</div>
+                <div class="input-group"><div class="input-single">Kobe</div></div>
               </div>
             </div>
             <div class="footer"><div class="btn">Continue</div></div>
           </div>
-          <div class="skip-pill">Skip ›</div>
         </div>
       </div>
 
-      <!-- ════════════════ 03 · SOCIAL PROOF ════════════════ -->
+      <!-- ════════════════ 03 · GOAL ════════════════ -->
       <div class="cell">
-        <div class="cap"><b>03</b> <span>Social proof stat</span></div>
+        <div class="cap"><b>03</b> <span>Main goal</span></div>
         <div class="phone">
           <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
           <div class="screen">
-            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 7%"></i></div></div>
+            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 6%"></i></div></div>
             <div class="body">
-              <div class="h1">You're in good company</div>
-              <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;">
-                <div class="bigstat">87%</div>
+              <div class="h1">What's your main goal?</div>
+              <div class="sub">This shapes the plan we build for you.</div>
+              <div class="opts minimal">
+                <div class="opt sel"><div class="sym">🔥</div><div class="opt-tx"><div class="label">Lose fat</div><div class="hint">Lean out while keeping your strength</div></div><div class="check">✓</div></div>
+                <div class="opt"><div class="sym">🏋️</div><div class="opt-tx"><div class="label">Build muscle</div><div class="hint">Add size and get stronger</div></div></div>
+                <div class="opt"><div class="sym">⚡</div><div class="opt-tx"><div class="label">Improve performance</div><div class="hint">Train for sport, speed, and power</div></div></div>
+                <div class="opt"><div class="sym">🏃</div><div class="opt-tx"><div class="label">Improve endurance</div><div class="hint">Boost stamina and cardio</div></div></div>
+                <div class="opt"><div class="sym">❤️</div><div class="opt-tx"><div class="label">General health</div><div class="hint">Feel better, move better, live better</div></div></div>
+                <div class="opt"><div class="sym">⋯</div><div class="opt-tx"><div class="label">Other</div><div class="hint">Something else in mind</div></div></div>
+              </div>
+            </div>
+            <div class="footer"><div class="btn">Continue</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════════════ 04 · SOCIAL PROOF ════════════════ -->
+      <div class="cell">
+        <div class="cap"><b>04</b> <span>Social proof</span></div>
+        <div class="phone">
+          <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
+          <div class="screen">
+            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 9%"></i></div></div>
+            <div class="body">
+              <div class="h1" style="margin-top:24px;">You're in good company</div>
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center;">
+                <div style="flex:1; display:flex; align-items:center;"><div class="bigstat">87%</div></div>
                 <div class="statcap">of Gear users meet their goals within the first 3 months of installing Gear.</div>
-                <div class="card" style="align-self: stretch">
-                  <div class="stars">★★★★★</div>
+                <div class="card" style="align-self: stretch; margin-bottom:24px;">
+                  <div class="quote-head">
+                    <div class="stars">★★★★★</div>
+                    <div class="qavatar">🙂</div>
+                  </div>
                   <div class="quote">“Logging every set kept me honest. Twelve weeks in and every lift is up.”</div>
                   <div class="qname">— Gear member since 2025</div>
                 </div>
@@ -1164,150 +1631,212 @@
             </div>
             <div class="footer"><div class="btn">Keep going</div></div>
           </div>
-          <div class="skip-pill">Skip ›</div>
         </div>
       </div>
 
-      <!-- ════════════════ 04 · GENDER ════════════════ -->
+      <!-- ════════════════ 05 · GENDER ════════════════ -->
       <div class="cell">
-        <div class="cap"><b>04</b> <span>Gender</span></div>
+        <div class="cap"><b>05</b> <span>Sex</span></div>
         <div class="phone">
           <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
           <div class="screen">
-            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 10%"></i></div></div>
-            <div class="body">
-              <div class="h1">What's your gender?</div>
-              <div class="sub">Used to calibrate your strength and body-stat baselines.</div>
-              <div class="opts fill">
-                <div class="opt sel"><div class="opt-tx"><div class="label">Male</div><div class="hint">He / Him</div></div><div class="check">✓</div></div>
-                <div class="opt"><div class="opt-tx"><div class="label">Female</div><div class="hint">She / Her</div></div></div>
-                <div class="opt"><div class="opt-tx"><div class="label">Non-binary</div><div class="hint">They / Them</div></div></div>
-                <div class="opt"><div class="opt-tx"><div class="label">Prefer not to say</div></div></div>
+            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 13%"></i></div></div>
+            <div class="body center">
+              <div style="width:100%;">
+                <div class="h1">Choose your sex</div>
+                <div class="sub">This helps personalize your experience.</div>
+                <div class="opts minimal">
+                  <div class="opt sel"><div class="sym">♂</div><div class="opt-tx"><div class="label">Male</div></div><div class="check">✓</div></div>
+                  <div class="opt"><div class="sym">♀</div><div class="opt-tx"><div class="label">Female</div></div></div>
+                  <div class="opt"><div class="sym">▦</div><div class="opt-tx"><div class="label">Other</div></div></div>
+                </div>
               </div>
             </div>
             <div class="footer"><div class="btn">Continue</div></div>
           </div>
-          <div class="skip-pill">Skip ›</div>
         </div>
       </div>
 
-      <!-- ════════════════ 05 · BIRTHDAY ════════════════ -->
+      <!-- ════════════════ 06 · BIRTHDAY ════════════════ -->
       <div class="cell">
-        <div class="cap"><b>05</b> <span>Birthday</span></div>
+        <div class="cap"><b>06</b> <span>Birthday</span></div>
         <div class="phone">
           <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
           <div class="screen">
-            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 14%"></i></div></div>
-            <div class="body">
-              <div class="h1">When were you born?</div>
-              <div class="sub">Age changes how we program recovery and progression.</div>
-              <div class="picker">
-                <div class="band"></div>
-                <div class="pcol"><span>March</span><span>April</span><span class="cur">May</span><span>June</span><span>July</span></div>
-                <div class="pcol"><span>13</span><span>14</span><span class="cur">15</span><span>16</span><span>17</span></div>
-                <div class="pcol"><span>1998</span><span>1999</span><span class="cur">2000</span><span>2001</span><span>2002</span></div>
+            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 16%"></i></div></div>
+            <div class="body center">
+              <div style="width:100%;">
+                <div class="h1" style="text-align:left; margin-bottom:12px;">When were you born?</div>
+                <div class="picker">
+                  <div class="band"></div>
+                  <div class="pcol"><span>March</span><span>April</span><span class="cur">May</span><span>June</span><span>July</span></div>
+                  <div class="pcol"><span>13</span><span>14</span><span class="cur">15</span><span>16</span><span>17</span></div>
+                  <div class="pcol"><span>1998</span><span>1999</span><span class="cur">2000</span><span>2001</span><span>2002</span></div>
+                </div>
               </div>
             </div>
             <div class="footer"><div class="btn">Continue</div></div>
           </div>
-          <div class="skip-pill">Skip ›</div>
         </div>
       </div>
 
-      <!-- ════════════════ 06 · BODY METRICS ════════════════ -->
+      <!-- ════════════════ 07 · HEIGHT ════════════════ -->
       <div class="cell">
-        <div class="cap"><b>06</b> <span>Height &amp; weight</span></div>
+        <div class="cap"><b>07</b> <span>Height</span></div>
         <div class="phone">
           <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
           <div class="screen">
-            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 17%"></i></div></div>
-            <div class="body">
-              <div class="h1">Your measurements</div>
-              <div class="sub">We use these to size your starting weights and track change.</div>
-              <div style="flex:1; display:flex; flex-direction:column; gap:10px;">
-                <div class="metric"><div class="mlabel">Height</div><div class="mval">5' 11"</div><div class="mhint">Tap to change</div></div>
-                <div class="metric"><div class="mlabel">Weight</div><div class="mval">165 lbs</div><div class="mhint">Tap to change</div></div>
+            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 19%"></i></div></div>
+            <div class="body center">
+              <div style="width:100%;">
+                <div class="h1" style="text-align:left; margin-bottom:12px;">What's your height?</div>
+                <div class="unit-toggle" style="margin-bottom:16px;">
+                  <div class="u on">ft / in</div><div class="u">cm</div>
+                </div>
+                <div class="picker" style="max-height:200px;">
+                  <div class="band"></div>
+                  <div class="pcol"><span>3 ft</span><span>4 ft</span><span class="cur">5 ft</span><span>6 ft</span><span>7 ft</span></div>
+                  <div class="pcol"><span>9 in</span><span>10 in</span><span class="cur">11 in</span><span>0 in</span><span>1 in</span></div>
+                </div>
               </div>
             </div>
             <div class="footer"><div class="btn">Continue</div></div>
           </div>
-          <div class="skip-pill">Skip ›</div>
         </div>
       </div>
 
-      <!-- ════════════════ 07 · ACTIVITY ════════════════ -->
+      <!-- ════════════════ 08 · WEIGHT ════════════════ -->
       <div class="cell">
-        <div class="cap"><b>07</b> <span>Activity level</span></div>
+        <div class="cap"><b>08</b> <span>Weight (ruler)</span></div>
         <div class="phone">
           <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
           <div class="screen">
-            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 21%"></i></div></div>
+            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 22%"></i></div></div>
+            <div class="body">
+              <div class="h1">How much do you weigh?</div>
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+                <div class="ruler-readout">165<span class="ru">.0 lbs</span></div>
+                <div class="ruler-band">
+                  <div class="ruler-ticks">
+                    <i class="maj"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                    <i class="maj"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                    <i class="maj"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                    <i class="maj"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                    <i class="maj"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                    <i class="maj"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                  </div>
+                  <div class="ruler-pointer"></div>
+                </div>
+                <div class="unit-toggle"><div class="u on">lbs</div><div class="u">kg</div></div>
+              </div>
+            </div>
+            <div class="footer"><div class="btn">Continue</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════════════ 09 · ACTIVITY ════════════════ -->
+      <div class="cell">
+        <div class="cap"><b>09</b> <span>Activity (slider)</span></div>
+        <div class="phone">
+          <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
+          <div class="screen">
+            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 25%"></i></div></div>
             <div class="body">
               <div class="h1">How active are you day to day?</div>
               <div class="sub">Outside of training — this sets your baseline.</div>
-              <div class="opts fill">
-                <div class="opt"><div class="opt-tx"><div class="label">Mostly sedentary</div><div class="hint">Desk job, little exercise</div></div></div>
-                <div class="opt sel"><div class="opt-tx"><div class="label">Lightly active</div><div class="hint">Walks or light exercise 1–2 times a week</div></div><div class="check">✓</div></div>
-                <div class="opt"><div class="opt-tx"><div class="label">Moderately active</div><div class="hint">On your feet often, regular exercise</div></div></div>
-                <div class="opt"><div class="opt-tx"><div class="label">Very active</div><div class="hint">Physical job or training most days</div></div></div>
+              <div style="flex:1; display:flex; flex-direction:column; justify-content:center;">
+                <div class="cslider">
+                  <div class="big-label">Lightly active</div>
+                  <div class="slider-hint">Walks or light exercise 1–2 times a week</div>
+                  <div class="slider-track">
+                    <div class="filled" style="width:33.3%;"></div>
+                    <div class="thumb" style="left:33.3%;"></div>
+                  </div>
+                  <div class="slider-ticks">
+                    <div class="tcol"><div class="tlabel">Sedentary</div><div class="critter">🛋️</div></div>
+                    <div class="tcol on"><div class="tlabel">Light</div><div class="critter">🐢</div></div>
+                    <div class="tcol"><div class="tlabel">Moderate</div><div class="critter">🐇</div></div>
+                    <div class="tcol"><div class="tlabel">Very active</div><div class="critter">🐦</div></div>
+                  </div>
+                </div>
               </div>
             </div>
             <div class="footer"><div class="btn">Continue</div></div>
           </div>
-          <div class="skip-pill">Skip ›</div>
         </div>
       </div>
 
-      <!-- ════════════════ 08 · EXPERIENCE ════════════════ -->
+      <!-- ════════════════ 10 · EXPERIENCE ════════════════ -->
       <div class="cell">
-        <div class="cap"><b>08</b> <span>Experience level</span></div>
-        <div class="phone">
-          <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
-          <div class="screen">
-            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 24%"></i></div></div>
-            <div class="body">
-              <div class="h1">How much lifting experience do you have?</div>
-              <div class="sub">We'll match the complexity of your plan to your level.</div>
-              <div class="opts fill">
-                <div class="opt"><div class="opt-tx"><div class="label">Just getting started</div><div class="hint">Less than a year of lifting</div></div></div>
-                <div class="opt sel"><div class="opt-tx"><div class="label">Comfortable in the gym</div><div class="hint">1–3 years of consistent training</div></div><div class="check">✓</div></div>
-                <div class="opt"><div class="opt-tx"><div class="label">Experienced lifter</div><div class="hint">3+ years, I know my way around</div></div></div>
-              </div>
-            </div>
-            <div class="footer"><div class="btn">Continue</div></div>
-          </div>
-          <div class="skip-pill">Skip ›</div>
-        </div>
-      </div>
-
-      <!-- ════════════════ 09 · GOAL WEIGHT ════════════════ -->
-      <div class="cell">
-        <div class="cap"><b>09</b> <span>Goal weight</span></div>
+        <div class="cap"><b>10</b> <span>Experience (slider)</span></div>
         <div class="phone">
           <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
           <div class="screen">
             <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 28%"></i></div></div>
             <div class="body">
-              <div class="h1">What's your goal weight?</div>
-              <div class="sub">Your target — we'll map a realistic path to it.</div>
-              <div style="flex:1; display:flex; flex-direction:column; gap:14px;">
-                <div class="metric"><div class="mlabel">Goal weight</div><div class="mval">150 lbs</div><div class="mhint">That's 15 lbs to lose</div></div>
-                <div style="font-size:14px; text-align:center; font-weight:500; color:var(--secondary);">Current: 165 lbs</div>
+              <div class="h1">How much lifting experience do you have?</div>
+              <div class="sub">We'll match the complexity of your plan to your level.</div>
+              <div style="flex:1; display:flex; flex-direction:column; justify-content:center;">
+                <div class="cslider">
+                  <div class="big-label">Just getting started</div>
+                  <div class="slider-hint">Less than a year of lifting</div>
+                  <div class="slider-track">
+                    <div class="filled" style="width:33.3%;"></div>
+                    <div class="thumb" style="left:33.3%;"></div>
+                  </div>
+                  <div class="slider-ticks">
+                    <div class="tcol"><div class="tlabel">None</div></div>
+                    <div class="tcol on"><div class="tlabel">Beginner</div></div>
+                    <div class="tcol"><div class="tlabel">Intermediate</div></div>
+                    <div class="tcol"><div class="tlabel">Advanced</div></div>
+                  </div>
+                </div>
               </div>
             </div>
             <div class="footer"><div class="btn">Continue</div></div>
           </div>
-          <div class="skip-pill">Skip ›</div>
         </div>
       </div>
 
-      <!-- ════════════════ 10 · PROGRESS CHART ════════════════ -->
+      <!-- ════════════════ 11 · GOAL WEIGHT ════════════════ -->
       <div class="cell">
-        <div class="cap"><b>10</b> <span>Progress projection</span></div>
+        <div class="cap"><b>11</b> <span>Goal weight (ruler)</span></div>
         <div class="phone">
           <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
           <div class="screen">
             <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 31%"></i></div></div>
+            <div class="body">
+              <div class="h1">What's your goal weight?</div>
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+                <div class="ruler-cap">Lose weight</div>
+                <div class="ruler-readout">150<span class="ru">.0 lbs</span></div>
+                <div class="ruler-band">
+                  <div class="ruler-ticks">
+                    <i class="maj"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                    <i class="maj"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                    <i class="maj"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                    <i class="maj"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                    <i class="maj"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                    <i class="maj"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                  </div>
+                  <div class="ruler-pointer"></div>
+                </div>
+                <div class="unit-toggle"><div class="u on">lbs</div><div class="u">kg</div></div>
+              </div>
+            </div>
+            <div class="footer"><div class="btn">Continue</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════════════ 12 · PROGRESS CHART ════════════════ -->
+      <div class="cell">
+        <div class="cap"><b>12</b> <span>Progress projection</span></div>
+        <div class="phone">
+          <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
+          <div class="screen">
+            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 34%"></i></div></div>
             <div class="body">
               <div class="h1">Lose 15 lbs by September 2026</div>
               <div class="sub">A realistic pace toward your goal to lose fat.</div>
@@ -1320,18 +1849,18 @@
                         <stop offset="1" stop-color="#000" stop-opacity="0" />
                       </linearGradient>
                     </defs>
-                    <line x1="26" y1="176" x2="234" y2="176" stroke="var(--separator)" stroke-width="1" />
-                    <path d="M 26 44 C 120 44, 150 160, 234 160 L 234 176 L 26 176 Z" fill="url(#pf1)" />
-                    <path d="M 26 44 C 120 44, 150 160, 234 160" stroke="#000" stroke-width="3.5" fill="none" stroke-linecap="round" />
+                    <line x1="26" y1="170" x2="234" y2="170" stroke="var(--separator)" stroke-width="1" />
+                    <path d="M 26 44 C 120 44, 150 140, 234 140 L 234 170 L 26 170 Z" fill="url(#pf1)" />
+                    <path d="M 26 44 C 120 44, 150 140, 234 140" stroke="#000" stroke-width="3.5" fill="none" stroke-linecap="round" />
                     <circle cx="26" cy="44" r="6" fill="#000" stroke="var(--card)" stroke-width="2.5" />
-                    <circle cx="234" cy="160" r="8" fill="#000" stroke="var(--card)" stroke-width="2.5" />
+                    <circle cx="234" cy="140" r="8" fill="#000" stroke="var(--card)" stroke-width="2.5" />
                     <text x="26" y="30" fill="#000" font-size="15" font-weight="700">165 lbs</text>
-                    <text x="234" y="186" fill="#000" font-size="15" font-weight="700" text-anchor="end">150 lbs</text>
+                    <text x="234" y="161" fill="#000" font-size="15" font-weight="700" text-anchor="end">150 lbs</text>
                   </svg>
-                  <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:500; color:var(--secondary); padding:0 4px;">
+                  <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:500; color:var(--secondary); padding:0 14px; margin-top:-24px;">
                     <span>Today</span><span>September 2026</span>
                   </div>
-                  <div style="font-size:13px; line-height:1.45; color:var(--secondary); margin-top:10px;">
+                  <div style="font-size:13px; line-height:1.45; color:var(--secondary); margin-top:10px; padding:0 4px;">
                     Based on a sustainable 1–1.5 lbs per week. Most progress comes
                     from the first few consistent weeks.
                   </div>
@@ -1340,116 +1869,113 @@
             </div>
             <div class="footer"><div class="btn">I'm in</div></div>
           </div>
-          <div class="skip-pill">Skip ›</div>
         </div>
       </div>
 
-      <!-- ════════════════ 11 · OBSTACLES ════════════════ -->
+      <!-- ════════════════ 13 · OBSTACLES ════════════════ -->
       <div class="cell">
-        <div class="cap"><b>11</b> <span>Obstacles (multi)</span></div>
-        <div class="phone">
-          <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
-          <div class="screen">
-            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 34%"></i></div></div>
-            <div class="body scroll">
-              <div class="h1">What's held you back before?</div>
-              <div class="sub">Pick all that apply — we'll design around them.</div>
-              <div class="opts fixed">
-                <div class="opt sel"><div class="emoji">📆</div><div class="opt-tx"><div class="label">Staying consistent</div></div><div class="check">✓</div></div>
-                <div class="opt sel"><div class="emoji">⏰</div><div class="opt-tx"><div class="label">Finding the time</div></div><div class="check">✓</div></div>
-                <div class="opt"><div class="emoji">🔋</div><div class="opt-tx"><div class="label">Staying motivated</div></div></div>
-                <div class="opt"><div class="emoji">🧭</div><div class="opt-tx"><div class="label">Knowing what to do</div></div></div>
-                <div class="opt"><div class="emoji">📉</div><div class="opt-tx"><div class="label">Hitting plateaus</div></div></div>
-                <div class="opt"><div class="emoji">👥</div><div class="opt-tx"><div class="label">No one to train with</div></div></div>
-              </div>
-            </div>
-            <div class="footer"><div class="btn">Continue</div></div>
-          </div>
-          <div class="skip-pill">Skip ›</div>
-        </div>
-      </div>
-
-      <!-- ════════════════ 12 · LOCATION ════════════════ -->
-      <div class="cell">
-        <div class="cap"><b>12</b> <span>Training location</span></div>
+        <div class="cap"><b>13</b> <span>Obstacles (multi)</span></div>
         <div class="phone">
           <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
           <div class="screen">
             <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 38%"></i></div></div>
-            <div class="body">
-              <div class="h1">Where will you train?</div>
-              <div class="sub">So your plan only uses equipment you can reach.</div>
-              <div class="opts fill">
-                <div class="opt sel"><div class="emoji">🏋️</div><div class="opt-tx"><div class="label">At the gym</div><div class="hint">Full access to racks and machines</div></div><div class="check">✓</div></div>
-                <div class="opt"><div class="emoji">🏠</div><div class="opt-tx"><div class="label">At home</div><div class="hint">Train with what you have</div></div></div>
-                <div class="opt"><div class="emoji">🔁</div><div class="opt-tx"><div class="label">A mix of both</div><div class="hint">Flexible between gym and home</div></div></div>
+            <div class="body scroll">
+              <div class="h1">What's held you back before?</div>
+              <div class="sub">Pick all that apply — we'll design around them.</div>
+              <div class="opts minimal">
+                <div class="opt sel"><div class="sym">📅</div><div class="opt-tx"><div class="label">Staying consistent</div></div><div class="check">✓</div></div>
+                <div class="opt sel"><div class="sym">🕐</div><div class="opt-tx"><div class="label">Finding the time</div></div><div class="check">✓</div></div>
+                <div class="opt"><div class="sym">⚡</div><div class="opt-tx"><div class="label">Staying motivated</div></div></div>
+                <div class="opt"><div class="sym">❓</div><div class="opt-tx"><div class="label">Not knowing what to do</div></div></div>
+                <div class="opt"><div class="sym">📉</div><div class="opt-tx"><div class="label">Hitting plateaus</div></div></div>
+                <div class="opt"><div class="sym">👥</div><div class="opt-tx"><div class="label">No one to train with</div></div></div>
               </div>
             </div>
             <div class="footer"><div class="btn">Continue</div></div>
           </div>
-          <div class="skip-pill">Skip ›</div>
         </div>
       </div>
 
-      <!-- ════════════════ 13 · EQUIPMENT ════════════════ -->
+      <!-- ════════════════ 14 · LOCATION ════════════════ -->
       <div class="cell">
-        <div class="cap"><b>13</b> <span>Equipment (multi)</span></div>
+        <div class="cap"><b>14</b> <span>Training location</span></div>
         <div class="phone">
           <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
           <div class="screen">
             <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 41%"></i></div></div>
-            <div class="body scroll">
-              <div class="h1">What can you train with?</div>
-              <div class="sub">Select everything you have access to.</div>
-              <div class="opts fixed">
-                <div class="opt sel"><div class="opt-tx"><div class="label">Full gym access</div></div><div class="check">✓</div></div>
-                <div class="opt sel"><div class="opt-tx"><div class="label">Dumbbells</div></div><div class="check">✓</div></div>
-                <div class="opt sel"><div class="opt-tx"><div class="label">Barbell &amp; plates</div></div><div class="check">✓</div></div>
-                <div class="opt"><div class="opt-tx"><div class="label">Machines &amp; cables</div></div></div>
-                <div class="opt"><div class="opt-tx"><div class="label">Resistance bands</div></div></div>
-                <div class="opt"><div class="opt-tx"><div class="label">Just my bodyweight</div></div></div>
+            <div class="body">
+              <div class="h1">Where will you train?</div>
+              <div class="sub">So your plan only uses equipment you can reach.</div>
+              <div class="opts minimal">
+                <div class="opt sel"><div class="sym">🏋️</div><div class="opt-tx"><div class="label">At the gym</div><div class="hint">Full access to racks and machines</div></div><div class="check">✓</div></div>
+                <div class="opt"><div class="sym">🏠</div><div class="opt-tx"><div class="label">At home</div><div class="hint">Train with what you have</div></div></div>
+                <div class="opt"><div class="sym">🔁</div><div class="opt-tx"><div class="label">A mix of both</div><div class="hint">Flexible between gym and home</div></div></div>
+                <div class="opt"><div class="sym">⋯</div><div class="opt-tx"><div class="label">Other</div><div class="hint">Somewhere else</div></div></div>
               </div>
             </div>
             <div class="footer"><div class="btn">Continue</div></div>
           </div>
-          <div class="skip-pill">Skip ›</div>
         </div>
       </div>
 
-      <!-- ════════════════ 14 · DAYS PER WEEK ════════════════ -->
+      <!-- ════════════════ 15 · EQUIPMENT ════════════════ -->
       <div class="cell">
-        <div class="cap"><b>14</b> <span>Days per week</span></div>
+        <div class="cap"><b>15</b> <span>Equipment (multi)</span></div>
         <div class="phone">
           <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
           <div class="screen">
-            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 45%"></i></div></div>
+            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 44%"></i></div></div>
+            <div class="body scroll">
+              <div class="h1">What can you train with?</div>
+              <div class="sub">Select everything you have access to.</div>
+              <div class="opts minimal">
+                <div class="opt sel"><div class="sym">🏢</div><div class="opt-tx"><div class="label">Full gym access</div></div><div class="check">✓</div></div>
+                <div class="opt sel"><div class="sym">🏋️</div><div class="opt-tx"><div class="label">Dumbbells</div></div><div class="check">✓</div></div>
+                <div class="opt"><div class="sym">🏋️</div><div class="opt-tx"><div class="label">Barbell &amp; plates</div></div></div>
+                <div class="opt"><div class="sym">⚙️</div><div class="opt-tx"><div class="label">Machines &amp; cables</div></div></div>
+                <div class="opt"><div class="sym">🤸</div><div class="opt-tx"><div class="label">Resistance bands</div></div></div>
+                <div class="opt"><div class="sym">🧍</div><div class="opt-tx"><div class="label">Just my bodyweight</div></div></div>
+              </div>
+            </div>
+            <div class="footer"><div class="btn">Continue</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════════════ 16 · DAYS PER WEEK ════════════════ -->
+      <div class="cell">
+        <div class="cap"><b>16</b> <span>Days per week</span></div>
+        <div class="phone">
+          <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
+          <div class="screen">
+            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 47%"></i></div></div>
             <div class="body">
               <div class="h1">How many days a week?</div>
-              <div class="sub">Be honest — consistency beats ambition.</div>
-              <div style="flex:1; display:flex; flex-direction:column; justify-content:center; padding-bottom:30px;">
+              <div class="sub">Be honest. Consistency beats ambition.</div>
+              <div style="flex:1; display:flex; flex-direction:column; justify-content:center; padding-bottom:40px;">
                 <div class="num-row">
+                  <div class="num">1</div>
                   <div class="num">2</div>
                   <div class="num">3</div>
                   <div class="num sel">4</div>
                   <div class="num">5</div>
                   <div class="num">6</div>
+                  <div class="num">7</div>
                 </div>
-                <div style="font-size:15px; text-align:center; color:var(--secondary); margin-top:24px;">Upper / lower, twice each</div>
               </div>
             </div>
             <div class="footer"><div class="btn">Continue</div></div>
           </div>
-          <div class="skip-pill">Skip ›</div>
         </div>
       </div>
 
-      <!-- ════════════════ 15 · TRAINING DAYS ════════════════ -->
+      <!-- ════════════════ 17 · TRAINING DAYS ════════════════ -->
       <div class="cell">
-        <div class="cap"><b>15</b> <span>Which days</span></div>
+        <div class="cap"><b>17</b> <span>Which days</span></div>
         <div class="phone">
           <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
           <div class="screen">
-            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 48%"></i></div></div>
+            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 50%"></i></div></div>
             <div class="body">
               <div class="h1">Which days work for you?</div>
               <div class="sub">Pick the 4 that work best for you.</div>
@@ -1465,205 +1991,250 @@
             </div>
             <div class="footer"><div class="btn">Continue</div></div>
           </div>
-          <div class="skip-pill">Skip ›</div>
         </div>
       </div>
 
-      <!-- ════════════════ 16 · TIME OF DAY ════════════════ -->
+      <!-- ════════════════ 18 · TIME OF DAY ════════════════ -->
       <div class="cell">
-        <div class="cap"><b>16</b> <span>Time of day</span></div>
+        <div class="cap"><b>18</b> <span>Time of day (sky)</span></div>
         <div class="phone">
           <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
           <div class="screen">
-            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 52%"></i></div></div>
+            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 53%"></i></div></div>
             <div class="body">
               <div class="h1">When do you like to train?</div>
               <div class="sub">We'll time your reminders to match.</div>
-              <div class="opts fill">
-                <div class="opt"><div class="emoji">🌅</div><div class="opt-tx"><div class="label">Morning</div><div class="hint">Before the day gets busy</div></div></div>
-                <div class="opt"><div class="emoji">☀️</div><div class="opt-tx"><div class="label">Midday</div><div class="hint">Lunch-break sessions</div></div></div>
-                <div class="opt sel"><div class="emoji">🌙</div><div class="opt-tx"><div class="label">Evening</div><div class="hint">After work or school</div></div><div class="check">✓</div></div>
-                <div class="opt"><div class="emoji">🔀</div><div class="opt-tx"><div class="label">It varies</div><div class="hint">Whenever I can fit it in</div></div></div>
+              <div style="flex:1; display:flex; flex-direction:column;">
+                <div class="sky">
+                  <div class="star" style="top:26px; left:16%;"></div>
+                  <div class="star" style="top:54px; left:30%;"></div>
+                  <div class="star" style="top:20px; left:48%;"></div>
+                  <div class="star" style="top:64px; left:62%;"></div>
+                  <div class="star" style="top:34px; left:78%;"></div>
+                  <div class="star" style="top:78px; left:86%;"></div>
+                  <div class="star" style="top:90px; left:22%;"></div>
+                  <div class="moon">🌙</div>
+                </div>
+                <div style="flex:1; display:flex; align-items:center;">
+                  <div class="cslider">
+                    <div class="big-label">Evening</div>
+                    <div class="slider-hint">After work or school</div>
+                    <div class="slider-track">
+                      <div class="filled" style="width:66.6%;"></div>
+                      <div class="thumb" style="left:66.6%;"></div>
+                    </div>
+                    <div class="slider-ticks">
+                      <div class="tcol"><div class="tlabel">Morning</div></div>
+                      <div class="tcol"><div class="tlabel">Midday</div></div>
+                      <div class="tcol on"><div class="tlabel">Evening</div></div>
+                      <div class="tcol"><div class="tlabel">Anytime</div></div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
             <div class="footer"><div class="btn">Continue</div></div>
           </div>
-          <div class="skip-pill">Skip ›</div>
         </div>
       </div>
 
-      <!-- ════════════════ 17 · SESSION LENGTH ════════════════ -->
+      <!-- ════════════════ 19 · SESSION LENGTH ════════════════ -->
       <div class="cell">
-        <div class="cap"><b>17</b> <span>Session length</span></div>
+        <div class="cap"><b>19</b> <span>Session length (battery)</span></div>
         <div class="phone">
           <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
           <div class="screen">
-            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 55%"></i></div></div>
+            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 56%"></i></div></div>
             <div class="body">
               <div class="h1">How long is each session?</div>
               <div class="sub">We'll fit the right amount of work into your window.</div>
-              <div class="opts fill">
-                <div class="opt"><div class="opt-tx"><div class="label">30 minutes</div><div class="hint">Quick and focused</div></div></div>
-                <div class="opt sel"><div class="opt-tx"><div class="label">45 minutes</div><div class="hint">The sweet spot</div></div><div class="check">✓</div></div>
-                <div class="opt"><div class="opt-tx"><div class="label">60 minutes</div><div class="hint">A full session</div></div></div>
-                <div class="opt"><div class="opt-tx"><div class="label">90+ minutes</div><div class="hint">I take my time</div></div></div>
+              <div style="flex:1; display:flex; flex-direction:column;">
+                <div class="battery-scene">
+                  <div class="battery">
+                    <div class="bfill" style="width:72%; background:#7BD13B;"></div>
+                    <div class="bolt">⚡</div>
+                  </div>
+                  <div class="battery-term"></div>
+                </div>
+                <div style="flex:1; display:flex; align-items:center;">
+                  <div class="cslider">
+                    <div class="big-label">60 minutes</div>
+                    <div class="slider-hint">A full session</div>
+                    <div class="slider-track">
+                      <div class="filled" style="width:66.6%;"></div>
+                      <div class="thumb" style="left:66.6%;"></div>
+                    </div>
+                    <div class="slider-ticks">
+                      <div class="tcol"><div class="tlabel">30m</div></div>
+                      <div class="tcol"><div class="tlabel">45m</div></div>
+                      <div class="tcol on"><div class="tlabel">60m</div></div>
+                      <div class="tcol"><div class="tlabel">90m</div></div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
             <div class="footer"><div class="btn">Continue</div></div>
           </div>
-          <div class="skip-pill">Skip ›</div>
         </div>
       </div>
 
-      <!-- ════════════════ 18 · INJURIES ════════════════ -->
+      <!-- ════════════════ 20 · COMMITMENT ════════════════ -->
       <div class="cell">
-        <div class="cap"><b>18</b> <span>Injuries (multi)</span></div>
+        <div class="cap"><b>20</b> <span>Commitment</span></div>
         <div class="phone">
           <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
           <div class="screen">
             <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 59%"></i></div></div>
-            <div class="body scroll">
-              <div class="h1">Any injuries or limitations?</div>
-              <div class="sub">We'll steer your plan around anything you flag.</div>
-              <div class="opts fixed">
-                <div class="opt"><div class="opt-tx"><div class="label">No limitations</div></div></div>
-                <div class="opt sel"><div class="opt-tx"><div class="label">Lower back</div></div><div class="check">✓</div></div>
-                <div class="opt"><div class="opt-tx"><div class="label">Knees</div></div></div>
-                <div class="opt"><div class="opt-tx"><div class="label">Shoulders</div></div></div>
-                <div class="opt"><div class="opt-tx"><div class="label">Wrists or elbows</div></div></div>
-                <div class="opt"><div class="opt-tx"><div class="label">Neck</div></div></div>
-                <div class="opt"><div class="opt-tx"><div class="label">Something else</div></div></div>
-              </div>
-            </div>
-            <div class="footer"><div class="btn">Continue</div></div>
-          </div>
-          <div class="skip-pill">Skip ›</div>
-        </div>
-      </div>
-
-      <!-- ════════════════ 19 · COMMITMENT ════════════════ -->
-      <div class="cell">
-        <div class="cap"><b>19</b> <span>Commitment interstitial</span></div>
-        <div class="phone">
-          <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
-          <div class="screen">
-            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 62%"></i></div></div>
-            <div class="body center" style="justify-content: center">
-              <div class="center-emoji" style="margin-bottom: 24px">📈</div>
-              <div class="lead">You don't need perfect.<br />You need repeatable.</div>
-              <div class="lead-body">
-                Gear keeps your plan short enough to finish and tracks every set
-                so the progress is impossible to ignore. Show up, log it, watch
-                it climb.
+            <div class="body">
+              <div class="h1">Small sessions, stacked up</div>
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding-bottom:40px;">
+                <div style="align-self:stretch; margin-bottom:20px;">
+                  <svg viewBox="0 0 264 180" width="100%" style="display:block">
+                    <defs>
+                      <linearGradient id="pfc" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stop-color="#000" stop-opacity="0.16" />
+                        <stop offset="1" stop-color="#000" stop-opacity="0" />
+                      </linearGradient>
+                    </defs>
+                    <line x1="26" y1="150" x2="234" y2="150" stroke="var(--separator)" stroke-width="1" />
+                    <path d="M 26 120 C 120 120, 150 36, 234 36 L 234 150 L 26 150 Z" fill="url(#pfc)" />
+                    <path d="M 26 120 C 120 120, 150 36, 234 36" stroke="#000" stroke-width="3.5" fill="none" stroke-linecap="round" />
+                    <circle cx="26" cy="120" r="6" fill="#000" stroke="var(--card)" stroke-width="2.5" />
+                    <circle cx="234" cy="36" r="8" fill="#000" stroke="var(--card)" stroke-width="2.5" />
+                    <text x="26" y="141" fill="#000" font-size="15" font-weight="700">Start</text>
+                    <text x="234" y="26" fill="#000" font-size="15" font-weight="700" text-anchor="end">Stronger</text>
+                  </svg>
+                  <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:500; color:var(--secondary); padding:0 14px; margin-top:-22px;">
+                    <span>Today</span><span>12 weeks</span>
+                  </div>
+                </div>
+                <div class="lead">You don't need perfect. You need repeatable.</div>
+                <div class="lead-body">Gear keeps you on track. It nudges you to your next session, logs every set, and shows your progress so it's easy to stay consistent.</div>
               </div>
             </div>
             <div class="footer"><div class="btn">Let's build it</div></div>
           </div>
-          <div class="skip-pill">Skip ›</div>
         </div>
       </div>
 
-      <!-- ════════════════ 20 · PERMISSIONS ════════════════ -->
+      <!-- ════════════════ 21 · HEALTH PERMISSION ════════════════ -->
       <div class="cell">
-        <div class="cap"><b>20</b> <span>Permissions</span></div>
+        <div class="cap"><b>21</b> <span>Apple Health</span></div>
+        <div class="phone">
+          <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
+          <div class="screen">
+            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 62%"></i></div></div>
+            <div class="body">
+              <div class="perm-hero">
+                <div class="sync">
+                  <div class="bg-circle"></div>
+                  <div class="tile health-tile">❤️</div>
+                  <div class="tile gear-tile">⚙️</div>
+                  <div class="check">✓</div>
+                  <div class="pill" style="left:18px; top:26px;">Steps</div>
+                  <div class="pill" style="left:6px; top:64px;">Workouts</div>
+                  <div class="pill" style="left:200px; top:102px;">Heart rate</div>
+                  <div class="pill" style="left:218px; top:138px;">Sleep</div>
+                </div>
+                <div class="perm-title">Connect to Apple Health</div>
+                <div class="perm-desc">Sync your stats and activity between Gear and Apple Health to keep everything accurate in one place.</div>
+              </div>
+            </div>
+            <div class="footer">
+              <div class="btn">Connect Apple Health</div>
+              <div class="btn ghost" style="text-align:center; align-self:center;">Skip for now</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════════════ 22 · NOTIFICATIONS PERMISSION ════════════════ -->
+      <div class="cell">
+        <div class="cap"><b>22</b> <span>Notifications</span></div>
         <div class="phone">
           <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
           <div class="screen">
             <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 66%"></i></div></div>
             <div class="body">
-              <div class="h1">First we need some permissions</div>
-              <div class="sub">Enable these to get the most out of Gear Fitness.</div>
-              <div style="flex:1; display:flex; flex-direction:column; gap:12px;">
-                <div class="perm">
-                  <div class="picon" style="background:#FFEEF1">❤️</div>
-                  <div class="ptx"><div class="ptitle">Apple Health</div><div class="psub">Keep your height and weight in sync with Apple Health</div></div>
-                  <div class="toggle on"><div class="knob"></div></div>
-                </div>
-                <div class="perm">
-                  <div class="picon" style="background:#E8F1FC">📍</div>
-                  <div class="ptx"><div class="ptitle">Location</div><div class="psub">So we can see which gyms you visit and suggest nearby workout spots</div></div>
-                  <div class="toggle"><div class="knob"></div></div>
-                </div>
-                <div class="perm">
-                  <div class="picon" style="background:#FFF4E0">🔔</div>
-                  <div class="ptx"><div class="ptitle">Notifications</div><div class="psub">Get notified about posts</div></div>
-                  <div class="toggle on"><div class="knob"></div></div>
+              <div class="perm-hero">
+                <div class="perm-title">Stay on track with Gear notifications</div>
+                <div class="ios-dialog">
+                  <div class="dt">“Gear Fitness” would like to send you Notifications</div>
+                  <div class="dbtns">
+                    <div class="db">Don't Allow</div>
+                    <div class="db allow">Allow</div>
+                  </div>
                 </div>
               </div>
             </div>
-            <div class="footer">
-              <div class="btn">Continue</div>
-              <div class="btn ghost" style="text-align: center; align-self: center">Skip for now</div>
-            </div>
           </div>
-          <div class="skip-pill">Skip ›</div>
         </div>
       </div>
 
-      <!-- ════════════════ 21 · FOLLOW FOUNDERS ════════════════ -->
+      <!-- ════════════════ 23 · FOLLOW FOUNDERS ════════════════ -->
       <div class="cell">
-        <div class="cap"><b>21</b> <span>Social layer</span></div>
+        <div class="cap"><b>23</b> <span>Accountability circle</span></div>
         <div class="phone">
           <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
           <div class="screen">
             <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 69%"></i></div></div>
             <div class="body">
               <div class="h1">Build your accountability circle</div>
-              <div class="sub">People who train together stick with it. Follow the founders and your crew to stay motivated.</div>
+              <div class="sub">People who train together stick with it. Follow the founders and your friends to stay motivated.</div>
               <div style="flex:1; display:flex; flex-direction:column; gap:10px;">
-                <div class="frow"><div class="av">⚙️</div><div class="fi"><div class="fn">Gear</div><div class="fb">Official account — tips, challenges, and updates</div></div><div class="pill-btn on">Following</div></div>
-                <div class="frow"><div class="av">🚀</div><div class="fi"><div class="fn">The Founders</div><div class="fb">Building Gear in public — follow the journey</div></div><div class="pill-btn">Follow</div></div>
-                <div class="frow"><div class="av">🏋️</div><div class="fi"><div class="fn">Gear Coach</div><div class="fb">Weekly programming and form breakdowns</div></div><div class="pill-btn">Follow</div></div>
+                <div class="frow"><div class="av">A</div><div class="fi"><div class="fn">Alton</div><div class="fb">Co-founder · strength and powerlifting</div></div><div class="pill-btn on">Following</div></div>
+                <div class="frow"><div class="av">B</div><div class="fi"><div class="fn">Bryant</div><div class="fb">Co-founder · hypertrophy and aesthetics</div></div><div class="pill-btn">Follow</div></div>
+                <div class="frow"><div class="av">K</div><div class="fi"><div class="fn">Kobe</div><div class="fb">Co-founder · building Gear in public</div></div><div class="pill-btn">Follow</div></div>
+                <div class="frow"><div class="av">M</div><div class="fi"><div class="fn">Max</div><div class="fb">Co-founder · conditioning and athletics</div></div><div class="pill-btn">Follow</div></div>
               </div>
             </div>
             <div class="footer">
               <div class="btn">Continue</div>
-              <div class="btn ghost" style="text-align: center; align-self: center">Follow everyone</div>
+              <div class="btn ghost" style="text-align:center; align-self:center;">Follow everyone</div>
             </div>
           </div>
-          <div class="skip-pill">Skip ›</div>
         </div>
       </div>
 
-      <!-- ════════════════ 22 · ROUTINE INTRO ════════════════ -->
+      <!-- ════════════════ 24 · ROUTINE INTRO ════════════════ -->
       <div class="cell">
-        <div class="cap"><b>22</b> <span>Routine intro</span></div>
+        <div class="cap"><b>24</b> <span>Split selection</span></div>
         <div class="phone">
           <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
           <div class="screen">
             <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 72%"></i></div></div>
             <div class="body">
-              <div class="h1">Your starter routines</div>
-              <div class="sub">Built from your schedule and equipment. You'll tweak them next, then they save to your profile.</div>
-              <div style="flex:1; display:flex; align-items:center;">
-                <div class="card" style="align-self:stretch; width:100%; display:flex; flex-direction:column; align-items:center; padding:36px 18px; gap:6px;">
-                  <div style="font-size:48px; margin-bottom:8px;">🗓️</div>
-                  <div style="font-size:26px; font-weight:800; letter-spacing:-0.5px; color:var(--text);">Upper / Lower</div>
-                  <div style="font-size:15px; font-weight:500; color:var(--secondary);">4 routines · 4 days / week</div>
-                </div>
+              <div class="h1">What's your split?</div>
+              <div class="sub">How do you want to structure your training week? You can fine-tune everything next.</div>
+              <div class="opts minimal">
+                <div class="opt"><div class="sym">🧍</div><div class="opt-tx"><div class="label">Full Body</div><div class="hint">Train everything each session</div></div></div>
+                <div class="opt sel"><div class="sym">↕</div><div class="opt-tx"><div class="label">Upper / Lower</div><div class="hint">Alternate upper and lower days</div></div><div class="check">✓</div></div>
+                <div class="opt"><div class="sym">⇄</div><div class="opt-tx"><div class="label">Push / Pull / Legs</div><div class="hint">Split by movement pattern</div></div></div>
+                <div class="opt"><div class="sym">👥</div><div class="opt-tx"><div class="label">Anterior / Posterior</div><div class="hint">Front-body and back-body days</div></div></div>
+                <div class="opt"><div class="sym">✨</div><div class="opt-tx"><div class="label">Not sure yet</div><div class="hint">We'll pick based on your schedule</div></div></div>
               </div>
             </div>
             <div class="footer"><div class="btn">Review my routines</div></div>
           </div>
-          <div class="skip-pill">Skip ›</div>
         </div>
       </div>
 
-      <!-- ════════════════ 23 · ROUTINE BUILDER ════════════════ -->
+      <!-- ════════════════ 25 · ROUTINE BUILDER ════════════════ -->
       <div class="cell">
-        <div class="cap"><b>23</b> <span>Routine builder</span></div>
+        <div class="cap"><b>25</b> <span>Routine builder</span></div>
         <div class="phone">
           <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
           <div class="screen">
-            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 76%"></i></div></div>
+            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 75%"></i></div></div>
             <div class="body scroll">
               <div class="h1">Build your routines</div>
               <div class="sub">Rename them, set the days, and add the lifts you want.</div>
               <div class="rcard">
-                <div class="rname">Upper A</div>
+                <div class="rname">Upper</div>
                 <div class="rdays">
                   <div class="rdot on">M</div><div class="rdot">T</div><div class="rdot">W</div>
-                  <div class="rdot on">T</div><div class="rdot">F</div><div class="rdot">S</div><div class="rdot">S</div>
+                  <div class="rdot">T</div><div class="rdot">F</div><div class="rdot">S</div><div class="rdot">S</div>
                 </div>
                 <div class="rex"><div class="rxd"></div><div class="rxn">Bench Press</div><div class="rxx">✕</div></div>
                 <div class="rex"><div class="rxd"></div><div class="rxn">Barbell Row</div><div class="rxx">✕</div></div>
@@ -1672,30 +2243,32 @@
                 <div class="dashed">+ Add exercise</div>
               </div>
               <div class="rcard">
-                <div class="rname">Lower A</div>
+                <div class="rname">Lower</div>
                 <div class="rdays">
-                  <div class="rdot">M</div><div class="rdot on">T</div><div class="rdot">W</div>
-                  <div class="rdot">T</div><div class="rdot on">F</div><div class="rdot">S</div><div class="rdot">S</div>
+                  <div class="rdot">M</div><div class="rdot">T</div><div class="rdot">W</div>
+                  <div class="rdot on">T</div><div class="rdot">F</div><div class="rdot">S</div><div class="rdot">S</div>
                 </div>
-                <div class="rex"><div class="rxd"></div><div class="rxn">Barbell Squat</div><div class="rxx">✕</div></div>
+                <div class="rex"><div class="rxd"></div><div class="rxn">Squat</div><div class="rxx">✕</div></div>
                 <div class="rex"><div class="rxd"></div><div class="rxn">Romanian Deadlift</div><div class="rxx">✕</div></div>
+                <div class="rex"><div class="rxd"></div><div class="rxn">Leg Press</div><div class="rxx">✕</div></div>
+                <div class="rex"><div class="rxd"></div><div class="rxn">Calf Raise</div><div class="rxx">✕</div></div>
                 <div class="dashed">+ Add exercise</div>
               </div>
               <div class="dashed big">+ Add another routine</div>
             </div>
             <div class="footer"><div class="btn">Save routines</div></div>
           </div>
-          <div class="skip-pill">Skip ›</div>
         </div>
       </div>
 
-      <!-- ════════════════ 24 · GENERATING PLAN ════════════════ -->
+      <!-- ════════════════ 26 · GENERATING PLAN ════════════════ -->
       <div class="cell">
-        <div class="cap"><b>24</b> <span>Generating plan</span></div>
+        <div class="cap"><b>26</b> <span>Generating plan</span></div>
         <div class="phone">
           <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
           <div class="screen">
             <div class="body center" style="justify-content: center; padding: 0 36px">
+              <div class="logo-video sm" style="margin-bottom:8px;">⚙️</div>
               <div class="gen-pct">100%</div>
               <div class="gen-title">Your plan is ready</div>
               <div class="gen-track"><i style="width: 100%"></i></div>
@@ -1703,27 +2276,26 @@
                 <div class="gen-task"><div class="gd">✓</div><div class="gt">Matching exercises to your equipment</div></div>
                 <div class="gen-task"><div class="gd">✓</div><div class="gt">Balancing your weekly volume</div></div>
                 <div class="gen-task"><div class="gd">✓</div><div class="gt">Setting your starting weights</div></div>
+                <div class="gen-task"><div class="gd">✓</div><div class="gt">Optimizing recovery</div></div>
                 <div class="gen-task"><div class="gd">✓</div><div class="gt">Mapping your progress timeline</div></div>
               </div>
             </div>
             <div class="footer"><div class="btn">See my plan</div></div>
           </div>
-          <div class="skip-pill">Skip ›</div>
         </div>
       </div>
 
-      <!-- ════════════════ 25 · PLAN REVEAL ════════════════ -->
+      <!-- ════════════════ 27 · PLAN REVEAL ════════════════ -->
       <div class="cell">
-        <div class="cap"><b>25</b> <span>Plan reveal</span></div>
+        <div class="cap"><b>27</b> <span>Plan reveal</span></div>
         <div class="phone">
           <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
           <div class="screen">
-            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 83%"></i></div></div>
+            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 78%"></i></div></div>
             <div class="body scroll">
               <div class="eyebrow">YOUR PERSONALIZED PLAN</div>
               <div class="h1">Kobe, here's your plan</div>
-              <div class="sub">Built to help you lose fat — and it's all editable.</div>
-              <div class="card" style="margin-bottom:14px;">
+              <div class="card" style="margin-top:14px; margin-bottom:0;">
                 <div class="card-title">Projected progress</div>
                 <svg viewBox="0 0 264 180" width="100%" style="display:block">
                   <defs>
@@ -1732,53 +2304,45 @@
                       <stop offset="1" stop-color="#000" stop-opacity="0" />
                     </linearGradient>
                   </defs>
-                  <line x1="26" y1="156" x2="234" y2="156" stroke="var(--separator)" stroke-width="1" />
-                  <path d="M 26 40 C 120 40, 150 140, 234 140 L 234 156 L 26 156 Z" fill="url(#pf2)" />
-                  <path d="M 26 40 C 120 40, 150 140, 234 140" stroke="#000" stroke-width="3.5" fill="none" stroke-linecap="round" />
-                  <circle cx="26" cy="40" r="6" fill="#000" stroke="var(--card)" stroke-width="2.5" />
-                  <circle cx="234" cy="140" r="8" fill="#000" stroke="var(--card)" stroke-width="2.5" />
-                  <text x="26" y="28" fill="#000" font-size="14" font-weight="700">165 lbs</text>
-                  <text x="234" y="166" fill="#000" font-size="14" font-weight="700" text-anchor="end">150 lbs</text>
+                  <line x1="26" y1="150" x2="234" y2="150" stroke="var(--separator)" stroke-width="1" />
+                  <path d="M 26 44 C 120 44, 150 124, 234 124 L 234 150 L 26 150 Z" fill="url(#pf2)" />
+                  <path d="M 26 44 C 120 44, 150 124, 234 124" stroke="#000" stroke-width="3.5" fill="none" stroke-linecap="round" />
+                  <circle cx="26" cy="44" r="6" fill="#000" stroke="var(--card)" stroke-width="2.5" />
+                  <circle cx="234" cy="124" r="8" fill="#000" stroke="var(--card)" stroke-width="2.5" />
+                  <text x="26" y="30" fill="#000" font-size="15" font-weight="700">165 lbs</text>
+                  <text x="234" y="145" fill="#000" font-size="15" font-weight="700" text-anchor="end">150 lbs</text>
                 </svg>
-                <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:500; color:var(--secondary); padding:0 4px;">
+                <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:500; color:var(--secondary); padding:0 14px; margin-top:-24px;">
                   <span>Today</span><span>September 2026</span>
                 </div>
               </div>
-              <div class="card">
+              <div class="card" style="margin-top:14px;">
                 <div class="card-title">Your routines</div>
-                <div style="display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--separator);">
-                  <div><div style="font-size:16px; font-weight:700;">Upper A</div><div style="font-size:13px; color:var(--secondary); margin-top:2px;">4 exercises · MON, THU</div></div>
-                </div>
-                <div style="display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--separator);">
-                  <div><div style="font-size:16px; font-weight:700;">Lower A</div><div style="font-size:13px; color:var(--secondary); margin-top:2px;">4 exercises · TUE, FRI</div></div>
-                </div>
-                <div style="display:flex; justify-content:space-between; padding:12px 0;">
-                  <div><div style="font-size:16px; font-weight:700;">Upper B</div><div style="font-size:13px; color:var(--secondary); margin-top:2px;">4 exercises · SAT</div></div>
-                </div>
+                <div class="summ-row"><div class="summ-name">Upper</div><div class="summ-meta">4 exercises · MON</div></div>
+                <div class="summ-row"><div class="summ-name">Lower</div><div class="summ-meta">4 exercises · THU</div></div>
               </div>
             </div>
             <div class="footer"><div class="btn">Looks great</div></div>
           </div>
-          <div class="skip-pill">Skip ›</div>
         </div>
       </div>
 
-      <!-- ════════════════ 26 · STATS PREVIEW ════════════════ -->
+      <!-- ════════════════ 28 · STATS PREVIEW ════════════════ -->
       <div class="cell">
-        <div class="cap"><b>26</b> <span>Stats preview</span></div>
+        <div class="cap"><b>28</b> <span>Stats preview</span></div>
         <div class="phone">
           <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
           <div class="screen">
-            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 86%"></i></div></div>
+            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 81%"></i></div></div>
             <div class="body">
               <div class="h1">This is your dashboard</div>
               <div class="sub">Every workout you log fills it in. Here's what you'll be growing.</div>
               <div style="flex:1; display:flex; flex-direction:column; justify-content:center; gap:12px;">
                 <div class="grid2">
-                  <div class="tile"><div class="tv">0</div><div class="tl">Workouts</div><div class="th">Your count climbs from day one</div></div>
-                  <div class="tile"><div class="tv">0</div><div class="tl">Day streak</div><div class="th">Keep it alive</div></div>
-                  <div class="tile"><div class="tv">0 lb</div><div class="tl">Volume</div><div class="th">Total weight moved</div></div>
-                  <div class="tile"><div class="tv">0</div><div class="tl">PRs</div><div class="th">Personal records to chase</div></div>
+                  <div class="tile2"><div class="tv">0</div><div class="tl">Workouts</div><div class="th">Your count climbs from day one</div></div>
+                  <div class="tile2"><div class="tv">0</div><div class="tl">Day streak</div><div class="th">Keep it alive</div></div>
+                  <div class="tile2"><div class="tv">0 lb</div><div class="tl">Volume</div><div class="th">Total weight moved</div></div>
+                  <div class="tile2"><div class="tv">0</div><div class="tl">PRs</div><div class="th">Personal records to chase</div></div>
                 </div>
                 <div class="card">
                   <div style="font-size:14px; font-weight:700; color:var(--text);">Weekly activity</div>
@@ -1786,130 +2350,203 @@
                     <div class="bcol"><div class="bfill" style="height:8px"></div><div class="bd">M</div></div>
                     <div class="bcol"><div class="bfill" style="height:21px"></div><div class="bd">T</div></div>
                     <div class="bcol"><div class="bfill" style="height:34px"></div><div class="bd">W</div></div>
-                    <div class="bcol"><div class="bfill" style="height:8px"></div><div class="bd">T</div></div>
-                    <div class="bcol"><div class="bfill" style="height:21px"></div><div class="bd">F</div></div>
+                    <div class="bcol"><div class="bfill" style="height:47px"></div><div class="bd">T</div></div>
+                    <div class="bcol"><div class="bfill" style="height:8px"></div><div class="bd">F</div></div>
+                    <div class="bcol"><div class="bfill" style="height:21px"></div><div class="bd">S</div></div>
                     <div class="bcol"><div class="bfill" style="height:34px"></div><div class="bd">S</div></div>
-                    <div class="bcol"><div class="bfill" style="height:8px"></div><div class="bd">S</div></div>
                   </div>
                 </div>
               </div>
             </div>
             <div class="footer"><div class="btn">Let's go</div></div>
           </div>
-          <div class="skip-pill">Skip ›</div>
         </div>
       </div>
 
-      <!-- ════════════════ 27 · PROFILE ════════════════ -->
+      <!-- ════════════════ 29 · USERNAME ════════════════ -->
       <div class="cell">
-        <div class="cap"><b>27</b> <span>Create profile</span></div>
+        <div class="cap"><b>29</b> <span>Username</span></div>
         <div class="phone">
           <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
           <div class="screen">
-            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 90%"></i></div></div>
-            <div class="body">
-              <div class="h1">Create your profile</div>
-              <div class="sub">This is how others will find and recognise you on Gear.</div>
-              <div style="text-align:center; margin-bottom:8px;">
-                <div class="photo-circle">KC</div>
-                <div style="font-size:13px; font-weight:500; color:var(--secondary);">Add photo</div>
+            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 84%"></i></div></div>
+            <div class="body center">
+              <div style="width:100%;">
+                <div class="h1" style="text-align:center; margin-bottom:8px;">Choose a username</div>
+                <div class="sub" style="text-align:center; margin:0 auto 24px; max-width:300px;">This can only be changed once in a while, so choose wisely.</div>
+                <div class="input-at"><span class="at">@</span><span>kobe</span></div>
+                <div style="margin-top:12px; font-size:13px; font-weight:500; color:var(--accent); text-align:center;">Username is available.</div>
               </div>
-              <div class="input-group">
-                <div class="input-row"><div class="ilabel">Name</div><div class="ival">Kobe Cortez</div></div>
-                <div class="input-row"><div class="ilabel">Username</div><div class="ival">@kobe</div></div>
-              </div>
-              <div style="font-size:12px; font-weight:500; color:var(--accent); margin-top:8px;">Username is available.</div>
             </div>
             <div class="footer"><div class="btn">Continue</div></div>
           </div>
-          <div class="skip-pill">Skip ›</div>
         </div>
       </div>
 
-      <!-- ════════════════ 28 · ACCOUNT ════════════════ -->
+      <!-- ════════════════ 30 · PROFILE PHOTO ════════════════ -->
       <div class="cell">
-        <div class="cap"><b>28</b> <span>Account creation</span></div>
+        <div class="cap"><b>30</b> <span>Profile photo</span></div>
         <div class="phone">
           <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
           <div class="screen">
-            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 93%"></i></div></div>
-            <div class="body">
-              <div class="h1">Save your progress</div>
-              <div class="sub">Create your free account so your plan is waiting for you.</div>
-              <div style="margin-top: 8px">
-                <div class="benefit"><div class="tick">✓</div><div class="bt">Save your plan and routines</div></div>
-                <div class="benefit"><div class="tick">✓</div><div class="bt">Track every workout and PR</div></div>
-                <div class="benefit"><div class="tick">✓</div><div class="bt">Sync across all your devices</div></div>
+            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 88%"></i></div></div>
+            <div class="body center">
+              <div style="width:100%;">
+                <div class="h1" style="text-align:center; margin-bottom:6px;">Add a profile photo</div>
+                <div class="sub" style="text-align:center; margin:0 auto 32px; max-width:300px;">Help your friends recognize you on Gear.</div>
+                <div class="photo-circle">K</div>
+                <div style="text-align:center; font-size:14px; font-weight:500; color:var(--secondary);">Add photo</div>
               </div>
+            </div>
+            <div class="footer"><div class="btn">Skip for now</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════════════ 31 · ACCOUNT ════════════════ -->
+      <div class="cell">
+        <div class="cap"><b>31</b> <span>Create account</span></div>
+        <div class="phone">
+          <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
+          <div class="screen">
+            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 91%"></i></div></div>
+            <div class="body scroll">
+              <div class="h1">Don't lose your progress</div>
+              <div class="sub">Create your free account so your plan doesn't get lost.</div>
+              <div class="card" style="margin-bottom:24px;">
+                <div class="card-title">Your routines</div>
+                <div class="summ-row"><div class="summ-name">Upper</div><div class="summ-meta">4 exercises · MON</div></div>
+                <div class="summ-row"><div class="summ-name">Lower</div><div class="summ-meta">4 exercises · THU</div></div>
+              </div>
+              <div class="benefit"><div class="tick">✓</div><div class="bt">Save your plan and routines</div></div>
+              <div class="benefit"><div class="tick">✓</div><div class="bt">Track every workout and PR</div></div>
+              <div class="benefit"><div class="tick">✓</div><div class="bt">Sync across all your devices</div></div>
+              <div class="benefit"><div class="tick">✓</div><div class="bt">Follow friends and stay accountable</div></div>
+              <div class="benefit"><div class="tick">✓</div><div class="bt">See your strength trends over time</div></div>
             </div>
             <div class="footer">
               <div class="btn"><span class="g">G</span>Sign up with Google</div>
-              <div class="terms">By signing up you agree to our Terms and Privacy Policy.</div>
+              <div class="terms">By signing up you agree to our <b>Terms</b> and <b>Privacy Policy</b>.</div>
             </div>
           </div>
-          <div class="skip-pill">Skip ›</div>
         </div>
       </div>
 
-      <!-- ════════════════ 29 · REFERRAL ════════════════ -->
+      <!-- ════════════════ 32 · REFERRAL ════════════════ -->
       <div class="cell">
-        <div class="cap"><b>29</b> <span>Referral prompt</span></div>
+        <div class="cap"><b>32</b> <span>Referral</span></div>
         <div class="phone">
           <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
           <div class="screen">
-            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 97%"></i></div></div>
-            <div class="body">
-              <div class="h1">Bring your accountability circle</div>
-              <div class="sub">People who train with friends are far more likely to stick with it. Invite 3 friends to unlock your free trial.</div>
-              <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px;">
-                <div class="center-emoji">🤝</div>
-                <div class="avatars"><div class="a">+</div><div class="a">+</div><div class="a">+</div></div>
-                <div style="font-size:15px; font-weight:500; color:var(--secondary);">Your crew keeps you showing up.</div>
+            <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 94%"></i></div></div>
+            <div class="body center">
+              <div style="display:flex; flex-direction:column; align-items:center; gap:16px;">
+                <div class="eyebrow" style="margin:0;">0 OF 3 FRIENDS JOINED</div>
+                <div class="h1" style="text-align:center; font-size:34px; font-weight:800;">Share with<br />3 friends.</div>
+                <div class="ref-slots">
+                  <div class="ref-slot">🎟️</div>
+                  <div class="ref-slot">🎟️</div>
+                  <div class="ref-slot">🎟️</div>
+                </div>
+                <div class="sub" style="text-align:center; margin:0; max-width:320px;">Lifting with friends is more fun. Share with 3 friends for a 1-week free Gear Premium trial.</div>
+                <div class="code-box">@kobe</div>
+                <div style="font-size:13px; color:var(--secondary); text-align:center; max-width:280px;">Friends can find and follow you with this.</div>
               </div>
             </div>
             <div class="footer">
-              <div class="btn">Invite friends</div>
-              <div class="btn ghost" style="text-align: center; align-self: center">Maybe later</div>
+              <div class="btn">Share with friends</div>
+              <div class="btn ghost" style="text-align:center; align-self:center;">Maybe later</div>
             </div>
           </div>
-          <div class="skip-pill">Skip ›</div>
         </div>
       </div>
 
-      <!-- ════════════════ 30 · PAYWALL ════════════════ -->
+      <!-- ════════════════ 33 · PAYWALL ════════════════ -->
       <div class="cell">
-        <div class="cap"><b>30</b> <span>Paywall / trial</span></div>
+        <div class="cap"><b>33</b> <span>Paywall / trial</span></div>
         <div class="phone">
           <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
           <div class="screen">
             <div class="topbar"><div class="back">‹</div><div class="track"><i style="width: 100%"></i></div></div>
             <div class="body scroll">
-              <div class="h1">Your plan is ready</div>
-              <div class="sub">Start your 7-day free trial — no charge today, cancel anytime.</div>
-              <div style="margin: 4px 0 22px">
-                <div class="benefit"><div class="bc">✓</div><div class="bt">Your personalized plan &amp; routines</div></div>
-                <div class="benefit"><div class="bc">✓</div><div class="bt">Unlimited workout &amp; PR tracking</div></div>
-                <div class="benefit"><div class="bc">✓</div><div class="bt">Progress charts and streaks</div></div>
-                <div class="benefit"><div class="bc">✓</div><div class="bt">AI coaching and form tips</div></div>
+              <div class="h1">Try Gear Premium free</div>
+              <div class="sub">3 days free, then $39.99/yr. Cancel anytime.</div>
+
+              <div class="card" style="margin-bottom:14px;">
+                <div class="compare-head">
+                  <div class="spacer"></div>
+                  <div class="col free">FREE</div>
+                  <div class="col prem">PREMIUM</div>
+                </div>
+                <div class="compare-row"><div class="clabel">Track your workouts &amp; PRs</div><div class="ccell"><div class="ccheck">✓</div></div><div class="ccell"><div class="ccheck accent">✓</div></div></div>
+                <div class="compare-row"><div class="clabel">Connect with friends</div><div class="ccell"><div class="ccheck">✓</div></div><div class="ccell"><div class="ccheck accent">✓</div></div></div>
+                <div class="compare-row"><div class="clabel">Custom goals &amp; routines</div><div class="ccell"><div class="cdash">—</div></div><div class="ccell"><div class="ccheck accent">✓</div></div></div>
+                <div class="compare-row"><div class="clabel">AI coaching &amp; form tips</div><div class="ccell"><div class="cdash">—</div></div><div class="ccell"><div class="ccheck accent">✓</div></div></div>
+                <div class="compare-row"><div class="clabel">Full workout history</div><div class="ccell"><div class="cdash">—</div></div><div class="ccell"><div class="ccheck accent">✓</div></div></div>
+                <div class="compare-row"><div class="clabel">Advanced progress charts</div><div class="ccell"><div class="cdash">—</div></div><div class="ccell"><div class="ccheck accent">✓</div></div></div>
+                <div class="compare-row"><div class="clabel">Compete on leaderboards</div><div class="ccell"><div class="cdash">—</div></div><div class="ccell"><div class="ccheck accent">✓</div></div></div>
+                <div class="andmore">And so much more!</div>
               </div>
+
+              <div class="card" style="margin-bottom:14px;">
+                <div class="card-title" style="font-size:16px; text-transform:none; letter-spacing:0;">How your trial works</div>
+                <div class="timeline-row">
+                  <div class="timeline-icon-col"><div class="timeline-icon">🔓</div><div class="timeline-line"></div></div>
+                  <div class="timeline-text"><b>Today:</b> Unlock all Premium features</div>
+                </div>
+                <div class="timeline-row">
+                  <div class="timeline-icon-col"><div class="timeline-icon">🔔</div><div class="timeline-line"></div></div>
+                  <div class="timeline-text"><b>Day 2:</b> Get a reminder before your trial ends</div>
+                </div>
+                <div class="timeline-row">
+                  <div class="timeline-icon-col"><div class="timeline-icon">✅</div></div>
+                  <div class="timeline-text last"><b>Day 3:</b> You'll be charged $39.99/yr</div>
+                </div>
+              </div>
+
               <div style="display:flex; flex-direction:column; gap:12px;">
                 <div class="plan sel">
-                  <div class="pl"><div class="radio on">✓</div><div><div class="pt">Yearly</div><div class="ps">7-day free trial · $3.33/mo</div></div></div>
+                  <div class="pl"><div class="radio on">✓</div><div><div class="pt">Yearly</div><div class="ps">3-day free trial · $3.33/mo</div></div></div>
                   <div><div class="badge">BEST VALUE</div><div class="pr">$39.99/yr</div></div>
                 </div>
                 <div class="plan">
-                  <div class="pl"><div class="radio"></div><div><div class="pt">Monthly</div><div class="ps">7-day free trial</div></div></div>
+                  <div class="pl"><div class="radio"></div><div><div class="pt">Monthly</div><div class="ps">3-day free trial</div></div></div>
                   <div class="pr">$9.99/mo</div>
                 </div>
               </div>
             </div>
             <div class="footer">
               <div class="btn">Start my free trial</div>
-              <div class="btn ghost" style="text-align: center; align-self: center">Not now</div>
+              <div class="btn ghost" style="text-align:center; align-self:center;">Not now</div>
               <div class="terms">Cancel anytime in Settings. Billing starts after your free trial.</div>
             </div>
           </div>
-          <div class="skip-pill">Skip ›</div>
+        </div>
+      </div>
+
+      <!-- ════════════════ 34 · TRIAL BOOST (OVERLAY) ════════════════ -->
+      <div class="cell">
+        <div class="cap"><b>34</b> <span>Trial boost (overlay)</span></div>
+        <div class="phone">
+          <div class="statusbar"><span>9:41</span><span class="dots">5G ▮</span></div>
+          <div class="screen">
+            <div class="body center">
+              <div style="display:flex; flex-direction:column; align-items:center; gap:18px;">
+                <div class="boost-badge">2×</div>
+                <div class="h1" style="text-align:center; font-size:28px; font-weight:800;">Do you want to 2x your free trial duration?</div>
+                <div class="lead-body" style="margin:0;">Invite 3 friends and unlock a 7-day free trial instead of 3 days.</div>
+                <div class="boost-compare">
+                  <div class="boost-box"><div class="bn">3</div><div class="bl">days</div></div>
+                  <div class="boost-arrow">→</div>
+                  <div class="boost-box on"><div class="bn">7</div><div class="bl">days</div></div>
+                </div>
+              </div>
+            </div>
+            <div class="footer">
+              <div class="btn">Yes, invite 3 friends</div>
+              <div class="btn ghost" style="text-align:center; align-self:center;">No thanks, start my 3-day trial</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
