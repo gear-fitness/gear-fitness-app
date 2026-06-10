@@ -33,12 +33,35 @@ public class NotificationService {
           .workoutId(
             n.getPost() != null ? n.getPost().getWorkout().getWorkoutId() : null
           )
+          .postImageUrl(resolvePostThumbnail(n.getPost()))
           .commentBody(n.getComment() != null ? n.getComment().getBody() : null)
           .createdAt(n.getCreatedAt())
           .isRead(n.isRead())
           .build()
       )
       .toList();
+  }
+
+  /**
+   * Resolve a single thumbnail S3 key for a post, preferring the legacy
+   * single image and falling back to the first workout photo. Returns null
+   * when the post has no associated image.
+   */
+  private String resolvePostThumbnail(com.gearfitness.gear_api.entity.Post post) {
+    if (post == null) {
+      return null;
+    }
+    if (post.getImageUrl() != null && !post.getImageUrl().isBlank()) {
+      return post.getImageUrl();
+    }
+    if (
+      post.getWorkout() != null &&
+      post.getWorkout().getPhotoUrls() != null &&
+      !post.getWorkout().getPhotoUrls().isEmpty()
+    ) {
+      return post.getWorkout().getPhotoUrls().get(0);
+    }
+    return null;
   }
 
   public long getUnreadCount(UUID userId) {

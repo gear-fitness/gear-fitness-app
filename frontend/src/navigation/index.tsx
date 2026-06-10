@@ -33,6 +33,7 @@ import { RoutineDetail } from "./screens/RoutineDetail";
 import { CreateRoutine } from "./screens/CreateRoutine";
 import { EditRoutine } from "./screens/EditRoutine";
 import { UserPosts } from "./screens/UserPosts";
+import { Activity } from "./screens/Activity";
 import FollowScreen from "./screens/FollowScreen";
 import { ImageViewer } from "./screens/ImageViewer";
 import { Platform } from "react-native";
@@ -139,6 +140,14 @@ const RootStack = createNativeStackNavigator({
 
     UserPosts: {
       screen: UserPosts,
+      options: {
+        headerShown: false,
+        gestureEnabled: true,
+      },
+    },
+
+    Activity: {
+      screen: Activity,
       options: {
         headerShown: false,
         gestureEnabled: true,
@@ -272,6 +281,7 @@ declare global {
       Profile: undefined;
       UserProfile: { username: string };
       UserPosts: { userId: string; username: string };
+      Activity: undefined;
       ExerciseChat: undefined;
 
       FollowScreen: {

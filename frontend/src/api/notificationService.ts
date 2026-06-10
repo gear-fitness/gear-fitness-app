@@ -7,6 +7,7 @@ export interface NotificationDTO {
   actorProfilePictureUrl?: string | null;
   postId?: string;
   workoutId?: string | null;
+  postImageUrl?: string | null;
   commentBody?: string;
   createdAt: string;
   isRead: boolean;

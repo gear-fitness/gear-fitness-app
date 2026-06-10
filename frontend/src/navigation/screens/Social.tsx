@@ -39,7 +39,6 @@ import { SearchBar } from "../../components/SearchBar";
 import { UserSearchCard } from "../../components/UserSearchCard";
 import { useAuth } from "../../context/AuthContext";
 import { useSocialFeed } from "../../context/SocialFeedContext";
-import { ActivityModal } from "../../components/ActivityModal";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
 import { useHealthKitForegroundSync } from "../../hooks/useHealthKitSync";
@@ -60,7 +59,6 @@ export function Social() {
   const [userResults, setUserResults] = useState<SearchUserResult[]>([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
 
-  const [showActivity, setShowActivity] = useState(false);
   const [hasUnreadActivity, setHasUnreadActivity] = useState(false);
 
   const flatListRef = useRef<FlatList<FeedPost>>(null);
@@ -246,7 +244,7 @@ export function Social() {
         />
 
         <TouchableOpacity
-          onPress={() => setShowActivity(true)}
+          onPress={() => navigation.navigate("Activity")}
           style={[
             styles.bellButton,
             {
@@ -338,11 +336,6 @@ export function Social() {
           onEndReachedThreshold={0.5}
         />
       )}
-
-      <ActivityModal
-        visible={showActivity}
-        onClose={() => setShowActivity(false)}
-      />
     </SafeAreaView>
   );
 }
