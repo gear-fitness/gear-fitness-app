@@ -1,9 +1,10 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
 import { StepProps } from "../stepProps";
 import { OnboardingTopBar } from "./OnboardingTopBar";
 import { useOnboardingColors } from "./useOnboardingColors";
 import { makeOnboardingStyles } from "./makeOnboardingStyles";
+import { GearSpinVideo } from "./GearSpinVideo";
 import { FloatingKeyboardDismiss } from "../../../components/FloatingKeyboardDismiss";
 
 export function NameStep({
@@ -20,6 +21,27 @@ export function NameStep({
   const [name, setName] = useState(draft.profile?.name ?? "");
   const canContinue = name.trim().length > 0;
 
+  // Type the heading out one character at a time, with a blinking cursor.
+  const HEADING = "What's your name?";
+  const [typedLen, setTypedLen] = useState(0);
+  useEffect(() => {
+    if (typedLen >= HEADING.length) return;
+    const id = setTimeout(() => setTypedLen((n) => n + 1), 55);
+    return () => clearTimeout(id);
+  }, [typedLen]);
+
+  const doneTyping = typedLen >= HEADING.length;
+  const [cursorOn, setCursorOn] = useState(true);
+  useEffect(() => {
+    // Blink only while typing; drop the cursor entirely once finished.
+    if (doneTyping) {
+      setCursorOn(false);
+      return;
+    }
+    const id = setInterval(() => setCursorOn((c) => !c), 500);
+    return () => clearInterval(id);
+  }, [doneTyping]);
+
   const handleNameChange = (val: string) => {
     setName(val);
     // Persist to the shared profile so it pre-fills "Create your profile".
@@ -30,19 +52,26 @@ export function NameStep({
     <View style={shared.screen}>
       <OnboardingTopBar progress={progress} onBack={onBack} />
       <View style={styles.center}>
-        <Text style={[shared.heading, styles.heading]}>What's your name?</Text>
-        <View style={styles.inputGroup}>
-          <TextInput
-            style={styles.input}
-            placeholder="Your name"
-            placeholderTextColor={colors.handle}
-            value={name}
-            onChangeText={handleNameChange}
-            autoFocus
-            autoComplete="name"
-            autoCorrect={false}
-            returnKeyType="done"
-          />
+        <View style={styles.aboveHeading}>
+          <GearSpinVideo style={styles.video} playLastSeconds={1.5} />
+        </View>
+        <Text style={[shared.heading, styles.heading]}>
+          {HEADING.slice(0, typedLen)}
+          {!doneTyping && <Text style={{ opacity: cursorOn ? 1 : 0 }}>|</Text>}
+        </Text>
+        <View style={styles.belowHeading}>
+          <View style={styles.inputGroup}>
+            <TextInput
+              style={styles.input}
+              placeholder="Your name"
+              placeholderTextColor={colors.handle}
+              value={name}
+              onChangeText={handleNameChange}
+              autoComplete="name"
+              autoCorrect={false}
+              returnKeyType="done"
+            />
+          </View>
         </View>
       </View>
       <View style={shared.footer}>
@@ -67,17 +96,38 @@ const makeStyles = (colors: ReturnType<typeof useOnboardingColors>) =>
   StyleSheet.create({
     center: {
       flex: 1,
-      justifyContent: "center",
       paddingHorizontal: 24,
     },
+    // Equal flex regions above and below pin the heading to the vertical
+    // centre: the video sits just above it, the input box just below.
+    aboveHeading: {
+      flex: 1,
+      justifyContent: "flex-end",
+      alignItems: "center",
+    },
+    belowHeading: {
+      flex: 1,
+      alignItems: "stretch",
+    },
+    video: {
+      width: 200,
+      height: 135,
+      alignSelf: "center",
+      marginBottom: 16,
+    },
     heading: {
+      // Span the full width so textAlign centres the text on a stable box
+      // instead of the node shrink-wrapping and shifting as it types out.
+      // No vertical margin here: keep the text itself on the centre line and
+      // put the gap to the input below (see inputGroup.marginTop).
+      alignSelf: "stretch",
       textAlign: "center",
-      marginBottom: 20,
     },
     inputGroup: {
       backgroundColor: colors.cardBg,
       borderRadius: 20,
       overflow: "hidden",
+      marginTop: 20,
     },
     input: {
       paddingHorizontal: 16,
