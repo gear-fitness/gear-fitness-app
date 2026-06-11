@@ -15,11 +15,6 @@ type Props = {
   showLoader?: boolean;
 };
 
-/**
- * Renders an image stored as an S3 key by resolving it to a presigned GET url
- * on demand. While the url loads — or if it fails to resolve — a neutral
- * placeholder is shown instead of a broken-image state.
- */
 export function PresignedImage({
   imageKey,
   style,

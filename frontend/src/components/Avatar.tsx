@@ -26,8 +26,6 @@ export function Avatar({
   onPress,
 }: Props) {
   const { colors } = useTheme();
-  // profilePictureUrl is a stored S3 key; resolve it to a presigned GET url.
-  // While it loads (uri null) we fall back to the initials placeholder.
   const uri = usePresignedImage(profilePictureUrl);
 
   const inner = uri ? (

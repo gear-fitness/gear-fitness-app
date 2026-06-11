@@ -8,13 +8,6 @@ import {
 const REFRESH_SKEW_MS = 30_000;
 const MIN_REFRESH_MS = 5_000;
 
-/**
- * Resolve a stored S3 key to a short-lived presigned GET url, re-fetching
- * shortly before the url expires. Returns null while loading or if the key
- * can't be resolved — callers render a placeholder in that case. Presigned urls
- * are never persisted; they live only in the in-memory cache behind
- * resolveImageKey.
- */
 export function usePresignedImage(key?: string | null): string | null {
   // Seed from the in-memory cache so a remount whose url is already cached shows
   // the image immediately instead of flashing the placeholder for a frame.

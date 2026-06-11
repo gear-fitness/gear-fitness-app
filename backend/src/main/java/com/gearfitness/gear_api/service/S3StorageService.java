@@ -62,14 +62,11 @@ public class S3StorageService {
       throw new IllegalArgumentException("Image key is required");
     }
     if (
-      key.startsWith(PROFILE_PICTURES_PREFIX) ||
-      key.startsWith(PROFILES_PREFIX)
+      key.startsWith(PROFILE_PICTURES_PREFIX) || key.startsWith(PROFILES_PREFIX)
     ) {
       return profileBucket;
     }
-    if (
-      key.startsWith(WORKOUT_PHOTOS_PREFIX) || key.startsWith(POSTS_PREFIX)
-    ) {
+    if (key.startsWith(WORKOUT_PHOTOS_PREFIX) || key.startsWith(POSTS_PREFIX)) {
       return imagesBucket;
     }
     throw new IllegalArgumentException("Unrecognized image key: " + key);
@@ -135,7 +132,8 @@ public class S3StorageService {
     String extension = "image/png".equalsIgnoreCase(contentType)
       ? "png"
       : "jpg";
-    String key = POSTS_PREFIX + userId + "/" + UUID.randomUUID() + "." + extension;
+    String key =
+      POSTS_PREFIX + userId + "/" + UUID.randomUUID() + "." + extension;
 
     PutObjectRequest putRequest = PutObjectRequest.builder()
       .bucket(imagesBucket)
@@ -157,16 +155,13 @@ public class S3StorageService {
     try {
       if (
         key == null ||
-        !(key.startsWith(WORKOUT_PHOTOS_PREFIX) ||
-          key.startsWith(POSTS_PREFIX))
+        !(key.startsWith(WORKOUT_PHOTOS_PREFIX) || key.startsWith(POSTS_PREFIX))
       ) {
         return;
       }
       deleteByKey(key);
     } catch (Exception e) {
-      System.err.println(
-        "Failed to delete image from S3: " + e.getMessage()
-      );
+      System.err.println("Failed to delete image from S3: " + e.getMessage());
     }
   }
 

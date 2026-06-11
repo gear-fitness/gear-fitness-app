@@ -1,15 +1,3 @@
-/**
- * Image service
- *
- * Every image in the app is stored as an S3 KEY (never a URL). Viewing an image
- * means exchanging its key for a short-lived presigned GET url minted by the
- * backend; uploading a post image means asking the backend for a presigned PUT
- * url + key, PUTting the bytes straight to S3, then persisting the key.
- *
- * The client never knows the bucket or region — it only touches the presigned
- * urls the backend hands back.
- */
-
 import * as FileSystem from "expo-file-system/legacy";
 import apiClient from "./apiClient";
 
@@ -118,14 +106,8 @@ async function flush() {
   }
 }
 
-/**
- * Resolve a single stored key to a presigned GET url, coalescing concurrent
- * lookups into one batched request and caching until shortly before expiry.
- * Returns null if the key can't be resolved (caller shows a placeholder).
- *
- * Defensive: a value that is already an absolute URL (e.g. a legacy row the
- * migration left untouched) is passed through unchanged rather than presigned.
- */
+// A value that is already an absolute URL (e.g. a legacy row the migration left
+// untouched) is passed through unchanged rather than presigned.
 export function resolveImageKey(key: string): Promise<CacheEntry | null> {
   if (!key) return Promise.resolve(null);
   if (/^https?:\/\//i.test(key)) {
@@ -146,9 +128,6 @@ export function resolveImageKey(key: string): Promise<CacheEntry | null> {
   });
 }
 
-/**
- * Request a presigned PUT url + server-generated key for a new post image.
- */
 export async function requestPostImageUploadUrl(
   contentType: string,
 ): Promise<{ key: string; uploadUrl: string }> {
@@ -178,10 +157,6 @@ export async function uploadImageToS3(
   }
 }
 
-/**
- * Pick + compress already done by the caller; this uploads a single prepared
- * JPEG and returns its stored key.
- */
 export async function uploadPostImage(fileUri: string): Promise<string> {
   const contentType = "image/jpeg";
   const { key, uploadUrl } = await requestPostImageUploadUrl(contentType);

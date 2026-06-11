@@ -116,7 +116,12 @@ public class ImageController {
     List<String> keys = request.keys();
     if (keys == null || keys.isEmpty()) {
       return ResponseEntity.ok(
-        Map.of("urls", Map.of(), "expiresInSeconds", S3StorageService.VIEW_URL_TTL.getSeconds())
+        Map.of(
+          "urls",
+          Map.of(),
+          "expiresInSeconds",
+          S3StorageService.VIEW_URL_TTL.getSeconds()
+        )
       );
     }
     if (keys.size() > MAX_BATCH_KEYS) {
