@@ -28,10 +28,7 @@ import {
 } from "../utils/network";
 import { getAllExercises, getAllExerciseHistory } from "../api/exerciseService";
 import { getUserRoutines } from "../api/routineService";
-import {
-  getUserPersonalRecords,
-  getUserWorkouts,
-} from "../api/workoutService";
+import { getUserPersonalRecords, getUserWorkouts } from "../api/workoutService";
 import {
   CACHE_KEYS,
   clearCache,
@@ -119,12 +116,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       probeNetwork();
     };
     probe();
-    const sub = AppState.addEventListener(
-      "change",
-      (state: AppStateStatus) => {
-        if (state === "active") probe();
-      },
-    );
+    const sub = AppState.addEventListener("change", (state: AppStateStatus) => {
+      if (state === "active") probe();
+    });
 
     return () => {
       unsubscribe();
@@ -139,7 +133,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
    * failing endpoint can't block the others or surface in the auth UI. Only
    * runs while online — offline would just thrash failing requests.
    */
-  const prewarmOfflineCaches = (userId: string, profilePictureUrl?: string | null) => {
+  const prewarmOfflineCaches = (
+    userId: string,
+    profilePictureUrl?: string | null,
+  ) => {
     if (!isOnline()) return;
     getAllExercises().catch((err) => {
       console.error("Pre-warm exercises failed:", err);
@@ -229,7 +226,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
             userProfile,
           );
           await registerPushToken();
-          prewarmOfflineCaches(userProfile.userId, userProfile.profilePictureUrl);
+          prewarmOfflineCaches(
+            userProfile.userId,
+            userProfile.profilePictureUrl,
+          );
         } catch (profileError: any) {
           if (isNetworkError(profileError)) {
             // Offline at launch — keep the tokens and the cached profile so
@@ -268,10 +268,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const userProfile = await getCurrentUserProfile();
       setUser(userProfile);
       await setActiveUserId(userProfile.userId);
-      await writeCache(
-        CACHE_KEYS.userProfile(userProfile.userId),
-        userProfile,
-      );
+      await writeCache(CACHE_KEYS.userProfile(userProfile.userId), userProfile);
       await registerPushToken();
       prewarmOfflineCaches(userProfile.userId, userProfile.profilePictureUrl);
     } catch (error) {
@@ -325,10 +322,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const userProfile = await getCurrentUserProfile();
       setUser(userProfile);
       await setActiveUserId(userProfile.userId);
-      await writeCache(
-        CACHE_KEYS.userProfile(userProfile.userId),
-        userProfile,
-      );
+      await writeCache(CACHE_KEYS.userProfile(userProfile.userId), userProfile);
       if (userProfile.profilePictureUrl) {
         cacheProfilePicture(userProfile.profilePictureUrl).catch((err) => {
           console.error("Refresh profile picture cache failed:", err);

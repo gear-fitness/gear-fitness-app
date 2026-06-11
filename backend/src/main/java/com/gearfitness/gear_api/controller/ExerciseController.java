@@ -116,7 +116,9 @@ public class ExerciseController {
       Map<UUID, List<WorkoutExercise>> byExercise = new LinkedHashMap<>();
       for (WorkoutExercise we : all) {
         byExercise
-          .computeIfAbsent(we.getExercise().getExerciseId(), k -> new java.util.ArrayList<>())
+          .computeIfAbsent(we.getExercise().getExerciseId(), k ->
+            new java.util.ArrayList<>()
+          )
           .add(we);
       }
 

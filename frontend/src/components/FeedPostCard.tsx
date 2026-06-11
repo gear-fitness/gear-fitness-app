@@ -377,7 +377,9 @@ function PendingProgressBar({ color }: { color: string }) {
   const backdropColor = dark ? "#616161" : "#E5E5E5";
   return (
     <View>
-      <View style={[styles.progressBackdrop, { backgroundColor: backdropColor }]} />
+      <View
+        style={[styles.progressBackdrop, { backgroundColor: backdropColor }]}
+      />
       <View style={[styles.progressTrack, { backgroundColor: `${color}33` }]}>
         <View style={[styles.progressFill, { backgroundColor: color }]} />
       </View>

@@ -20,10 +20,7 @@ function buildSyntheticPost(
 ): FeedPost | null {
   const sub = pending.submission;
   if (!sub.createPost) return null;
-  const photoUrls = [
-    ...(sub.photoUrls ?? []),
-    ...pending.pendingPhotoUris,
-  ];
+  const photoUrls = [...(sub.photoUrls ?? []), ...pending.pendingPhotoUris];
   return {
     postId: `${PENDING_POST_PREFIX}${pending.id}`,
     workoutId: pending.id,
@@ -35,9 +32,9 @@ function buildSyntheticPost(
     username: user.username,
     userProfilePictureUrl: user.profilePictureUrl ?? undefined,
     workoutName: sub.name,
-    datePerformed: sub.datePerformed ?? new Date(pending.createdAt)
-      .toISOString()
-      .slice(0, 10),
+    datePerformed:
+      sub.datePerformed ??
+      new Date(pending.createdAt).toISOString().slice(0, 10),
     durationMin: sub.durationMin,
     bodyTags: sub.bodyTags,
     exerciseCount: sub.exercises.length,
@@ -62,7 +59,6 @@ export async function getPendingPosts(
     .map((p) => buildSyntheticPost(p, user))
     .filter((p): p is FeedPost => p != null);
   return synthesized.sort(
-    (a, b) =>
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
 }

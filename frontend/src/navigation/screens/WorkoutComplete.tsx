@@ -183,9 +183,7 @@ export function WorkoutComplete() {
 
     setLoadingAction(createPost ? "post" : "save");
 
-    const buildSubmission = (
-      uploadedUrls: string[],
-    ): WorkoutSubmission => ({
+    const buildSubmission = (uploadedUrls: string[]): WorkoutSubmission => ({
       name: workoutName,
       durationMin,
       datePerformed: getCurrentLocalDateString(),

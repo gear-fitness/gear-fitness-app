@@ -35,45 +35,46 @@ export function Avatar({
     setLoadFailed(false);
   }, [resolvedUri]);
 
-  const inner = resolvedUri && !loadFailed ? (
-    <Image
-      source={{ uri: resolvedUri }}
-      onError={() => setLoadFailed(true)}
-      style={[
-        {
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-        },
-        style as ImageStyle,
-      ]}
-    />
-  ) : (
-    <View
-      style={[
-        {
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          backgroundColor: colors.primary,
-          justifyContent: "center",
-          alignItems: "center",
-        },
-        style,
-      ]}
-    >
-      <Text
-        style={{
-          color: colors.background,
-          fontSize: size * 0.43,
-          fontWeight: "600",
-          includeFontPadding: false,
-        }}
+  const inner =
+    resolvedUri && !loadFailed ? (
+      <Image
+        source={{ uri: resolvedUri }}
+        onError={() => setLoadFailed(true)}
+        style={[
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+          },
+          style as ImageStyle,
+        ]}
+      />
+    ) : (
+      <View
+        style={[
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            backgroundColor: colors.primary,
+            justifyContent: "center",
+            alignItems: "center",
+          },
+          style,
+        ]}
       >
-        {username.charAt(0).toUpperCase()}
-      </Text>
-    </View>
-  );
+        <Text
+          style={{
+            color: colors.background,
+            fontSize: size * 0.43,
+            fontWeight: "600",
+            includeFontPadding: false,
+          }}
+        >
+          {username.charAt(0).toUpperCase()}
+        </Text>
+      </View>
+    );
 
   if (onPress) {
     return (

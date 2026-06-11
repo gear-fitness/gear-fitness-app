@@ -13,7 +13,11 @@ import {
   Easing,
 } from "react-native";
 import { Button } from "@react-navigation/elements";
-import { useNavigation, useRoute, useFocusEffect } from "@react-navigation/native";
+import {
+  useNavigation,
+  useRoute,
+  useFocusEffect,
+} from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import Svg, { Path } from "react-native-svg";
@@ -88,9 +92,7 @@ export function Profile() {
   const [profile, setProfile] = useState<UserProfile | null>(
     isOtherUser ? null : (authUser ?? null),
   );
-  const [loading, setLoading] = useState(
-    isOtherUser ? true : authUser == null,
-  );
+  const [loading, setLoading] = useState(isOtherUser ? true : authUser == null);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [posts, setPosts] = useState<FeedPost[]>([]);
