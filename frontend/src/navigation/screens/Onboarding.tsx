@@ -129,45 +129,19 @@ export function OnboardingScreen() {
     [goTo, draft.step],
   );
 
-  const syncOnboardingProfile = async () => {
-    // Sync collected profile data to backend (best-effort, non-blocking)
-    try {
-      const h = draft.height;
-      const w = draft.weight;
-      const heightInches =
-        h?.unit === "ft_in"
-          ? h.ft * 12 + h.inch
-          : h?.unit === "cm"
-            ? Math.round(h.cm / 2.54)
-            : null;
-      const weightLbs =
-        w?.unit === "lbs"
-          ? w.value
-          : w?.unit === "kg"
-            ? Math.round(w.value * 2.205)
-            : null;
-      const age = draft.dob
-        ? calcAge(draft.dob.year, draft.dob.month, draft.dob.day)
-        : null;
+  function heightToInches(h: Height | undefined): number | null {
+    if (!h) return null;
+    if (h.unit === "ft_in") return h.ft * 12 + h.inch;
+    if (h.unit === "cm") return Math.round(h.cm / 2.54);
+    return null;
+  }
 
-      await updateUserProfile(
-        heightInches,
-        weightLbs,
-        age,
-        draft.profile?.username ?? null,
-        draft.profile?.name ?? null,
-        draft.gender ?? null,
-      );
-
-      if (draft.profile?.photoUri) {
-        await uploadProfilePicture(draft.profile.photoUri);
-        await refreshUser();
-      }
-    } catch (syncErr) {
-      // Profile sync failure should not block the user from proceeding
-      console.warn("Onboarding profile sync failed:", syncErr);
-    }
-  };
+  function weightToLbs(w: Weight | undefined): number | null {
+    if (!w) return null;
+    if (w.unit === "lbs") return w.value;
+    if (w.unit === "kg") return Math.round(w.value * 2.205);
+    return null;
+  }
 
   const completeAuthFlow = async () => {
     await markOnboardingSeen();
@@ -187,7 +161,23 @@ export function OnboardingScreen() {
       const { idToken } = response.data;
       if (!idToken) throw new Error("No ID token received from Google");
 
-      const result = await loginWithGoogle(idToken, intent);
+      const result = await loginWithGoogle(
+        idToken,
+        intent,
+        undefined,
+        intent === "sign_up"
+          ? {
+              username: draft.profile?.username ?? null,
+              displayName: draft.profile?.name ?? null,
+              gender: draft.gender ?? null,
+              heightInches: heightToInches(draft.height),
+              weightLbs: weightToLbs(draft.weight),
+              age: draft.dob
+                ? calcAge(draft.dob.year, draft.dob.month, draft.dob.day)
+                : null,
+            }
+          : undefined,
+      );
 
       if (result.accountPendingDeletion) {
         setIsSigningIn(false); // release the lock so the prompt's onPress can re-engage
@@ -233,9 +223,15 @@ export function OnboardingScreen() {
       }
       await login(result.token, result.refreshToken);
 
-      if (intent === "sign_up") {
-        await syncOnboardingProfile();
+      if (intent === "sign_up" && draft.profile?.photoUri) {
+        try {
+          await uploadProfilePicture(draft.profile.photoUri);
+          await refreshUser();
+        } catch (e) {
+          console.warn("Photo upload failed; user can retry from settings:", e);
+        }
       }
+
       await completeAuthFlow();
     } catch (error: any) {
       if (error instanceof AuthApiError) {
