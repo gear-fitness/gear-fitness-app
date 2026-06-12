@@ -139,7 +139,7 @@ public class AuthService {
     }
 
     if (
-      INTENT_SIGN_UP.equals(normalizedIntent) &&
+      existingByApple.isEmpty() &&
       existingByEmail.isPresent() &&
       !Boolean.TRUE.equals(request.getConfirmLink())
     ) {

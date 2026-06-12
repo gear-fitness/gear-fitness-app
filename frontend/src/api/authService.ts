@@ -19,8 +19,8 @@ interface GoogleLoginResponse {
   errorCode?: string;
   accountPendingDeletion?: boolean;
   deletedAt?: string;
-  accountExistsForLinking?: boolean; // new
-  existingProvider?: string; // new
+  accountExistsForLinking?: boolean;
+  existingProvider?: string;
 }
 
 export class AuthApiError extends Error {

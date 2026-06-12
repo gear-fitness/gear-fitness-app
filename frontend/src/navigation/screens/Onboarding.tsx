@@ -249,7 +249,7 @@ export function OnboardingScreen() {
                     email: credential.email,
                     firstName: credential.fullName?.givenName,
                     lastName: credential.fullName?.familyName,
-                    intent: "sign_up",
+                    intent,
                     confirmLink: true,
                   });
                   if (!linked.token || !linked.refreshToken) {
