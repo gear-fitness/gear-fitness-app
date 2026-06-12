@@ -217,7 +217,7 @@ public class AppUserController {
         );
       }
 
-      String url = s3StorageService.uploadProfilePicture(
+      String key = s3StorageService.uploadProfilePicture(
         userId,
         file.getBytes(),
         contentType
@@ -226,7 +226,7 @@ public class AppUserController {
       AppUser user = userRepository
         .findById(userId)
         .orElseThrow(() -> new RuntimeException("User not found"));
-      user.setProfilePictureUrl(url);
+      user.setProfilePictureUrl(key);
       userRepository.save(user);
 
       UserDTO updatedUser = userService.getUserProfile(userId);

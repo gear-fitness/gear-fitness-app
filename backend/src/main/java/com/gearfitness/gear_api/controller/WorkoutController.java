@@ -11,16 +11,12 @@ import com.gearfitness.gear_api.service.S3StorageService;
 import com.gearfitness.gear_api.service.WorkoutService;
 import java.time.DayOfWeek;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/workouts")
@@ -112,48 +108,6 @@ public class WorkoutController {
     } catch (Exception e) {
       e.printStackTrace();
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-    }
-  }
-
-  @PostMapping(
-    value = "/photos",
-    consumes = MediaType.MULTIPART_FORM_DATA_VALUE
-  )
-  public ResponseEntity<?> uploadWorkoutPhoto(
-    @RequestHeader("Authorization") String authHeader,
-    @RequestParam("file") MultipartFile file
-  ) {
-    try {
-      String token = authHeader.substring(7);
-      UUID userId = jwtService.extractUserId(token);
-
-      String contentType = file.getContentType();
-      Set<String> allowedTypes = Set.of("image/jpeg", "image/png");
-      if (contentType == null || !allowedTypes.contains(contentType)) {
-        return ResponseEntity.badRequest().body(
-          "Only JPEG and PNG images are allowed"
-        );
-      }
-
-      if (file.getSize() > 5 * 1024 * 1024) {
-        return ResponseEntity.badRequest().body(
-          "File size must not exceed 5MB"
-        );
-      }
-
-      String url = s3StorageService.uploadWorkoutPhoto(
-        userId,
-        file.getBytes(),
-        contentType
-      );
-
-      return ResponseEntity.ok(Map.of("url", url));
-    } catch (Exception e) {
-      System.err.println("Workout photo upload error: " + e.getMessage());
-      e.printStackTrace();
-      return ResponseEntity.internalServerError().body(
-        "Failed to upload workout photo"
-      );
     }
   }
 

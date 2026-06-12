@@ -22,11 +22,10 @@ import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { useSocialFeed } from "../../context/SocialFeedContext";
-import {
-  submitWorkout,
-  uploadWorkoutPhoto,
-  WorkoutSubmission,
-} from "../../api/workoutService";
+import { submitWorkout, WorkoutSubmission } from "../../api/workoutService";
+import { uploadPostImage } from "../../api/imageService";
+import { isNetworkError } from "../../utils/network";
+import { enqueueWorkout } from "../../utils/workoutQueue";
 import { getCurrentLocalDateString } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
@@ -138,7 +137,7 @@ export function WorkoutComplete() {
     }
     const remaining = MAX_PHOTOS - photos.length;
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"],
       allowsMultipleSelection: remaining > 1,
       selectionLimit: remaining,
       quality: 0.8,
@@ -181,8 +180,51 @@ export function WorkoutComplete() {
 
     setLoadingAction(createPost ? "post" : "save");
 
+    const buildSubmission = (uploadedUrls: string[]): WorkoutSubmission => ({
+      name: workoutName,
+      durationMin,
+      datePerformed: getCurrentLocalDateString(),
+      bodyTags: bodyTags, // Send all selected tags to backend
+      exercises: exercises.map((ex) => ({
+        exerciseId: ex.exerciseId,
+        sets: ex.sets.map((set) => ({
+          reps: set.reps,
+          weight: set.weight,
+        })),
+        note: ex.note || "",
+      })),
+      createPost,
+      caption: createPost ? caption : undefined,
+      imageUrl:
+        createPost && uploadedUrls.length > 0 ? uploadedUrls[0] : undefined,
+      photoUrls: uploadedUrls,
+    });
+
+    const finishOffline = async (
+      alreadyUploadedUrls: string[],
+      stillPendingUris: string[],
+    ) => {
+      // Hand off to the queue. Photos that already made it to S3 are kept
+      // verbatim; the rest are kept as local URIs and uploaded at flush time.
+      await enqueueWorkout(
+        buildSubmission(alreadyUploadedUrls),
+        stillPendingUris,
+      );
+      await reset();
+      Alert.alert(
+        "Saved offline",
+        createPost
+          ? "You're offline. Your workout was saved on this device and will post automatically when you're back online."
+          : "You're offline. Your workout was saved on this device and will sync when you're back online.",
+        [{ text: "OK", onPress: popOutOfFlow }],
+      );
+    };
+
+    // Under the secure-s3 model these hold S3 object keys (not public URLs),
+    // returned by uploadPostImage. The field names on WorkoutSubmission keep
+    // their legacy "Url" naming; the backend stores whatever string it's given.
+    let uploadedUrls: string[] = [];
     try {
-      let uploadedUrls: string[] = [];
       if (photos.length > 0) {
         try {
           const compressed = await Promise.all(
@@ -194,11 +236,14 @@ export function WorkoutComplete() {
               ),
             ),
           );
-          const results = await Promise.all(
-            compressed.map((m) => uploadWorkoutPhoto(m.uri)),
+          uploadedUrls = await Promise.all(
+            compressed.map((m) => uploadPostImage(m.uri)),
           );
-          uploadedUrls = results.map((r) => r.url);
         } catch (uploadError) {
+          if (isNetworkError(uploadError)) {
+            await finishOffline([], [...photos]);
+            return;
+          }
           console.error("Failed to upload workout photos:", uploadError);
           Alert.alert("Error", "Failed to upload photos. Please try again.");
           setLoadingAction(null);
@@ -206,25 +251,7 @@ export function WorkoutComplete() {
         }
       }
 
-      const submission: WorkoutSubmission = {
-        name: workoutName,
-        durationMin,
-        datePerformed: getCurrentLocalDateString(),
-        bodyTags: bodyTags, // Send all selected tags to backend
-        exercises: exercises.map((ex) => ({
-          exerciseId: ex.exerciseId,
-          sets: ex.sets.map((set) => ({
-            reps: set.reps,
-            weight: set.weight,
-          })),
-          note: ex.note || "",
-        })),
-        createPost,
-        caption: createPost ? caption : undefined,
-        imageUrl:
-          createPost && uploadedUrls.length > 0 ? uploadedUrls[0] : undefined,
-        photoUrls: uploadedUrls,
-      };
+      const submission = buildSubmission(uploadedUrls);
 
       await submitWorkout(submission);
       // Clear in-memory + persisted state BEFORE the Alert so that any path
@@ -244,6 +271,16 @@ export function WorkoutComplete() {
         [{ text: "OK", onPress: popOutOfFlow }],
       );
     } catch (error) {
+      if (isNetworkError(error)) {
+        try {
+          // Photos already uploaded to S3 keep their URLs; the upload phase
+          // succeeded, so there are no remaining local URIs to re-try.
+          await finishOffline(uploadedUrls, []);
+          return;
+        } catch (queueErr) {
+          console.error("Failed to queue workout offline:", queueErr);
+        }
+      }
       console.error("Failed to save workout:", error);
       Alert.alert("Error", "Failed to save workout. Please try again.");
     } finally {

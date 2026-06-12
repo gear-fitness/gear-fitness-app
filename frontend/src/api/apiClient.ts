@@ -5,6 +5,7 @@ import {
   getRefreshToken,
   storeTokens,
 } from "../utils/auth";
+import { isNetworkError, setOnline } from "../utils/network";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -48,9 +49,18 @@ export function setForceLogoutCallback(callback: () => void) {
 }
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    setOnline(true);
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
+
+    if (isNetworkError(error)) {
+      setOnline(false);
+    } else if (error.response) {
+      setOnline(true);
+    }
 
     // Only handle 401s, and don't retry the refresh endpoint itself
     if (
