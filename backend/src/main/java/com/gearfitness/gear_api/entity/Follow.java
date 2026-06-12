@@ -12,9 +12,11 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLRestriction;
 
 @Entity
 @Table(name = "follow")
+@SQLRestriction("hidden_at IS NULL")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -47,6 +49,9 @@ public class Follow {
 
   @Column(name = "responded_at")
   private LocalDateTime respondedAt;
+
+  @Column(name = "hidden_at")
+  private LocalDateTime hiddenAt;
 
   public enum FollowStatus {
     PENDING,

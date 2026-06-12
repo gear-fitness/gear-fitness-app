@@ -12,9 +12,11 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLRestriction;
 
 @Entity
 @Table(name = "post")
+@SQLRestriction("hidden_at IS NULL AND moderation_status = 'VISIBLE'")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -88,4 +90,7 @@ public class Post {
   @ToString.Exclude
   @EqualsAndHashCode.Exclude
   private Set<Notification> notifications = new HashSet<>();
+
+  @Column(name = "hidden_at")
+  private LocalDateTime hiddenAt;
 }

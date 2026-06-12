@@ -127,3 +127,16 @@ export async function deleteProfilePicture(): Promise<any> {
   const { data } = await apiClient.delete("/users/me/profile-picture");
   return data;
 }
+
+/**
+ * Soft-delete the current user's account. The account is hidden immediately
+ * and permanently deleted after 48 hours. Signing back in within that window
+ * restores it.
+ */
+export async function deleteAccount(
+  usernameConfirmation: string,
+): Promise<void> {
+  await apiClient.delete("/users/me", {
+    data: { usernameConfirmation },
+  });
+}

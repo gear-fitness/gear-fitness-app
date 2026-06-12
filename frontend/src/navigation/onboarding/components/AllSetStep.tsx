@@ -1,20 +1,23 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, Pressable, Image } from "react-native";
 import { OnboardingTopBar } from "./OnboardingTopBar";
 import { useOnboardingColors } from "./useOnboardingColors";
 import { makeOnboardingStyles } from "./makeOnboardingStyles";
 import { GOOGLE_LOGO_URI, appleBrandLogoUri } from "../socialAuthUris";
+import * as AppleAuthentication from "expo-apple-authentication";
 
 interface AllSetStepProps {
   onSignIn: () => void;
   onBack: () => void;
   isLoading?: boolean;
+  onAppleSignUp?: () => void;
 }
 
 export function AllSetStep({
   onSignIn,
   onBack,
   isLoading = false,
+  onAppleSignUp,
 }: AllSetStepProps) {
   const colors = useOnboardingColors();
   const shared = useMemo(() => makeOnboardingStyles(colors), [colors]);
@@ -53,8 +56,9 @@ export function AllSetStep({
             <Text style={shared.continueBtnText}>Sign up with Google</Text>
           </View>
         </Pressable>
-        {/* Apple sign-in stubbed until implemented
         <Pressable
+          onPress={onAppleSignUp}
+          disabled={isLoading}
           style={({ pressed }) => [
             shared.continueBtn,
             pressed && styles.pressed,
@@ -69,7 +73,6 @@ export function AllSetStep({
             <Text style={shared.continueBtnText}>Sign up with Apple</Text>
           </View>
         </Pressable>
-        */}
       </View>
     </View>
   );

@@ -17,9 +17,14 @@ const gearLogoInverse = require("../../../../assets/GearLogoInverse288.png");
 interface IntroStepProps {
   onGetStarted: () => void;
   onGoogleSignIn?: () => void;
+  onAppleSignIn?: () => void;
 }
 
-export function IntroStep({ onGetStarted, onGoogleSignIn }: IntroStepProps) {
+export function IntroStep({
+  onGetStarted,
+  onGoogleSignIn,
+  onAppleSignIn,
+}: IntroStepProps) {
   const isDark = useColorScheme() === "dark";
   const colors = useOnboardingColors();
   const shared = useMemo(() => makeOnboardingStyles(colors), [colors]);
@@ -71,8 +76,8 @@ export function IntroStep({ onGetStarted, onGoogleSignIn }: IntroStepProps) {
           >
             <Image source={{ uri: GOOGLE_LOGO_URI }} style={styles.iconLogo} />
           </Pressable>
-          {/* Apple sign-in stubbed until implemented
           <Pressable
+            onPress={onAppleSignIn}
             style={[styles.iconBtn, { backgroundColor: colors.accent }]}
           >
             <Image
@@ -81,7 +86,6 @@ export function IntroStep({ onGetStarted, onGoogleSignIn }: IntroStepProps) {
               resizeMode="contain"
             />
           </Pressable>
-          */}
         </View>
         <Text style={[styles.terms, { color: colors.secondary }]}>
           By continuing you agree to our{" "}

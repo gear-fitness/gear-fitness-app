@@ -1,6 +1,7 @@
 package com.gearfitness.gear_api.repository;
 
 import com.gearfitness.gear_api.entity.AppUser;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -52,4 +53,30 @@ public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
 
   boolean existsByEmail(String email);
   boolean existsByUsername(String username);
+
+  @Query(
+    value = "SELECT * FROM app_user WHERE user_id = :userId",
+    nativeQuery = true
+  )
+  Optional<AppUser> findByIdIncludingDeleted(@Param("userId") UUID userId);
+
+  @Query(
+    value = "SELECT * FROM app_user WHERE email = :email",
+    nativeQuery = true
+  )
+  Optional<AppUser> findByEmailIncludingDeleted(@Param("email") String email);
+
+  @Query(
+    value = "SELECT * FROM app_user WHERE deleted_at IS NOT NULL AND deleted_at < :cutoff",
+    nativeQuery = true
+  )
+  List<AppUser> findSoftDeletedBefore(@Param("cutoff") LocalDateTime cutoff);
+
+  @Query(
+    value = "SELECT EXISTS(SELECT 1 FROM app_user WHERE LOWER(username) = LOWER(:username))",
+    nativeQuery = true
+  )
+  boolean existsByUsernameIncludingDeleted(@Param("username") String username);
+
+  Optional<AppUser> findByAppleUserId(String appleUserId);
 }

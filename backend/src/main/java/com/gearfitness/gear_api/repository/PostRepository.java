@@ -41,7 +41,6 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
         (b.follower.userId = :userId AND b.followee.userId = p.user.userId AND b.status = 'BLOCKED')
         OR (b.follower.userId = p.user.userId AND b.followee.userId = :userId AND b.status = 'BLOCKED')
     )
-    AND p.moderationStatus = 'VISIBLE'
     ORDER BY p.createdAt DESC
     """
   )
@@ -86,7 +85,6 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
         (b.follower.userId = :viewingUserId AND b.followee.userId = :userId AND b.status = 'BLOCKED')
         OR (b.follower.userId = :userId AND b.followee.userId = :viewingUserId AND b.status = 'BLOCKED')
     )
-    AND p.moderationStatus = 'VISIBLE'
     ORDER BY p.createdAt DESC
     """
   )

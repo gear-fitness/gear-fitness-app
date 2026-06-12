@@ -12,6 +12,7 @@ export default {
     scheme: "gearfitness",
     ios: {
       supportsTablet: true,
+      usesAppleSignIn: true,
       bundleIdentifier: IS_DEV
         ? "com.gearfitness.dev.build"
         : "com.gearfitness",
@@ -61,6 +62,7 @@ export default {
       ],
       "expo-secure-store",
       "expo-notifications",
+      "expo-apple-authentication",
       "@react-native-community/datetimepicker",
       [
         "expo-image-picker",

@@ -14,10 +14,12 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLRestriction;
 
 @Entity
 @Table(name = "app_user")
 @Data
+@SQLRestriction("deleted_at IS NULL")
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -77,6 +79,9 @@ public class AppUser {
   @Column(name = "created_at", nullable = false, updatable = false)
   private LocalDateTime createdAt;
 
+  @Column(name = "deleted_at")
+  private LocalDateTime deletedAt;
+
   // Relationships
   @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
   @JsonIgnore
@@ -127,4 +132,7 @@ public class AppUser {
   @ToString.Exclude
   @EqualsAndHashCode.Exclude
   private Set<Follow> followers = new HashSet<>();
+
+  @Column(name = "apple_user_id", unique = true)
+  private String appleUserId;
 }
