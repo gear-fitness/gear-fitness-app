@@ -19,6 +19,9 @@ export default {
         ITSAppUsesNonExemptEncryption: false,
         NSPhotoLibraryUsageDescription:
           "Allow Gear Fitness to access your photos to set a profile picture.",
+        // Stop iOS from auto-presenting the "Select More Photos" alert on every
+        // pick when the user granted Limited photo access.
+        PHPhotoLibraryPreventAutomaticLimitedAccessAlert: true,
       },
     },
     android: {
