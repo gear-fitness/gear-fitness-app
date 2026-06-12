@@ -100,8 +100,18 @@ export function ActivityModal({ visible, onClose }: ActivityModalProps) {
     if (!item.actorUserId) return;
     try {
       await acceptFollowRequest(item.actorUserId);
+      // The request becomes a regular follow notification in place
+      // ("<user> started following you"), re-stamped to the moment of
+      // acceptance so it reads "Just now" instead of the original request time.
+      // The backend likewise re-creates it with a fresh timestamp, so a reload
+      // matches. toISOString() is UTC (ends in "Z"), which parseServerDate reads
+      // as-is — keeping it correct regardless of the device's timezone.
       setNotifications((prev) =>
-        prev.filter((n) => n.notificationId !== item.notificationId),
+        prev.map((n) =>
+          n.notificationId === item.notificationId
+            ? { ...n, type: "FOLLOW", createdAt: new Date().toISOString() }
+            : n,
+        ),
       );
     } catch {
       // silently ignore
@@ -126,7 +136,7 @@ export function ActivityModal({ visible, onClose }: ActivityModalProps) {
     const actionText = (() => {
       switch (item.type) {
         case "FOLLOW":
-          return " followed you";
+          return " started following you";
         case "FOLLOW_REQUEST":
           return " wants to follow you";
         case "LIKE":
@@ -195,22 +205,24 @@ export function ActivityModal({ visible, onClose }: ActivityModalProps) {
           {isFollowRequest && (
             <View style={styles.requestButtons}>
               <TouchableOpacity
-                style={[styles.requestBtn, styles.acceptBtn]}
-                onPress={() => handleAccept(item)}
-              >
-                <Text style={styles.acceptBtnText}>Accept</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
                 style={[
                   styles.requestBtn,
-                  styles.declineBtn,
-                  { borderColor: colors.border },
+                  styles.acceptBtn,
+                  { backgroundColor: colors.text, borderColor: colors.border },
                 ]}
+                onPress={() => handleAccept(item)}
+              >
+                <Text
+                  style={[styles.acceptBtnText, { color: colors.background }]}
+                >
+                  Accept
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.requestBtn, styles.declineBtn]}
                 onPress={() => handleDecline(item)}
               >
-                <Text style={[styles.declineBtnText, { color: colors.text }]}>
-                  Decline
-                </Text>
+                <Text style={styles.declineBtnText}>Decline</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -329,17 +341,18 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   acceptBtn: {
-    backgroundColor: "#ff4d2e",
+    borderWidth: 1,
   },
   acceptBtnText: {
-    color: "#fff",
     fontSize: 13,
     fontWeight: "600",
   },
   declineBtn: {
     borderWidth: 1,
+    borderColor: "#ff3b30",
   },
   declineBtnText: {
+    color: "#ff3b30",
     fontSize: 13,
     fontWeight: "600",
   },

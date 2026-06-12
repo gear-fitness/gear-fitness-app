@@ -176,6 +176,14 @@ public class FollowService {
     if (follow.isEmpty()) return; // already not following — treat as success
 
     followRepository.delete(follow.get());
+
+    // If a pending request is being rescinded, drop the follow-request
+    // notification so it disappears from the recipient's activity.
+    notificationRepository.deleteByRecipientAndActorAndType(
+      followee,
+      follower,
+      Notification.NotificationType.FOLLOW_REQUEST
+    );
   }
 
   /**
@@ -219,11 +227,7 @@ public class FollowService {
           f.getFollower().getUsername(),
           f.getFollower().getDisplayName(),
           f.getFollower().getProfilePictureUrl(),
-          followRepository.existsByFollowerAndFolloweeAndStatus(
-            currentUser,
-            f.getFollower(),
-            Follow.FollowStatus.ACCEPTED
-          )
+          viewerStatusToward(currentUser, f.getFollower())
         )
       )
       .collect(Collectors.toList());
@@ -252,14 +256,23 @@ public class FollowService {
           f.getFollowee().getUsername(),
           f.getFollowee().getDisplayName(),
           f.getFollowee().getProfilePictureUrl(),
-          followRepository.existsByFollowerAndFolloweeAndStatus(
-            currentUser,
-            f.getFollowee(),
-            Follow.FollowStatus.ACCEPTED
-          )
+          viewerStatusToward(currentUser, f.getFollowee())
         )
       )
       .collect(Collectors.toList());
+  }
+
+  /**
+   * The viewer's follow relationship toward a target user, as a status string
+   * ("ACCEPTED", "PENDING", "BLOCKED", or "NONE"). The viewer is never shown a
+   * button for themselves, so self is reported as "NONE".
+   */
+  private String viewerStatusToward(AppUser viewer, AppUser target) {
+    if (viewer.getUserId().equals(target.getUserId())) return "NONE";
+    return followRepository
+      .findByFollowerAndFollowee(viewer, target)
+      .map(f -> f.getStatus().name())
+      .orElse("NONE");
   }
 
   /**
@@ -304,6 +317,27 @@ public class FollowService {
 
     follow.setStatus(Follow.FollowStatus.ACCEPTED);
     follow.setRespondedAt(LocalDateTime.now());
+
+    // Replace the pending follow-request notification with a fresh follow
+    // notification. Re-creating it (rather than flipping the type in place)
+    // stamps the server's GMT creation time at the moment of acceptance, so the
+    // activity feed shows "<user> started following you" as a new event ("Just
+    // now") instead of inheriting the original request's (now stale) timestamp.
+    // createdAt is @CreationTimestamp + updatable=false, so it can't be mutated
+    // on the existing row anyway.
+    notificationRepository.deleteByRecipientAndActorAndType(
+      followee,
+      follower,
+      Notification.NotificationType.FOLLOW_REQUEST
+    );
+    notificationRepository.save(
+      Notification.builder()
+        .recipient(followee)
+        .actor(follower)
+        .type(Notification.NotificationType.FOLLOW)
+        .isRead(true)
+        .build()
+    );
   }
 
   /**
@@ -319,12 +353,19 @@ public class FollowService {
       .findById(followerId)
       .orElseThrow(() -> new RuntimeException("Follower not found"));
 
-    Follow follow = followRepository
+    // Delete the pending request outright (rather than marking it DECLINED) so
+    // the same user can send a fresh follow request again later.
+    followRepository
       .findByFollowerAndFollowee(follower, followee)
-      .orElseThrow(() -> new RuntimeException("Follow request not found"));
+      .filter(f -> f.getStatus() == Follow.FollowStatus.PENDING)
+      .ifPresent(followRepository::delete);
 
-    follow.setStatus(Follow.FollowStatus.DECLINED);
-    follow.setRespondedAt(LocalDateTime.now());
+    // Remove the follow-request notification from the recipient's activity.
+    notificationRepository.deleteByRecipientAndActorAndType(
+      followee,
+      follower,
+      Notification.NotificationType.FOLLOW_REQUEST
+    );
   }
 
   /**

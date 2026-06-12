@@ -21,7 +21,7 @@ public class NotificationService {
   @Transactional(readOnly = true)
   public List<NotificationDTO> getNotificationsForUser(UUID userId) {
     return notificationRepository
-      .findByRecipient_UserIdOrderByCreatedAtDesc(userId)
+      .findVisibleByRecipient(userId)
       .stream()
       .map(n ->
         NotificationDTO.builder()
@@ -43,13 +43,15 @@ public class NotificationService {
   }
 
   public long getUnreadCount(UUID userId) {
-    return notificationRepository.countByRecipient_UserIdAndIsReadFalse(userId);
+    return notificationRepository.countUnreadVisibleByRecipient(userId);
   }
 
   @Transactional
   public void markAllAsRead(UUID userId) {
+    // Only touch notifications the user can actually see; a blocked actor's
+    // notifications stay untouched so they re-surface (still unread) on unblock.
     List<Notification> notifications =
-      notificationRepository.findByRecipient_UserIdOrderByCreatedAtDesc(userId);
+      notificationRepository.findVisibleByRecipient(userId);
 
     notifications.forEach(n -> n.setRead(true));
 

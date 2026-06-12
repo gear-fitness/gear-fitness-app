@@ -52,6 +52,7 @@ export interface FollowerUser {
   displayName?: string | null;
   profilePictureUrl?: string | null;
   isFollowing: boolean;
+  followStatus?: "ACCEPTED" | "PENDING" | "BLOCKED" | "NONE";
 }
 
 export interface SearchUserResult {
