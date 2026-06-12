@@ -127,16 +127,24 @@ public class AppUserController {
         localDate
       );
 
-      boolean isOwnProfile = viewingUserId != null && viewingUserId.equals(profile.getUserId());
+      boolean isOwnProfile =
+        viewingUserId != null && viewingUserId.equals(profile.getUserId());
 
       // Block in either direction → 404 (as if the profile doesn't exist)
-      if (!isOwnProfile && viewingUserId != null && followService.isBlocked(viewingUserId, profile.getUserId())) {
+      if (
+        !isOwnProfile &&
+        viewingUserId != null &&
+        followService.isBlocked(viewingUserId, profile.getUserId())
+      ) {
         return ResponseEntity.notFound().build();
       }
 
       // Private account: redact everything except the minimal header fields
-      if (!isOwnProfile && Boolean.TRUE.equals(profile.getIsPrivate())
-          && !"ACCEPTED".equals(profile.getFollowStatus())) {
+      if (
+        !isOwnProfile &&
+        Boolean.TRUE.equals(profile.getIsPrivate()) &&
+        !"ACCEPTED".equals(profile.getFollowStatus())
+      ) {
         UserProfileDTO redacted = UserProfileDTO.builder()
           .userId(profile.getUserId())
           .username(profile.getUsername())

@@ -50,7 +50,12 @@ public class PostInteractionController {
         viewingUserId = jwtService.extractUserId(authHeader.substring(7));
       } catch (Exception ignored) {}
     }
-    Page<CommentDTO> comments = postInteractionService.getComments(postId, viewingUserId, page, size);
+    Page<CommentDTO> comments = postInteractionService.getComments(
+      postId,
+      viewingUserId,
+      page,
+      size
+    );
     return ResponseEntity.ok(comments);
   }
 

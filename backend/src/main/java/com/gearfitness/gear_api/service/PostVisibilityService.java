@@ -31,14 +31,17 @@ public class PostVisibilityService {
   /** True if viewerId is allowed to see the post. */
   public boolean canView(Post post, UUID viewerId) {
     // A post hidden or removed by moderation is served to no one, owner included.
-    if (post.getModerationStatus() != Post.ModerationStatus.VISIBLE) return false;
+    if (
+      post.getModerationStatus() != Post.ModerationStatus.VISIBLE
+    ) return false;
 
     UUID authorId = post.getUser().getUserId();
 
     if (authorId.equals(viewerId)) return true; // owner
 
     if (
-      viewerId != null && followRepository.existsBlockBetween(viewerId, authorId)
+      viewerId != null &&
+      followRepository.existsBlockBetween(viewerId, authorId)
     ) return false;
 
     return switch (post.getVisibility()) {

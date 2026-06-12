@@ -12,7 +12,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface PostRepository extends JpaRepository<Post, UUID> {
-
   /**
    * Social feed: posts from followed users, filtered by visibility and mutual-
    * follow requirement for FRIENDS posts. Blocked users' posts are hidden in

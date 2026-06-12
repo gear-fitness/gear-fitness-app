@@ -13,7 +13,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { notificationService } from "../api/notificationService";
-import { acceptFollowRequest, declineFollowRequest } from "../api/followService";
+import {
+  acceptFollowRequest,
+  declineFollowRequest,
+} from "../api/followService";
 import { parseServerDate } from "../utils/date";
 import { Avatar } from "./Avatar";
 

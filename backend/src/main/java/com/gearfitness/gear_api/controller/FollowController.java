@@ -279,8 +279,16 @@ public class FollowController {
       String token = authHeader.substring(7);
       UUID userId = jwtService.extractUserId(token);
       List<AppUser> blocked = followService.getBlockedUsers(userId);
-      List<FollowerDTO> result = blocked.stream()
-        .map(u -> new FollowerDTO(u.getUserId(), u.getUsername(), u.getDisplayName(), u.getProfilePictureUrl()))
+      List<FollowerDTO> result = blocked
+        .stream()
+        .map(u ->
+          new FollowerDTO(
+            u.getUserId(),
+            u.getUsername(),
+            u.getDisplayName(),
+            u.getProfilePictureUrl()
+          )
+        )
         .collect(Collectors.toList());
       return ResponseEntity.ok(result);
     } catch (RuntimeException e) {

@@ -60,9 +60,11 @@ public class FollowService {
         .followeeId(followeeId)
         .followeeUsername(followee.getUsername())
         .status(existingStatus.name())
-        .message(existingStatus == Follow.FollowStatus.PENDING
-          ? "Follow request already sent to " + followee.getUsername()
-          : "Already following " + followee.getUsername())
+        .message(
+          existingStatus == Follow.FollowStatus.PENDING
+            ? "Follow request already sent to " + followee.getUsername()
+            : "Already following " + followee.getUsername()
+        )
         .build();
     }
 
@@ -89,9 +91,10 @@ public class FollowService {
     followRepository.save(follow);
 
     // FOLLOW_REQUEST for private accounts, FOLLOW for public accounts
-    Notification.NotificationType notifType = status == Follow.FollowStatus.PENDING
-      ? Notification.NotificationType.FOLLOW_REQUEST
-      : Notification.NotificationType.FOLLOW;
+    Notification.NotificationType notifType =
+      status == Follow.FollowStatus.PENDING
+        ? Notification.NotificationType.FOLLOW_REQUEST
+        : Notification.NotificationType.FOLLOW;
 
     Notification notification = Notification.builder()
       .recipient(followee)
@@ -166,7 +169,10 @@ public class FollowService {
       .findById(followeeId)
       .orElseThrow(() -> new RuntimeException("User to unfollow not found"));
 
-    Optional<Follow> follow = followRepository.findByFollowerAndFollowee(follower, followee);
+    Optional<Follow> follow = followRepository.findByFollowerAndFollowee(
+      follower,
+      followee
+    );
     if (follow.isEmpty()) return; // already not following — treat as success
 
     followRepository.delete(follow.get());
@@ -333,12 +339,21 @@ public class FollowService {
     AppUser target = userRepository.findById(targetId).orElse(null);
     if (viewer == null || target == null) return "NONE";
 
-    Optional<Follow> follow = followRepository.findByFollowerAndFollowee(viewer, target);
+    Optional<Follow> follow = followRepository.findByFollowerAndFollowee(
+      viewer,
+      target
+    );
     if (follow.isPresent()) return follow.get().getStatus().name();
 
     // Check if the viewer is blocked by the target
-    Optional<Follow> reverseBlock = followRepository.findByFollowerAndFollowee(target, viewer);
-    if (reverseBlock.isPresent() && reverseBlock.get().getStatus() == Follow.FollowStatus.BLOCKED) {
+    Optional<Follow> reverseBlock = followRepository.findByFollowerAndFollowee(
+      target,
+      viewer
+    );
+    if (
+      reverseBlock.isPresent() &&
+      reverseBlock.get().getStatus() == Follow.FollowStatus.BLOCKED
+    ) {
       return "BLOCKED";
     }
 
@@ -351,18 +366,24 @@ public class FollowService {
    */
   @Transactional
   public void blockUser(UUID blockerId, UUID targetId) {
-    if (blockerId.equals(targetId)) throw new RuntimeException("Cannot block yourself");
+    if (blockerId.equals(targetId)) throw new RuntimeException(
+      "Cannot block yourself"
+    );
 
-    AppUser blocker = userRepository.findById(blockerId)
+    AppUser blocker = userRepository
+      .findById(blockerId)
       .orElseThrow(() -> new RuntimeException("User not found"));
-    AppUser target = userRepository.findById(targetId)
+    AppUser target = userRepository
+      .findById(targetId)
       .orElseThrow(() -> new RuntimeException("Target user not found"));
 
     // Remove follow from blocker → target (any status)
-    followRepository.findByFollowerAndFollowee(blocker, target)
+    followRepository
+      .findByFollowerAndFollowee(blocker, target)
       .ifPresent(followRepository::delete);
     // Remove follow from target → blocker (any status)
-    followRepository.findByFollowerAndFollowee(target, blocker)
+    followRepository
+      .findByFollowerAndFollowee(target, blocker)
       .ifPresent(followRepository::delete);
 
     followRepository.flush();
@@ -381,12 +402,15 @@ public class FollowService {
    */
   @Transactional
   public void unblockUser(UUID blockerId, UUID targetId) {
-    AppUser blocker = userRepository.findById(blockerId)
+    AppUser blocker = userRepository
+      .findById(blockerId)
       .orElseThrow(() -> new RuntimeException("User not found"));
-    AppUser target = userRepository.findById(targetId)
+    AppUser target = userRepository
+      .findById(targetId)
       .orElseThrow(() -> new RuntimeException("Target user not found"));
 
-    Follow block = followRepository.findByFollowerAndFollowee(blocker, target)
+    Follow block = followRepository
+      .findByFollowerAndFollowee(blocker, target)
       .filter(f -> f.getStatus() == Follow.FollowStatus.BLOCKED)
       .orElseThrow(() -> new RuntimeException("No block found"));
 
@@ -398,9 +422,11 @@ public class FollowService {
    */
   @Transactional(readOnly = true)
   public List<AppUser> getBlockedUsers(UUID blockerId) {
-    AppUser blocker = userRepository.findById(blockerId)
+    AppUser blocker = userRepository
+      .findById(blockerId)
       .orElseThrow(() -> new RuntimeException("User not found"));
-    return followRepository.findByFollowerAndStatus(blocker, Follow.FollowStatus.BLOCKED)
+    return followRepository
+      .findByFollowerAndStatus(blocker, Follow.FollowStatus.BLOCKED)
       .stream()
       .map(Follow::getFollowee)
       .collect(Collectors.toList());

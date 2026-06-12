@@ -79,7 +79,9 @@ export function BlockedUsersScreen() {
         >
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.text }]}>Blocked Users</Text>
+        <Text style={[styles.title, { color: colors.text }]}>
+          Blocked Users
+        </Text>
         <View style={{ width: 32 }} />
       </View>
 
@@ -89,11 +91,7 @@ export function BlockedUsersScreen() {
         </View>
       ) : blocked.length === 0 ? (
         <View style={styles.center}>
-          <Ionicons
-            name="ban-outline"
-            size={48}
-            color={colors.border}
-          />
+          <Ionicons name="ban-outline" size={48} color={colors.border} />
           <Text style={[styles.emptyText, { color: colors.text + "80" }]}>
             No blocked users
           </Text>
@@ -103,9 +101,7 @@ export function BlockedUsersScreen() {
           data={blocked}
           keyExtractor={(item) => item.userId}
           renderItem={({ item }) => (
-            <View
-              style={[styles.row, { borderBottomColor: colors.border }]}
-            >
+            <View style={[styles.row, { borderBottomColor: colors.border }]}>
               <Avatar
                 username={item.username}
                 profilePictureUrl={item.profilePictureUrl}
@@ -117,10 +113,7 @@ export function BlockedUsersScreen() {
                 </Text>
               </View>
               <TouchableOpacity
-                style={[
-                  styles.unblockBtn,
-                  { borderColor: colors.border },
-                ]}
+                style={[styles.unblockBtn, { borderColor: colors.border }]}
                 onPress={() => handleUnblock(item)}
                 activeOpacity={0.7}
               >

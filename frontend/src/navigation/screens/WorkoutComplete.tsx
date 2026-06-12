@@ -74,7 +74,9 @@ export function WorkoutComplete() {
   const [bodyTags, setBodyTags] = useState<string[]>(initialBodyTags);
   const [caption, setCaption] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
-  const [visibility, setVisibility] = useState<"PUBLIC" | "FRIENDS" | "PRIVATE">("PUBLIC");
+  const [visibility, setVisibility] = useState<
+    "PUBLIC" | "FRIENDS" | "PRIVATE"
+  >("PUBLIC");
   const [loading, setLoading] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -515,7 +517,11 @@ export function WorkoutComplete() {
               [
                 { value: "PUBLIC", icon: "globe-outline", label: "Everyone" },
                 { value: "FRIENDS", icon: "people-outline", label: "Friends" },
-                { value: "PRIVATE", icon: "lock-closed-outline", label: "Only me" },
+                {
+                  value: "PRIVATE",
+                  icon: "lock-closed-outline",
+                  label: "Only me",
+                },
               ] as const
             ).map((opt) => {
               const active = visibility === opt.value;

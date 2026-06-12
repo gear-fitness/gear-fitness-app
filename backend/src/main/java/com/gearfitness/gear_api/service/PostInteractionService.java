@@ -95,7 +95,12 @@ public class PostInteractionService {
     return LikeResponse.builder().liked(liked).likeCount(likeCount).build();
   }
 
-  public Page<CommentDTO> getComments(UUID postId, UUID viewingUserId, int page, int size) {
+  public Page<CommentDTO> getComments(
+    UUID postId,
+    UUID viewingUserId,
+    int page,
+    int size
+  ) {
     Post post = postRepository
       .findById(postId)
       .orElseThrow(() ->
@@ -110,7 +115,11 @@ public class PostInteractionService {
       Sort.by("createdAt").descending()
     );
     Page<PostComment> comments = (viewingUserId != null)
-      ? postCommentRepository.findVisibleComments(postId, viewingUserId, pageable)
+      ? postCommentRepository.findVisibleComments(
+          postId,
+          viewingUserId,
+          pageable
+        )
       : postCommentRepository.findByPost_PostId(postId, pageable);
 
     return comments.map(this::mapToDTO);

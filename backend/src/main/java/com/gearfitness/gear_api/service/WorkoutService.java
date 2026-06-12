@@ -406,7 +406,10 @@ public class WorkoutService {
     // client sent createPost=false with no visibility, default to PRIVATE so
     // "save only" workouts are not accidentally made public.
     Post.PostVisibility visibility = Post.PostVisibility.PUBLIC;
-    if (submission.getVisibility() != null && !submission.getVisibility().isBlank()) {
+    if (
+      submission.getVisibility() != null &&
+      !submission.getVisibility().isBlank()
+    ) {
       visibility = Post.PostVisibility.valueOf(submission.getVisibility());
     } else if (Boolean.FALSE.equals(submission.getCreatePost())) {
       visibility = Post.PostVisibility.PRIVATE;

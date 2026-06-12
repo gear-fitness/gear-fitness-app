@@ -175,12 +175,21 @@ public class AppUserService {
           user,
           Follow.FollowStatus.ACCEPTED
         );
-        var outboundFollow = followRepository.findByFollowerAndFollowee(viewingUser, user);
+        var outboundFollow = followRepository.findByFollowerAndFollowee(
+          viewingUser,
+          user
+        );
         if (outboundFollow.isPresent()) {
           followStatus = outboundFollow.get().getStatus().name();
         } else {
-          var inboundBlock = followRepository.findByFollowerAndFollowee(user, viewingUser);
-          if (inboundBlock.isPresent() && inboundBlock.get().getStatus() == Follow.FollowStatus.BLOCKED) {
+          var inboundBlock = followRepository.findByFollowerAndFollowee(
+            user,
+            viewingUser
+          );
+          if (
+            inboundBlock.isPresent() &&
+            inboundBlock.get().getStatus() == Follow.FollowStatus.BLOCKED
+          ) {
             followStatus = "BLOCKED";
           } else {
             followStatus = "NONE";

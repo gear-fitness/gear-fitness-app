@@ -79,7 +79,9 @@ public class SocialFeedController {
       String token = authHeader.substring(7);
       UUID userId = jwtService.extractUserId(token);
       String visibility = body.get("visibility");
-      if (visibility == null) return ResponseEntity.badRequest().body("visibility required");
+      if (visibility == null) return ResponseEntity.badRequest().body(
+        "visibility required"
+      );
       socialFeedService.updatePostVisibility(postId, userId, visibility);
       return ResponseEntity.ok().build();
     } catch (IllegalArgumentException e) {
