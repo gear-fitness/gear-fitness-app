@@ -19,6 +19,8 @@ interface GoogleLoginResponse {
   errorCode?: string;
   accountPendingDeletion?: boolean;
   deletedAt?: string;
+  accountExistsForLinking?: boolean; // new
+  existingProvider?: string; // new
 }
 
 export class AuthApiError extends Error {
@@ -54,6 +56,7 @@ interface AppleLoginParams {
   lastName?: string | null;
   intent: AppleAuthIntent;
   confirmRestore?: boolean;
+  confirmLink?: boolean;
   profile?: AppleSignUpProfile;
 }
 
@@ -69,6 +72,7 @@ export async function loginWithApple(
       lastName: params.lastName,
       intent: params.intent,
       confirmRestore: params.confirmRestore,
+      confirmLink: params.confirmLink,
       ...(params.profile ?? {}),
     });
     if (data?.error) {

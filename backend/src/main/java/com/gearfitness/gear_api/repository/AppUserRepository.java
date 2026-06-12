@@ -72,4 +72,6 @@ public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
     nativeQuery = true
   )
   boolean existsByUsernameIncludingDeleted(@Param("username") String username);
+
+  Optional<AppUser> findByAppleUserId(String appleUserId);
 }

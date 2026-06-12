@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import { View, StyleSheet, Alert, Appearance } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as AppleAuthentication from "expo-apple-authentication";
 import { CommonActions, useNavigation } from "@react-navigation/native";
 import {
   GoogleSignin,
@@ -33,6 +34,7 @@ import {
 import {
   AuthApiError,
   GoogleAuthIntent,
+  loginWithApple,
   loginWithGoogle,
 } from "../../api/authService";
 import { updateUserProfile, uploadProfilePicture } from "../../api/userService";
@@ -150,6 +152,181 @@ export function OnboardingScreen() {
       CommonActions.reset({ index: 0, routes: [{ name: "HomeTabs" }] }),
     );
   };
+
+  const handleAppleAuth = async (intent: GoogleAuthIntent) => {
+    if (isSigningIn) return;
+    setIsSigningIn(true);
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      if (!credential.identityToken) {
+        throw new Error("No identity token received from Apple");
+      }
+
+      const result = await loginWithApple({
+        identityToken: credential.identityToken,
+        appleUserId: credential.user,
+        email: credential.email,
+        firstName: credential.fullName?.givenName,
+        lastName: credential.fullName?.familyName,
+        intent,
+        profile:
+          intent === "sign_up"
+            ? {
+                username: draft.profile?.username ?? null,
+                displayName: draft.profile?.name ?? null,
+                gender: draft.gender ?? null,
+                heightInches: heightToInches(draft.height),
+                weightLbs: weightToLbs(draft.weight),
+                age: draft.dob
+                  ? calcAge(draft.dob.year, draft.dob.month, draft.dob.day)
+                  : null,
+              }
+            : undefined,
+      });
+
+      // ── Soft-deleted account: prompt to restore ────────────────
+      if (result.accountPendingDeletion) {
+        setIsSigningIn(false);
+        Alert.alert(
+          "Restore account?",
+          "This account is scheduled for deletion. Would you like to restore it?",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Restore",
+              onPress: async () => {
+                setIsSigningIn(true);
+                try {
+                  const restored = await loginWithApple({
+                    identityToken: credential.identityToken!,
+                    appleUserId: credential.user,
+                    intent: "sign_in",
+                    confirmRestore: true,
+                  });
+                  if (!restored.token || !restored.refreshToken) {
+                    throw new Error("Missing tokens in restore response");
+                  }
+                  await login(restored.token, restored.refreshToken);
+                  await completeAuthFlow();
+                } catch (err) {
+                  console.error("Apple restore failed:", err);
+                  Alert.alert(
+                    "Couldn't restore account",
+                    "Please try signing in again.",
+                  );
+                } finally {
+                  setIsSigningIn(false);
+                }
+              },
+            },
+          ],
+        );
+        return;
+      }
+      if (result.accountExistsForLinking) {
+        setIsSigningIn(false);
+        const providerLabel =
+          result.existingProvider === "google" ? "Google" : "another provider";
+        Alert.alert(
+          "Account exists",
+          `An account already exists for this email via ${providerLabel}. Link your Apple ID to that account?`,
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Link",
+              onPress: async () => {
+                setIsSigningIn(true);
+                try {
+                  const linked = await loginWithApple({
+                    identityToken: credential.identityToken!,
+                    appleUserId: credential.user,
+                    email: credential.email,
+                    firstName: credential.fullName?.givenName,
+                    lastName: credential.fullName?.familyName,
+                    intent: "sign_up",
+                    confirmLink: true,
+                  });
+                  if (!linked.token || !linked.refreshToken) {
+                    throw new Error("Missing tokens in link response");
+                  }
+                  await login(linked.token, linked.refreshToken);
+                  // Don't upload the onboarding photo — we're attaching to an
+                  // existing account that has its own profile already.
+                  await completeAuthFlow();
+                } catch (err) {
+                  console.error("Apple linking failed:", err);
+                  Alert.alert(
+                    "Couldn't link account",
+                    "Please try signing in again.",
+                  );
+                } finally {
+                  setIsSigningIn(false);
+                }
+              },
+            },
+          ],
+        );
+        return;
+      }
+      // ── End soft-delete handling ───────────────────────────────
+
+      if (!result.token || !result.refreshToken) {
+        throw new Error("Missing tokens in login response");
+      }
+      await login(result.token, result.refreshToken);
+
+      if (intent === "sign_up" && draft.profile?.photoUri) {
+        try {
+          await uploadProfilePicture(draft.profile.photoUri);
+          await refreshUser();
+        } catch (e) {
+          console.warn("Photo upload failed:", e);
+        }
+      }
+      await completeAuthFlow();
+    } catch (error: any) {
+      // User canceled — not worth surfacing
+      if (error?.code === "ERR_REQUEST_CANCELED") {
+        return;
+      }
+
+      if (error instanceof AuthApiError) {
+        if (intent === "sign_in" && error.code === "ACCOUNT_NOT_FOUND") {
+          Alert.alert(
+            "Account Not Found",
+            "No account exists for this Apple ID. Please sign up first.",
+            [{ text: "OK", onPress: () => goTo(0) }],
+          );
+          return;
+        }
+        if (intent === "sign_up" && error.code === "ACCOUNT_ALREADY_EXISTS") {
+          Alert.alert(
+            "Account Already Exists",
+            "An account already exists for this Apple ID. Please sign in instead.",
+            [{ text: "Go to Sign In", onPress: () => goTo(0) }],
+          );
+          return;
+        }
+      }
+      console.error("Apple sign-in error:", error);
+      Alert.alert(
+        "Sign-in Failed",
+        "Something went wrong signing in with Apple. Please try again.",
+        [{ text: "OK" }],
+      );
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
+
+  const handleAppleSignInExisting = async () => handleAppleAuth("sign_in");
+  const handleAppleSignUpNew = async () => handleAppleAuth("sign_up");
 
   const handleGoogleAuth = async (intent: GoogleAuthIntent) => {
     if (isSigningIn) return;
@@ -271,7 +448,11 @@ export function OnboardingScreen() {
   const stepProps = useMemo(() => {
     const base = { onBack: goBack };
     return [
-      { onGetStarted: goNext, onGoogleSignIn: handleGoogleSignInExisting },
+      {
+        onGetStarted: goNext,
+        onGoogleSignIn: handleGoogleSignInExisting,
+        onAppleSignIn: handleAppleSignInExisting,
+      },
       {
         selected: draft.gender,
         onSelect: (g: Gender) => updateDraft({ gender: g }),
@@ -305,7 +486,12 @@ export function OnboardingScreen() {
         ...base,
         onContinue: goNext,
       },
-      { onSignIn: handleGoogleSignUpNew, ...base, isLoading: isSigningIn },
+      {
+        onSignIn: handleGoogleSignUpNew,
+        onAppleSignUp: handleAppleSignUpNew,
+        ...base,
+        isLoading: isSigningIn,
+      },
     ] as const;
   }, [
     draft.step,
@@ -321,6 +507,8 @@ export function OnboardingScreen() {
     isSigningIn,
     handleGoogleSignInExisting,
     handleGoogleSignUpNew,
+    handleAppleSignInExisting,
+    handleAppleSignUpNew,
   ]);
 
   if (!hydrated) return null;

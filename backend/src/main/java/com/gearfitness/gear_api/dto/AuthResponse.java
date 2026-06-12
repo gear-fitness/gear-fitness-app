@@ -20,4 +20,6 @@ public class AuthResponse {
   private String errorCode;
   private Boolean accountPendingDeletion;
   private LocalDateTime deletedAt;
+  private Boolean accountExistsForLinking;
+  private String existingProvider;
 }

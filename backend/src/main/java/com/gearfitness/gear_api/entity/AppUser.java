@@ -132,4 +132,7 @@ public class AppUser {
   @ToString.Exclude
   @EqualsAndHashCode.Exclude
   private Set<Follow> followers = new HashSet<>();
+
+  @Column(name = "apple_user_id", unique = true)
+  private String appleUserId;
 }
