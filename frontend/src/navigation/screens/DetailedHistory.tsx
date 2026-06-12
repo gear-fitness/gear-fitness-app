@@ -15,6 +15,7 @@ import React, { useState, useEffect } from "react";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { getWorkoutDetails } from "../../api/workoutService";
 import { WorkoutDetail, WorkoutExercise, WorkoutSet } from "../../api/types";
+import { isNetworkError } from "../../utils/network";
 import { parseLocalDate } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { formatTag } from "../../utils/formatTag";
@@ -138,7 +139,16 @@ export function DetailedHistory({ route }: Props) {
         setLoading(false);
       } catch (err: any) {
         console.error("Error loading workout details:", err);
-        setError(err.message);
+        // Surface a friendlier message when the failure is purely a
+        // connectivity problem and there was no cached summary to fall back
+        // to. Other errors keep their raw message so we don't hide bugs.
+        if (isNetworkError(err)) {
+          setError(
+            "You're offline and this workout's details aren't cached on this device.",
+          );
+        } else {
+          setError(err.message);
+        }
         setLoading(false);
       }
     };

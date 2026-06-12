@@ -1,10 +1,11 @@
 import React from "react";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 
 import { FeedPost } from "../api/socialFeedApi";
 import { Avatar } from "./Avatar";
+import { PresignedImage } from "./PresignedImage";
 import { formatDurationShort, formatTimeAgo } from "../utils/date";
 import { useLikeState } from "../context/LikesContext";
 import { usePostMenu } from "../hooks/usePostMenu";
@@ -188,10 +189,11 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
                   { backgroundColor: t.surface, borderColor: t.surface },
                 ]}
               >
-                <Image
-                  source={{ uri: photos[2] }}
+                <PresignedImage
+                  imageKey={photos[2]}
                   style={[styles.thumbImage, { borderColor: t.border }]}
                   resizeMode="cover"
+                  showLoader={false}
                 />
               </View>
             )}
@@ -205,10 +207,11 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
                   { backgroundColor: t.surface, borderColor: t.surface },
                 ]}
               >
-                <Image
-                  source={{ uri: photos[1] }}
+                <PresignedImage
+                  imageKey={photos[1]}
                   style={[styles.thumbImage, { borderColor: t.border }]}
                   resizeMode="cover"
+                  showLoader={false}
                 />
               </View>
             )}
@@ -218,10 +221,11 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
                 { backgroundColor: t.surface, borderColor: t.surface },
               ]}
             >
-              <Image
-                source={{ uri: photos[0] }}
+              <PresignedImage
+                imageKey={photos[0]}
                 style={[styles.thumbImage, { borderColor: t.border }]}
                 resizeMode="cover"
+                showLoader={false}
               />
             </View>
           </TouchableOpacity>

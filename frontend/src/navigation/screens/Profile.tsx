@@ -13,7 +13,11 @@ import {
   Easing,
 } from "react-native";
 import { Button } from "@react-navigation/elements";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import {
+  useNavigation,
+  useRoute,
+  useFocusEffect,
+} from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import Svg, { Path } from "react-native-svg";
@@ -26,6 +30,8 @@ import {
 } from "../../api/userService";
 import { blockUser } from "../../api/followService";
 import { UserProfile } from "../../api/types";
+import { useAuth } from "../../context/AuthContext";
+import { subscribeOnlineStatus } from "../../utils/network";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { socialFeedApi, FeedPost } from "../../api/socialFeedApi";
 import { FeedPostCard } from "../../components/FeedPostCard";
@@ -34,6 +40,7 @@ import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
 import { useSocialFeed } from "../../context/SocialFeedContext";
 import { Avatar } from "../../components/Avatar";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
+import { getPendingPosts, isPendingPostId } from "../../utils/pendingPosts";
 
 const WEEK_LABELS = ["S", "M", "T", "W", "T", "F", "S"] as const;
 const GRID_ROWS = 5;
@@ -78,8 +85,15 @@ export function Profile() {
 
   useTrackTab(isOtherUser ? "UserProfile" : "Profile");
 
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user: authUser } = useAuth();
+  // Seed the own-profile view with the cached auth user so the screen has
+  // content immediately and stays usable while offline. The network fetch
+  // below replaces it as soon as it lands. Other-user profiles aren't
+  // cached client-side, so they fall through to the spinner as before.
+  const [profile, setProfile] = useState<UserProfile | null>(
+    isOtherUser ? null : (authUser ?? null),
+  );
+  const [loading, setLoading] = useState(isOtherUser ? true : authUser == null);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [posts, setPosts] = useState<FeedPost[]>([]);
@@ -150,6 +164,43 @@ export function Profile() {
       }
     });
   }, []);
+
+  // Keep the own-profile view in sync with the auth-context user. When the
+  // offline queue flushes and AuthContext re-fetches the profile, this picks
+  // up the new totals without needing a manual reload.
+  useEffect(() => {
+    if (isOtherUser) return;
+    if (authUser) setProfile(authUser);
+  }, [authUser, isOtherUser]);
+
+  // Refresh on reconnect so stale offline data is updated as soon as the
+  // device comes back online.
+  useEffect(() => {
+    return subscribeOnlineStatus((online) => {
+      if (!online) return;
+      loadProfile().then((profileData) => {
+        if (profileData) loadUserPosts(profileData);
+      });
+    });
+    // loadProfile/loadUserPosts are stable closures captured at mount; we
+    // intentionally don't re-subscribe each render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Re-pull pending posts whenever the screen regains focus. Posting offline
+  // from WorkoutComplete navigates back to this screen, so the synthesized
+  // "in-progress" card needs to appear without a manual refresh.
+  useFocusEffect(
+    React.useCallback(() => {
+      if (isOtherUser) return;
+      if (profile) {
+        loadUserPosts(profile);
+      }
+      // loadUserPosts is a closure captured at render — re-running it on
+      // every focus is the intended behavior.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [profile, isOtherUser]),
+  );
 
   const handleFollowToggle = async () => {
     if (!profile || followLoading) return;
@@ -275,20 +326,37 @@ export function Profile() {
     ]);
   };
 
+  const loadPendingForCurrentUser = async (
+    targetProfile: UserProfile,
+  ): Promise<FeedPost[]> => {
+    if (isOtherUser) return [];
+    if (!authUser || authUser.userId !== targetProfile.userId) return [];
+    try {
+      return await getPendingPosts(authUser);
+    } catch (err) {
+      console.error("Error loading pending posts:", err);
+      return [];
+    }
+  };
+
   const loadUserPosts = async (profileData?: UserProfile) => {
     const targetProfile = profileData || profile;
     if (!targetProfile) return;
     try {
       setPostsLoading(true);
-      const response = await socialFeedApi.getUserPosts(
-        targetProfile.userId,
-        0,
-        1,
-      );
-      normalizeFeedPosts(response.content);
-      setPosts(response.content);
-    } catch (error) {
-      console.error("Error loading user posts:", error);
+      // Server posts and offline pending posts can be fetched in parallel —
+      // a pending post belongs only to the current user and never has a
+      // real workoutId, so it can't collide with anything the API returns.
+      const [response, pending] = await Promise.all([
+        socialFeedApi.getUserPosts(targetProfile.userId, 0, 1).catch((err) => {
+          console.error("Error loading user posts:", err);
+          return null;
+        }),
+        loadPendingForCurrentUser(targetProfile),
+      ]);
+      const serverPosts = response?.content ?? [];
+      normalizeFeedPosts(serverPosts);
+      setPosts([...pending, ...serverPosts]);
     } finally {
       setPostsLoading(false);
     }
@@ -590,7 +658,11 @@ export function Profile() {
           />
         }
       >
-        {profile ? <ProfileHeader /> : <ProfileHeaderSkeleton t={t} />}
+        {/* Call as a function (not <ProfileHeader />) so its output is inlined
+            into this tree; rendering it as a nested component type would remount
+            the subtree — and reset the Avatar's presigned-url state — on every
+            Profile re-render. ProfileHeader uses no hooks, so this is safe. */}
+        {profile ? ProfileHeader() : <ProfileHeaderSkeleton t={t} />}
 
         {profile ? (
           profile.isPrivate &&
@@ -611,7 +683,11 @@ export function Profile() {
               </Text>
             </View>
           ) : posts.length > 0 ? (
-            <FeedPostCard post={posts[0]} onOpenComments={handleOpenComments} />
+            <FeedPostCard
+              post={posts[0]}
+              onOpenComments={handleOpenComments}
+              isPending={isPendingPostId(posts[0].postId)}
+            />
           ) : postsLoading ? (
             <PostCardSkeleton t={t} />
           ) : (

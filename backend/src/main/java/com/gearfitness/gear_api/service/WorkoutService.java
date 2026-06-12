@@ -452,8 +452,8 @@ public class WorkoutService {
     }
 
     if (workout.getPhotoUrls() != null) {
-      for (String url : workout.getPhotoUrls()) {
-        s3StorageService.deleteWorkoutPhoto(url);
+      for (String key : workout.getPhotoUrls()) {
+        s3StorageService.deleteImageByKey(key);
       }
     }
 

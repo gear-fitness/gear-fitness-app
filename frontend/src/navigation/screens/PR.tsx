@@ -13,10 +13,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import bench from "../../assets/bench.png";
 import squat from "../../assets/squat.png";
 import deadlift from "../../assets/deadlift.png";
-import { getUserPersonalRecords } from "../../api/workoutService";
+import {
+  getCachedPersonalRecords,
+  getUserPersonalRecords,
+} from "../../api/workoutService";
 import { PersonalRecord } from "../../api/types";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
+import { subscribeOnlineStatus } from "../../utils/network";
 
 type RootStackParamList = {
   PR: { userId: string };
@@ -35,20 +39,44 @@ export function PR({ route }: Props) {
   const [prs, setPrs] = useState<PersonalRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Paint from the offline cache while the live request is in flight. Stops
+  // the loading spinner from blocking the screen when the device is offline.
   useEffect(() => {
-    const fetchPRs = async () => {
-      try {
-        const data = await getUserPersonalRecords(userId);
-        setPrs(data);
-        setLoading(false);
-      } catch (err: any) {
-        console.error("Error loading PRs:", err);
+    let cancelled = false;
+    (async () => {
+      const cached = await getCachedPersonalRecords(userId);
+      if (!cancelled && cached.length > 0) {
+        setPrs((prev) => (prev.length === 0 ? cached : prev));
         setLoading(false);
       }
+    })();
+    return () => {
+      cancelled = true;
     };
-
-    fetchPRs();
   }, [userId]);
+
+  const fetchPRs = React.useCallback(async () => {
+    try {
+      const data = await getUserPersonalRecords(userId);
+      setPrs(data);
+    } catch (err: any) {
+      console.error("Error loading PRs:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    fetchPRs();
+  }, [fetchPRs]);
+
+  // Refresh when connectivity returns so newly-set PRs (from a queued
+  // offline workout that just synced) show up without manual reload.
+  useEffect(() => {
+    return subscribeOnlineStatus((online) => {
+      if (online) fetchPRs();
+    });
+  }, [fetchPRs]);
 
   const getImageForExercise = (exerciseName: string) => {
     if (exerciseName === "Bench Press") return bench;

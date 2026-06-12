@@ -16,4 +16,8 @@ public interface WorkoutExerciseRepository
     UUID exerciseId,
     UUID userId
   );
+
+  List<
+    WorkoutExercise
+  > findByWorkout_User_UserIdOrderByWorkout_DatePerformedDesc(UUID userId);
 }
