@@ -6,7 +6,7 @@ export default {
     slug: "gear-fitness",
     version: "1.0.0",
     orientation: "portrait",
-    icon: IS_DEV ? "./assets/GearLogoDev.png" : "./assets/GearLogo.png",
+    icon: IS_DEV ? "./assets/GearLogoInverse.png" : "./assets/GearLogo.png",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
     scheme: "gearfitness",
@@ -41,11 +41,13 @@ export default {
       ],
       "expo-asset",
       "expo-font",
+      "expo-video",
       [
         "expo-splash-screen",
         {
           backgroundColor: "#ffffff",
           image: "./assets/GearLogoInverse.png",
+          imageWidth: 210,
           dark: {
             backgroundColor: "#000000",
             image: "./assets/GearLogo.png",
