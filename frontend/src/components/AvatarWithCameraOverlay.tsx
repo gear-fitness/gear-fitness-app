@@ -24,6 +24,17 @@ export function AvatarWithCameraOverlay({
   return (
     <View style={[styles.wrap, { width: size, height: size }, style]}>
       {children}
+      {uploading && (
+        <View
+          style={[
+            styles.uploadingOverlay,
+            { width: size, height: size, borderRadius: size / 2 },
+          ]}
+          pointerEvents="none"
+        >
+          <ActivityIndicator size="large" color="#fff" />
+        </View>
+      )}
       <View style={styles.badge} pointerEvents="none">
         {uploading ? (
           <ActivityIndicator size="small" color="#fff" />
@@ -38,6 +49,14 @@ export function AvatarWithCameraOverlay({
 const styles = StyleSheet.create({
   wrap: {
     position: "relative",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  uploadingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
     alignItems: "center",
     justifyContent: "center",
   },

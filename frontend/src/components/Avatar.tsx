@@ -26,6 +26,11 @@ export function Avatar({
   onPress,
 }: Props) {
   const { colors } = useTheme();
+  // profilePictureUrl is an S3 key under the secure-s3 image model. The hook
+  // resolves it to a renderable URI: a locally-cached file when one exists
+  // (offline-safe), otherwise a freshly presigned url. Returns null when the
+  // key can't be resolved (e.g. offline with no cached copy) so we fall back
+  // to the initials avatar below.
   const resolvedUri = useCachedAvatarUri(profilePictureUrl);
   const [loadFailed, setLoadFailed] = useState(false);
 

@@ -1,17 +1,22 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Directory, File, Paths } from "expo-file-system";
+import { resolveImageKey } from "../api/imageService";
 
 /**
  * Per-user offline cache of profile picture image bytes. AuthContext pre-warms
  * this on login/refresh so a user's own avatar is visible while offline. The
  * map persists in AsyncStorage; the actual image bytes live in the OS cache
  * directory and may be evicted by the system under storage pressure.
+ *
+ * The cache is keyed by the stable image identity — an S3 object key under the
+ * secure-s3 model (presigned download urls rotate, so they can't be the key).
+ * The bytes are downloaded from a freshly resolved presigned url.
  */
 
 const MAP_KEY = "@profile_picture_cache_map";
 const SUBDIR = "profile-pictures";
 
-// remoteUrl -> local file:// URI
+// cacheKey (S3 object key or legacy absolute url) -> local file:// URI
 const memCache: Record<string, string> = {};
 let memLoaded = false;
 const listeners = new Set<() => void>();
@@ -63,22 +68,30 @@ function safeKey(s: string): string {
 }
 
 export function getCachedProfilePictureUriSync(
-  remoteUrl: string | null | undefined,
+  cacheKey: string | null | undefined,
 ): string | null {
-  if (!remoteUrl) return null;
-  return memCache[remoteUrl] ?? null;
+  if (!cacheKey) return null;
+  return memCache[cacheKey] ?? null;
 }
 
 export async function loadProfilePictureCache(): Promise<void> {
   await ensureLoaded();
 }
 
+/**
+ * Download and cache the image identified by `cacheKey`, returning the local
+ * file URI. The bytes come from `downloadUrl` when supplied (a presigned url
+ * the caller already resolved); otherwise the key is resolved to one here.
+ * Either way the on-disk file and the map entry are keyed by the stable
+ * `cacheKey`, so a rotating presigned url never causes a cache miss.
+ */
 export async function cacheProfilePicture(
-  remoteUrl: string | null | undefined,
+  cacheKey: string | null | undefined,
+  downloadUrl?: string | null,
 ): Promise<string | null> {
-  if (!remoteUrl) return null;
+  if (!cacheKey) return null;
   await ensureLoaded();
-  const existing = memCache[remoteUrl];
+  const existing = memCache[cacheKey];
   if (existing) {
     try {
       const f = new File(existing);
@@ -88,19 +101,25 @@ export async function cacheProfilePicture(
     }
   }
   try {
+    // Resolve the key to a downloadable url. resolveImageKey passes absolute
+    // urls (legacy rows) and on-device URIs through unchanged.
+    const source =
+      downloadUrl ?? (await resolveImageKey(cacheKey))?.url ?? null;
+    if (!source) return null;
+
     const dir = new Directory(Paths.cache, SUBDIR);
     if (!dir.exists) dir.create({ intermediates: true });
-    const name = `${safeKey(remoteUrl)}${inferExt(remoteUrl)}`;
+    const name = `${safeKey(cacheKey)}${inferExt(cacheKey)}`;
     const dest = new File(dir, name);
     if (dest.exists) {
-      memCache[remoteUrl] = dest.uri;
+      memCache[cacheKey] = dest.uri;
       notify();
       await persistMap();
       return dest.uri;
     }
-    const downloaded = await File.downloadFileAsync(remoteUrl, dest);
+    const downloaded = await File.downloadFileAsync(source, dest);
     const uri = downloaded?.uri ?? dest.uri;
-    memCache[remoteUrl] = uri;
+    memCache[cacheKey] = uri;
     notify();
     await persistMap();
     return uri;

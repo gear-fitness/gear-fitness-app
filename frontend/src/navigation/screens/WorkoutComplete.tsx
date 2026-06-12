@@ -22,11 +22,8 @@ import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { useSocialFeed } from "../../context/SocialFeedContext";
-import {
-  submitWorkout,
-  uploadWorkoutPhoto,
-  WorkoutSubmission,
-} from "../../api/workoutService";
+import { submitWorkout, WorkoutSubmission } from "../../api/workoutService";
+import { uploadPostImage } from "../../api/imageService";
 import { isNetworkError } from "../../utils/network";
 import { enqueueWorkout } from "../../utils/workoutQueue";
 import { getCurrentLocalDateString } from "../../utils/date";
@@ -140,7 +137,7 @@ export function WorkoutComplete() {
     }
     const remaining = MAX_PHOTOS - photos.length;
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"],
       allowsMultipleSelection: remaining > 1,
       selectionLimit: remaining,
       quality: 0.8,
@@ -223,6 +220,9 @@ export function WorkoutComplete() {
       );
     };
 
+    // Under the secure-s3 model these hold S3 object keys (not public URLs),
+    // returned by uploadPostImage. The field names on WorkoutSubmission keep
+    // their legacy "Url" naming; the backend stores whatever string it's given.
     let uploadedUrls: string[] = [];
     try {
       if (photos.length > 0) {
@@ -236,10 +236,9 @@ export function WorkoutComplete() {
               ),
             ),
           );
-          const results = await Promise.all(
-            compressed.map((m) => uploadWorkoutPhoto(m.uri)),
+          uploadedUrls = await Promise.all(
+            compressed.map((m) => uploadPostImage(m.uri)),
           );
-          uploadedUrls = results.map((r) => r.url);
         } catch (uploadError) {
           if (isNetworkError(uploadError)) {
             await finishOffline([], [...photos]);

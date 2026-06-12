@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { usePresignedImage } from "./usePresignedImage";
 import {
   cacheProfilePicture,
   getCachedProfilePictureUriSync,
@@ -7,54 +8,71 @@ import {
 } from "../utils/profilePictureCache";
 
 /**
- * Resolve a remote profile picture URL to a local file URI when one has been
- * cached on this device. When no local copy exists, falls back to the remote
- * URL — which renders normally online and silently shows the Avatar initials
- * fallback when offline.
+ * Resolve a profile picture S3 key to a renderable URI.
+ *
+ * Under the secure-s3 image model `key` is an S3 object key, not a public URL.
+ * This hook returns, in priority order:
+ *   1. a locally-cached file URI (offline-safe, no flicker), if one exists for
+ *      this key;
+ *   2. otherwise a freshly presigned url resolved from the key (online);
+ *   3. otherwise null — letting the Avatar fall back to initials (e.g. offline
+ *      with no cached copy).
  *
  * `enableDownload` controls whether a cache miss kicks off a background
- * download. Callers should pass true for the current user's avatar (so it is
- * available the next time they open the app offline) and false for incidental
- * avatars elsewhere in the UI.
+ * download of the bytes (keyed by the stable S3 key) so the avatar survives
+ * going offline. Pass true for the current user's own avatar; false for
+ * incidental avatars elsewhere in the UI, which are cached centrally by
+ * AuthContext's pre-warm instead.
  */
 export function useCachedAvatarUri(
-  remoteUrl: string | null | undefined,
+  key: string | null | undefined,
   enableDownload: boolean = false,
 ): string | null | undefined {
-  const [resolved, setResolved] = useState<string | null | undefined>(() => {
-    if (!remoteUrl) return remoteUrl ?? null;
-    return getCachedProfilePictureUriSync(remoteUrl) ?? remoteUrl;
-  });
+  // Live presigned url for the key (null while resolving or when offline). For
+  // already-renderable values (legacy absolute urls, on-device URIs) this is a
+  // passthrough — see resolveImageKey.
+  const presigned = usePresignedImage(key);
 
+  const [cached, setCached] = useState<string | null>(() =>
+    key ? (getCachedProfilePictureUriSync(key) ?? null) : null,
+  );
+
+  // Track the locally-cached file for this key, and react to cache updates
+  // (e.g. AuthContext pre-warming the current user's avatar after login).
   useEffect(() => {
-    if (!remoteUrl) {
-      setResolved(remoteUrl ?? null);
+    if (!key) {
+      setCached(null);
       return;
     }
     let cancelled = false;
     (async () => {
       await loadProfilePictureCache();
       if (cancelled) return;
-      const existing = getCachedProfilePictureUriSync(remoteUrl);
-      if (existing) {
-        setResolved(existing);
-        return;
-      }
-      setResolved(remoteUrl);
-      if (!enableDownload) return;
-      const local = await cacheProfilePicture(remoteUrl);
-      if (!cancelled && local) setResolved(local);
+      setCached(getCachedProfilePictureUriSync(key) ?? null);
     })();
     const unsubscribe = subscribeProfilePictureCache(() => {
-      if (!remoteUrl) return;
-      const local = getCachedProfilePictureUriSync(remoteUrl);
-      if (local) setResolved(local);
+      const local = getCachedProfilePictureUriSync(key);
+      if (local) setCached(local);
     });
     return () => {
       cancelled = true;
       unsubscribe();
     };
-  }, [remoteUrl, enableDownload]);
+  }, [key]);
 
-  return resolved;
+  // Once a presigned url is available, opportunistically cache the bytes under
+  // the stable key so the avatar is visible the next time the app is offline.
+  useEffect(() => {
+    if (!enableDownload || !key || !presigned) return;
+    if (getCachedProfilePictureUriSync(key)) return;
+    let cancelled = false;
+    cacheProfilePicture(key, presigned).then((local) => {
+      if (!cancelled && local) setCached(local);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [enableDownload, key, presigned]);
+
+  return cached ?? presigned ?? null;
 }

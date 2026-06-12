@@ -1,8 +1,5 @@
-import {
-  submitWorkout,
-  uploadWorkoutPhoto,
-  WorkoutSubmission,
-} from "../api/workoutService";
+import { submitWorkout, WorkoutSubmission } from "../api/workoutService";
+import { uploadPostImage } from "../api/imageService";
 import { Workout } from "../api/types";
 import { isNetworkError } from "./network";
 import {
@@ -124,12 +121,14 @@ export async function flushWorkoutQueue(): Promise<number> {
     const remaining: PendingWorkout[] = [];
     for (const item of queue) {
       try {
+        // Upload deferred local photos now that we're online. uploadPostImage
+        // PUTs each file to S3 via a presigned url and returns its object key,
+        // which is what the post's photoUrls field carries under secure-s3.
         let uploadedUrls: string[] = [];
         if (item.pendingPhotoUris.length > 0) {
-          const results = await Promise.all(
-            item.pendingPhotoUris.map((uri) => uploadWorkoutPhoto(uri)),
+          uploadedUrls = await Promise.all(
+            item.pendingPhotoUris.map((uri) => uploadPostImage(uri)),
           );
-          uploadedUrls = results.map((r) => r.url);
         }
         const submission: WorkoutSubmission = {
           ...item.submission,

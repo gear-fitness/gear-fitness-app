@@ -4,7 +4,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   TouchableWithoutFeedback,
-  Image,
   ScrollView,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -22,6 +21,7 @@ import { useAuth } from "../context/AuthContext";
 import { useLikeState } from "../context/LikesContext";
 import { usePostMenu } from "../hooks/usePostMenu";
 import { Avatar } from "./Avatar";
+import { PresignedImage } from "./PresignedImage";
 
 interface Props {
   post: FeedPost;
@@ -183,8 +183,8 @@ export function FeedPostCard({ post, isPending = false }: Props) {
                 onPress={openImageViewer}
               >
                 <View style={{ width: scrollWidth, alignItems: "center" }}>
-                  <Image
-                    source={{ uri: url }}
+                  <PresignedImage
+                    imageKey={url}
                     style={[
                       styles.image,
                       { height: scrollWidth + 60, borderColor: colors.border },
