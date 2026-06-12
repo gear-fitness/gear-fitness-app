@@ -16,8 +16,7 @@ type CacheEntry = { url: string; expiresAt: number };
 // legacy row the migration left untouched) and on-device URIs (file://, ph://,
 // content://, data:, assets-library://) used by offline pending posts whose
 // photos haven't been uploaded yet.
-const RENDERABLE_URI =
-  /^(https?:|file:|ph:|content:|data:|assets-library:)/i;
+const RENDERABLE_URI = /^(https?:|file:|ph:|content:|data:|assets-library:)/i;
 
 const cache = new Map<string, CacheEntry>();
 let pending = new Map<string, ((entry: CacheEntry | null) => void)[]>();
