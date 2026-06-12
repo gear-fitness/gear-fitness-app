@@ -13,7 +13,12 @@ import {
   PersonalRecord,
 } from "./types";
 import { getCurrentLocalDateString } from "../utils/date";
-import { CACHE_KEYS, readCache, writeCache } from "../utils/offlineCache";
+import {
+  CACHE_KEYS,
+  getActiveUserId,
+  readCache,
+  writeCache,
+} from "../utils/offlineCache";
 import { isNetworkError } from "../utils/network";
 import {
   getPendingWorkouts,
@@ -67,10 +72,82 @@ export interface WorkoutDetailResponse {
   photoUrls: string[];
 }
 
+/**
+ * Map the submit/detail API response onto the WorkoutDetail shape used by the
+ * offline detail cache and DetailedHistory. The response carries set weights
+ * as strings; WorkoutDetail uses number | null.
+ */
+function responseToDetail(res: WorkoutDetailResponse): WorkoutDetail {
+  return {
+    workoutId: res.workoutId,
+    name: res.name,
+    datePerformed: res.datePerformed,
+    durationMin: res.durationMin,
+    bodyTags: res.bodyTags ?? [],
+    exercises: res.exercises.map((ex) => ({
+      workoutExerciseId: ex.workoutExerciseId,
+      exerciseName: ex.exerciseName,
+      bodyParts: ex.bodyParts ?? [],
+      position: ex.position,
+      note: ex.note ?? null,
+      sets: ex.sets.map((s) => ({
+        workoutSetId: s.workoutSetId,
+        setNumber: s.setNumber,
+        reps: s.reps,
+        weightLbs: s.weightLbs ? Number(s.weightLbs) : null,
+        isPr: s.isPr,
+      })),
+    })),
+  };
+}
+
+/**
+ * Persist a freshly-submitted workout to the offline caches so it's viewable
+ * with no network round-trip right after posting — closes the "post online,
+ * go offline, open history" gap. Covers both the online WorkoutComplete flow
+ * and the offline-queue flush, since both route through submitWorkout.
+ * Best-effort: a cache failure must never fail the post itself.
+ */
+async function cacheSubmittedWorkout(
+  res: WorkoutDetailResponse,
+): Promise<void> {
+  try {
+    await writeCache(
+      CACHE_KEYS.workoutDetail(res.workoutId),
+      responseToDetail(res),
+    );
+
+    const userId = await getActiveUserId();
+    if (!userId) return;
+
+    const summary: Workout = {
+      workoutId: res.workoutId,
+      name: res.name,
+      datePerformed: res.datePerformed,
+      createdAt: new Date().toISOString(),
+      durationMin: res.durationMin,
+      exerciseCount: res.exercises.length,
+      bodyTags: res.bodyTags ?? [],
+    };
+    // Prepend as the newest entry, de-duping any existing copy of this id so a
+    // re-submit or queue-flush can't double it up. A later getUserWorkouts()
+    // overwrites the whole list with the server's canonical ordering.
+    const list = await getCachedUserWorkouts(userId);
+    const deduped = list.filter((w) => w.workoutId !== res.workoutId);
+    await writeCache(CACHE_KEYS.userWorkouts(userId), [summary, ...deduped]);
+  } catch (err) {
+    console.error("Failed to cache submitted workout:", err);
+  }
+}
+
 export async function submitWorkout(
   submission: WorkoutSubmission,
 ): Promise<WorkoutDetailResponse> {
-  const { data } = await apiClient.post("/workouts/submit", submission);
+  const { data } = await apiClient.post<WorkoutDetailResponse>(
+    "/workouts/submit",
+    submission,
+  );
+  await cacheSubmittedWorkout(data);
   return data;
 }
 
@@ -204,12 +281,22 @@ export async function getWorkoutDetails(
     const { data } = await apiClient.get<WorkoutDetail>(
       `/workouts/${workoutId}`,
     );
+    // Write through so a later offline view shows the full set-level detail.
+    await writeCache(CACHE_KEYS.workoutDetail(workoutId), data);
     return data;
   } catch (err) {
     if (isNetworkError(err)) {
-      // We don't know which user this workout belongs to from this call, so
-      // scan the current user's cache. The History/Profile flows are the
-      // only paths into DetailedHistory that hit this fallback usefully.
+      // Prefer a full cached detail (real sets/reps) saved by a previous view
+      // of this workout or at submit time.
+      const cachedDetail = await readCache<WorkoutDetail>(
+        CACHE_KEYS.workoutDetail(workoutId),
+      );
+      if (cachedDetail) return cachedDetail;
+
+      // No detail cached — fall back to a summary-only synthesis (metadata,
+      // empty exercise list). We don't know which user this workout belongs to
+      // from this call, so scan the current user's cache. The History/Profile
+      // flows are the only paths into DetailedHistory that hit this usefully.
       const activeUserId = await readCache<string>(CACHE_KEYS.lastUserId);
       if (activeUserId) {
         const cached = await getCachedUserWorkouts(activeUserId);

@@ -35,6 +35,7 @@ export const CACHE_KEYS = {
   pendingWorkouts: (userId: string) => `@offline_pending_workouts_${userId}`,
   pendingRoutines: (userId: string) => `@offline_pending_routines_${userId}`,
   userWorkouts: (userId: string) => `@offline_workouts_${userId}`,
+  workoutDetail: (workoutId: string) => `@offline_workout_detail_${workoutId}`,
   personalRecords: (userId: string) => `@offline_prs_${userId}`,
   exerciseHistory: (userId: string, exerciseId: string) =>
     `@offline_exercise_history_${userId}_${exerciseId}`,
