@@ -29,6 +29,9 @@ import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 import { MusclesPair, type BodyVariant } from "../../components/MuscleDiagram";
 import { useAuth } from "../../context/AuthContext";
 import { usePostMenu } from "../../hooks/usePostMenu";
+import { PostVisibilitySheet } from "../../components/PostVisibilitySheet";
+import { PostActionsSheet } from "../../components/PostActionsSheet";
+import { ReportPostSheet } from "../../components/ReportPostSheet";
 import {
   computeActivations,
   defaultDiagramPalette,
@@ -48,6 +51,9 @@ type RootStackParamList = {
     /** Author's username — needed for the follow/unfollow flow when the
      *  3-dots menu is tapped on someone else's workout. */
     ownerUsername?: string;
+    /** Whether the viewer follows the author, precomputed on the feed payload,
+     *  so the menu's Follow/Unfollow label is correct without a fetch. */
+    viewerFollowsAuthor?: boolean;
     initialLikeCount?: number;
     initialLikedByUser?: boolean;
   };
@@ -73,11 +79,31 @@ export function DetailedHistory({ route }: Props) {
     postId,
     ownerUserId,
     ownerUsername,
+    viewerFollowsAuthor,
     initialLikeCount,
     initialLikedByUser,
   } = route.params;
 
-  const onMenuPress = usePostMenu({ workoutId, ownerUserId, ownerUsername });
+  const {
+    onPress: onMenuPress,
+    actions: menuActions,
+    showVisibilitySheet,
+    closeVisibilitySheet,
+    pendingVisibility,
+    handleVisibilitySelect,
+    showActionsSheet,
+    closeActionsSheet,
+    onActionsSheetClosed,
+    showReportSheet,
+    closeReportSheet,
+    submitReport,
+  } = usePostMenu({
+    workoutId,
+    postId,
+    ownerUserId,
+    ownerUsername,
+    viewerFollowsAuthor,
+  });
 
   const { user } = useAuth();
   // Treat "this is the viewer's own workout" as: navigated from own history
@@ -292,6 +318,23 @@ export function DetailedHistory({ route }: Props) {
       {backButton}
       {dotsButton}
       {floatingActions}
+      <PostActionsSheet
+        visible={showActionsSheet}
+        actions={menuActions}
+        onClose={closeActionsSheet}
+        onClosed={onActionsSheetClosed}
+      />
+      <PostVisibilitySheet
+        visible={showVisibilitySheet}
+        current={pendingVisibility}
+        onSelect={handleVisibilitySelect}
+        onClose={closeVisibilitySheet}
+      />
+      <ReportPostSheet
+        visible={showReportSheet}
+        onSubmit={submitReport}
+        onClose={closeReportSheet}
+      />
       <ScrollView
         contentContainerStyle={{
           paddingTop: bodyPaddingTop,

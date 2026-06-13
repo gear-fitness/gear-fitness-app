@@ -15,6 +15,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
+import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -72,10 +73,10 @@ export function WorkoutComplete() {
   const [bodyTags, setBodyTags] = useState<string[]>(initialBodyTags);
   const [caption, setCaption] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
-  const [loadingAction, setLoadingAction] = useState<"save" | "post" | null>(
-    null,
-  );
-  const loading = loadingAction !== null;
+  const [visibility, setVisibility] = useState<
+    "PUBLIC" | "FRIENDS" | "PRIVATE"
+  >("PUBLIC");
+  const [loading, setLoading] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -168,7 +169,7 @@ export function WorkoutComplete() {
     else navigation.goBack();
   };
 
-  const handleSaveWorkout = async (createPost: boolean) => {
+  const handlePost = async () => {
     if (!workoutName.trim()) {
       Alert.alert("Error", "Please enter a workout name");
       return;
@@ -178,7 +179,7 @@ export function WorkoutComplete() {
       return;
     }
 
-    setLoadingAction(createPost ? "post" : "save");
+    setLoading(true);
 
     const buildSubmission = (uploadedUrls: string[]): WorkoutSubmission => ({
       name: workoutName,
@@ -193,10 +194,12 @@ export function WorkoutComplete() {
         })),
         note: ex.note || "",
       })),
-      createPost,
-      caption: createPost ? caption : undefined,
-      imageUrl:
-        createPost && uploadedUrls.length > 0 ? uploadedUrls[0] : undefined,
+      // Privacy model: always create a post; the visibility selector controls
+      // the audience (PUBLIC / FRIENDS / PRIVATE), where PRIVATE is "Only me".
+      createPost: true,
+      visibility,
+      caption: caption || undefined,
+      imageUrl: uploadedUrls.length > 0 ? uploadedUrls[0] : undefined,
       photoUrls: uploadedUrls,
     });
 
@@ -213,9 +216,7 @@ export function WorkoutComplete() {
       await reset();
       Alert.alert(
         "Saved offline",
-        createPost
-          ? "You're offline. Your workout was saved on this device and will post automatically when you're back online."
-          : "You're offline. Your workout was saved on this device and will sync when you're back online.",
+        "You're offline. Your workout was saved on this device and will post automatically when you're back online.",
         [{ text: "OK", onPress: popOutOfFlow }],
       );
     };
@@ -246,7 +247,7 @@ export function WorkoutComplete() {
           }
           console.error("Failed to upload workout photos:", uploadError);
           Alert.alert("Error", "Failed to upload photos. Please try again.");
-          setLoadingAction(null);
+          setLoading(false);
           return;
         }
       }
@@ -261,15 +262,11 @@ export function WorkoutComplete() {
       // resurrect state during the unmount that follows popOutOfFlow.
       await reset();
 
-      if (createPost) invalidateFeed();
+      invalidateFeed();
 
-      Alert.alert(
-        "Success",
-        createPost
-          ? "Workout saved and posted!"
-          : "Workout saved successfully!",
-        [{ text: "OK", onPress: popOutOfFlow }],
-      );
+      Alert.alert("Posted!", "Your workout has been posted.", [
+        { text: "OK", onPress: popOutOfFlow },
+      ]);
     } catch (error) {
       if (isNetworkError(error)) {
         try {
@@ -281,10 +278,10 @@ export function WorkoutComplete() {
           console.error("Failed to queue workout offline:", queueErr);
         }
       }
-      console.error("Failed to save workout:", error);
-      Alert.alert("Error", "Failed to save workout. Please try again.");
+      console.error("Failed to post workout:", error);
+      Alert.alert("Error", "Failed to post workout. Please try again.");
     } finally {
-      setLoadingAction(null);
+      setLoading(false);
     }
   };
 
@@ -540,7 +537,7 @@ export function WorkoutComplete() {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Paired footer — hidden while keyboard is open */}
+      {/* Footer — hidden while keyboard is open */}
       {!keyboardVisible && (
         <View
           style={[
@@ -551,6 +548,59 @@ export function WorkoutComplete() {
             },
           ]}
         >
+          {/* Visibility picker */}
+          <View style={styles.visibilityRow}>
+            {(
+              [
+                { value: "PUBLIC", icon: "globe-outline", label: "Everyone" },
+                { value: "FRIENDS", icon: "people-outline", label: "Friends" },
+                {
+                  value: "PRIVATE",
+                  icon: "lock-closed-outline",
+                  label: "Only me",
+                },
+              ] as const
+            ).map((opt) => {
+              const active = visibility === opt.value;
+              return (
+                <TouchableOpacity
+                  key={opt.value}
+                  activeOpacity={0.7}
+                  onPress={() => setVisibility(opt.value)}
+                  style={[
+                    styles.visChip,
+                    {
+                      backgroundColor: active
+                        ? isDark
+                          ? "#fff"
+                          : ACCENT
+                        : t.chipBg,
+                      borderColor: active
+                        ? isDark
+                          ? "#fff"
+                          : ACCENT
+                        : t.chipBorder,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name={opt.icon}
+                    size={14}
+                    color={active ? (isDark ? "#000" : "#fff") : t.text}
+                  />
+                  <Text
+                    style={[
+                      styles.visChipLabel,
+                      { color: active ? (isDark ? "#000" : "#fff") : t.text },
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
           <View
             style={[
               styles.footerCard,
@@ -563,29 +613,15 @@ export function WorkoutComplete() {
             ]}
           >
             <TouchableOpacity
-              activeOpacity={0.7}
-              style={styles.footerBtn}
-              onPress={() => handleSaveWorkout(false)}
-              disabled={loading}
-            >
-              {loadingAction === "save" ? (
-                <ActivityIndicator color={t.text} />
-              ) : (
-                <Text style={[styles.footerBtnText, { color: t.text }]}>
-                  Save
-                </Text>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
               activeOpacity={0.85}
               style={[
                 styles.footerBtn,
                 { backgroundColor: isDark ? "#fff" : ACCENT },
               ]}
-              onPress={() => handleSaveWorkout(true)}
+              onPress={handlePost}
               disabled={loading}
             >
-              {loadingAction === "post" ? (
+              {loading ? (
                 <ActivityIndicator color={isDark ? "#000" : "#fff"} />
               ) : (
                 <View style={styles.footerBtnContent}>
@@ -841,15 +877,33 @@ const styles = StyleSheet.create({
   footerWrap: {
     paddingHorizontal: 12,
     paddingTop: 8,
+    gap: 8,
+  },
+  visibilityRow: {
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "center",
+  },
+  visChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    borderWidth: 1.5,
+  },
+  visChipLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 0.2,
   },
   footerCard: {
-    flexDirection: "row",
     padding: 4,
     borderRadius: 16,
     gap: 2,
   },
   footerBtn: {
-    flex: 1,
     height: 50,
     borderRadius: 12,
     alignItems: "center",

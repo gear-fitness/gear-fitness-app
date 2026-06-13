@@ -33,6 +33,7 @@ export interface WorkoutSubmission {
   bodyTags: string[];
   exercises: ExerciseSubmission[];
   createPost?: boolean;
+  visibility?: "PUBLIC" | "FRIENDS" | "PRIVATE";
   caption?: string;
   imageUrl?: string;
   photoUrls?: string[];

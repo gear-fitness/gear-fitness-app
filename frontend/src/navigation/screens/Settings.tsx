@@ -36,7 +36,7 @@ import {
   readFromHealthKit,
   diffSnapshot,
 } from "../../utils/healthKitSync";
-import { updateUserProfile } from "../../api/userService";
+import { updateUserProfile, updateUserPrivacy } from "../../api/userService";
 import { Height, Weight } from "../onboarding/types";
 import * as Notifications from "expo-notifications";
 
@@ -287,6 +287,23 @@ export function Settings() {
     }
   };
 
+  const [privacyBusy, setPrivacyBusy] = useState(false);
+
+  const handlePrivacyToggle = async (next: boolean) => {
+    if (privacyBusy) return;
+    setIsPrivate(next);
+    setPrivacyBusy(true);
+    try {
+      await updateUserPrivacy(next);
+      if (typeof refreshUser === "function") await refreshUser();
+    } catch {
+      setIsPrivate(!next);
+      Alert.alert("Couldn't update", "Failed to change privacy setting.");
+    } finally {
+      setPrivacyBusy(false);
+    }
+  };
+
   const handleLogout = () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
       { text: "Cancel", style: "cancel" },
@@ -474,8 +491,38 @@ export function Settings() {
               : "Choose a fixed appearance that overrides your device setting.",
         },
         {
+          key: "privacy",
+          title: "Privacy",
+          data: [
+            {
+              id: "private_account",
+              type: "toggle" as const,
+              label: "Private Account",
+              value: isPrivate,
+              onValueChange: handlePrivacyToggle,
+              disabled: privacyBusy,
+            },
+            {
+              id: "blocked_users",
+              type: "value" as const,
+              label: "Blocked Users",
+              onPress: () => navigation.navigate("BlockedUsers"),
+              showArrow: true,
+            },
+          ],
+          footer: isPrivate
+            ? "Only approved followers can see your posts and profile."
+            : "Anyone can see your posts and follow you.",
+        },
+        {
           key: "account",
           data: [
+            {
+              id: "delete_account",
+              type: "destructive",
+              title: "Delete Account",
+              onPress: () => navigation.navigate("DeleteAccount"),
+            },
             {
               id: "logout",
               type: "destructive",

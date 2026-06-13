@@ -21,6 +21,9 @@ import { useAuth } from "../context/AuthContext";
 import { useLikeState } from "../context/LikesContext";
 import { usePostMenu } from "../hooks/usePostMenu";
 import { Avatar } from "./Avatar";
+import { PostVisibilitySheet } from "./PostVisibilitySheet";
+import { PostActionsSheet } from "./PostActionsSheet";
+import { ReportPostSheet } from "./ReportPostSheet";
 import { PresignedImage } from "./PresignedImage";
 
 interface Props {
@@ -48,10 +51,26 @@ export function FeedPostCard({ post, isPending = false }: Props) {
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [scrollWidth, setScrollWidth] = useState(0);
   const navigation = useNavigation();
-  const onMenuPress = usePostMenu({
+  const {
+    onPress: onMenuPress,
+    actions: menuActions,
+    showVisibilitySheet,
+    closeVisibilitySheet,
+    pendingVisibility,
+    handleVisibilitySelect,
+    showActionsSheet,
+    closeActionsSheet,
+    onActionsSheetClosed,
+    showReportSheet,
+    closeReportSheet,
+    submitReport,
+  } = usePostMenu({
     workoutId: post.workoutId,
+    postId: post.postId,
     ownerUserId: post.userId,
     ownerUsername: post.username,
+    viewerFollowsAuthor: post.viewerFollowsAuthor,
+    currentVisibility: post.visibility ?? "PUBLIC",
   });
 
   const photos =
@@ -108,6 +127,14 @@ export function FeedPostCard({ post, isPending = false }: Props) {
   const textMuted: StyleProp<TextStyle> = { color: colors.text, opacity: 0.5 };
   const textFaint: StyleProp<TextStyle> = { color: colors.text, opacity: 0.4 };
 
+  const visibility = post.visibility ?? "PUBLIC";
+  const visibilityIcon =
+    isOwnPost && visibility === "FRIENDS"
+      ? "people-outline"
+      : isOwnPost && visibility === "PRIVATE"
+        ? "lock-closed-outline"
+        : null;
+
   const userHeader = (
     <View style={styles.userInfo}>
       <Avatar
@@ -115,10 +142,20 @@ export function FeedPostCard({ post, isPending = false }: Props) {
         profilePictureUrl={post.userProfilePictureUrl}
         size={40}
       />
-      <View>
-        <Text style={[styles.username, { color: colors.text }]}>
-          {post.username}
-        </Text>
+      <View style={styles.userNameRow}>
+        <View style={styles.userNameLine}>
+          <Text style={[styles.username, { color: colors.text }]}>
+            {post.username}
+          </Text>
+          {visibilityIcon && (
+            <Ionicons
+              name={visibilityIcon}
+              size={13}
+              color={colors.text}
+              style={styles.visIcon}
+            />
+          )}
+        </View>
         <Text style={[styles.timestamp, textFaint]}>
           {formatTimeAgo(post.createdAt)}
         </Text>
@@ -142,6 +179,23 @@ export function FeedPostCard({ post, isPending = false }: Props) {
       ]}
     >
       {isPending && <PendingProgressBar color={colors.text} />}
+      <PostActionsSheet
+        visible={showActionsSheet}
+        actions={menuActions}
+        onClose={closeActionsSheet}
+        onClosed={onActionsSheetClosed}
+      />
+      <PostVisibilitySheet
+        visible={showVisibilitySheet}
+        current={pendingVisibility}
+        onSelect={handleVisibilitySelect}
+        onClose={closeVisibilitySheet}
+      />
+      <ReportPostSheet
+        visible={showReportSheet}
+        onSubmit={submitReport}
+        onClose={closeReportSheet}
+      />
       <View style={styles.header}>
         {isOwnPost ? (
           <View style={styles.userInfoWrap}>{userHeader}</View>
@@ -228,6 +282,7 @@ export function FeedPostCard({ post, isPending = false }: Props) {
             postId: post.postId,
             ownerUserId: post.userId,
             ownerUsername: post.username,
+            viewerFollowsAuthor: post.viewerFollowsAuthor,
             initialLikeCount: likeCount,
             initialLikedByUser: likedByUser,
           });
@@ -414,6 +469,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+  },
+  userNameRow: {
+    flexShrink: 1,
+  },
+  userNameLine: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  visIcon: {
+    opacity: 0.5,
   },
   username: {
     fontSize: 15,

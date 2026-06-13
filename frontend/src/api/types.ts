@@ -38,6 +38,7 @@ export interface UserProfile {
   followersCount: number;
   followingCount: number;
   isFollowing: boolean | null;
+  followStatus?: "ACCEPTED" | "PENDING" | "BLOCKED" | "NONE" | null;
 }
 
 export interface UsernameAvailabilityResponse {
@@ -51,6 +52,7 @@ export interface FollowerUser {
   displayName?: string | null;
   profilePictureUrl?: string | null;
   isFollowing: boolean;
+  followStatus?: "ACCEPTED" | "PENDING" | "BLOCKED" | "NONE";
 }
 
 export interface SearchUserResult {
@@ -77,7 +79,7 @@ export interface FollowStatusResponse {
 export interface FollowResponse {
   followeeId: string;
   followeeUsername: string;
-  status: "pending" | "accepted";
+  status: "PENDING" | "ACCEPTED";
   message: string;
 }
 

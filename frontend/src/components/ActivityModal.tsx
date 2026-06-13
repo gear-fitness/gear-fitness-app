@@ -13,6 +13,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { notificationService } from "../api/notificationService";
+import {
+  acceptFollowRequest,
+  declineFollowRequest,
+} from "../api/followService";
 import { parseServerDate } from "../utils/date";
 import { Avatar } from "./Avatar";
 
@@ -24,6 +28,7 @@ type ActivityModalProps = {
 type NotificationItem = {
   notificationId: string;
   type: string;
+  actorUserId?: string;
   actorUsername: string;
   actorProfilePictureUrl?: string | null;
   postId?: string;
@@ -91,11 +96,49 @@ export function ActivityModal({ visible, onClose }: ActivityModalProps) {
     });
   };
 
+  const handleAccept = async (item: NotificationItem) => {
+    if (!item.actorUserId) return;
+    try {
+      await acceptFollowRequest(item.actorUserId);
+      // The request becomes a regular follow notification in place
+      // ("<user> started following you"), re-stamped to the moment of
+      // acceptance so it reads "Just now" instead of the original request time.
+      // The backend likewise re-creates it with a fresh timestamp, so a reload
+      // matches. toISOString() is UTC (ends in "Z"), which parseServerDate reads
+      // as-is — keeping it correct regardless of the device's timezone.
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.notificationId === item.notificationId
+            ? { ...n, type: "FOLLOW", createdAt: new Date().toISOString() }
+            : n,
+        ),
+      );
+    } catch {
+      // silently ignore
+    }
+  };
+
+  const handleDecline = async (item: NotificationItem) => {
+    if (!item.actorUserId) return;
+    try {
+      await declineFollowRequest(item.actorUserId);
+      setNotifications((prev) =>
+        prev.filter((n) => n.notificationId !== item.notificationId),
+      );
+    } catch {
+      // silently ignore
+    }
+  };
+
   const renderItem = ({ item }: { item: NotificationItem }) => {
+    const isFollowRequest = item.type === "FOLLOW_REQUEST";
+
     const actionText = (() => {
       switch (item.type) {
         case "FOLLOW":
-          return " followed you";
+          return " started following you";
+        case "FOLLOW_REQUEST":
+          return " wants to follow you";
         case "LIKE":
           return " liked your post";
         case "COMMENT":
@@ -107,8 +150,9 @@ export function ActivityModal({ visible, onClose }: ActivityModalProps) {
 
     return (
       <TouchableOpacity
-        activeOpacity={0.8}
+        activeOpacity={isFollowRequest ? 1 : 0.8}
         onPress={() => {
+          if (isFollowRequest) return;
           onClose();
 
           if (item.type === "FOLLOW") {
@@ -158,11 +202,37 @@ export function ActivityModal({ visible, onClose }: ActivityModalProps) {
               "{item.commentBody}"
             </Text>
           ) : null}
+          {isFollowRequest && (
+            <View style={styles.requestButtons}>
+              <TouchableOpacity
+                style={[
+                  styles.requestBtn,
+                  styles.acceptBtn,
+                  { backgroundColor: colors.text, borderColor: colors.border },
+                ]}
+                onPress={() => handleAccept(item)}
+              >
+                <Text
+                  style={[styles.acceptBtnText, { color: colors.background }]}
+                >
+                  Accept
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.requestBtn, styles.declineBtn]}
+                onPress={() => handleDecline(item)}
+              >
+                <Text style={styles.declineBtnText}>Decline</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
-        <Text style={[styles.time, { color: colors.text + "99" }]}>
-          {formatTimeAgo(item.createdAt)}
-        </Text>
+        {!isFollowRequest && (
+          <Text style={[styles.time, { color: colors.text + "99" }]}>
+            {formatTimeAgo(item.createdAt)}
+          </Text>
+        )}
       </TouchableOpacity>
     );
   };
@@ -259,5 +329,31 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 15,
+  },
+  requestButtons: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 8,
+  },
+  requestBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  acceptBtn: {
+    borderWidth: 1,
+  },
+  acceptBtnText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  declineBtn: {
+    borderWidth: 1,
+    borderColor: "#ff3b30",
+  },
+  declineBtnText: {
+    color: "#ff3b30",
+    fontSize: 13,
+    fontWeight: "600",
   },
 });

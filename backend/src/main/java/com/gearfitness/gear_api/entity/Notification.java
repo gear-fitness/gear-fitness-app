@@ -8,9 +8,11 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLRestriction;
 
 @Entity
 @Table(name = "notification")
+@SQLRestriction("hidden_at IS NULL")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -52,7 +54,11 @@ public class Notification {
 
   public enum NotificationType {
     FOLLOW,
+    FOLLOW_REQUEST,
     COMMENT,
     LIKE,
   }
+
+  @Column(name = "hidden_at")
+  private LocalDateTime hiddenAt;
 }

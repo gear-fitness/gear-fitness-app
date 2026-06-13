@@ -45,3 +45,16 @@ export async function getFollowActivity(): Promise<FollowActivityDTO[]> {
   const { data } = await apiClient.get("/follows/activity");
   return data;
 }
+
+export async function blockUser(userId: string): Promise<void> {
+  await apiClient.post(`/follows/block/${userId}`);
+}
+
+export async function unblockUser(userId: string): Promise<void> {
+  await apiClient.delete(`/follows/block/${userId}`);
+}
+
+export async function getBlockedUsers(): Promise<FollowActivityDTO[]> {
+  const { data } = await apiClient.get("/follows/blocked");
+  return data;
+}

@@ -1,17 +1,24 @@
 package com.gearfitness.gear_api.service;
 
+import com.gearfitness.gear_api.dto.AppleLoginRequest;
 import com.gearfitness.gear_api.dto.AuthResponse;
+import com.gearfitness.gear_api.dto.GoogleLoginRequest;
 import com.gearfitness.gear_api.dto.UserDTO;
 import com.gearfitness.gear_api.entity.AppUser;
 import com.gearfitness.gear_api.entity.RefreshToken;
 import com.gearfitness.gear_api.repository.AppUserRepository;
+import com.gearfitness.gear_api.repository.ContentVisibilityRepository;
 import com.gearfitness.gear_api.repository.RefreshTokenRepository;
+import com.gearfitness.gear_api.security.AppleTokenVerifier;
 import com.gearfitness.gear_api.security.GoogleTokenVerifier;
 import com.gearfitness.gear_api.security.JwtService;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.nimbusds.jwt.JWTClaimsSet;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,21 +39,228 @@ public class AuthService {
   private final GoogleTokenVerifier googleTokenVerifier;
   private final JwtService jwtService;
   private final RefreshTokenRepository refreshTokenRepository;
+  private final ContentVisibilityRepository contentVisibilityRepository;
+  private final AppleTokenVerifier appleTokenVerifier;
 
   @Value("${jwt.refresh-expiration}")
   private Long refreshExpiration;
 
   @Transactional
-  public AuthResponse authenticateWithGoogle(String idToken, String intent)
+  public AuthResponse authenticateWithApple(AppleLoginRequest request)
+    throws Exception {
+    // Verify the Apple identity token
+    JWTClaimsSet claims = appleTokenVerifier.verify(request.getIdentityToken());
+
+    String appleUserId = claims.getSubject(); // the stable Apple sub
+    String tokenEmail = claims.getStringClaim("email"); // may be null on subsequent sign-ins
+
+    // Apple gives the email in the token on first sign-in, but the SDK also
+    // returns it via the user object. Prefer the token claim (signed), fall
+    // back to the request body (which we trust because we asked the SDK for it).
+    String email = tokenEmail != null ? tokenEmail : request.getEmail();
+
+    // ── Soft-delete handling ─────────────────────────────────────
+    // Look up by appleUserId first (stable). Email may be missing or be a
+    // relay address, so it's a less reliable key.
+    Optional<AppUser> softDeleted = userRepository
+      .findByAppleUserId(appleUserId)
+      .filter(u -> u.getDeletedAt() != null);
+
+    if (softDeleted.isPresent()) {
+      AppUser user = softDeleted.get();
+
+      if (!Boolean.TRUE.equals(request.getConfirmRestore())) {
+        return AuthResponse.builder()
+          .accountPendingDeletion(true)
+          .deletedAt(user.getDeletedAt())
+          .build();
+      }
+
+      LocalDateTime previousDeletedAt = user.getDeletedAt();
+      user.setDeletedAt(null);
+      userRepository.save(user);
+
+      contentVisibilityRepository.restoreAllContentForUser(
+        user.getUserId(),
+        previousDeletedAt
+      );
+
+      String jwtToken = jwtService.generateToken(
+        user.getUserId(),
+        user.getEmail()
+      );
+      String refreshToken = createRefreshToken(user);
+
+      return AuthResponse.builder()
+        .token(jwtToken)
+        .refreshToken(refreshToken)
+        .user(convertToDTO(user))
+        .newUser(false)
+        .build();
+    }
+
+    // ── Identity lookup (account linking by apple_user_id, then by email) ──
+    Optional<AppUser> existingByApple = userRepository.findByAppleUserId(
+      appleUserId
+    );
+    Optional<AppUser> existingByEmail = (email != null &&
+      !isAppleRelayEmail(email))
+      ? userRepository.findByEmail(email)
+      : Optional.empty();
+
+    boolean userExists =
+      existingByApple.isPresent() || existingByEmail.isPresent();
+    String normalizedIntent = normalizeIntent(request.getIntent());
+
+    if (
+      !INTENT_SIGN_IN.equals(normalizedIntent) &&
+      !INTENT_SIGN_UP.equals(normalizedIntent)
+    ) {
+      return AuthResponse.builder()
+        .errorCode(INVALID_AUTH_INTENT)
+        .error("Invalid auth intent. Must be sign_in or sign_up.")
+        .build();
+    }
+
+    if (INTENT_SIGN_IN.equals(normalizedIntent) && !userExists) {
+      return AuthResponse.builder()
+        .errorCode(ACCOUNT_NOT_FOUND)
+        .error("No account exists for this Apple ID. Please sign up first.")
+        .build();
+    }
+
+    if (
+      INTENT_SIGN_UP.equals(normalizedIntent) && existingByApple.isPresent()
+    ) {
+      return AuthResponse.builder()
+        .errorCode(ACCOUNT_ALREADY_EXISTS)
+        .error("An account already exists for this Apple ID. Please sign in.")
+        .build();
+    }
+
+    if (
+      existingByApple.isEmpty() &&
+      existingByEmail.isPresent() &&
+      !Boolean.TRUE.equals(request.getConfirmLink())
+    ) {
+      return AuthResponse.builder()
+        .accountExistsForLinking(true)
+        .existingProvider("google")
+        .build();
+    }
+
+    AppUser user;
+    if (existingByApple.isPresent()) {
+      // Returning Apple user — straightforward
+      user = existingByApple.get();
+    } else if (existingByEmail.isPresent()) {
+      // Account linking: user previously signed up with Google using the same
+      // verified email. Attach the Apple identity to their existing account.
+      user = existingByEmail.get();
+      user.setAppleUserId(appleUserId);
+      user = userRepository.save(user);
+    } else {
+      // First-time signup via Apple
+      user = createNewAppleUser(appleUserId, email, request);
+    }
+
+    String jwtToken = jwtService.generateToken(
+      user.getUserId(),
+      user.getEmail()
+    );
+    String refreshToken = createRefreshToken(user);
+
+    return AuthResponse.builder()
+      .token(jwtToken)
+      .refreshToken(refreshToken)
+      .user(convertToDTO(user))
+      .newUser(existingByApple.isEmpty() && existingByEmail.isEmpty())
+      .build();
+  }
+
+  /**
+   * Apple's "Hide My Email" feature gives users an opaque relay address
+   * ending in @privaterelay.appleid.com. We don't treat these as a valid
+   * email match for account linking, since the same Apple ID can change
+   * the relay over time for some edge cases.
+   */
+  private boolean isAppleRelayEmail(String email) {
+    return (
+      email != null && email.toLowerCase().endsWith("@privaterelay.appleid.com")
+    );
+  }
+
+  private AppUser createNewAppleUser(
+    String appleUserId,
+    String email,
+    AppleLoginRequest request
+  ) {
+    AppUser newUser = AppUser.builder()
+      .email(email) // may be a relay address — that's fine
+      .username(request.getUsername())
+      .appleUserId(appleUserId)
+      .displayName(request.getDisplayName())
+      .gender(request.getGender())
+      .heightInches(request.getHeightInches())
+      .weightLbs(request.getWeightLbs())
+      .age(request.getAge())
+      .passwordHash("")
+      .isPrivate(false)
+      .build();
+
+    return userRepository.save(newUser);
+  }
+
+  @Transactional
+  public AuthResponse authenticateWithGoogle(GoogleLoginRequest request)
     throws GeneralSecurityException, IOException {
     // Verify the Google token
-    GoogleIdToken.Payload payload = googleTokenVerifier.verify(idToken);
+    GoogleIdToken.Payload payload = googleTokenVerifier.verify(
+      request.getIdToken()
+    );
 
     String email = payload.getEmail();
-    String name = (String) payload.get("name");
+
+    Optional<AppUser> softDeleted = userRepository
+      .findByEmailIncludingDeleted(email)
+      .filter(u -> u.getDeletedAt() != null);
+
+    if (softDeleted.isPresent()) {
+      AppUser user = softDeleted.get();
+
+      if (!Boolean.TRUE.equals(request.getConfirmRestore())) {
+        // No JWT issued yet — the client must confirm restore first.
+        return AuthResponse.builder()
+          .accountPendingDeletion(true)
+          .deletedAt(user.getDeletedAt())
+          .build();
+      }
+
+      LocalDateTime previousDeletedAt = user.getDeletedAt();
+      user.setDeletedAt(null);
+      userRepository.save(user);
+
+      contentVisibilityRepository.restoreAllContentForUser(
+        user.getUserId(),
+        previousDeletedAt
+      );
+
+      String jwtToken = jwtService.generateToken(
+        user.getUserId(),
+        user.getEmail()
+      );
+      String refreshToken = createRefreshToken(user);
+
+      return AuthResponse.builder()
+        .token(jwtToken)
+        .refreshToken(refreshToken)
+        .user(convertToDTO(user))
+        .newUser(false)
+        .build();
+    }
 
     boolean userExists = userRepository.existsByEmail(email);
-    String normalizedIntent = normalizeIntent(intent);
+    String normalizedIntent = normalizeIntent(request.getIntent());
 
     if (
       !INTENT_SIGN_IN.equals(normalizedIntent) &&
@@ -82,15 +296,12 @@ public class AuthService {
           .orElseThrow(() ->
             new RuntimeException("User not found after existence check")
           )
-      : createNewUser(email, name);
+      : createNewUser(email, request);
 
-    // Generate JWT token
     String jwtToken = jwtService.generateToken(
       user.getUserId(),
       user.getEmail()
     );
-
-    // Generate new refresh token
     String refreshToken = createRefreshToken(user);
 
     return AuthResponse.builder()
@@ -160,42 +371,20 @@ public class AuthService {
     return refreshToken.getToken();
   }
 
-  private AppUser createNewUser(String email, String name) {
-    // Generate username from email or name
-    String username = generateUniqueUsername(
-      name != null ? name : email.split("@")[0]
-    );
-
+  private AppUser createNewUser(String email, GoogleLoginRequest request) {
     AppUser newUser = AppUser.builder()
       .email(email)
-      .username(username)
-      .displayName(name)
+      .username(request.getUsername())
+      .displayName(request.getDisplayName())
       .passwordHash("") // OAuth users don't have passwords
       .isPrivate(false)
-      .weightLbs(null) // Temporary default - user will set in profile setup
-      .heightInches(null) // Temporary default - user will set in profile setup
-      .age(null) // Temporary default - user will set in profile setup
+      .weightLbs(request.getWeightLbs())
+      .gender(request.getGender())
+      .heightInches(request.getHeightInches())
+      .age(request.getAge())
       .build();
 
     return userRepository.save(newUser);
-  }
-
-  private String generateUniqueUsername(String baseName) {
-    String username = baseName.replaceAll("[^a-zA-Z0-9]", "").toLowerCase();
-
-    if (username.length() < 3) {
-      username = "user" + username;
-    }
-
-    String finalUsername = username;
-    int counter = 1;
-
-    while (userRepository.existsByUsername(finalUsername)) {
-      finalUsername = username + counter;
-      counter++;
-    }
-
-    return finalUsername;
   }
 
   public UserDTO getCurrentUser(String authHeader) {
