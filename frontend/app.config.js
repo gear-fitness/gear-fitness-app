@@ -35,6 +35,23 @@ export default {
     },
     plugins: [
       [
+        "expo-build-properties",
+        {
+          ios: {
+            // GoogleSignIn (~> 9.0) pulls AppCheckCore, a Swift pod that
+            // depends on GoogleUtilities and RecaptchaInterop. Those don't
+            // define modules, so under static libraries CocoaPods can't import
+            // them from Swift and pod install fails. These Google pods float
+            // and CNG doesn't commit Podfile.lock, so a newer upstream release
+            // started tripping this on cloud builds. Give them modular headers.
+            extraPods: [
+              { name: "GoogleUtilities", modular_headers: true },
+              { name: "RecaptchaInterop", modular_headers: true },
+            ],
+          },
+        },
+      ],
+      [
         "expo-dev-client",
         {
           addGeneratedScheme: !!IS_DEV,
