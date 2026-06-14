@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -67,7 +68,14 @@ public class StreakService {
     }
 
     RestDay restDay = RestDay.builder().user(user).date(today).build();
-    restDayRepository.save(restDay);
+    try {
+      // Flush now so a concurrent duplicate trips the (user, date) unique
+      // constraint here — where we can translate it to a friendly 400 — rather
+      // than at commit time, which would surface as an unhandled 500.
+      restDayRepository.saveAndFlush(restDay);
+    } catch (DataIntegrityViolationException e) {
+      throw new IllegalStateException("Rest day already logged for today");
+    }
 
     recalculateStreak(user, today);
 
@@ -130,7 +138,10 @@ public class StreakService {
 
     // Allow the chain to start at yesterday when today isn't logged yet —
     // today only counts as a break once the user's local day has actually ended.
-    LocalDate date = activeDays.contains(today) ? today : today.minusDays(1);
+    LocalDate mostRecentActiveDay = activeDays.contains(today)
+      ? today
+      : today.minusDays(1);
+    LocalDate date = mostRecentActiveDay;
     int streak = 0;
     while (activeDays.contains(date)) {
       streak++;
@@ -138,7 +149,14 @@ public class StreakService {
     }
 
     user.setCurrentStreak(streak);
-    user.setLastStreakDate(streak > 0 ? today : null);
+    // Anchor lastStreakDate to the chain's most recent active day, NOT the
+    // passed `today`. When today isn't logged yet, `today` has no activity, so
+    // pinning the anchor there would misrepresent the last active day and let
+    // refreshStreakIfStale treat an already-broken streak as fresh. The most
+    // recent active day (today if logged, else yesterday) is the correct anchor.
+    // (A back-dated submit still anchors within its own past window; that is
+    // self-corrected on the next read, which recomputes against the real today.)
+    user.setLastStreakDate(streak > 0 ? mostRecentActiveDay : null);
     if (streak > user.getLongestStreak()) {
       user.setLongestStreak(streak);
     }
@@ -177,14 +195,6 @@ public class StreakService {
     return activeDays;
   }
 
-  // Overload for the scheduled notification job, which has no user-request
-  // context. Falls back to UTC; per-user timezone for scheduled notifications
-  // is a separate concern.
-  @Transactional(readOnly = true)
-  public boolean isRestoreAvailable(AppUser user) {
-    return isRestoreAvailable(user, LocalDate.now(ZoneOffset.UTC));
-  }
-
   @Transactional(readOnly = true)
   public boolean isRestoreAvailable(AppUser user, LocalDate today) {
     if (getRestoreTokensRemaining(user, today) <= 0) {
@@ -218,7 +228,12 @@ public class StreakService {
     );
   }
 
-  private void refreshStreakIfStale(AppUser user, LocalDate today) {
+  /**
+   * Recompute the streak if it may have broken since it was last touched.
+   * Public so read paths that surface the streak (profile stats, dropdown) can
+   * correct a stale persisted value before returning it.
+   */
+  public void refreshStreakIfStale(AppUser user, LocalDate today) {
     LocalDate lastDate = user.getLastStreakDate();
     if (lastDate == null) {
       return;

@@ -4,6 +4,8 @@ import { SymbolView } from "expo-symbols";
 
 import stopwatch from "../assets/stopwatch.png";
 import { useWorkoutTimer } from "../context/WorkoutContext";
+import { useUnitPreference } from "../context/UnitPreferenceContext";
+import { toDisplayWeight } from "../utils/weight";
 import { GlassView } from "expo-glass-effect";
 
 interface MiniPlayerProps {
@@ -14,6 +16,7 @@ interface MiniPlayerProps {
 export function MiniPlayer({ onTap, isVisible }: MiniPlayerProps) {
   const { seconds, running, start, pause, exercises, currentExerciseId } =
     useWorkoutTimer();
+  const { weightUnit: globalUnit } = useUnitPreference();
   const isDark = useColorScheme() === "dark";
 
   const colors = {
@@ -26,6 +29,7 @@ export function MiniPlayer({ onTap, isVisible }: MiniPlayerProps) {
   const currentExercise = exercises.find(
     (ex) => ex.workoutExerciseId === currentExerciseId,
   );
+  const weightUnit = currentExercise?.weightUnit ?? globalUnit;
 
   const formatTime = (t: number) =>
     `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(
@@ -129,8 +133,9 @@ export function MiniPlayer({ onTap, isVisible }: MiniPlayerProps) {
               </Text>
               {lastSet ? (
                 <Text style={[styles.setInfo, { color: colors.subtle }]}>
-                  Set {validSets.length}: {lastSet.reps} reps × {lastSet.weight}{" "}
-                  lb
+                  Set {validSets.length}: {lastSet.reps} reps ×{" "}
+                  {toDisplayWeight(Number(lastSet.weight) || 0, weightUnit)}{" "}
+                  {weightUnit}
                 </Text>
               ) : (
                 <Text style={[styles.setInfo, { color: colors.subtle }]}>

@@ -9,6 +9,7 @@ import { AppState, AppStateStatus } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
 import { BodyPartDTO } from "../api/exerciseService";
+import { WeightUnit } from "../utils/weight";
 
 export interface WorkoutSet {
   reps: string;
@@ -25,6 +26,10 @@ export interface WorkoutExercise {
   durationSeconds?: number;
   draftReps?: string;
   draftWeight?: string;
+  // Per-exercise display/input unit for this workout. Undefined → use the
+  // app-wide default. Workout-scoped: a fresh workout starts without it, so it
+  // resets to the global default. `weight` stays canonical lbs.
+  weightUnit?: WeightUnit;
 }
 
 export type LastModalScreen = "WorkoutSummary" | "ExerciseDetail" | null;
@@ -33,6 +38,11 @@ interface PersistedWorkoutState {
   version: number;
   totalElapsedSeconds: number;
   startTimestamp: number | null;
+  // Write-once wall-clock epoch (ms) of when the workout first began. Unlike
+  // startTimestamp (the timer anchor, reset on pause/app-kill restore), this is
+  // set once and never reset, so the workout's streak/calendar day can be pinned
+  // to when the user actually started training. See getLocalDateStringFromEpoch.
+  workoutStartedAtEpoch: number | null;
   running: boolean;
   lastSaveTimestamp: number;
   exercises: WorkoutExercise[];
@@ -98,6 +108,9 @@ async function cancelUnfinishedWorkoutReminder() {
 interface WorkoutContextValue {
   seconds: number;
   running: boolean;
+  // Write-once epoch (ms) of when the current workout began; null when no
+  // workout is in progress. Used at submission to date the workout by its start.
+  workoutStartedAtEpoch: number | null;
   start: () => void;
   pause: () => void;
   reset: () => void;
@@ -162,6 +175,11 @@ export function WorkoutTimerProvider({
 
   // Timestamp-based tracking for background persistence
   const [startTimestamp, setStartTimestamp] = useState<number | null>(null);
+  // Write-once start-of-workout stamp (see PersistedWorkoutState). Distinct from
+  // startTimestamp, which is reset on pause and app-kill restore.
+  const [workoutStartedAtEpoch, setWorkoutStartedAtEpoch] = useState<
+    number | null
+  >(null);
   const [totalElapsedSeconds, setTotalElapsedSeconds] = useState(0);
 
   const [exercises, setExercises] = useState<WorkoutExercise[]>([]);
@@ -212,6 +230,7 @@ export function WorkoutTimerProvider({
         version: WORKOUT_STATE_VERSION,
         totalElapsedSeconds,
         startTimestamp,
+        workoutStartedAtEpoch,
         running,
         lastSaveTimestamp: Date.now(),
         exercises,
@@ -292,6 +311,12 @@ export function WorkoutTimerProvider({
       setLastModalScreen(parsed.lastModalScreen ?? null);
       setActiveExerciseId(parsed.activeExerciseId ?? null);
       setActiveExerciseStartedAt(parsed.activeExerciseStartedAt ?? null);
+      // Restore the write-once start stamp unchanged (it must survive app-kill).
+      // Fall back to startTimestamp for any workout persisted before this field
+      // existed, so an in-flight upgrade still gets a sensible start date.
+      setWorkoutStartedAtEpoch(
+        parsed.workoutStartedAtEpoch ?? parsed.startTimestamp ?? null,
+      );
       restoreTimerState(parsed);
     } catch (error) {
       console.error("Failed to restore workout state:", error);
@@ -558,6 +583,11 @@ export function WorkoutTimerProvider({
     if (startTimestamp === null) {
       setStartTimestamp(Date.now());
     }
+    // Record when this workout first began, once. Never overwritten for the life
+    // of the workout (reset() clears it), so it survives pauses and app kills.
+    if (workoutStartedAtEpoch === null) {
+      setWorkoutStartedAtEpoch(Date.now());
+    }
     // If we resumed with an active exercise that was frozen on pause, restart
     // its live ticker so it accumulates from now forward — without this the
     // per-exercise display would jump by the entire pause gap on resume.
@@ -613,6 +643,7 @@ export function WorkoutTimerProvider({
     setRunning(false);
     setSeconds(0);
     setStartTimestamp(null);
+    setWorkoutStartedAtEpoch(null);
     setTotalElapsedSeconds(0);
     setExercises([]);
     setLastModalScreen(null);
@@ -665,6 +696,7 @@ export function WorkoutTimerProvider({
     if (newExercises.length > 0) {
       setRunning(true);
       setStartTimestamp(Date.now());
+      setWorkoutStartedAtEpoch(Date.now());
       setCurrentExerciseId(newExercises[0].workoutExerciseId);
       setPlayerVisible(true);
     }
@@ -678,6 +710,7 @@ export function WorkoutTimerProvider({
       value={{
         seconds,
         running,
+        workoutStartedAtEpoch,
         start,
         pause,
         reset,

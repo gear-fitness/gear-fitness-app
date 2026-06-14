@@ -4,6 +4,8 @@ import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Picker } from "@react-native-picker/picker";
 import { useAuth } from "../../../context/AuthContext";
+import { useUnitPreference } from "../../../context/UnitPreferenceContext";
+import { toDisplayWeight } from "../../../utils/weight";
 import { updateUserProfile } from "../../../api/userService";
 import { Weight } from "../../onboarding/types";
 import { LB_VALUES, KG_VALUES } from "../../onboarding/pickerConstants";
@@ -30,14 +32,25 @@ export function EditWeightScreen() {
   const insets = useSafeAreaInsets();
   const shared = useMemo(() => makeOnboardingStyles(colors), [colors]);
 
+  const { weightUnit } = useUnitPreference();
   const initialLbs = user?.weightLbs;
+  // Seed the picker in the user's preferred unit (rounded to a whole picker
+  // value). Saving still converts back to canonical lbs via toWeightLbs.
+  const initialDisplay =
+    initialLbs != null
+      ? Math.round(toDisplayWeight(initialLbs, weightUnit))
+      : undefined;
 
   const [sheetVisible, setSheetVisible] = useState(false);
   const [weight, setWeight] = useState<Weight | undefined>(
-    initialLbs ? { unit: "lbs", value: initialLbs } : undefined,
+    initialDisplay != null
+      ? { unit: weightUnit, value: initialDisplay }
+      : undefined,
   );
-  const [wtUnit, setWtUnit] = useState<"lbs" | "kg">("lbs");
-  const [wtVal, setWtVal] = useState(initialLbs ?? 165);
+  const [wtUnit, setWtUnit] = useState<"lbs" | "kg">(weightUnit);
+  const [wtVal, setWtVal] = useState(
+    initialDisplay ?? (weightUnit === "kg" ? 75 : 165),
+  );
   const [saving, setSaving] = useState(false);
 
   const handleDone = () => {

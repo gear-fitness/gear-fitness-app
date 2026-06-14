@@ -38,6 +38,8 @@ import {
 } from "../../utils/healthKitSync";
 import { updateUserProfile, updateUserPrivacy } from "../../api/userService";
 import { Height, Weight } from "../onboarding/types";
+import { useUnitPreference } from "../../context/UnitPreferenceContext";
+import { formatWeight as formatWeightWithUnit } from "../../utils/weight";
 import * as Notifications from "expo-notifications";
 
 const GENDER_LABELS: Record<string, string> = {
@@ -107,6 +109,7 @@ export function Settings() {
   const insets = useSafeAreaInsets();
   const { pickAndUpload, uploading } = useProfilePhoto();
   const online = useOnlineStatus();
+  const { weightUnit, setWeightUnit } = useUnitPreference();
 
   const [isPrivate, setIsPrivate] = useState(user?.isPrivate ?? false);
 
@@ -331,10 +334,8 @@ export function Settings() {
     return `${Math.floor(h / 12)}' ${h % 12}"`;
   };
 
-  const formatWeight = (w: number | null | undefined) => {
-    if (!w) return "Not set";
-    return `${w} lbs`;
-  };
+  const formatWeight = (w: number | null | undefined) =>
+    formatWeightWithUnit(w, weightUnit);
 
   const formatGender = (g: string | null | undefined) => {
     if (!g) return "Not set";
@@ -489,6 +490,30 @@ export function Settings() {
             themeMode === "system"
               ? "Gear Fitness will match your device's appearance setting."
               : "Choose a fixed appearance that overrides your device setting.",
+        },
+        {
+          key: "units",
+          title: "Units",
+          data: [
+            {
+              id: "unit_lbs",
+              type: "value" as const,
+              label: "Pounds (lbs)",
+              value: weightUnit === "lbs" ? "✓" : "",
+              showArrow: false,
+              onPress: () => setWeightUnit("lbs"),
+            },
+            {
+              id: "unit_kg",
+              type: "value" as const,
+              label: "Kilograms (kg)",
+              value: weightUnit === "kg" ? "✓" : "",
+              showArrow: false,
+              onPress: () => setWeightUnit("kg"),
+            },
+          ],
+          footer:
+            "Weights across the app are shown and entered in your chosen unit.",
         },
         {
           key: "privacy",

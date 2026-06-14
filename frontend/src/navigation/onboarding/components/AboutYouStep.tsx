@@ -7,6 +7,7 @@ import { PickerSheet } from "./PickerSheet";
 import { useOnboardingColors } from "./useOnboardingColors";
 import { makeOnboardingStyles } from "./makeOnboardingStyles";
 import { calcAge } from "../calcAge";
+import { useUnitPreference } from "../../../context/UnitPreferenceContext";
 import {
   FT_VALUES,
   IN_VALUES,
@@ -66,6 +67,7 @@ export function AboutYouStep({
 }: AboutYouStepProps) {
   const colors = useOnboardingColors();
   const shared = useMemo(() => makeOnboardingStyles(colors), [colors]);
+  const { weightUnit, setWeightUnit } = useUnitPreference();
 
   const [htSheet, setHtSheet] = useState(false);
   const [wtSheet, setWtSheet] = useState(false);
@@ -81,7 +83,7 @@ export function AboutYouStep({
 
   // ─── Weight local state ────────────────────────────────────
   const [wtUnit, setWtUnit] = useState<"lbs" | "kg">(
-    weight?.unit === "kg" ? "kg" : "lbs",
+    weight?.unit ?? weightUnit,
   );
   const [wtVal, setWtVal] = useState(weight ? weight.value : 165);
 
@@ -297,8 +299,12 @@ export function AboutYouStep({
             { label: "kg", value: "kg" },
           ],
           (v) => {
-            setWtUnit(v as "lbs" | "kg");
-            setWtVal(v === "kg" ? 75 : 165);
+            const next = v as "lbs" | "kg";
+            setWtUnit(next);
+            setWtVal(next === "kg" ? 75 : 165);
+            // Persist as the app-wide default so the rest of the app respects
+            // the unit chosen during onboarding.
+            setWeightUnit(next);
           },
         )}
       >

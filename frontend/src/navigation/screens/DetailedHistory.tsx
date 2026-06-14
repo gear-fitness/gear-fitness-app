@@ -28,6 +28,8 @@ import { useLikeState } from "../../context/LikesContext";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 import { MusclesPair, type BodyVariant } from "../../components/MuscleDiagram";
 import { useAuth } from "../../context/AuthContext";
+import { useUnitPreference } from "../../context/UnitPreferenceContext";
+import { toDisplayWeight } from "../../utils/weight";
 import { usePostMenu } from "../../hooks/usePostMenu";
 import { PostVisibilitySheet } from "../../components/PostVisibilitySheet";
 import { PostActionsSheet } from "../../components/PostActionsSheet";
@@ -556,6 +558,7 @@ function HistorySetRow({
   borderColor,
   textFaint,
 }: HistorySetRowProps) {
+  const { weightUnit } = useUnitPreference();
   const isPr = set.isPr;
   return (
     <View
@@ -577,8 +580,8 @@ function HistorySetRow({
       </View>
       <View style={styles.setMetric}>
         <Text style={[styles.setNumber, { color: textColor }]}>
-          {set.weightLbs ?? 0}
-          <Text style={[styles.setUnit, textFaint]}> lbs</Text>
+          {toDisplayWeight(set.weightLbs ?? 0, weightUnit)}
+          <Text style={[styles.setUnit, textFaint]}> {weightUnit}</Text>
         </Text>
       </View>
       {isPr ? (

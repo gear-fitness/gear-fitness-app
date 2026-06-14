@@ -107,11 +107,17 @@ apiClient.interceptors.response.use(
       return apiClient(originalRequest);
     } catch (refreshError) {
       processQueue(refreshError, null);
-      await clearAuthTokens();
 
-      // Force logout
-      if (onForceLogout) {
-        onForceLogout();
+      // Only hard-logout when the refresh was definitively rejected (e.g. the
+      // server 401'd an invalid/expired refresh token, or there is no refresh
+      // token at all). On a transient network error, keep the tokens so the
+      // session survives and can retry once connectivity returns — otherwise a
+      // brief blip during refresh would sign the user out.
+      if (!isNetworkError(refreshError)) {
+        await clearAuthTokens();
+        if (onForceLogout) {
+          onForceLogout();
+        }
       }
 
       return Promise.reject(refreshError);
