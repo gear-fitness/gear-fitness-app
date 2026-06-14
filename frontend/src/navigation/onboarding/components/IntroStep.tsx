@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Image,
   Pressable,
-  useColorScheme,
 } from "react-native";
 import { useOnboardingColors } from "./useOnboardingColors";
 import { makeOnboardingStyles } from "./makeOnboardingStyles";
@@ -25,7 +24,6 @@ export function IntroStep({
   onGoogleSignIn,
   onAppleSignIn,
 }: IntroStepProps) {
-  const isDark = useColorScheme() === "dark";
   const colors = useOnboardingColors();
   const shared = useMemo(() => makeOnboardingStyles(colors), [colors]);
 
@@ -34,7 +32,7 @@ export function IntroStep({
       <View style={styles.heroSection}>
         <View style={[styles.logoBox, { backgroundColor: colors.screenBg }]}>
           <Image
-            source={isDark ? gearLogo : gearLogoInverse}
+            source={colors.isDark ? gearLogo : gearLogoInverse}
             style={styles.logoImage}
             resizeMode="contain"
             fadeDuration={0}

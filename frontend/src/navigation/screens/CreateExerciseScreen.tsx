@@ -7,7 +7,6 @@ import {
   ScrollView,
   StyleSheet,
   Keyboard,
-  useColorScheme,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
@@ -17,6 +16,7 @@ import {
 } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { BodyPartDTO, createExercise } from "../../api/exerciseService";
+import { useThemeColors } from "../../hooks/useThemeColors";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "..";
@@ -50,20 +50,14 @@ export function CreateExerciseScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
-  const isDark = useColorScheme() === "dark";
+  const colors = useThemeColors();
+  const isDark = colors.isDark;
   const route = useRoute<any>();
   const { start, showPlayer } = useWorkoutTimer();
   const insets = useSafeAreaInsets();
 
   const startWorkout = route.params?.startWorkout ?? false;
 
-  const colors = {
-    bg: isDark ? "#000" : "#fff",
-    text: isDark ? "#fff" : "#000",
-    subtle: isDark ? "#aaa" : "#666",
-    border: isDark ? "#333" : "#ccc",
-    inputBg: isDark ? "#1c1c1e" : "#fff",
-  };
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -177,10 +171,10 @@ export function CreateExerciseScreen() {
           </Text>
 
           {/* Name */}
-          <Text style={[styles.label, { color: colors.subtle }]}>Name</Text>
+          <Text style={[styles.label, { color: colors.secondary }]}>Name</Text>
           <TextInput
             placeholder="e.g. Landmine Press"
-            placeholderTextColor={colors.subtle}
+            placeholderTextColor={colors.secondary}
             value={name}
             onChangeText={setName}
             style={[
@@ -196,12 +190,12 @@ export function CreateExerciseScreen() {
           />
 
           {/* Description */}
-          <Text style={[styles.label, { color: colors.subtle }]}>
+          <Text style={[styles.label, { color: colors.secondary }]}>
             Description (optional)
           </Text>
           <TextInput
             placeholder="Brief notes on form, cues, etc."
-            placeholderTextColor={colors.subtle}
+            placeholderTextColor={colors.secondary}
             value={description}
             onChangeText={setDescription}
             multiline
@@ -217,21 +211,19 @@ export function CreateExerciseScreen() {
           />
 
           {/* Body Parts */}
-          <Text style={[styles.label, { color: colors.subtle }]}>
+          <Text style={[styles.label, { color: colors.secondary }]}>
             Body Parts
           </Text>
-          <Text style={[styles.hint, { color: colors.subtle }]}>
+          <Text style={[styles.hint, { color: colors.secondary }]}>
             Tap to add. First selection is Primary. Tap again to cycle.
           </Text>
           <View style={styles.chipWrap}>
             {MUSCLE_GROUPS.map((bp) => {
               const targetType = getTargetType(bp);
               const isSelected = targetType !== null;
-              const activeBg = isDark ? "#fff" : "#000";
-              const activeText = isDark ? "#000" : "#fff";
-              const inactiveBorder = isDark
-                ? "rgba(255,255,255,0.22)"
-                : "rgba(0,0,0,0.18)";
+              const activeBg = colors.accent;
+              const activeText = colors.accentText;
+              const inactiveBorder = colors.chipBorder;
 
               return (
                 <TouchableOpacity
@@ -302,11 +294,11 @@ export function CreateExerciseScreen() {
             style={[
               styles.footerButton,
               { opacity: name.trim() && !saving && hasPrimary ? 1 : 0.4 },
-              { backgroundColor: isDark ? "#fff" : "#000" },
+              { backgroundColor: colors.accent },
             ]}
           >
             <Text
-              style={[styles.buttonText, { color: isDark ? "#000" : "#fff" }]}
+              style={[styles.buttonText, { color: colors.accentText }]}
             >
               {saving ? "Saving..." : "Save Exercise"}
             </Text>

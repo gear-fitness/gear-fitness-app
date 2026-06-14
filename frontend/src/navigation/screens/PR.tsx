@@ -4,7 +4,6 @@ import {
   StyleSheet,
   View,
   Dimensions,
-  useColorScheme,
   ActivityIndicator,
 } from "react-native";
 import React, { useState, useEffect } from "react";
@@ -21,6 +20,7 @@ import { PersonalRecord } from "../../api/types";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 import { subscribeOnlineStatus } from "../../utils/network";
+import { useThemeColors } from "../../hooks/useThemeColors";
 
 type RootStackParamList = {
   PR: { userId: string };
@@ -31,8 +31,7 @@ type Props = NativeStackScreenProps<RootStackParamList, "PR">;
 export function PR({ route }: Props) {
   useTrackTab("PR");
 
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  const colors = useThemeColors();
   const insets = useSafeAreaInsets();
   const { userId } = route.params;
 
@@ -104,12 +103,12 @@ export function PR({ route }: Props) {
         style={[
           styles.container,
           styles.centerContent,
-          { backgroundColor: isDark ? "#121212" : "#fff" },
+          { backgroundColor: colors.appBg },
         ]}
       >
         <FloatingCloseButton direction="left" accessibilityLabel="Back" />
-        <ActivityIndicator size="large" color={isDark ? "#fff" : "#000"} />
-        <Text style={[styles.loadingText, { color: isDark ? "#fff" : "#000" }]}>
+        <ActivityIndicator size="large" color={colors.text} />
+        <Text style={[styles.loadingText, { color: colors.text }]}>
           Loading PRs...
         </Text>
       </View>
@@ -121,7 +120,7 @@ export function PR({ route }: Props) {
       style={[
         styles.container,
         {
-          backgroundColor: isDark ? "#121212" : "#fff",
+          backgroundColor: colors.appBg,
           paddingTop: insets.top + 60,
         },
       ]}
@@ -130,18 +129,18 @@ export function PR({ route }: Props) {
       {prs.map((pr, index) => (
         <View
           key={index}
-          style={[styles.row, { borderColor: isDark ? "#555" : "#ccc" }]}
+          style={[styles.row, { borderColor: colors.border }]}
         >
           {/* Left cell with image */}
           <View
             style={[
               styles.cell,
-              { backgroundColor: isDark ? "#1e1e1e" : "#fff" },
+              { backgroundColor: colors.cardBg },
             ]}
           >
             <Image
               source={getImageForExercise(pr.exerciseName)}
-              style={[styles.image, { tintColor: isDark ? "#fff" : "#000" }]}
+              style={[styles.image, { tintColor: colors.text }]}
             />
           </View>
 
@@ -149,19 +148,19 @@ export function PR({ route }: Props) {
           <View
             style={[
               styles.cell,
-              { backgroundColor: isDark ? "#1e1e1e" : "#fff" },
+              { backgroundColor: colors.cardBg },
             ]}
           >
             <View
               style={[
                 styles.textContainer,
                 {
-                  backgroundColor: isDark ? "#2a2a2a" : "#f0f0f0",
+                  backgroundColor: colors.separator,
                 },
               ]}
             >
               <Text
-                style={[styles.prText, { color: isDark ? "#fff" : "#000" }]}
+                style={[styles.prText, { color: colors.text }]}
               >
                 {formatPR(pr)}
               </Text>

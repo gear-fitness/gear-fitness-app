@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  useColorScheme,
   Animated,
   Easing,
 } from "react-native";
@@ -179,7 +178,6 @@ export function RoutineDetail({
   const navigation = useNavigation<any>();
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
-  const isDark = useColorScheme() === "dark";
 
   const [routine, setRoutine] = useState<Routine | null>(null);
   const [loading, setLoading] = useState(true);
@@ -496,7 +494,6 @@ export function RoutineDetail({
       <StartCountdownOverlay
         visible={isCountdownVisible}
         countdownValue={countdownValue}
-        isDark={isDark}
         onCancel={cancelCountdown}
       />
     </View>

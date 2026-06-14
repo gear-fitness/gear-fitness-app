@@ -8,7 +8,6 @@ import {
   Alert,
   RefreshControl,
   Text,
-  useColorScheme,
   Animated,
   Easing,
 } from "react-native";
@@ -29,6 +28,7 @@ import {
   unfollowUser,
 } from "../../api/userService";
 import { blockUser } from "../../api/followService";
+import { useThemeColors } from "../../hooks/useThemeColors";
 import { UserProfile } from "../../api/types";
 import { useAuth } from "../../context/AuthContext";
 import { subscribeOnlineStatus } from "../../utils/network";
@@ -77,8 +77,7 @@ function useSkeletonPulse() {
 export function Profile() {
   const navigation = useNavigation() as any;
   const route = useRoute<any>();
-  const scheme = useColorScheme();
-  const isDark = scheme === "dark";
+  const colors = useThemeColors();
 
   const usernameParam: string | undefined = route.params?.username;
   const isOtherUser = !!usernameParam;
@@ -102,37 +101,22 @@ export function Profile() {
   const normalizeFeedPosts = useNormalizeFeedPosts();
   const { invalidate: invalidateFeed } = useSocialFeed();
 
-  const t = isDark
-    ? {
-        bg: "#0a0a0a",
-        surface: "#141414",
-        text: "#fff",
-        textMuted: "rgba(255,255,255,0.55)",
-        textFaint: "rgba(255,255,255,0.4)",
-        border: "rgba(255,255,255,0.08)",
-        primaryBg: "#fff",
-        primaryText: "#000",
-        skeleton: "rgba(255,255,255,0.08)",
-        dotEmpty: "rgba(255,255,255,0.06)",
-        dotLow: "#4a2a12",
-        dotMid: "#8a4716",
-        dotHigh: "#ff6a1f",
-      }
-    : {
-        bg: "#fafafa",
-        surface: "#fff",
-        text: "#000",
-        textMuted: "rgba(0,0,0,0.5)",
-        textFaint: "rgba(0,0,0,0.4)",
-        border: "rgba(0,0,0,0.08)",
-        primaryBg: "#000",
-        primaryText: "#fff",
-        skeleton: "rgba(0,0,0,0.08)",
-        dotEmpty: "rgba(0,0,0,0.06)",
-        dotLow: "#ffd2a8",
-        dotMid: "#ff9d5c",
-        dotHigh: "#e56a1f",
-      };
+  const t = {
+    bg: colors.appBg,
+    surface: colors.cardBg,
+    text: colors.text,
+    textMuted: colors.textMuted,
+    textFaint: colors.textFaint,
+    border: colors.cardBorder,
+    primaryBg: colors.accent,
+    primaryText: colors.accentText,
+    skeleton: colors.skeleton,
+    // Activity-heatmap intensity ramp — screen-specific, not a shared token.
+    dotEmpty: colors.isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
+    dotLow: colors.isDark ? "#4a2a12" : "#ffd2a8",
+    dotMid: colors.isDark ? "#8a4716" : "#ff9d5c",
+    dotHigh: colors.isDark ? "#ff6a1f" : "#e56a1f",
+  };
 
   const loadProfile = async () => {
     try {

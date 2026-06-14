@@ -10,7 +10,6 @@ import {
   Modal,
   Animated,
   Alert,
-  useColorScheme,
 } from "react-native";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import {
@@ -31,6 +30,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import stopwatch from "../assets/stopwatch.png";
 import { useWorkoutTimer, WorkoutSet } from "../context/WorkoutContext";
 import { useSwipeableDelete } from "../hooks/useSwipeableDelete";
+import { useThemeColors } from "../hooks/useThemeColors";
 import { BodyPartDTO } from "../api/exerciseService";
 import { FloatingCloseButton } from "./FloatingCloseButton";
 import { FloatingKeyboardDismiss } from "./FloatingKeyboardDismiss";
@@ -57,21 +57,20 @@ export interface ExerciseDetailContentRef {
   save: () => void;
 }
 
-type ThemeColors = {
-  bg: string;
-  surface: string;
-  text: string;
-  textMuted: string;
-  textFaint: string;
-  border: string;
-  chipBg: string;
-  primaryBg: string;
-  primaryText: string;
-  accent: string;
-  accentText: string;
-  stepperBg: string;
-  stepperBorder: string;
-};
+type ThemeColors = Pick<
+  ReturnType<typeof useThemeColors>,
+  | "appBg"
+  | "cardBg"
+  | "text"
+  | "textMuted"
+  | "textFaint"
+  | "cardBorder"
+  | "chipBg"
+  | "accent"
+  | "accentText"
+  | "stepperBg"
+  | "stepperBorder"
+>;
 
 type LoggedSet = WorkoutSet & { id: string };
 
@@ -142,41 +141,10 @@ export const ExerciseDetailContent = forwardRef<
     activeExerciseStartedAt,
   } = useWorkoutTimer();
   const navigation = useNavigation<any>();
-  const isDark = useColorScheme() === "dark";
+  const colors = useThemeColors();
+  const isDark = colors.isDark;
   const insets = useSafeAreaInsets();
   const glassAvailable = isLiquidGlassAvailable();
-
-  const colors: ThemeColors = isDark
-    ? {
-        bg: "#0a0a0a",
-        surface: "#141414",
-        text: "#fff",
-        textMuted: "rgba(255,255,255,0.55)",
-        textFaint: "rgba(255,255,255,0.4)",
-        border: "rgba(255,255,255,0.08)",
-        chipBg: "rgba(255,255,255,0.08)",
-        primaryBg: "#fff",
-        primaryText: "#000",
-        accent: "#fff",
-        accentText: "#000",
-        stepperBg: "rgba(255,255,255,0.06)",
-        stepperBorder: "rgba(255,255,255,0.12)",
-      }
-    : {
-        bg: "#fafafa",
-        surface: "#fff",
-        text: "#000",
-        textMuted: "rgba(0,0,0,0.5)",
-        textFaint: "rgba(0,0,0,0.4)",
-        border: "rgba(0,0,0,0.08)",
-        chipBg: "rgba(0,0,0,0.05)",
-        primaryBg: "#000",
-        primaryText: "#fff",
-        accent: "#000",
-        accentText: "#fff",
-        stepperBg: "#fff",
-        stepperBorder: "rgba(0,0,0,0.1)",
-      };
 
   const formatTime = (t: number) =>
     `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(
@@ -474,7 +442,7 @@ export const ExerciseDetailContent = forwardRef<
         <View
           style={[
             styles.container,
-            { backgroundColor: colors.bg, paddingTop: insets.top },
+            { backgroundColor: colors.appBg, paddingTop: insets.top },
           ]}
         >
           <FloatingCloseButton
@@ -516,7 +484,7 @@ export const ExerciseDetailContent = forwardRef<
                     backgroundColor: glassAvailable
                       ? "transparent"
                       : colors.chipBg,
-                    borderColor: glassAvailable ? "transparent" : colors.border,
+                    borderColor: glassAvailable ? "transparent" : colors.cardBorder,
                     borderWidth: glassAvailable ? 0 : StyleSheet.hairlineWidth,
                   },
                 ]}
@@ -546,7 +514,7 @@ export const ExerciseDetailContent = forwardRef<
                     backgroundColor: glassAvailable
                       ? "transparent"
                       : colors.chipBg,
-                    borderColor: glassAvailable ? "transparent" : colors.border,
+                    borderColor: glassAvailable ? "transparent" : colors.cardBorder,
                     borderWidth: glassAvailable ? 0 : StyleSheet.hairlineWidth,
                   },
                 ]}
@@ -570,7 +538,7 @@ export const ExerciseDetailContent = forwardRef<
             </View>
           </View>
           <View
-            style={[styles.divider, { borderBottomColor: colors.border }]}
+            style={[styles.divider, { borderBottomColor: colors.cardBorder }]}
           />
 
           <ScrollView
@@ -612,8 +580,8 @@ export const ExerciseDetailContent = forwardRef<
               style={[
                 styles.heroCard,
                 {
-                  backgroundColor: colors.surface,
-                  borderColor: colors.border,
+                  backgroundColor: colors.cardBg,
+                  borderColor: colors.cardBorder,
                   borderWidth: isDark ? 1 : 0,
                 },
               ]}
@@ -625,7 +593,7 @@ export const ExerciseDetailContent = forwardRef<
                 colors={colors}
               />
               <View
-                style={[styles.heroDivider, { backgroundColor: colors.border }]}
+                style={[styles.heroDivider, { backgroundColor: colors.cardBorder }]}
               />
               <HeroInput
                 label="Weight"
@@ -636,7 +604,7 @@ export const ExerciseDetailContent = forwardRef<
                 allowDecimal
               />
               <View
-                style={[styles.heroDivider, { backgroundColor: colors.border }]}
+                style={[styles.heroDivider, { backgroundColor: colors.cardBorder }]}
               />
               <PlateLoaderToggle
                 colors={colors}
@@ -654,7 +622,7 @@ export const ExerciseDetailContent = forwardRef<
                   <View
                     style={[
                       styles.heroDivider,
-                      { backgroundColor: colors.border },
+                      { backgroundColor: colors.cardBorder },
                     ]}
                   />
                   <PlateLoader
@@ -764,8 +732,8 @@ export const ExerciseDetailContent = forwardRef<
             style={[
               styles.footerCard,
               {
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
+                backgroundColor: colors.cardBg,
+                borderColor: colors.cardBorder,
                 borderWidth: isDark ? 1 : 0,
               },
             ]}
@@ -804,7 +772,7 @@ export const ExerciseDetailContent = forwardRef<
           <View style={styles.modalBackdrop}>
             <TouchableWithoutFeedback>
               <View
-                style={[styles.modalCard, { backgroundColor: colors.surface }]}
+                style={[styles.modalCard, { backgroundColor: colors.cardBg }]}
               >
                 <Text style={[styles.modalTitle, { color: colors.text }]}>
                   Note
@@ -942,7 +910,7 @@ function SetRow({
     <View
       style={[
         setStyles.row,
-        { backgroundColor: colors.surface, borderColor: colors.border },
+        { backgroundColor: colors.cardBg, borderColor: colors.cardBorder },
       ]}
     >
       <Text style={[setStyles.idx, { color: colors.textFaint }]}>
@@ -1011,8 +979,8 @@ function StackedSets({
                 left: 10 + depth * 6,
                 right: 10 + depth * 6,
                 top: depth * 6,
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
+                backgroundColor: colors.cardBg,
+                borderColor: colors.cardBorder,
                 opacity: 1 - depth * 0.22,
               },
             ]}
@@ -1067,7 +1035,7 @@ function PlateToggleSwitch({
         style={[
           plateStyles.switchThumb,
           {
-            backgroundColor: enabled ? colors.bg : "#fff",
+            backgroundColor: enabled ? colors.appBg : "#fff",
             left: enabled ? 18 : 2,
           },
         ]}

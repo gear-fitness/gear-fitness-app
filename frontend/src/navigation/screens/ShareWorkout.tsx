@@ -10,7 +10,6 @@ import {
   Text,
   TouchableOpacity,
   View,
-  useColorScheme,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
@@ -29,6 +28,7 @@ import {
 } from "../../components/ShareWorkoutCard";
 import { Checkerboard } from "../../components/Checkerboard";
 import { resolveBodyVariant } from "../../utils/muscleActivations";
+import { useThemeColors } from "../../hooks/useThemeColors";
 
 type RootStackParamList = {
   ShareWorkout: {
@@ -43,8 +43,7 @@ const THEMES: ShareCardTheme[] = ["transparent", "dark", "light"];
 
 export function ShareWorkout({ route }: Props) {
   const navigation = useNavigation();
-  const scheme = useColorScheme();
-  const isDarkScreen = scheme === "dark";
+  const { isDark: isDarkScreen } = useThemeColors();
   const { workoutId, ownerUserId } = route.params;
   const { user } = useAuth();
 

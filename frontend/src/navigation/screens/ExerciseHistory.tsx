@@ -14,7 +14,7 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { useColorScheme } from "react-native";
+import { useThemeColors } from "../../hooks/useThemeColors";
 import Svg, { Polyline, Circle, Line, Text as SvgText } from "react-native-svg";
 
 import {
@@ -64,29 +64,31 @@ export function ExerciseHistory() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const exercise = route.params?.exercise;
-  const isDark = useColorScheme() === "dark";
+  const theme = useThemeColors();
+  const isDark = theme.isDark;
   const insets = useSafeAreaInsets();
   const chartPagerRef = useRef<FlatList>(null);
 
   const colors = {
-    bg: isDark ? "#000" : "#fff",
-    text: isDark ? "#fff" : "#000",
-    subtle: isDark ? "#aaa" : "#666",
-    border: isDark ? "#333" : "#e0e0e0",
-    card: isDark ? "#1c1c1e" : "#f7f7f7",
-    accent: isDark ? "#fff" : "#000",
+    bg: theme.bg,
+    text: theme.text,
+    subtle: theme.secondary,
+    border: theme.border,
+    card: theme.surface,
+    accent: theme.accent,
+    // Fixed chart-series brand colors (theme-independent).
     pr: "#FFD700",
-    chartGrid: isDark ? "#333" : "#e0e0e0",
+    chartGrid: theme.border,
     prLine: "#FFD700",
     prDotColor: "#FFD700",
     volumeLine: "#34C759",
     volumeDotColor: "#34C759",
-    sessionMaxLine: isDark ? "#fff" : "#000",
-    sessionMaxDotColor: isDark ? "#fff" : "#000",
-    scopeActive: isDark ? "#fff" : "#000",
-    scopeInactive: isDark ? "#1c1c1e" : "#f0f0f0",
-    scopeTextActive: isDark ? "#000" : "#fff",
-    scopeTextInactive: isDark ? "#aaa" : "#666",
+    sessionMaxLine: theme.accent,
+    sessionMaxDotColor: theme.accent,
+    scopeActive: theme.accent,
+    scopeInactive: theme.surface,
+    scopeTextActive: theme.accentText,
+    scopeTextInactive: theme.secondary,
   };
 
   const CHART_COLORS: Record<ChartType, { line: string; dot: string }> = {

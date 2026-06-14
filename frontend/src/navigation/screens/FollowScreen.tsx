@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   Pressable,
   Alert,
-  useColorScheme,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -23,6 +22,7 @@ import { FollowerUser } from "../../api/types";
 import { Avatar } from "../../components/Avatar";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
+import { useThemeColors } from "../../hooks/useThemeColors";
 
 type Tab = "followers" | "following";
 
@@ -30,8 +30,8 @@ export default function FollowScreen() {
   const navigation = useNavigation() as any;
   const route = useRoute<any>();
   const insets = useSafeAreaInsets();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  const colors = useThemeColors();
+  const isDark = colors.isDark;
 
   const {
     username,
@@ -44,18 +44,19 @@ export default function FollowScreen() {
   };
 
   const c = {
-    bg: isDark ? "#000" : "#fff",
-    text: isDark ? "#fff" : "#000",
+    bg: colors.bg,
+    text: colors.text,
+    // Instagram-style social greys — intentionally distinct from the shared palette.
     secondary: isDark ? "#888" : "#8e8e8e",
-    border: isDark ? "#222" : "#e0e0e0",
+    border: colors.border,
     separator: isDark ? "#111" : "#f2f2f2",
     rowPressed: isDark ? "#111" : "#f5f5f5",
     followBtn: "#3a3a3a",
     followBtnText: "#fff",
-    followingBorder: isDark ? "#3a3a3a" : "#dbdbdb",
-    followingText: isDark ? "#fff" : "#000",
-    tabUnderline: isDark ? "#fff" : "#000",
-    activeTab: isDark ? "#fff" : "#000",
+    followingBorder: colors.border,
+    followingText: colors.text,
+    tabUnderline: colors.accent,
+    activeTab: colors.accent,
     inactiveTab: isDark ? "#4a4a4a" : "#b0b0b0",
   };
 

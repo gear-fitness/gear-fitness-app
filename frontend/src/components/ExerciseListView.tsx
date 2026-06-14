@@ -6,11 +6,11 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
-  useColorScheme,
 } from "react-native";
 import { Text } from "@react-navigation/elements";
 import { Exercise } from "../api/exerciseService";
 import { useExerciseFilter } from "../hooks/useExerciseFilter";
+import { useThemeColors } from "../hooks/useThemeColors";
 import { ExerciseFilterBar } from "./ExerciseFilterBar";
 import { ExerciseCard } from "./ExerciseCard";
 
@@ -87,15 +87,7 @@ export function ExerciseListView({
   ListFooterComponent,
   loading = false,
 }: ExerciseListViewProps) {
-  const isDark = useColorScheme() === "dark";
-
-  const colors = {
-    bg: isDark ? "#000" : "#fff",
-    text: isDark ? "#fff" : "#000",
-    subtle: isDark ? "#aaa" : "#666",
-    border: isDark ? "#333" : "#e0e0e0",
-    skeleton: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
-  };
+  const colors = useThemeColors();
 
   const {
     searchQuery,
@@ -113,7 +105,7 @@ export function ExerciseListView({
           onPress={onCreateExercise}
           style={[styles.createButton, { borderColor: colors.border }]}
         >
-          <Text style={[styles.createButtonText, { color: colors.subtle }]}>
+          <Text style={[styles.createButtonText, { color: colors.secondary }]}>
             + Create Custom Exercise
           </Text>
           <Text style={[styles.createButtonHint, { color: colors.border }]}>
@@ -156,11 +148,11 @@ export function ExerciseListView({
               style={[styles.sectionHeader, { backgroundColor: colors.bg }]}
             >
               <Text
-                style={[styles.sectionHeaderText, { color: colors.subtle }]}
+                style={[styles.sectionHeaderText, { color: colors.secondary }]}
               >
                 {title}
               </Text>
-              <Text style={[styles.sectionCount, { color: colors.subtle }]}>
+              <Text style={[styles.sectionCount, { color: colors.secondary }]}>
                 {sections.find((s) => s.title === title)?.data.length || 0}
               </Text>
             </View>
@@ -180,7 +172,7 @@ export function ExerciseListView({
               <Text style={[styles.emptyTitle, { color: colors.text }]}>
                 No exercises found
               </Text>
-              <Text style={[styles.emptySubtitle, { color: colors.subtle }]}>
+              <Text style={[styles.emptySubtitle, { color: colors.secondary }]}>
                 Try adjusting your search or filters
               </Text>
             </View>

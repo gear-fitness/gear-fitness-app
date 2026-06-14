@@ -1,8 +1,8 @@
 import React, { useCallback, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import { useColorScheme } from "react-native";
 import Svg, { Path } from "react-native-svg";
+import { useThemeColors } from "../hooks/useThemeColors";
 import { getTodaysRoutines } from "../api/routineService";
 import { Routine } from "../api/types";
 import { useWorkoutTimer } from "../context/WorkoutContext";
@@ -11,7 +11,7 @@ import { StartCountdownOverlay } from "./StartCountdownOverlay";
 
 export function TodaysRoutines() {
   const navigation = useNavigation();
-  const isDark = useColorScheme() === "dark";
+  const colors = useThemeColors();
   const { loadFromRoutine, hasActiveWorkout } = useWorkoutTimer();
   const [todaysRoutines, setTodaysRoutines] = useState<Routine[]>([]);
   const pendingRoutineRef = useRef<Routine | null>(null);
@@ -91,21 +91,13 @@ export function TodaysRoutines() {
     startCountdown();
   };
 
-  const t = isDark
-    ? {
-        surface: "#141414",
-        text: "#fff",
-        textMuted: "rgba(255,255,255,0.55)",
-        textFaint: "rgba(255,255,255,0.4)",
-        border: "rgba(255,255,255,0.08)",
-      }
-    : {
-        surface: "#fff",
-        text: "#000",
-        textMuted: "rgba(0,0,0,0.5)",
-        textFaint: "rgba(0,0,0,0.4)",
-        border: "rgba(0,0,0,0.08)",
-      };
+  const t = {
+    surface: colors.cardBg,
+    text: colors.text,
+    textMuted: colors.textMuted,
+    textFaint: colors.textFaint,
+    border: colors.cardBorder,
+  };
 
   return (
     <View style={styles.section}>
@@ -176,7 +168,6 @@ export function TodaysRoutines() {
       <StartCountdownOverlay
         visible={isCountdownVisible}
         countdownValue={countdownValue}
-        isDark={isDark}
         onCancel={cancelCountdown}
       />
     </View>

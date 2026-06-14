@@ -3,7 +3,6 @@ import {
   StyleSheet,
   View,
   ScrollView,
-  useColorScheme,
   ActivityIndicator,
   TouchableOpacity,
   StyleProp,
@@ -21,6 +20,7 @@ import { useTrackTab } from "../../hooks/useTrackTab";
 import { formatTag } from "../../utils/formatTag";
 import { formatMuscleGroups, renderBodyParts } from "../../utils/exerciseUtils";
 import { useNavigation, useTheme } from "@react-navigation/native";
+import { useThemeColors } from "../../hooks/useThemeColors";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { Ionicons } from "@expo/vector-icons";
@@ -69,8 +69,7 @@ export function DetailedHistory({ route }: Props) {
   const navigation = useNavigation();
   const { colors } = useTheme();
 
-  const isDark = useColorScheme() === "dark";
-  const accent = isDark ? "#fff" : "#000";
+  const { isDark } = useThemeColors();
 
   const insets = useSafeAreaInsets();
   const {
@@ -501,8 +500,7 @@ function ExerciseBlock({
   textMuted,
   textFaint,
 }: ExerciseBlockProps) {
-  const isDark = useColorScheme() === "dark";
-  const accent = isDark ? "#fff" : "#000";
+  const accent = useThemeColors().accent;
   return (
     <View style={styles.exerciseBlock}>
       <View style={styles.exerciseHeader}>

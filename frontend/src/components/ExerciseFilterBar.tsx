@@ -4,10 +4,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
-  useColorScheme,
 } from "react-native";
 import { Text } from "@react-navigation/elements";
 import { SearchBar } from "./SearchBar";
+import { useThemeColors } from "../hooks/useThemeColors";
 
 interface ExerciseFilterBarProps {
   searchQuery: string;
@@ -26,14 +26,7 @@ export function ExerciseFilterBar({
   onSelectBodyPart,
   placeholder = "Search exercises...",
 }: ExerciseFilterBarProps) {
-  const isDark = useColorScheme() === "dark";
-
-  const colors = {
-    text: isDark ? "#fff" : "#000",
-    activeBg: isDark ? "#fff" : "#000",
-    activeText: isDark ? "#000" : "#fff",
-    inactiveBorder: isDark ? "rgba(255,255,255,0.22)" : "rgba(0,0,0,0.18)",
-  };
+  const colors = useThemeColors();
 
   const renderChip = (label: string, active: boolean, onPress: () => void) => (
     <TouchableOpacity
@@ -43,15 +36,15 @@ export function ExerciseFilterBar({
       style={[
         styles.chip,
         {
-          backgroundColor: active ? colors.activeBg : "transparent",
-          borderColor: active ? colors.activeBg : colors.inactiveBorder,
+          backgroundColor: active ? colors.accent : "transparent",
+          borderColor: active ? colors.accent : colors.chipBorder,
         },
       ]}
     >
       <Text
         style={[
           styles.chipText,
-          { color: active ? colors.activeText : colors.text },
+          { color: active ? colors.accentText : colors.text },
         ]}
       >
         {label}

@@ -7,11 +7,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useThemeColors } from "../hooks/useThemeColors";
 
 interface StartCountdownOverlayProps {
   visible: boolean;
   countdownValue: number;
-  isDark: boolean;
   onCancel: () => void;
   onSkip: () => void;
 }
@@ -21,10 +21,10 @@ const DESTRUCTIVE = "#C93838";
 export function StartCountdownOverlay({
   visible,
   countdownValue,
-  isDark,
   onCancel,
   onSkip,
 }: StartCountdownOverlayProps) {
+  const colors = useThemeColors();
   const countdownScale = useRef(new Animated.Value(0.7)).current;
   const countdownOpacity = useRef(new Animated.Value(0)).current;
 
@@ -54,7 +54,7 @@ export function StartCountdownOverlay({
       <View
         style={[
           styles.countdownOverlay,
-          { backgroundColor: isDark ? "#000" : "#fff" },
+          { backgroundColor: colors.bg },
         ]}
       >
         <View style={styles.countdownContent}>
@@ -63,7 +63,7 @@ export function StartCountdownOverlay({
               style={[
                 styles.countdownNumber,
                 {
-                  color: isDark ? "#fff" : "#000",
+                  color: colors.text,
                   opacity: countdownOpacity,
                   transform: [{ scale: countdownScale }],
                 },

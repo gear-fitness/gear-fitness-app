@@ -6,7 +6,6 @@ import {
   Text,
   TouchableOpacity,
   View,
-  useColorScheme,
   useWindowDimensions,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -22,6 +21,7 @@ import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 import { OfflineNotice } from "../../components/OfflineNotice";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { useOnlineStatus } from "../../hooks/useOnlineStatus";
+import { useThemeColors } from "../../hooks/useThemeColors";
 
 const PAGE_SIZE = 20;
 const GRID_PADDING_HORIZONTAL = 12;
@@ -33,8 +33,7 @@ export function UserPosts() {
   const navigation = useNavigation() as any;
   const route = useRoute<any>();
   const insets = useSafeAreaInsets();
-  const scheme = useColorScheme();
-  const isDark = scheme === "dark";
+  const colors = useThemeColors();
   const { width: windowWidth } = useWindowDimensions();
 
   useTrackTab("UserPosts");
@@ -42,25 +41,15 @@ export function UserPosts() {
   const userId: string = route.params?.userId;
   const username: string = route.params?.username ?? "";
 
-  const t = isDark
-    ? {
-        bg: "#0a0a0a",
-        surface: "#141414",
-        text: "#fff",
-        textMuted: "rgba(255,255,255,0.55)",
-        textFaint: "rgba(255,255,255,0.4)",
-        border: "rgba(255,255,255,0.08)",
-        chipBg: "rgba(255,255,255,0.08)",
-      }
-    : {
-        bg: "#fafafa",
-        surface: "#fff",
-        text: "#000",
-        textMuted: "rgba(0,0,0,0.5)",
-        textFaint: "rgba(0,0,0,0.4)",
-        border: "rgba(0,0,0,0.08)",
-        chipBg: "rgba(0,0,0,0.05)",
-      };
+  const t = {
+    bg: colors.appBg,
+    surface: colors.cardBg,
+    text: colors.text,
+    textMuted: colors.textMuted,
+    textFaint: colors.textFaint,
+    border: colors.cardBorder,
+    chipBg: colors.chipBg,
+  };
 
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);

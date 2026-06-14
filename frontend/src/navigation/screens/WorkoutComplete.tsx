@@ -1,7 +1,6 @@
 import {
   Text,
   StyleSheet,
-  useColorScheme,
   View,
   TextInput,
   TouchableOpacity,
@@ -30,6 +29,7 @@ import { enqueueWorkout } from "../../utils/workoutQueue";
 import { getCurrentLocalDateString } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
+import { useThemeColors } from "../../hooks/useThemeColors";
 import { formatTag } from "../../utils/formatTag";
 import { getAllBodyPartNames } from "../../utils/exerciseUtils";
 import { MUSCLE_GROUPS } from "../../constants/muscleGroups";
@@ -52,7 +52,8 @@ type Theme = {
 export function WorkoutComplete() {
   useTrackTab("WorkoutComplete");
 
-  const isDark = useColorScheme() === "dark";
+  const colors = useThemeColors();
+  const isDark = colors.isDark;
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
@@ -97,27 +98,16 @@ export function WorkoutComplete() {
     };
   }, []);
 
-  const t: Theme = isDark
-    ? {
-        bg: "#0a0a0a",
-        surface: "#141414",
-        text: "#fff",
-        textMuted: "rgba(255,255,255,0.55)",
-        textFaint: "rgba(255,255,255,0.4)",
-        border: "rgba(255,255,255,0.08)",
-        chipBg: "rgba(255,255,255,0.08)",
-        chipBorder: "rgba(255,255,255,0.28)",
-      }
-    : {
-        bg: "#fafafa",
-        surface: "#ffffff",
-        text: "#000",
-        textMuted: "rgba(0,0,0,0.5)",
-        textFaint: "rgba(0,0,0,0.4)",
-        border: "rgba(0,0,0,0.08)",
-        chipBg: "rgba(0,0,0,0.05)",
-        chipBorder: "rgba(0,0,0,0.22)",
-      };
+  const t: Theme = {
+    bg: colors.appBg,
+    surface: colors.cardBg,
+    text: colors.text,
+    textMuted: colors.textMuted,
+    textFaint: colors.textFaint,
+    border: colors.cardBorder,
+    chipBg: colors.chipBg,
+    chipBorder: colors.chipBorder,
+  };
 
   const durationMin = Math.floor(seconds / 60);
   const totalSets = exercises.reduce(
@@ -390,7 +380,7 @@ export function WorkoutComplete() {
                   <Text
                     style={[
                       styles.tagText,
-                      { color: active ? (isDark ? "#000" : "#fff") : t.text },
+                      { color: active ? (colors.accentText) : t.text },
                     ]}
                   >
                     {formatTag(tag)}
@@ -586,12 +576,12 @@ export function WorkoutComplete() {
                   <Ionicons
                     name={opt.icon}
                     size={14}
-                    color={active ? (isDark ? "#000" : "#fff") : t.text}
+                    color={active ? (colors.accentText) : t.text}
                   />
                   <Text
                     style={[
                       styles.visChipLabel,
-                      { color: active ? (isDark ? "#000" : "#fff") : t.text },
+                      { color: active ? (colors.accentText) : t.text },
                     ]}
                   >
                     {opt.label}
@@ -622,13 +612,13 @@ export function WorkoutComplete() {
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator color={isDark ? "#000" : "#fff"} />
+                <ActivityIndicator color={colors.accentText} />
               ) : (
                 <View style={styles.footerBtnContent}>
                   <Text
                     style={[
                       styles.footerBtnText,
-                      { color: isDark ? "#000" : "#fff" },
+                      { color: colors.accentText },
                     ]}
                   >
                     Post

@@ -28,6 +28,14 @@ export function useThemeColors() {
     tint: isDark ? "#fff" : "#000",
     danger: "#FF3B30",
     skeleton: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+    // Content / feed surface tokens (translucent text + chip hierarchy)
+    textMuted: isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.5)",
+    textFaint: isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.4)",
+    textGhost: isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.18)",
+    chipBg: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+    chipBorder: isDark ? "rgba(255,255,255,0.22)" : "rgba(0,0,0,0.18)",
+    stepperBg: isDark ? "rgba(255,255,255,0.06)" : "#fff",
+    stepperBorder: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)",
     // Onboarding-specific tokens
     accent: isDark ? "#fff" : "#000",
     accentText: isDark ? "#000" : "#fff",

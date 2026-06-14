@@ -4,7 +4,6 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  useColorScheme,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -24,6 +23,7 @@ import { subscribeOnlineStatus } from "../../utils/network";
 import { getPendingWorkoutsAsWorkouts } from "../../utils/workoutQueue";
 import { parseLocalDate, getCurrentLocalDateString } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
+import { useThemeColors } from "../../hooks/useThemeColors";
 import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
 import { SearchBar } from "../../components/SearchBar";
 import { Ionicons } from "@expo/vector-icons";
@@ -65,30 +65,19 @@ export function History() {
 
   const navigation = useNavigation<NavigationProp>();
   const { user } = useAuth();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  const colors = useThemeColors();
+  const isDark = colors.isDark;
 
-  const t = isDark
-    ? {
-        bg: "#0a0a0a",
-        surface: "#141414",
-        text: "#fff",
-        textMuted: "rgba(255,255,255,0.55)",
-        textFaint: "rgba(255,255,255,0.4)",
-        textGhost: "rgba(255,255,255,0.18)",
-        border: "rgba(255,255,255,0.08)",
-        chipBg: "rgba(255,255,255,0.08)",
-      }
-    : {
-        bg: "#fafafa",
-        surface: "#fff",
-        text: "#000",
-        textMuted: "rgba(0,0,0,0.5)",
-        textFaint: "rgba(0,0,0,0.4)",
-        textGhost: "rgba(0,0,0,0.18)",
-        border: "rgba(0,0,0,0.08)",
-        chipBg: "rgba(0,0,0,0.05)",
-      };
+  const t = {
+    bg: colors.appBg,
+    surface: colors.cardBg,
+    text: colors.text,
+    textMuted: colors.textMuted,
+    textFaint: colors.textFaint,
+    textGhost: colors.textGhost,
+    border: colors.cardBorder,
+    chipBg: colors.chipBg,
+  };
 
   const [searchQuery, setSearchQuery] = useState("");
   const [data, setData] = useState<Workout[]>([]);

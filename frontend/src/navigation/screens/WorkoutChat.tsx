@@ -14,7 +14,7 @@ import {
 } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { useState, useRef, useEffect } from "react";
-import { useColorScheme } from "react-native";
+import { useThemeColors } from "../../hooks/useThemeColors";
 import { sendWorkoutChat } from "../../api/workoutChatService";
 import { useTrackTab } from "../../hooks/useTrackTab";
 
@@ -32,17 +32,20 @@ export function WorkoutChat() {
   useTrackTab("WorkoutChat");
 
   const navigation = useNavigation();
-  const isDark = useColorScheme() === "dark";
+  const theme = useThemeColors();
   const scrollViewRef = useRef<ScrollView>(null);
 
   const colors = {
-    bg: isDark ? "#000" : "#fff",
-    text: isDark ? "#fff" : "#000",
-    subtle: isDark ? "#aaa" : "#666",
-    icon: isDark ? "#fff" : "#555",
-    border: isDark ? "#333" : "#ccc",
-    inputBg: isDark ? "#1c1c1e" : "#fff",
-    card: isDark ? "#222" : "#fff",
+    bg: theme.bg,
+    text: theme.text,
+    subtle: theme.secondary,
+    // Bespoke chat-icon tint (bright in dark, mid-grey in light).
+    icon: theme.isDark ? "#fff" : "#555",
+    border: theme.border,
+    inputBg: theme.inputBg,
+    card: theme.cardBg,
+    accent: theme.accent,
+    accentText: theme.accentText,
   };
 
   const [messages, setMessages] = useState<ChatMessageState[]>([
@@ -159,17 +162,13 @@ export function WorkoutChat() {
                 styles.messageBubble,
                 {
                   alignSelf: msg.isUser ? "flex-end" : "flex-start",
-                  backgroundColor: msg.isUser
-                    ? isDark
-                      ? "#fff"
-                      : "#000"
-                    : colors.card,
+                  backgroundColor: msg.isUser ? colors.accent : colors.card,
                 },
               ]}
             >
               <Text
                 style={{
-                  color: msg.isUser ? (isDark ? "#000" : "#fff") : colors.text,
+                  color: msg.isUser ? colors.accentText : colors.text,
                 }}
               >
                 {msg.text}

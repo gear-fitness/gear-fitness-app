@@ -5,13 +5,13 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
-  useColorScheme,
 } from "react-native";
 import { GlassView } from "expo-glass-effect";
 import { SymbolView } from "expo-symbols";
+import { useThemeColors } from "../hooks/useThemeColors";
 
 export function FloatingKeyboardDismiss() {
-  const isDark = useColorScheme() === "dark";
+  const { isDark, text } = useThemeColors();
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   useEffect(() => {
@@ -48,7 +48,7 @@ export function FloatingKeyboardDismiss() {
           <SymbolView
             key={isDark ? "dark" : "light"}
             name="keyboard.chevron.compact.down"
-            tintColor={isDark ? "#fff" : "#000"}
+            tintColor={text}
             size={22}
           />
         </TouchableOpacity>

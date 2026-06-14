@@ -1,5 +1,5 @@
 import React from "react";
-import { useColorScheme, View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -10,12 +10,13 @@ import { useExerciseList } from "../../hooks/useExerciseList";
 import { ExerciseListView } from "../../components/ExerciseListView";
 import { Exercise } from "../../api/exerciseService";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
+import { useThemeColors } from "../../hooks/useThemeColors";
 
 export function ExerciseList() {
   useTrackTab("ExerciseList");
 
   const navigation = useNavigation<any>();
-  const isDark = useColorScheme() === "dark";
+  const colors = useThemeColors();
   const insets = useSafeAreaInsets();
   const { exercises } = useExerciseList();
 
@@ -25,14 +26,14 @@ export function ExerciseList() {
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: isDark ? "#000" : "#fff" }}
+      style={{ flex: 1, backgroundColor: colors.bg }}
       edges={["bottom"]}
     >
       <FloatingCloseButton direction="left" accessibilityLabel="Back" />
       <Text
         style={[
           styles.title,
-          { top: insets.top + 10, color: isDark ? "#fff" : "#000" },
+          { top: insets.top + 10, color: colors.text },
         ]}
       >
         Exercises

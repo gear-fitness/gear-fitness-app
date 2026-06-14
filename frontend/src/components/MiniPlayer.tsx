@@ -1,9 +1,9 @@
 import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
-import { useColorScheme } from "react-native";
 import { SymbolView } from "expo-symbols";
 
 import stopwatch from "../assets/stopwatch.png";
 import { useWorkoutTimer } from "../context/WorkoutContext";
+import { useThemeColors } from "../hooks/useThemeColors";
 import { GlassView } from "expo-glass-effect";
 
 interface MiniPlayerProps {
@@ -14,13 +14,9 @@ interface MiniPlayerProps {
 export function MiniPlayer({ onTap, isVisible }: MiniPlayerProps) {
   const { seconds, running, start, pause, exercises, currentExerciseId } =
     useWorkoutTimer();
-  const isDark = useColorScheme() === "dark";
-
-  const colors = {
-    bg: isDark ? "rgba(28, 28, 30, 0.8)" : "#fcfcfcc8",
-    text: isDark ? "#fff" : "#000",
-    subtle: isDark ? "#999" : "#666",
-  };
+  const colors = useThemeColors();
+  // Translucent player chrome — distinct from the opaque surface tokens.
+  const playerBg = colors.isDark ? "rgba(28, 28, 30, 0.8)" : "#fcfcfcc8";
 
   // Find current exercise
   const currentExercise = exercises.find(
@@ -102,7 +98,7 @@ export function MiniPlayer({ onTap, isVisible }: MiniPlayerProps) {
 
   return (
     <GlassView
-      style={[styles.container, { backgroundColor: colors.bg }]}
+      style={[styles.container, { backgroundColor: playerBg }]}
       glassEffectStyle={"clear"}
     >
       <TouchableOpacity
@@ -128,12 +124,12 @@ export function MiniPlayer({ onTap, isVisible }: MiniPlayerProps) {
                 {currentExercise.name}
               </Text>
               {lastSet ? (
-                <Text style={[styles.setInfo, { color: colors.subtle }]}>
+                <Text style={[styles.setInfo, { color: colors.secondary }]}>
                   Set {validSets.length}: {lastSet.reps} reps × {lastSet.weight}{" "}
                   lb
                 </Text>
               ) : (
-                <Text style={[styles.setInfo, { color: colors.subtle }]}>
+                <Text style={[styles.setInfo, { color: colors.secondary }]}>
                   No sets yet
                 </Text>
               )}
@@ -166,7 +162,7 @@ export function MiniPlayer({ onTap, isVisible }: MiniPlayerProps) {
             >
               <SymbolView
                 name={running ? "pause.fill" : "play.fill"}
-                tintColor={isDark ? "#fff" : "#000"}
+                tintColor={colors.text}
                 size={14}
               />
             </TouchableOpacity>

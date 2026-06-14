@@ -4,7 +4,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  useColorScheme,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Swipeable from "react-native-gesture-handler/ReanimatedSwipeable";
@@ -16,6 +15,7 @@ import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
+import { useThemeColors } from "../../hooks/useThemeColors";
 
 const DESTRUCTIVE = "#C93838";
 const LIVE = "#22B574";
@@ -35,8 +35,9 @@ type Theme = {
 export function WorkoutSummary() {
   useTrackTab("WorkoutSummary", { isModal: true });
 
-  const isDark = useColorScheme() === "dark";
-  const ACCENT = isDark ? "#fff" : "#000";
+  const colors = useThemeColors();
+  const isDark = colors.isDark;
+  const ACCENT = colors.accent;
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
 
@@ -60,25 +61,15 @@ export function WorkoutSummary() {
     deleteMessage: "Are you sure you want to remove this exercise?",
   });
 
-  const t: Theme = isDark
-    ? {
-        bg: "#0a0a0a",
-        surface: "#141414",
-        text: "#fff",
-        textMuted: "rgba(255,255,255,0.55)",
-        textFaint: "rgba(255,255,255,0.4)",
-        border: "rgba(255,255,255,0.08)",
-        chipBorder: "rgba(255,255,255,0.22)",
-      }
-    : {
-        bg: "#fafafa",
-        surface: "#ffffff",
-        text: "#000",
-        textMuted: "rgba(0,0,0,0.5)",
-        textFaint: "rgba(0,0,0,0.4)",
-        border: "rgba(0,0,0,0.08)",
-        chipBorder: "rgba(0,0,0,0.18)",
-      };
+  const t: Theme = {
+    bg: colors.appBg,
+    surface: colors.cardBg,
+    text: colors.text,
+    textMuted: colors.textMuted,
+    textFaint: colors.textFaint,
+    border: colors.cardBorder,
+    chipBorder: colors.chipBorder,
+  };
 
   const formatTime = (s: number) =>
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(
@@ -333,7 +324,7 @@ export function WorkoutSummary() {
             style={[styles.resumeBtn, { backgroundColor: ACCENT }]}
           >
             <Text
-              style={[styles.resumeText, { color: isDark ? "#000" : "#fff" }]}
+              style={[styles.resumeText, { color: colors.accentText }]}
             >
               Resume
             </Text>

@@ -1,7 +1,6 @@
 import { Text } from "@react-navigation/elements";
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useColorScheme } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useExerciseList } from "../../hooks/useExerciseList";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
@@ -9,13 +8,14 @@ import { ExerciseListView } from "../../components/ExerciseListView";
 import { Exercise } from "../../api/exerciseService";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
+import { useThemeColors } from "../../hooks/useThemeColors";
 
 export function ExerciseSelect() {
   useTrackTab("ExerciseSelect");
 
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const isDark = useColorScheme() === "dark";
+  const colors = useThemeColors();
   const { exercises } = useExerciseList();
   const { showPlayer, start, swapExercise, setActiveExercise } =
     useWorkoutTimer();
@@ -59,7 +59,7 @@ export function ExerciseSelect() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: isDark ? "#000" : "#fff" }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <FloatingCloseButton
         direction="left"
         accessibilityLabel="Back"
@@ -81,7 +81,7 @@ export function ExerciseSelect() {
       <Text
         style={[
           styles.title,
-          { top: insets.top + 10, color: isDark ? "#fff" : "#000" },
+          { top: insets.top + 10, color: colors.text },
         ]}
       >
         Select Exercise

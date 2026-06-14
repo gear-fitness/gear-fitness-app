@@ -3,7 +3,6 @@ import { Text } from "@react-navigation/elements";
 import { StyleSheet, View, TouchableOpacity, Image, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
-import { useColorScheme } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
@@ -14,6 +13,7 @@ import { useAuth } from "../../context/AuthContext";
 import { TodaysRoutines } from "../../components/TodaysRoutines";
 import { StartCountdownOverlay } from "../../components/StartCountdownOverlay";
 import { useStartCountdown } from "../../hooks/useStartCountdown";
+import { useThemeColors } from "../../hooks/useThemeColors";
 import { StreakDropdown } from "../../components/StreakDropdown";
 import { streakService, type StreakInfo } from "../../api/streakService";
 
@@ -61,8 +61,8 @@ export function Workout() {
   useTrackTab("Workouts");
 
   const navigation = useNavigation() as any;
-  const scheme = useColorScheme();
-  const isDark = scheme === "dark";
+  const colors = useThemeColors();
+  const isDark = colors.isDark;
 
   const { user, refreshUser } = useAuth();
   const { playerVisible, seconds, running, exercises, reset } =
@@ -129,23 +129,14 @@ export function Workout() {
 
   const glassAvailable = isLiquidGlassAvailable();
 
-  const t = isDark
-    ? {
-        bg: "#0a0a0a",
-        surface: "#141414",
-        text: "#fff",
-        textMuted: "rgba(255,255,255,0.55)",
-        textFaint: "rgba(255,255,255,0.4)",
-        border: "rgba(255,255,255,0.08)",
-      }
-    : {
-        bg: "#fafafa",
-        surface: "#fff",
-        text: "#000",
-        textMuted: "rgba(0,0,0,0.5)",
-        textFaint: "rgba(0,0,0,0.4)",
-        border: "rgba(0,0,0,0.08)",
-      };
+  const t = {
+    bg: colors.appBg,
+    surface: colors.cardBg,
+    text: colors.text,
+    textMuted: colors.textMuted,
+    textFaint: colors.textFaint,
+    border: colors.cardBorder,
+  };
 
   const handlePrimaryPress = () => {
     if (inProgress) {
@@ -308,7 +299,6 @@ export function Workout() {
       <StartCountdownOverlay
         visible={isCountdownVisible}
         countdownValue={countdownValue}
-        isDark={isDark}
         onCancel={cancelCountdown}
         onSkip={skipCountdown}
       />

@@ -1,9 +1,10 @@
 import React from "react";
-import { StyleSheet, TouchableOpacity, useColorScheme } from "react-native";
+import { StyleSheet, TouchableOpacity } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import Svg, { Path } from "react-native-svg";
+import { useThemeColors } from "../hooks/useThemeColors";
 
 type Props = {
   onPress?: () => void;
@@ -24,12 +25,12 @@ export function FloatingCloseButton({
 }: Props) {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
-  const isDark = useColorScheme() === "dark";
+  const colors = useThemeColors();
   const glassAvailable = isLiquidGlassAvailable();
 
-  const stroke = isDark ? "#fff" : "#000";
-  const surface = isDark ? "#141414" : "#ffffff";
-  const border = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";
+  const stroke = colors.text;
+  const surface = colors.cardBg;
+  const border = colors.cardBorder;
 
   const handleDefaultPress = () => {
     const parent = navigation.getParent();

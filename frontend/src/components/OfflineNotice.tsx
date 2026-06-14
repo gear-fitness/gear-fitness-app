@@ -1,6 +1,7 @@
 import React from "react";
-import { StyleSheet, Text, View, useColorScheme } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useThemeColors } from "../hooks/useThemeColors";
 
 interface Props {
   /**
@@ -27,10 +28,11 @@ export function OfflineNotice({
   message = DEFAULT_MESSAGE,
   title = DEFAULT_TITLE,
 }: Props) {
-  const isDark = useColorScheme() === "dark";
+  const { isDark, textFaint } = useThemeColors();
+  // Bespoke empty-state opacity ramp; only the message matches a shared token.
   const iconColor = isDark ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.25)";
   const titleColor = isDark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.55)";
-  const messageColor = isDark ? "rgba(255,255,255,0.45)" : "rgba(0,0,0,0.4)";
+  const messageColor = textFaint;
 
   return (
     <View style={styles.container}>

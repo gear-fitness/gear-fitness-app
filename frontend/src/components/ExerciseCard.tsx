@@ -1,8 +1,8 @@
 import React from "react";
 import { StyleSheet, View, TouchableOpacity } from "react-native";
 import { Text } from "@react-navigation/elements";
-import { useColorScheme } from "react-native";
 import { renderBodyParts } from "../utils/exerciseUtils";
+import { useThemeColors } from "../hooks/useThemeColors";
 import { BodyPartDTO } from "../api/exerciseService";
 
 interface ExerciseCardProps {
@@ -21,23 +21,15 @@ export function ExerciseCard({
   onPress,
   renderActions,
 }: ExerciseCardProps) {
-  const isDark = useColorScheme() === "dark";
-
-  const colors = {
-    text: isDark ? "#fff" : "#000",
-    subtle: isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.5)",
-    border: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
-    card: isDark ? "#141414" : "#fff",
-    accent: isDark ? "#fff" : "#000",
-  };
+  const colors = useThemeColors();
 
   return (
     <TouchableOpacity
       style={[
         styles.exerciseCard,
         {
-          backgroundColor: colors.card,
-          borderColor: colors.border,
+          backgroundColor: colors.cardBg,
+          borderColor: colors.cardBorder,
         },
       ]}
       onPress={onPress}
@@ -52,17 +44,17 @@ export function ExerciseCard({
             {exercise.name}
           </Text>
           {exercise.bodyParts && exercise.bodyParts.length > 0 && (
-            <Text style={[styles.bodyPartsText, { color: colors.subtle }]}>
+            <Text style={[styles.bodyPartsText, { color: colors.textMuted }]}>
               {renderBodyParts(
                 exercise.bodyParts,
-                colors.subtle,
+                colors.textMuted,
                 colors.accent,
               )}
             </Text>
           )}
           {exercise.description ? (
             <Text
-              style={[styles.exerciseDescription, { color: colors.subtle }]}
+              style={[styles.exerciseDescription, { color: colors.textMuted }]}
               numberOfLines={2}
             >
               {exercise.description}
@@ -73,7 +65,7 @@ export function ExerciseCard({
           renderActions()
         ) : (
           <View style={styles.exerciseArrow}>
-            <Text style={[styles.arrowText, { color: colors.subtle }]}>›</Text>
+            <Text style={[styles.arrowText, { color: colors.textMuted }]}>›</Text>
           </View>
         )}
       </View>
