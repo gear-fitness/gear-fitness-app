@@ -2,7 +2,6 @@ package com.gearfitness.gear_api.service;
 
 import com.gearfitness.gear_api.dto.FeedPostDTO;
 import com.gearfitness.gear_api.entity.Post;
-import com.gearfitness.gear_api.repository.AppUserRepository;
 import com.gearfitness.gear_api.repository.FollowRepository;
 import com.gearfitness.gear_api.repository.PostCommentRepository;
 import com.gearfitness.gear_api.repository.PostLikeRepository;
@@ -30,7 +29,6 @@ public class SocialFeedService {
   private final PostRepository postRepository;
   private final PostLikeRepository postLikeRepository;
   private final PostCommentRepository postCommentRepository;
-  private final AppUserRepository appUserRepository;
   private final PostVisibilityService postVisibilityService;
   private final FollowRepository followRepository;
 

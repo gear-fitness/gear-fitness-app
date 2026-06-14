@@ -8,7 +8,6 @@ import com.gearfitness.gear_api.dto.UserSearchResultDTO;
 import com.gearfitness.gear_api.dto.UsernameAvailabilityResponse;
 import com.gearfitness.gear_api.entity.AppUser;
 import com.gearfitness.gear_api.repository.AppUserRepository;
-import com.gearfitness.gear_api.repository.FollowRepository;
 import com.gearfitness.gear_api.security.JwtService;
 import com.gearfitness.gear_api.service.AppUserService;
 import com.gearfitness.gear_api.service.FollowService;

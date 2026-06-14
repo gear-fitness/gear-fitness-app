@@ -2,7 +2,6 @@
 package com.gearfitness.gear_api.dto;
 
 import com.gearfitness.gear_api.entity.MuscleGroup;
-import com.gearfitness.gear_api.entity.Workout;
 import java.util.List;
 import java.util.UUID;
 import lombok.AllArgsConstructor;

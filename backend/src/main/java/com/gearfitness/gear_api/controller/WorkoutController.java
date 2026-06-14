@@ -7,7 +7,6 @@ import com.gearfitness.gear_api.dto.WorkoutDetailDTO;
 import com.gearfitness.gear_api.dto.WorkoutSubmissionDTO;
 import com.gearfitness.gear_api.entity.Workout;
 import com.gearfitness.gear_api.security.JwtService;
-import com.gearfitness.gear_api.service.S3StorageService;
 import com.gearfitness.gear_api.service.WorkoutService;
 import java.time.DayOfWeek;
 import java.util.List;
@@ -25,7 +24,6 @@ public class WorkoutController {
 
   private final WorkoutService workoutService;
   private final JwtService jwtService;
-  private final S3StorageService s3StorageService;
 
   @GetMapping("/user/{userId}")
   public ResponseEntity<List<WorkoutDTO>> getWorkoutsByUser(
