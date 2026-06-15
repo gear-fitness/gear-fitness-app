@@ -6,6 +6,7 @@ import com.gearfitness.gear_api.dto.FollowerDTO;
 import com.gearfitness.gear_api.entity.AppUser;
 import com.gearfitness.gear_api.security.JwtService;
 import com.gearfitness.gear_api.service.FollowService;
+import com.gearfitness.gear_api.service.S3StorageService;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -20,6 +21,7 @@ public class FollowController {
 
   private final FollowService followService;
   private final JwtService jwtService;
+  private final S3StorageService s3StorageService;
 
   /**
    * POST /api/follows/{userId}
@@ -286,7 +288,7 @@ public class FollowController {
             u.getUserId(),
             u.getUsername(),
             u.getDisplayName(),
-            u.getProfilePictureUrl()
+            s3StorageService.resolveViewUrl(u.getProfilePictureUrl())
           )
         )
         .collect(Collectors.toList());

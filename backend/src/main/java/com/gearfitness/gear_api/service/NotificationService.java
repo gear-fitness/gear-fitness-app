@@ -22,6 +22,7 @@ public class NotificationService {
 
   private final NotificationRepository notificationRepository;
   private final AppUserRepository appUserRepository;
+  private final S3StorageService s3StorageService;
 
   @Transactional(readOnly = true)
   public List<NotificationDTO> getNotificationsForUser(UUID userId) {
@@ -34,12 +35,16 @@ public class NotificationService {
           .type(n.getType().name())
           .actorUserId(n.getActor().getUserId())
           .actorUsername(n.getActor().getUsername())
-          .actorProfilePictureUrl(n.getActor().getProfilePictureUrl())
+          .actorProfilePictureUrl(
+            s3StorageService.resolveViewUrl(n.getActor().getProfilePictureUrl())
+          )
           .postId(n.getPost() != null ? n.getPost().getPostId() : null)
           .workoutId(
             n.getPost() != null ? n.getPost().getWorkout().getWorkoutId() : null
           )
-          .postImageUrl(resolvePostThumbnail(n.getPost()))
+          .postImageUrl(
+            s3StorageService.resolveViewUrl(resolvePostThumbnail(n.getPost()))
+          )
           .commentBody(n.getComment() != null ? n.getComment().getBody() : null)
           .createdAt(n.getCreatedAt())
           .isRead(n.isRead())
@@ -78,12 +83,11 @@ public class NotificationService {
   public void deleteNotification(UUID userId, UUID notificationId) {
     Notification notification = notificationRepository
       .findById(notificationId)
-      .orElseThrow(
-        () ->
-          new ResponseStatusException(
-            HttpStatus.NOT_FOUND,
-            "Notification not found"
-          )
+      .orElseThrow(() ->
+        new ResponseStatusException(
+          HttpStatus.NOT_FOUND,
+          "Notification not found"
+        )
       );
 
     // Only the recipient may delete their own activity row. This removes the
@@ -111,7 +115,11 @@ public class NotificationService {
   }
 
   @Transactional
-  public void registerPushToken(UUID userId, String pushToken, String timeZone) {
+  public void registerPushToken(
+    UUID userId,
+    String pushToken,
+    String timeZone
+  ) {
     AppUser user = appUserRepository
       .findById(userId)
       .orElseThrow(() -> new RuntimeException("User not found"));

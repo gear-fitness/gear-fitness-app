@@ -220,6 +220,11 @@ public class AuthService {
     );
 
     String email = payload.getEmail();
+    // Old app clients send only {idToken, intent} and never a username; new
+    // clients send the onboarding-chosen username/displayName. Capture the
+    // Google profile name so createNewUser can fall back to it when the request
+    // omits those fields.
+    String googleName = (String) payload.get("name");
 
     Optional<AppUser> softDeleted = userRepository
       .findByEmailIncludingDeleted(email)
@@ -296,7 +301,7 @@ public class AuthService {
           .orElseThrow(() ->
             new RuntimeException("User not found after existence check")
           )
-      : createNewUser(email, request);
+      : createNewUser(email, googleName, request);
 
     String jwtToken = jwtService.generateToken(
       user.getUserId(),
@@ -371,11 +376,29 @@ public class AuthService {
     return refreshToken.getToken();
   }
 
-  private AppUser createNewUser(String email, GoogleLoginRequest request) {
+  private AppUser createNewUser(
+    String email,
+    String googleName,
+    GoogleLoginRequest request
+  ) {
+    // username is NOT NULL + UNIQUE. New clients always supply one; old clients
+    // never do, so derive a unique one from the Google profile name (or the
+    // email local-part) rather than inserting null. displayName falls back to
+    // the Google name when the client omits it.
+    String username = isBlank(request.getUsername())
+      ? generateUniqueUsername(
+          !isBlank(googleName) ? googleName : email.split("@")[0]
+        )
+      : request.getUsername();
+
+    String displayName = isBlank(request.getDisplayName())
+      ? googleName
+      : request.getDisplayName();
+
     AppUser newUser = AppUser.builder()
       .email(email)
-      .username(request.getUsername())
-      .displayName(request.getDisplayName())
+      .username(username)
+      .displayName(displayName)
       .passwordHash("") // OAuth users don't have passwords
       .isPrivate(false)
       .weightLbs(request.getWeightLbs())
@@ -385,6 +408,35 @@ public class AuthService {
       .build();
 
     return userRepository.save(newUser);
+  }
+
+  private boolean isBlank(String value) {
+    return value == null || value.isBlank();
+  }
+
+  /**
+   * Derive a unique, rule-valid username from a base string. Strips it to
+   * lowercase alphanumerics, pads short values, and appends an incrementing
+   * suffix until free. Checks against ALL rows including soft-deleted ones,
+   * since a soft-deleted account still occupies its username at the unique
+   * constraint until it is hard-deleted.
+   */
+  private String generateUniqueUsername(String baseName) {
+    String username = baseName.replaceAll("[^a-zA-Z0-9]", "").toLowerCase();
+
+    if (username.length() < 3) {
+      username = "user" + username;
+    }
+
+    String finalUsername = username;
+    int counter = 1;
+
+    while (userRepository.existsByUsernameIncludingDeleted(finalUsername)) {
+      finalUsername = username + counter;
+      counter++;
+    }
+
+    return finalUsername;
   }
 
   public UserDTO getCurrentUser(String authHeader) {

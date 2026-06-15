@@ -1,7 +1,9 @@
 package com.gearfitness.gear_api.service;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.core.sync.RequestBody;
@@ -90,6 +92,58 @@ public class S3StorageService {
     return s3Presigner.presignGetObject(presignRequest).url().toString();
   }
 
+  /**
+   * Resolve a stored image reference into something a client can load directly.
+   * This is the backward/forward-compatibility shim for the V18 migration that
+   * rewrote stored full URLs into bare S3 keys:
+   *
+   * <ul>
+   *   <li>null / blank -> returned unchanged (no image).</li>
+   *   <li>a value that already starts with "http" (a legacy/full URL a pre-V18
+   *       row still holds, or one an old client re-submits) -> returned
+   *       unchanged. Old clients always expected a loadable URL; new clients
+   *       pass absolute http(s) urls straight through to {@code <Image>}
+   *       without re-presigning, so this is safe for both.</li>
+   *   <li>a recognized S3 key (known prefix) -> minted into a short-lived
+   *       presigned GET url.</li>
+   *   <li>anything unrecognized -> returned unchanged rather than throwing, so
+   *       a stray value degrades to a broken image, never a 500 at view time.</li>
+   * </ul>
+   *
+   * Because the only branch that calls {@link #generateViewUrl} (and therefore
+   * {@code bucketForKey}) is guarded by the known-prefix check, no DTO/read path
+   * routed through this method can ever reach {@code bucketForKey} with an
+   * unconvertible value.
+   */
+  public String resolveViewUrl(String imageRef) {
+    if (imageRef == null || imageRef.isBlank()) {
+      return imageRef;
+    }
+    if (imageRef.startsWith("http")) {
+      return imageRef;
+    }
+    if (
+      imageRef.startsWith(PROFILE_PICTURES_PREFIX) ||
+      imageRef.startsWith(PROFILES_PREFIX) ||
+      imageRef.startsWith(WORKOUT_PHOTOS_PREFIX) ||
+      imageRef.startsWith(POSTS_PREFIX)
+    ) {
+      return generateViewUrl(imageRef);
+    }
+    return imageRef;
+  }
+
+  /** Resolve each reference in a list (see {@link #resolveViewUrl}). Null-safe. */
+  public List<String> resolveViewUrls(List<String> imageRefs) {
+    if (imageRefs == null) {
+      return imageRefs;
+    }
+    return imageRefs
+      .stream()
+      .map(this::resolveViewUrl)
+      .collect(Collectors.toList());
+  }
+
   // --- Profile pictures (proxy/multipart upload kept; stored as key) --------
 
   /**
@@ -148,6 +202,46 @@ public class S3StorageService {
 
     String url = s3Presigner.presignPutObject(presignRequest).url().toString();
     return new PresignedUpload(key, url);
+  }
+
+  /**
+   * Proxy-upload a workout photo through the backend and return its S3 KEY
+   * (never a URL). Kept for OLD app clients that still POST multipart to
+   * {@code /api/workouts/photos}; new clients upload via a presigned PUT
+   * ({@link #generatePostImageUploadUrl}).
+   *
+   * Returning the bare key — not a URL — is deliberate: the client stores this
+   * value and re-submits it in the workout's photoUrls, and every read path
+   * presigns it via {@link #resolveViewUrl}. Returning a presigned URL instead
+   * would persist an expiring value into workout_photo_url that would break
+   * once the signature lapsed. Storing the key keeps the photo viewable
+   * indefinitely for both old and new viewers.
+   */
+  public String uploadWorkoutPhoto(
+    UUID userId,
+    byte[] imageBytes,
+    String contentType
+  ) {
+    String extension = "image/png".equalsIgnoreCase(contentType)
+      ? "png"
+      : "jpg";
+    String key =
+      WORKOUT_PHOTOS_PREFIX +
+      userId +
+      "/" +
+      UUID.randomUUID() +
+      "." +
+      extension;
+
+    PutObjectRequest putRequest = PutObjectRequest.builder()
+      .bucket(imagesBucket)
+      .key(key)
+      .contentType(contentType)
+      .build();
+
+    s3Client.putObject(putRequest, RequestBody.fromBytes(imageBytes));
+
+    return key;
   }
 
   /** Delete a post/workout image by its stored key. */
