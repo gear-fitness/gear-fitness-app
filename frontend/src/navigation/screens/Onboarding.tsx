@@ -201,7 +201,7 @@ export function OnboardingScreen() {
               "An account already exists for this Google account. Would you like to sign in?",
               [
                 { text: "Cancel", style: "cancel" },
-                { text: "Sign In", onPress: () => goTo(0) },
+                { text: "Sign In", onPress: () => handleGoogleAuth("sign_in") },
               ],
             );
             return;
@@ -367,7 +367,7 @@ export function OnboardingScreen() {
               "An account already exists for this Apple ID. Would you like to sign in?",
               [
                 { text: "Cancel", style: "cancel" },
-                { text: "Sign In", onPress: () => goTo(0) },
+                { text: "Sign In", onPress: () => handleAppleAuth("sign_in") },
               ],
             );
             return;
