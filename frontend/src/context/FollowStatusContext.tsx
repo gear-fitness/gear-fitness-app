@@ -22,7 +22,9 @@ type FollowStatusContextValue = {
   setFollowStatus: (userId: string, status: FollowStatus) => void;
 };
 
-const FollowStatusContext = createContext<FollowStatusContextValue | null>(null);
+const FollowStatusContext = createContext<FollowStatusContextValue | null>(
+  null,
+);
 
 export function FollowStatusProvider({
   children,
@@ -56,7 +58,9 @@ export function FollowStatusProvider({
 export function useFollowStatus(): FollowStatusContextValue {
   const ctx = useContext(FollowStatusContext);
   if (!ctx) {
-    throw new Error("useFollowStatus must be used within a FollowStatusProvider");
+    throw new Error(
+      "useFollowStatus must be used within a FollowStatusProvider",
+    );
   }
   return ctx;
 }

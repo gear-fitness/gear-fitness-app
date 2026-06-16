@@ -162,9 +162,7 @@ export function CreateExerciseScreen() {
   const canSave = !!name.trim() && !!primary;
 
   const activeText = isDark ? "#000" : "#fff";
-  const inactiveBorder = isDark
-    ? "rgba(255,255,255,0.22)"
-    : "rgba(0,0,0,0.18)";
+  const inactiveBorder = isDark ? "rgba(255,255,255,0.22)" : "rgba(0,0,0,0.18)";
 
   return (
     <SafeAreaView
@@ -281,7 +279,10 @@ export function CreateExerciseScreen() {
             style={styles.sectionHeader}
           >
             <Text
-              style={[styles.sectionTitle, { color: colors.text, marginTop: 0 }]}
+              style={[
+                styles.sectionTitle,
+                { color: colors.text, marginTop: 0 },
+              ]}
             >
               Secondary muscles
               {secondary.length > 0 ? ` (${secondary.length})` : ""}
@@ -300,32 +301,34 @@ export function CreateExerciseScreen() {
               </Text>
               <View style={styles.chipWrap}>
                 {MUSCLE_GROUPS.filter((bp) => bp !== primary).map((bp) => {
-              const isSelected = secondary.includes(bp);
-              return (
-                <TouchableOpacity
-                  key={bp}
-                  onPress={() => toggleSecondary(bp)}
-                  style={[
-                    styles.chip,
-                    {
-                      backgroundColor: isSelected
-                        ? colors.accent
-                        : "transparent",
-                      borderColor: isSelected ? colors.accent : inactiveBorder,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={{
-                      color: isSelected ? activeText : colors.text,
-                      fontSize: 13,
-                      fontWeight: "600",
-                    }}
-                  >
-                    {formatMuscle(bp)}
-                  </Text>
-                </TouchableOpacity>
-              );
+                  const isSelected = secondary.includes(bp);
+                  return (
+                    <TouchableOpacity
+                      key={bp}
+                      onPress={() => toggleSecondary(bp)}
+                      style={[
+                        styles.chip,
+                        {
+                          backgroundColor: isSelected
+                            ? colors.accent
+                            : "transparent",
+                          borderColor: isSelected
+                            ? colors.accent
+                            : inactiveBorder,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={{
+                          color: isSelected ? activeText : colors.text,
+                          fontSize: 13,
+                          fontWeight: "600",
+                        }}
+                      >
+                        {formatMuscle(bp)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
                 })}
               </View>
             </>

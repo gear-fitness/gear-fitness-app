@@ -110,7 +110,7 @@ function plateOptionsFor(unit: WeightUnit): number[] {
 
 function plateHeight(p: number, plateOptions: number[]): number {
   const i = plateOptions.indexOf(p);
-  return i >= 0 ? PLATE_BAR_HEIGHTS[i] ?? 22 : 22;
+  return i >= 0 ? (PLATE_BAR_HEIGHTS[i] ?? 22) : 22;
 }
 
 type PlateMode = "dual" | "single";
@@ -1828,7 +1828,6 @@ const heroStyles = StyleSheet.create({
     fontWeight: "500",
     marginLeft: 8,
   },
-
 });
 
 const setStyles = StyleSheet.create({

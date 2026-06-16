@@ -1,11 +1,5 @@
 import React from "react";
-import {
-  FlatList,
-  StyleSheet,
-  Text,
-  View,
-  useColorScheme,
-} from "react-native";
+import { FlatList, StyleSheet, Text, View, useColorScheme } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
