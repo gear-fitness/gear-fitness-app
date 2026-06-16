@@ -43,6 +43,8 @@ export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
     setBoost(true);
   };
 
+  // `accent` = the Plus column, which sits on the filled highlight panel, so
+  // its content is drawn in accentText (the inverse of the page).
   const Cell = ({
     value,
     accent,
@@ -50,39 +52,18 @@ export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
     value: boolean | string;
     accent?: boolean;
   }) => {
+    const fg = accent ? colors.accentText : colors.text;
     if (typeof value === "string") {
       return (
-        <Text
-          style={[
-            styles.cellValue,
-            { color: accent ? colors.text : colors.secondary },
-          ]}
-          numberOfLines={2}
-        >
+        <Text style={[styles.cellValue, { color: fg }]} numberOfLines={1}>
           {value}
         </Text>
       );
     }
     if (!value) {
-      return <Text style={[styles.dash, { color: colors.border }]}>—</Text>;
+      return <Text style={[styles.dash, { color: colors.secondary }]}>—</Text>;
     }
-    return (
-      <View
-        style={[
-          styles.check,
-          { backgroundColor: accent ? colors.accent : colors.surface },
-        ]}
-      >
-        <Text
-          style={[
-            styles.checkMark,
-            { color: accent ? colors.accentText : colors.secondary },
-          ]}
-        >
-          ✓
-        </Text>
-      </View>
-    );
+    return <Text style={[styles.cellCheck, { color: fg }]}>✓</Text>;
   };
 
   const TimelineRow = ({
@@ -123,14 +104,16 @@ export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
   const PlanCard = ({
     value,
     title,
-    priceLabel,
-    sub,
+    price,
+    period,
+    highlight,
     badge,
   }: {
     value: Plan;
     title: string;
-    priceLabel: string;
-    sub: string;
+    price: string;
+    period: string;
+    highlight?: string;
     badge?: string;
   }) => {
     const active = plan === value;
@@ -139,45 +122,33 @@ export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
         onPress={() => setPlan(value)}
         style={[
           styles.planCard,
-          { backgroundColor: colors.cardBg, borderColor: colors.border },
-          active && { borderColor: colors.accent },
+          {
+            backgroundColor: colors.cardBg,
+            borderColor: active ? colors.accent : colors.border,
+          },
         ]}
       >
-        <View style={styles.planLeft}>
-          <View
-            style={[
-              styles.radio,
-              { borderColor: active ? colors.accent : colors.border },
-              active && { backgroundColor: colors.accent },
-            ]}
-          >
-            {active && (
-              <Text style={[styles.radioMark, { color: colors.accentText }]}>
-                ✓
-              </Text>
-            )}
-          </View>
-          <View>
-            <Text style={[styles.planTitle, { color: colors.text }]}>
-              {title}
-            </Text>
-            <Text style={[styles.planSub, { color: colors.secondary }]}>
-              {sub}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.planRight}>
-          {badge && (
+        {badge && (
+          <View style={styles.badgeWrap}>
             <View style={[styles.badge, { backgroundColor: colors.accent }]}>
               <Text style={[styles.badgeText, { color: colors.accentText }]}>
                 {badge}
               </Text>
             </View>
-          )}
-          <Text style={[styles.planPrice, { color: colors.text }]}>
-            {priceLabel}
+          </View>
+        )}
+        <Text style={[styles.planTitle, { color: colors.secondary }]}>
+          {title}
+        </Text>
+        <Text style={[styles.planPrice, { color: colors.text }]}>{price}</Text>
+        <Text style={[styles.planPeriod, { color: colors.secondary }]}>
+          {period}
+        </Text>
+        {highlight && (
+          <Text style={[styles.planHighlight, { color: colors.text }]}>
+            {highlight}
           </Text>
-        </View>
+        )}
       </Pressable>
     );
   };
@@ -203,19 +174,18 @@ export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
           </View>
         )}
 
-        {/* Basic vs Plus comparison */}
-        <View
-          style={[
-            styles.card,
-            { backgroundColor: colors.cardBg, borderColor: colors.border },
-          ]}
-        >
+        {/* Basic vs Plus comparison — open layout, Plus column highlighted */}
+        <View style={styles.compare}>
+          <View
+            style={[styles.plusPanel, { backgroundColor: colors.accent }]}
+            pointerEvents="none"
+          />
           <View style={styles.compareHeader}>
             <View style={styles.compareLabelSpacer} />
             <Text style={[styles.colLabel, { color: colors.secondary }]}>
               BASIC
             </Text>
-            <Text style={[styles.colLabel, { color: colors.text }]}>
+            <Text style={[styles.colLabel, { color: colors.accentText }]}>
               PLUS
             </Text>
           </View>
@@ -232,10 +202,10 @@ export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
               </View>
             </View>
           ))}
-          <Text style={[styles.andMore, { color: colors.text }]}>
-            And so much more!
-          </Text>
         </View>
+        <Text style={[styles.andMore, { color: colors.secondary }]}>
+          And so much more on Plus!
+        </Text>
 
         {/* How your trial works */}
         <View
@@ -270,15 +240,16 @@ export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
           <PlanCard
             value="annual"
             title="Yearly"
-            priceLabel="$47.99/yr"
-            sub={`${trialDays}-day free trial · $4.00/mo`}
+            price="$47.99"
+            period="per year"
+            highlight="$4.00/mo"
             badge="SAVE ~50%"
           />
           <PlanCard
             value="monthly"
             title="Monthly"
-            priceLabel="$7.99/mo"
-            sub={`${trialDays}-day free trial`}
+            price="$7.99"
+            period="per month"
           />
         </View>
       </ScrollView>
@@ -346,6 +317,18 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginBottom: 14,
   },
+  compare: {
+    position: "relative",
+    paddingVertical: 8,
+  },
+  plusPanel: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    right: 0,
+    width: CELL,
+    borderRadius: 16,
+  },
   compareHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -375,15 +358,8 @@ const styles = StyleSheet.create({
     width: CELL,
     alignItems: "center",
   },
-  check: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  checkMark: {
-    fontSize: 13,
+  cellCheck: {
+    fontSize: 16,
     fontWeight: "800",
   },
   dash: {
@@ -392,13 +368,14 @@ const styles = StyleSheet.create({
   },
   cellValue: {
     fontSize: 13,
-    fontWeight: "700",
+    fontWeight: "800",
     textAlign: "center",
   },
   andMore: {
-    fontSize: 14,
-    fontWeight: "700",
-    marginTop: 10,
+    fontSize: 13,
+    fontWeight: "600",
+    textAlign: "center",
+    marginBottom: 18,
   },
   timelineRow: {
     flexDirection: "row",
@@ -432,58 +409,57 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   plans: {
+    flexDirection: "row",
     gap: 12,
+    marginTop: 16,
   },
   planCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flex: 1,
     borderRadius: 20,
     borderWidth: 2,
-    padding: 16,
-  },
-  planLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-  },
-  radio: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
+    paddingVertical: 22,
+    paddingHorizontal: 12,
     alignItems: "center",
     justifyContent: "center",
+    minHeight: 150,
   },
-  radioMark: {
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  planTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-  },
-  planSub: {
-    fontSize: 13,
-    marginTop: 2,
-  },
-  planRight: {
-    alignItems: "flex-end",
-    gap: 6,
+  badgeWrap: {
+    position: "absolute",
+    top: -10,
+    left: 0,
+    right: 0,
+    alignItems: "center",
   },
   badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
   badgeText: {
     fontSize: 10,
     fontWeight: "800",
     letterSpacing: 0.4,
   },
-  planPrice: {
-    fontSize: 16,
+  planTitle: {
+    fontSize: 12,
     fontWeight: "700",
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+    marginBottom: 8,
+  },
+  planPrice: {
+    fontSize: 26,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+  },
+  planPeriod: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  planHighlight: {
+    fontSize: 13,
+    fontWeight: "700",
+    marginTop: 10,
   },
   notNow: {
     paddingVertical: 10,
