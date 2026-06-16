@@ -43,7 +43,6 @@ public class AppUserService {
   private final FollowRepository followRepository;
   private final ContentVisibilityRepository contentVisibilityRepository;
   private final StreakService streakService;
-  private final S3StorageService s3StorageService;
 
   /**
    * Get user profile by user ID
@@ -216,9 +215,7 @@ public class AppUserService {
       .heightInches(user.getHeightInches())
       .age(user.getAge())
       .isPrivate(user.getIsPrivate())
-      .profilePictureUrl(
-        s3StorageService.resolveViewUrl(user.getProfilePictureUrl())
-      )
+      .profilePictureUrl(user.getProfilePictureUrl())
       .createdAt(user.getCreatedAt())
       .workoutStats(workoutStats)
       .followersCount(followersCount)
@@ -423,9 +420,7 @@ public class AppUserService {
       .heightInches(user.getHeightInches())
       .age(user.getAge())
       .isPrivate(user.getIsPrivate())
-      .profilePictureUrl(
-        s3StorageService.resolveViewUrl(user.getProfilePictureUrl())
-      )
+      .profilePictureUrl(user.getProfilePictureUrl())
       .createdAt(user.getCreatedAt())
       .build();
   }
@@ -478,9 +473,7 @@ public class AppUserService {
           .userId(u.getUserId())
           .username(u.getUsername())
           .displayName(u.getDisplayName())
-          .profilePictureUrl(
-            s3StorageService.resolveViewUrl(u.getProfilePictureUrl())
-          )
+          .profilePictureUrl(u.getProfilePictureUrl())
           .currentUserFollows(currentUserFollows.contains(u.getUserId()))
           .followsCurrentUser(followsCurrentUser.contains(u.getUserId()))
           .build()

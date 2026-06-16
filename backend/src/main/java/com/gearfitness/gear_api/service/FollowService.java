@@ -26,7 +26,6 @@ public class FollowService {
   private final AppUserRepository userRepository;
   private final NotificationRepository notificationRepository;
   private final ExpoPushService expoPushService;
-  private final S3StorageService s3StorageService;
 
   /**
    * Follow a user
@@ -227,9 +226,7 @@ public class FollowService {
           f.getFollower().getUserId(),
           f.getFollower().getUsername(),
           f.getFollower().getDisplayName(),
-          s3StorageService.resolveViewUrl(
-            f.getFollower().getProfilePictureUrl()
-          ),
+          f.getFollower().getProfilePictureUrl(),
           viewerStatusToward(currentUser, f.getFollower())
         )
       )
@@ -258,9 +255,7 @@ public class FollowService {
           f.getFollowee().getUserId(),
           f.getFollowee().getUsername(),
           f.getFollowee().getDisplayName(),
-          s3StorageService.resolveViewUrl(
-            f.getFollowee().getProfilePictureUrl()
-          ),
+          f.getFollowee().getProfilePictureUrl(),
           viewerStatusToward(currentUser, f.getFollowee())
         )
       )
@@ -297,9 +292,7 @@ public class FollowService {
           f.getFollower().getUserId(),
           f.getFollower().getUsername(),
           f.getFollower().getDisplayName(),
-          s3StorageService.resolveViewUrl(
-            f.getFollower().getProfilePictureUrl()
-          )
+          f.getFollower().getProfilePictureUrl()
         )
       )
       .collect(Collectors.toList());
@@ -504,9 +497,7 @@ public class FollowService {
         new FollowActivityDTO(
           f.getFollower().getUserId(),
           f.getFollower().getUsername(),
-          s3StorageService.resolveViewUrl(
-            f.getFollower().getProfilePictureUrl()
-          ),
+          f.getFollower().getProfilePictureUrl(),
           f.getCreatedAt()
         )
       )

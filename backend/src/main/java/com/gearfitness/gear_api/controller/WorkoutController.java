@@ -118,11 +118,11 @@ public class WorkoutController {
   /**
    * Legacy multipart photo upload, kept for OLD app clients (new clients upload
    * via a presigned PUT). Same request/response contract as before — multipart
-   * "file" part, returns {"url": <value>}. The returned value is now an S3 KEY
-   * (not a public URL): the client re-submits it in the workout's photoUrls and
-   * every read path presigns it via S3StorageService.resolveViewUrl, so the
-   * stored photo displays correctly for both old and new viewers without ever
-   * persisting an expiring url.
+   * "file" part, returns {"url": <value>}. The returned value is an S3 KEY (not a
+   * public URL), matching how image references are stored everywhere else; the
+   * client re-submits it in the workout's photoUrls and it is persisted as-is.
+   * The new app resolves stored keys to short-lived view urls via the images
+   * view-url endpoint.
    */
   @PostMapping(
     value = "/photos",

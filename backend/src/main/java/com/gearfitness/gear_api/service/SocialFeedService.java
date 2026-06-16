@@ -33,7 +33,6 @@ public class SocialFeedService {
   private final AppUserRepository appUserRepository;
   private final PostVisibilityService postVisibilityService;
   private final FollowRepository followRepository;
-  private final S3StorageService s3StorageService;
 
   public Page<FeedPostDTO> getFeed(UUID userId, int page, int size) {
     Pageable pageable = PageRequest.of(page, size);
@@ -150,17 +149,13 @@ public class SocialFeedService {
     return FeedPostDTO.builder()
       .postId(post.getPostId())
       .workoutId(post.getWorkout().getWorkoutId())
-      .imageUrl(s3StorageService.resolveViewUrl(post.getImageUrl()))
-      .photoUrls(
-        s3StorageService.resolveViewUrls(post.getWorkout().getPhotoUrls())
-      )
+      .imageUrl(post.getImageUrl())
+      .photoUrls(post.getWorkout().getPhotoUrls())
       .caption(post.getCaption())
       .createdAt(post.getCreatedAt())
       .userId(post.getUser().getUserId())
       .username(post.getUser().getUsername())
-      .userProfilePictureUrl(
-        s3StorageService.resolveViewUrl(post.getUser().getProfilePictureUrl())
-      )
+      .userProfilePictureUrl(post.getUser().getProfilePictureUrl())
       .workoutName(post.getWorkout().getName())
       .datePerformed(post.getWorkout().getDatePerformed())
       .durationMin(post.getWorkout().getDurationMin())

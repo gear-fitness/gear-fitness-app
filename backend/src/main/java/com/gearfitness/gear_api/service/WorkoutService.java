@@ -118,9 +118,7 @@ public class WorkoutService {
       .exercises(exercises)
       .photoUrls(
         workout.getPhotoUrls() != null
-          ? new ArrayList<>(
-              s3StorageService.resolveViewUrls(workout.getPhotoUrls())
-            )
+          ? new ArrayList<>(workout.getPhotoUrls())
           : new ArrayList<>()
       )
       .build();

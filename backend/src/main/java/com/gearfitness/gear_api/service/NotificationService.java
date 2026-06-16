@@ -22,7 +22,6 @@ public class NotificationService {
 
   private final NotificationRepository notificationRepository;
   private final AppUserRepository appUserRepository;
-  private final S3StorageService s3StorageService;
 
   @Transactional(readOnly = true)
   public List<NotificationDTO> getNotificationsForUser(UUID userId) {
@@ -35,16 +34,12 @@ public class NotificationService {
           .type(n.getType().name())
           .actorUserId(n.getActor().getUserId())
           .actorUsername(n.getActor().getUsername())
-          .actorProfilePictureUrl(
-            s3StorageService.resolveViewUrl(n.getActor().getProfilePictureUrl())
-          )
+          .actorProfilePictureUrl(n.getActor().getProfilePictureUrl())
           .postId(n.getPost() != null ? n.getPost().getPostId() : null)
           .workoutId(
             n.getPost() != null ? n.getPost().getWorkout().getWorkoutId() : null
           )
-          .postImageUrl(
-            s3StorageService.resolveViewUrl(resolvePostThumbnail(n.getPost()))
-          )
+          .postImageUrl(resolvePostThumbnail(n.getPost()))
           .commentBody(n.getComment() != null ? n.getComment().getBody() : null)
           .createdAt(n.getCreatedAt())
           .isRead(n.isRead())

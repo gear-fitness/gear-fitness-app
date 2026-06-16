@@ -36,7 +36,6 @@ public class PostInteractionService {
   private final NotificationRepository notificationRepository;
   private final PostVisibilityService postVisibilityService;
   private final ExpoPushService expoPushService;
-  private final S3StorageService s3StorageService;
 
   public LikeResponse toggleLike(UUID userId, UUID postId) {
     Post post = postRepository
@@ -187,11 +186,7 @@ public class PostInteractionService {
       .postId(comment.getPost().getPostId())
       .userId(comment.getUser().getUserId())
       .username(comment.getUser().getUsername())
-      .userProfilePictureUrl(
-        s3StorageService.resolveViewUrl(
-          comment.getUser().getProfilePictureUrl()
-        )
-      )
+      .userProfilePictureUrl(comment.getUser().getProfilePictureUrl())
       .body(comment.getBody())
       .createdAt(comment.getCreatedAt())
       .build();
