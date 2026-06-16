@@ -56,6 +56,33 @@ export function getCurrentLocalDateString(): string {
 }
 
 /**
+ * Format an epoch (ms) as a YYYY-MM-DD string in the device's local timezone.
+ * Same local-getter approach as getCurrentLocalDateString (avoids UTC shift),
+ * but for an arbitrary instant — e.g. a workout's start time so it's dated by
+ * when training began rather than when it was submitted.
+ */
+export function getLocalDateStringFromEpoch(epochMs: number): string {
+  const d = new Date(epochMs);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * The device's IANA time zone (e.g. "America/Denver"), or undefined if the
+ * runtime can't report one. Sent to the backend so streak notifications fire
+ * at the user's local midnight instead of a global UTC instant.
+ */
+export function getDeviceTimeZone(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Parse a server datetime string. The backend serializes java.time.LocalDateTime
  * as a naive ISO string with no timezone suffix (e.g. "2025-05-02T22:00:00.123456")
  * while the wall-clock value is actually UTC. JavaScript's Date constructor

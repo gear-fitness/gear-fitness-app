@@ -33,6 +33,8 @@ import { RoutineDetail } from "./screens/RoutineDetail";
 import { CreateRoutine } from "./screens/CreateRoutine";
 import { EditRoutine } from "./screens/EditRoutine";
 import { UserPosts } from "./screens/UserPosts";
+import { DayPosts } from "./screens/DayPosts";
+import { Activity } from "./screens/Activity";
 import FollowScreen from "./screens/FollowScreen";
 import { ImageViewer } from "./screens/ImageViewer";
 import { Platform } from "react-native";
@@ -127,6 +129,11 @@ const RootStack = createNativeStackNavigator({
       options: {
         headerShown: false,
         gestureEnabled: true,
+        // Keep the screen rendered while it's covered. The default ("pause")
+        // hides it via React's Activity API, which tears down and re-runs all
+        // effects when it's revealed again — re-firing the mount fetch and
+        // resetting scroll every time you back out of a pushed profile.
+        inactiveBehavior: "none",
       },
     },
 
@@ -134,11 +141,30 @@ const RootStack = createNativeStackNavigator({
       screen: FollowScreen,
       options: {
         headerShown: false,
+        // See UserProfile: prevents the follower/following list from reloading
+        // (and losing scroll) when you return from a tapped profile.
+        inactiveBehavior: "none",
       },
     },
 
     UserPosts: {
       screen: UserPosts,
+      options: {
+        headerShown: false,
+        gestureEnabled: true,
+      },
+    },
+
+    DayPosts: {
+      screen: DayPosts,
+      options: {
+        headerShown: false,
+        gestureEnabled: true,
+      },
+    },
+
+    Activity: {
+      screen: Activity,
       options: {
         headerShown: false,
         gestureEnabled: true,
@@ -272,6 +298,11 @@ declare global {
       Profile: undefined;
       UserProfile: { username: string };
       UserPosts: { userId: string; username: string };
+      DayPosts: {
+        posts: import("../api/socialFeedApi").FeedPost[];
+        dateLabel: string;
+      };
+      Activity: undefined;
       ExerciseChat: undefined;
 
       FollowScreen: {

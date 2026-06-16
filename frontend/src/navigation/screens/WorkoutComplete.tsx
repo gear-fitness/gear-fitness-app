@@ -27,7 +27,10 @@ import { submitWorkout, WorkoutSubmission } from "../../api/workoutService";
 import { uploadPostImage } from "../../api/imageService";
 import { isNetworkError } from "../../utils/network";
 import { enqueueWorkout } from "../../utils/workoutQueue";
-import { getCurrentLocalDateString } from "../../utils/date";
+import {
+  getCurrentLocalDateString,
+  getLocalDateStringFromEpoch,
+} from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 import { formatTag } from "../../utils/formatTag";
@@ -57,7 +60,8 @@ export function WorkoutComplete() {
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const photoTileSize = Math.floor((screenWidth - 40 - 24) / 4);
-  const { exercises, seconds, reset } = useWorkoutTimer();
+  const { exercises, seconds, workoutStartedAtEpoch, reset } =
+    useWorkoutTimer();
   const { invalidate: invalidateFeed } = useSocialFeed();
 
   const initialBodyTags = useMemo(() => {
@@ -184,7 +188,13 @@ export function WorkoutComplete() {
     const buildSubmission = (uploadedUrls: string[]): WorkoutSubmission => ({
       name: workoutName,
       durationMin,
-      datePerformed: getCurrentLocalDateString(),
+      // Date the workout by when it was STARTED, not when it's submitted, so a
+      // session that crosses local midnight counts on the day training began.
+      // Falls back to "now" if the start stamp is somehow missing.
+      datePerformed:
+        workoutStartedAtEpoch != null
+          ? getLocalDateStringFromEpoch(workoutStartedAtEpoch)
+          : getCurrentLocalDateString(),
       bodyTags: bodyTags, // Send all selected tags to backend
       exercises: exercises.map((ex) => ({
         exerciseId: ex.exerciseId,

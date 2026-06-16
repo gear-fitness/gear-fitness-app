@@ -18,6 +18,7 @@ public class NotificationDTO {
   private String actorProfilePictureUrl;
   private UUID postId;
   private UUID workoutId;
+  private String postImageUrl;
   private String commentBody;
   private LocalDateTime createdAt;
   private boolean isRead;

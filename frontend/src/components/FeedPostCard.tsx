@@ -203,7 +203,7 @@ export function FeedPostCard({ post, isPending = false }: Props) {
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() =>
-              navigation.navigate("UserProfile", {
+              (navigation as any).push("UserProfile", {
                 username: post.username,
               })
             }

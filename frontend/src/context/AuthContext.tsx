@@ -19,6 +19,7 @@ import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 import { notificationService } from "../api/notificationService";
+import { setForceLogoutCallback } from "../api/apiClient";
 import { logoutFromServer } from "../api/authService";
 import {
   isNetworkError,
@@ -66,6 +67,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+
+  // Wire the API client's force-logout hook to React auth state. apiClient
+  // already clears the stored tokens when a refresh is definitively rejected;
+  // this flips isAuthenticated to false so the app routes back to login instead
+  // of getting stuck "signed in" with no valid tokens.
+  useEffect(() => {
+    setForceLogoutCallback(() => {
+      setUser(null);
+      setActiveUserId(null).catch(() => {});
+      setAuthError("Session expired. Please login again.");
+    });
+  }, []);
 
   // Initialize auth state on app start
   useEffect(() => {

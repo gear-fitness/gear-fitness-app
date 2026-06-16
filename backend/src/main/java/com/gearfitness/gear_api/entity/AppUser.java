@@ -64,6 +64,11 @@ public class AppUser {
   @Column(name = "expo_push_token")
   private String expoPushToken;
 
+  // IANA zone id (e.g. "America/Denver") reported by the device, used to fire
+  // streak notifications at the user's local midnight rather than UTC.
+  @Column(name = "time_zone")
+  private String timeZone;
+
   @Column(name = "current_streak", nullable = false)
   @Builder.Default
   private Integer currentStreak = 0;

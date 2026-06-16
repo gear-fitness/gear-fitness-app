@@ -150,6 +150,46 @@ public class S3StorageService {
     return new PresignedUpload(key, url);
   }
 
+  /**
+   * Proxy-upload a workout photo through the backend and return its S3 KEY
+   * (never a URL). Kept for OLD app clients that still POST multipart to
+   * {@code /api/workouts/photos}; new clients upload via a presigned PUT
+   * ({@link #generatePostImageUploadUrl}).
+   *
+   * Returning the bare key — not a URL — is deliberate: it matches how every
+   * image reference is stored across the app. The client re-submits this value
+   * in the workout's photoUrls and it is persisted as-is. Returning a presigned
+   * URL instead would persist an expiring value into workout_photo_url that
+   * would break once the signature lapsed. The new app resolves stored keys to
+   * short-lived view urls via the images view-url endpoint.
+   */
+  public String uploadWorkoutPhoto(
+    UUID userId,
+    byte[] imageBytes,
+    String contentType
+  ) {
+    String extension = "image/png".equalsIgnoreCase(contentType)
+      ? "png"
+      : "jpg";
+    String key =
+      WORKOUT_PHOTOS_PREFIX +
+      userId +
+      "/" +
+      UUID.randomUUID() +
+      "." +
+      extension;
+
+    PutObjectRequest putRequest = PutObjectRequest.builder()
+      .bucket(imagesBucket)
+      .key(key)
+      .contentType(contentType)
+      .build();
+
+    s3Client.putObject(putRequest, RequestBody.fromBytes(imageBytes));
+
+    return key;
+  }
+
   /** Delete a post/workout image by its stored key. */
   public void deleteImageByKey(String key) {
     try {

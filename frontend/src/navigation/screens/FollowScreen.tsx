@@ -23,6 +23,7 @@ import { FollowerUser } from "../../api/types";
 import { Avatar } from "../../components/Avatar";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
+import { useFollowStatus } from "../../context/FollowStatusContext";
 
 type Tab = "followers" | "following";
 
@@ -66,6 +67,11 @@ export default function FollowScreen() {
   const [loading, setLoading] = useState(true);
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
+  // Shared follow-status overrides. Lets a follow/unfollow done on a user's
+  // profile (after tapping into it from this list) flip their row's button here
+  // without reloading the whole list.
+  const { overrides, setFollowStatus: publishFollowStatus } = useFollowStatus();
+
   const loadData = useCallback(async () => {
     setLoading(true);
     if (!userId) {
@@ -96,8 +102,11 @@ export default function FollowScreen() {
   const handleFollowToggle = async (user: FollowerUser) => {
     if (!user.userId) return;
 
+    // Match the action to what the row actually shows (override wins).
     const status =
-      user.followStatus ?? (user.isFollowing ? "ACCEPTED" : "NONE");
+      overrides[user.userId] ??
+      user.followStatus ??
+      (user.isFollowing ? "ACCEPTED" : "NONE");
 
     const setStatus = (newStatus: "ACCEPTED" | "PENDING" | "NONE") => {
       const apply = (list: FollowerUser[]) =>
@@ -112,6 +121,7 @@ export default function FollowScreen() {
         );
       setFollowers((prev) => apply(prev));
       setFollowing((prev) => apply(prev));
+      publishFollowStatus(user.userId, newStatus);
     };
 
     try {
@@ -141,8 +151,12 @@ export default function FollowScreen() {
   const renderItem = ({ item }: { item: FollowerUser }) => {
     const isToggling = togglingId === item.userId;
     const isCurrentUser = item.username === currentUsername;
+    // A shared override (set when the user toggled follow on this person's
+    // profile or elsewhere) wins over the status the list was loaded with.
     const status =
-      item.followStatus ?? (item.isFollowing ? "ACCEPTED" : "NONE");
+      overrides[item.userId] ??
+      item.followStatus ??
+      (item.isFollowing ? "ACCEPTED" : "NONE");
     // "Following" and "Requested" share the same outlined treatment
     const isFollowActive = status === "ACCEPTED" || status === "PENDING";
     const followLabel =
@@ -164,7 +178,11 @@ export default function FollowScreen() {
         disabled={isCurrentUser}
         onPress={() => {
           if (isCurrentUser) return;
-          navigation.navigate("UserProfile", { username: item.username });
+          // push (not navigate) so tapping a user from a follow list stacks a
+          // fresh profile on top instead of popping back to an existing
+          // UserProfile in the stack — which would tear this screen (and its
+          // scroll position) out from underneath.
+          navigation.push("UserProfile", { username: item.username });
         }}
       >
         <Avatar

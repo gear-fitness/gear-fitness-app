@@ -38,6 +38,7 @@ import { FeedPostCard } from "../../components/FeedPostCard";
 import { useNormalizeFeedPosts } from "../../context/LikesContext";
 import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
 import { useSocialFeed } from "../../context/SocialFeedContext";
+import { useFollowStatus } from "../../context/FollowStatusContext";
 import { Avatar } from "../../components/Avatar";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 import { getPendingPosts, isPendingPostId } from "../../utils/pendingPosts";
@@ -45,6 +46,41 @@ import { getPendingPosts, isPendingPostId } from "../../utils/pendingPosts";
 const WEEK_LABELS = ["S", "M", "T", "W", "T", "F", "S"] as const;
 const GRID_ROWS = 5;
 const GRID_COLS = 7;
+
+// The activity grid mirrors the backend's `dailyActivity` array: a Sunday-first
+// window whose first cell is the Sunday (GRID_ROWS - 1) weeks before today, so
+// the bottom row is the current week. Cell `idx` therefore maps to
+// gridStart + idx days. Kept in sync with AppUserService.buildDailyActivity.
+function gridStartDate(today: Date): Date {
+  const d = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  d.setDate(d.getDate() - today.getDay() - (GRID_ROWS - 1) * GRID_COLS);
+  return d;
+}
+
+// Local YYYY-MM-DD — matches a FeedPost's `datePerformed` (a date-only value).
+function toLocalDateString(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function gridDateString(idx: number, today: Date): string {
+  const d = gridStartDate(today);
+  d.setDate(d.getDate() + idx);
+  return toLocalDateString(d);
+}
+
+// Human-readable label for a YYYY-MM-DD day, parsed as a local date so it
+// doesn't shift across timezones (e.g. "Mon, Jun 9").
+function formatDayLabel(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
 
 // Shared pulse animation hook for all skeleton blocks on the screen.
 function useSkeletonPulse() {
@@ -98,9 +134,33 @@ export function Profile() {
   const [error, setError] = useState<string | null>(null);
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [postsLoading, setPostsLoading] = useState(false);
+  // Maps a workout day (YYYY-MM-DD) to that day's posts (newest first) so
+  // activity-grid circles can open them. A day with one post jumps straight to
+  // PostDetail; a day with several opens the DayPosts list. Built on load.
+  const [activityPostsByDate, setActivityPostsByDate] = useState<
+    Record<string, FeedPost[]>
+  >({});
   const [followLoading, setFollowLoading] = useState(false);
   const normalizeFeedPosts = useNormalizeFeedPosts();
   const { invalidate: invalidateFeed } = useSocialFeed();
+  const { setFollowStatus: publishFollowStatus } = useFollowStatus();
+
+  // Mirror this profile's follow status into the shared store on every change
+  // (optimistic toggles, server-confirmed loads). Other screens showing a
+  // follow button for this user — e.g. the follower/following list you arrived
+  // from — pick it up and update their row without a reload.
+  useEffect(() => {
+    if (!isOtherUser || !profile) return;
+    const status =
+      profile.followStatus ?? (profile.isFollowing ? "ACCEPTED" : "NONE");
+    publishFollowStatus(profile.userId, status);
+  }, [
+    isOtherUser,
+    profile?.userId,
+    profile?.followStatus,
+    profile?.isFollowing,
+    publishFollowStatus,
+  ]);
 
   const t = isDark
     ? {
@@ -160,6 +220,7 @@ export function Profile() {
           profileData.isPrivate && fs !== "ACCEPTED" && isOtherUser;
         if (!locked) {
           loadUserPosts(profileData);
+          loadActivityPosts(profileData);
         }
       }
     });
@@ -179,7 +240,10 @@ export function Profile() {
     return subscribeOnlineStatus((online) => {
       if (!online) return;
       loadProfile().then((profileData) => {
-        if (profileData) loadUserPosts(profileData);
+        if (profileData) {
+          loadUserPosts(profileData);
+          loadActivityPosts(profileData);
+        }
       });
     });
     // loadProfile/loadUserPosts are stable closures captured at mount; we
@@ -195,6 +259,7 @@ export function Profile() {
       if (isOtherUser) return;
       if (profile) {
         loadUserPosts(profile);
+        loadActivityPosts(profile);
       }
       // loadUserPosts is a closure captured at render — re-running it on
       // every focus is the intended behavior.
@@ -362,8 +427,58 @@ export function Profile() {
     }
   };
 
+  // Build the date -> posts map that backs the tappable activity circles.
+  // Posts come back ordered by createdAt DESC, so each day's array stays
+  // newest-first. We page until the grid window is covered (oldest fetched day
+  // predates it) or hit a safety cap.
+  const loadActivityPosts = async (profileData?: UserProfile) => {
+    const targetProfile = profileData || profile;
+    if (!targetProfile) return;
+    const windowStart = toLocalDateString(gridStartDate(new Date()));
+    const PAGE_SIZE = 30;
+    const MAX_PAGES = 4;
+    const map: Record<string, FeedPost[]> = {};
+    try {
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const response = await socialFeedApi.getUserPosts(
+          targetProfile.userId,
+          page,
+          PAGE_SIZE,
+        );
+        const content = response?.content ?? [];
+        normalizeFeedPosts(content);
+        for (const post of content) {
+          (map[post.datePerformed] ??= []).push(post);
+        }
+        const oldest = content[content.length - 1];
+        if (response?.last || content.length === 0) break;
+        // Stop once we've paged past the grid window. Compare createdAt (the
+        // pagination order), not datePerformed: createdAt >= datePerformed
+        // always, so any in-window post still has createdAt >= windowStart —
+        // breaking here can never skip one, even for late-synced offline posts.
+        if (oldest && oldest.createdAt < windowStart) break;
+      }
+      setActivityPostsByDate(map);
+    } catch (err) {
+      console.error("Error loading activity posts:", err);
+    }
+  };
+
   const handleOpenComments = (postId: string) => {
     navigation.navigate("Comments", { postId });
+  };
+
+  // Tapping an activity circle: one post opens directly in PostDetail, several
+  // open the DayPosts list for that day.
+  const openActivityDay = (dayPosts: FeedPost[]) => {
+    if (dayPosts.length === 1) {
+      navigation.navigate("PostDetail", { postId: dayPosts[0].postId });
+    } else if (dayPosts.length > 1) {
+      navigation.navigate("DayPosts", {
+        posts: dayPosts,
+        dateLabel: formatDayLabel(dayPosts[0].datePerformed),
+      });
+    }
   };
 
   const ProfileHeader = () => {
@@ -466,7 +581,7 @@ export function Profile() {
                 isPrivateAndLocked
                   ? undefined
                   : () =>
-                      navigation.navigate("FollowScreen", {
+                      navigation.push("FollowScreen", {
                         initialTab: "followers",
                         userId: profile.userId,
                         username: profile.username,
@@ -485,7 +600,7 @@ export function Profile() {
                 isPrivateAndLocked
                   ? undefined
                   : () =>
-                      navigation.navigate("FollowScreen", {
+                      navigation.push("FollowScreen", {
                         initialTab: "following",
                         userId: profile.userId,
                         username: profile.username,
@@ -567,8 +682,10 @@ export function Profile() {
                   {Array.from({ length: GRID_COLS }).map((_, col) => {
                     const idx = row * GRID_COLS + col;
                     const isToday = idx === todayIdx;
-                    return (
-                      <View key={col} style={styles.dotCell}>
+                    const dayPosts =
+                      activityPostsByDate[gridDateString(idx, today)];
+                    const dotContent = (
+                      <>
                         <View
                           style={[
                             styles.dot,
@@ -581,6 +698,24 @@ export function Profile() {
                             pointerEvents="none"
                           />
                         )}
+                      </>
+                    );
+                    // Only days with a corresponding post are tappable; tapping
+                    // opens the workout(s) for that day.
+                    return dayPosts && dayPosts.length > 0 ? (
+                      <TouchableOpacity
+                        key={col}
+                        style={styles.dotCell}
+                        activeOpacity={0.6}
+                        accessibilityRole="button"
+                        accessibilityLabel="View workout"
+                        onPress={() => openActivityDay(dayPosts)}
+                      >
+                        {dotContent}
+                      </TouchableOpacity>
+                    ) : (
+                      <View key={col} style={styles.dotCell}>
+                        {dotContent}
                       </View>
                     );
                   })}
@@ -652,6 +787,7 @@ export function Profile() {
               const profileData = await loadProfile();
               if (profileData) {
                 await loadUserPosts(profileData);
+                await loadActivityPosts(profileData);
               }
               setRefreshing(false);
             }}

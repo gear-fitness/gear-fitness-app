@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
@@ -6,15 +6,12 @@ import Svg, { Path } from "react-native-svg";
 import { getTodaysRoutines } from "../api/routineService";
 import { Routine } from "../api/types";
 import { useWorkoutTimer } from "../context/WorkoutContext";
-import { useStartCountdown } from "../hooks/useStartCountdown";
-import { StartCountdownOverlay } from "./StartCountdownOverlay";
 
 export function TodaysRoutines() {
   const navigation = useNavigation();
   const isDark = useColorScheme() === "dark";
   const { loadFromRoutine, hasActiveWorkout } = useWorkoutTimer();
   const [todaysRoutines, setTodaysRoutines] = useState<Routine[]>([]);
-  const pendingRoutineRef = useRef<Routine | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -50,45 +47,24 @@ export function TodaysRoutines() {
     [loadFromRoutine, navigation],
   );
 
-  const {
-    isCountdownVisible,
-    countdownValue,
-    startCountdown,
-    cancelCountdown,
-  } = useStartCountdown({
-    onComplete: async () => {
-      const pendingRoutine = pendingRoutineRef.current;
-      pendingRoutineRef.current = null;
-      if (!pendingRoutine) return;
-      await handleQuickStartRoutine(pendingRoutine);
-    },
-  });
-
   const handleQuickStartPress = (routine: Routine) => {
     if (!routine.exercises.length) return;
-    pendingRoutineRef.current = routine;
     if (hasActiveWorkout) {
       Alert.alert(
         "Workout in progress",
         "You have a workout in progress. Discard it and start this routine?",
         [
-          {
-            text: "Cancel",
-            style: "cancel",
-            onPress: () => {
-              pendingRoutineRef.current = null;
-            },
-          },
+          { text: "Cancel", style: "cancel" },
           {
             text: "Discard & Start",
             style: "destructive",
-            onPress: () => startCountdown(),
+            onPress: () => handleQuickStartRoutine(routine),
           },
         ],
       );
       return;
     }
-    startCountdown();
+    handleQuickStartRoutine(routine);
   };
 
   const t = isDark
@@ -172,13 +148,6 @@ export function TodaysRoutines() {
           ))}
         </View>
       )}
-
-      <StartCountdownOverlay
-        visible={isCountdownVisible}
-        countdownValue={countdownValue}
-        isDark={isDark}
-        onCancel={cancelCountdown}
-      />
     </View>
   );
 }

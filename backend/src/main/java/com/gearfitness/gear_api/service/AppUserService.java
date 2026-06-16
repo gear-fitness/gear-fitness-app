@@ -25,7 +25,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,11 +35,14 @@ public class AppUserService {
   private static final int MIN_USERNAME_LENGTH = 3;
   private static final String USERNAME_REGEX = "^[a-z0-9._]+$";
   private static final int SEARCH_RESULT_LIMIT = 20;
+  // Minimum pg_trgm word similarity for a fuzzy (typo-tolerant) name match.
+  private static final double SEARCH_FUZZY_THRESHOLD = 0.3;
 
   private final AppUserRepository userRepository;
   private final WorkoutRepository workoutRepository;
   private final FollowRepository followRepository;
   private final ContentVisibilityRepository contentVisibilityRepository;
+  private final StreakService streakService;
 
   /**
    * Get user profile by user ID
@@ -259,7 +261,12 @@ public class AppUserService {
       endOfWeek
     );
 
-    // Calculate streak (consecutive completed weeks with 5+ distinct workout days)
+    // Correct a stale persisted streak before reading it, using the user's
+    // local "today". Without this, the streak surfaced on the profile/Workout
+    // header (which reads the raw stored value) keeps showing the old number
+    // after a break until some other path recomputes it — diverging from the
+    // streak dropdown, which already refreshes on read.
+    streakService.refreshStreakIfStale(user, today);
     int workoutStreak = calculateWorkoutStreak(user);
 
     // Count distinct workout days in the current week
@@ -419,11 +426,12 @@ public class AppUserService {
   }
 
   /**
-   * Ranked user search for the social tab. Results are ordered server-side by
-   * relationship to the current user (mutual > current follows them > they
-   * follow current > stranger) and then by text-match quality (username
-   * starts-with > username contains > display name starts-with > display name
-   * contains), tiebroken alphabetically by username.
+   * Ranked user search for the social tab. Results are ordered server-side by a
+   * blended relevance score: text-match quality dominates (exact > prefix >
+   * word-start > contains > trigram-fuzzy, best of username and display name)
+   * and the relationship to the current user (mutual > current follows them >
+   * they follow current) only breaks ties between comparable text matches.
+   * Typo-tolerant via pg_trgm word similarity. See {@code rankedSearch}.
    */
   public List<UserSearchResultDTO> searchUsers(
     String query,
@@ -432,7 +440,8 @@ public class AppUserService {
     List<AppUser> results = userRepository.rankedSearch(
       query,
       currentUserId,
-      PageRequest.of(0, SEARCH_RESULT_LIMIT)
+      SEARCH_FUZZY_THRESHOLD,
+      SEARCH_RESULT_LIMIT
     );
     if (results.isEmpty()) {
       return List.of();

@@ -21,6 +21,8 @@ import { PersonalRecord } from "../../api/types";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 import { subscribeOnlineStatus } from "../../utils/network";
+import { useUnitPreference } from "../../context/UnitPreferenceContext";
+import { toDisplayWeight } from "../../utils/weight";
 
 type RootStackParamList = {
   PR: { userId: string };
@@ -36,6 +38,7 @@ export function PR({ route }: Props) {
   const insets = useSafeAreaInsets();
   const { userId } = route.params;
 
+  const { weightUnit } = useUnitPreference();
   const [prs, setPrs] = useState<PersonalRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -90,10 +93,10 @@ export function PR({ route }: Props) {
       return `${pr.exerciseName.toUpperCase()}\nNo PR recorded yet`;
     }
 
-    // Weight is already in lbs from backend - no conversion needed
-    const weightLbs = Math.round(pr.maxWeight);
+    // maxWeight is canonical lbs from the backend — convert to the user's unit.
+    const weight = Math.round(toDisplayWeight(pr.maxWeight, weightUnit));
 
-    return `${pr.exerciseName.toUpperCase()}\n${weightLbs} LBS x ${
+    return `${pr.exerciseName.toUpperCase()}\n${weight} ${weightUnit.toUpperCase()} x ${
       pr.repsAtMaxWeight
     } REPS\n${pr.dateAchieved || ""}`;
   };

@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  useColorScheme,
   Animated,
   Easing,
 } from "react-native";
@@ -19,8 +18,6 @@ import { Routine } from "../../api/types";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { formatDay } from "../../utils/days";
 import { useThemeColors } from "../../hooks/useThemeColors";
-import { StartCountdownOverlay } from "../../components/StartCountdownOverlay";
-import { useStartCountdown } from "../../hooks/useStartCountdown";
 import { formatPrimaryBodyParts } from "../../utils/exerciseUtils";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 
@@ -179,7 +176,6 @@ export function RoutineDetail({
   const navigation = useNavigation<any>();
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
-  const isDark = useColorScheme() === "dark";
 
   const [routine, setRoutine] = useState<Routine | null>(null);
   const [loading, setLoading] = useState(true);
@@ -227,14 +223,6 @@ export function RoutineDetail({
       setStarting(false);
     }
   };
-  const {
-    isCountdownVisible,
-    countdownValue,
-    startCountdown,
-    cancelCountdown,
-  } = useStartCountdown({
-    onComplete: startRoutineWorkout,
-  });
 
   const handleStartWorkout = () => {
     if (starting || deleting) return;
@@ -256,14 +244,14 @@ export function RoutineDetail({
           {
             text: "Discard & Start",
             style: "destructive",
-            onPress: () => startCountdown(),
+            onPress: () => startRoutineWorkout(),
           },
         ],
       );
       return;
     }
 
-    startCountdown();
+    startRoutineWorkout();
   };
 
   const handleDelete = () => {
@@ -492,13 +480,6 @@ export function RoutineDetail({
           )}
         </TouchableOpacity>
       </View>
-
-      <StartCountdownOverlay
-        visible={isCountdownVisible}
-        countdownValue={countdownValue}
-        isDark={isDark}
-        onCancel={cancelCountdown}
-      />
     </View>
   );
 }
