@@ -198,8 +198,11 @@ export function OnboardingScreen() {
           if (intent === "sign_up" && error.code === "ACCOUNT_ALREADY_EXISTS") {
             Alert.alert(
               "Account Already Exists",
-              "An account already exists for this Google account. Signing you in…",
-              [{ text: "OK", onPress: () => completeOnboarding() }],
+              "An account already exists for this Google account. Would you like to sign in?",
+              [
+                { text: "Cancel", style: "cancel" },
+                { text: "Sign In", onPress: () => goTo(0) },
+              ],
             );
             return;
           }
@@ -361,8 +364,11 @@ export function OnboardingScreen() {
           if (intent === "sign_up" && error.code === "ACCOUNT_ALREADY_EXISTS") {
             Alert.alert(
               "Account Already Exists",
-              "An account already exists for this Apple ID. Signing you in…",
-              [{ text: "OK", onPress: () => completeOnboarding() }],
+              "An account already exists for this Apple ID. Would you like to sign in?",
+              [
+                { text: "Cancel", style: "cancel" },
+                { text: "Sign In", onPress: () => goTo(0) },
+              ],
             );
             return;
           }
