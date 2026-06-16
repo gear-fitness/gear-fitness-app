@@ -10,13 +10,13 @@ import { TrialBoostModal } from "./TrialBoostModal";
 type Plan = "annual" | "monthly";
 
 // Basic is the free tier; Plus is the paid upgrade. A boolean renders a
-// check/dash; a string renders that value in the tier's column.
+// check (included) or lock (Plus-only); a string renders that value.
 type CompareCell = boolean | string;
 const COMPARE: { label: string; basic: CompareCell; plus: CompareCell }[] = [
   { label: "Track workouts & PRs", basic: true, plus: true },
   { label: "Connect with friends", basic: true, plus: true },
   { label: "Routines", basic: "3", plus: "7" },
-  { label: "Restore tokens / mo", basic: "1", plus: "4" },
+  { label: "Streak restore tokens", basic: "1", plus: "4" },
   { label: "Progress history", basic: "3 mo", plus: "1 yr" },
   { label: "Graph types", basic: "Volume", plus: "All" },
   { label: "Calorie tracker (manual)", basic: false, plus: "Soon" },
@@ -43,27 +43,30 @@ export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
     setBoost(true);
   };
 
-  // `accent` = the Plus column, which sits on the filled highlight panel, so
-  // its content is drawn in accentText (the inverse of the page).
-  const Cell = ({
-    value,
-    accent,
-  }: {
-    value: boolean | string;
-    accent?: boolean;
-  }) => {
-    const fg = accent ? colors.accentText : colors.text;
+  // Comparison cell: a value string, a filled check (included), or a lock.
+  const Cell = ({ value, plus }: { value: CompareCell; plus?: boolean }) => {
     if (typeof value === "string") {
       return (
-        <Text style={[styles.cellValue, { color: fg }]} numberOfLines={1}>
+        <Text
+          style={[
+            styles.cellValue,
+            plus && styles.cellValuePlus,
+            { color: colors.text },
+          ]}
+          numberOfLines={1}
+        >
           {value}
         </Text>
       );
     }
-    if (!value) {
-      return <Text style={[styles.dash, { color: colors.secondary }]}>—</Text>;
+    if (value) {
+      return (
+        <View style={[styles.checkCircle, { backgroundColor: colors.accent }]}>
+          <Text style={[styles.checkMark, { color: colors.accentText }]}>✓</Text>
+        </View>
+      );
     }
-    return <Text style={[styles.cellCheck, { color: fg }]}>✓</Text>;
+    return <Text style={styles.lockIcon}>🔒</Text>;
   };
 
   const TimelineRow = ({
@@ -93,65 +96,17 @@ export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
         )}
       </View>
       <Text
-        style={[styles.timelineText, { color: colors.text }, last && styles.timelineTextLast]}
+        style={[
+          styles.timelineText,
+          { color: colors.text },
+          last && styles.timelineTextLast,
+        ]}
       >
         <Text style={styles.timelineBold}>{bold}</Text>
         {rest}
       </Text>
     </View>
   );
-
-  const PlanCard = ({
-    value,
-    title,
-    price,
-    period,
-    highlight,
-    badge,
-  }: {
-    value: Plan;
-    title: string;
-    price: string;
-    period: string;
-    highlight?: string;
-    badge?: string;
-  }) => {
-    const active = plan === value;
-    return (
-      <Pressable
-        onPress={() => setPlan(value)}
-        style={[
-          styles.planCard,
-          {
-            backgroundColor: colors.cardBg,
-            borderColor: active ? colors.accent : colors.border,
-          },
-        ]}
-      >
-        {badge && (
-          <View style={styles.badgeWrap}>
-            <View style={[styles.badge, { backgroundColor: colors.accent }]}>
-              <Text style={[styles.badgeText, { color: colors.accentText }]}>
-                {badge}
-              </Text>
-            </View>
-          </View>
-        )}
-        <Text style={[styles.planTitle, { color: colors.secondary }]}>
-          {title}
-        </Text>
-        <Text style={[styles.planPrice, { color: colors.text }]}>{price}</Text>
-        <Text style={[styles.planPeriod, { color: colors.secondary }]}>
-          {period}
-        </Text>
-        {highlight && (
-          <Text style={[styles.planHighlight, { color: colors.text }]}>
-            {highlight}
-          </Text>
-        )}
-      </Pressable>
-    );
-  };
 
   return (
     <View style={shared.screen}>
@@ -161,9 +116,17 @@ export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={shared.heading}>Try Gear Plus free</Text>
+        <View style={styles.eyebrow}>
+          <Text style={[styles.eyebrowText, { color: colors.text }]}>Gear</Text>
+          <View style={[styles.eyebrowPill, { backgroundColor: colors.accent }]}>
+            <Text style={[styles.eyebrowPillText, { color: colors.accentText }]}>
+              Plus
+            </Text>
+          </View>
+        </View>
+        <Text style={shared.heading}>Achieve your goals faster</Text>
         <Text style={shared.subheading}>
-          {trialDays} days free, then {price}. Cancel anytime.
+          Start your {trialDays}-day free trial. Cancel anytime.
         </Text>
 
         {referred && (
@@ -174,38 +137,109 @@ export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
           </View>
         )}
 
-        {/* Basic vs Plus comparison — open layout, Plus column highlighted */}
+        {/* Featured plan: annual */}
+        <Pressable
+          onPress={() => setPlan("annual")}
+          style={[
+            styles.featCard,
+            {
+              backgroundColor: colors.cardBg,
+              borderColor: plan === "annual" ? colors.accent : colors.border,
+            },
+          ]}
+        >
+          <View style={styles.featTop}>
+            <View style={[styles.popPill, { backgroundColor: colors.accent }]}>
+              <Text style={[styles.popPillText, { color: colors.accentText }]}>
+                MOST POPULAR
+              </Text>
+            </View>
+          </View>
+          <View style={styles.featBody}>
+            <View style={styles.featLeft}>
+              <Text style={[styles.featTitle, { color: colors.text }]}>
+                {trialDays}-day free trial
+              </Text>
+              <Text style={[styles.featSub, { color: colors.secondary }]}>
+                then <Text style={styles.strike}>$95.88</Text> → $47.99/yr
+              </Text>
+            </View>
+            <View style={styles.featRight}>
+              <Text style={[styles.featPrice, { color: colors.text }]}>
+                $4.00
+              </Text>
+              <Text style={[styles.featPer, { color: colors.secondary }]}>
+                per month
+              </Text>
+            </View>
+          </View>
+        </Pressable>
+
+        {/* Secondary plan: monthly */}
+        <Pressable
+          onPress={() => setPlan("monthly")}
+          style={[
+            styles.secCard,
+            {
+              backgroundColor: colors.cardBg,
+              borderColor: plan === "monthly" ? colors.accent : colors.border,
+            },
+          ]}
+        >
+          <View style={styles.featLeft}>
+            <Text style={[styles.secTitle, { color: colors.text }]}>Monthly</Text>
+            <Text style={[styles.featSub, { color: colors.secondary }]}>
+              No commitment. Cancel anytime.
+            </Text>
+          </View>
+          <View style={styles.featRight}>
+            <Text style={[styles.featPrice, { color: colors.text }]}>$7.99</Text>
+            <Text style={[styles.featPer, { color: colors.secondary }]}>
+              per month
+            </Text>
+          </View>
+        </Pressable>
+
+        {/* What you get — Basic vs Plus, Plus column highlighted */}
         <View style={styles.compare}>
           <View
-            style={[styles.plusPanel, { backgroundColor: colors.accent }]}
+            style={[styles.plusPanel, { backgroundColor: colors.surface }]}
             pointerEvents="none"
           />
-          <View style={styles.compareHeader}>
-            <View style={styles.compareLabelSpacer} />
+          <View style={styles.compareHeaderRow}>
+            <Text style={[styles.whatYouGet, { color: colors.text }]}>
+              What you get
+            </Text>
             <Text style={[styles.colLabel, { color: colors.secondary }]}>
-              BASIC
+              Basic
             </Text>
-            <Text style={[styles.colLabel, { color: colors.accentText }]}>
-              PLUS
-            </Text>
+            <View style={styles.compareCell}>
+              <View style={[styles.plusPill, { backgroundColor: colors.accent }]}>
+                <Text
+                  style={[styles.plusPillText, { color: colors.accentText }]}
+                >
+                  Plus
+                </Text>
+              </View>
+            </View>
           </View>
           {COMPARE.map((row) => (
             <View key={row.label} style={styles.compareRow}>
-              <Text style={[styles.compareLabel, { color: colors.text }]}>
+              <Text
+                style={[styles.compareLabel, { color: colors.text }]}
+                numberOfLines={2}
+              >
                 {row.label}
               </Text>
               <View style={styles.compareCell}>
                 <Cell value={row.basic} />
               </View>
               <View style={styles.compareCell}>
-                <Cell value={row.plus} accent />
+                <Cell value={row.plus} plus />
               </View>
             </View>
           ))}
         </View>
-        <Text style={[styles.andMore, { color: colors.secondary }]}>
-          And so much more on Plus!
-        </Text>
 
         {/* How your trial works */}
         <View
@@ -234,24 +268,6 @@ export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
             last
           />
         </View>
-
-        {/* Plan picker */}
-        <View style={styles.plans}>
-          <PlanCard
-            value="annual"
-            title="Yearly"
-            price="$47.99"
-            period="per year"
-            highlight="$4.00/mo"
-            badge="SAVE ~50%"
-          />
-          <PlanCard
-            value="monthly"
-            title="Monthly"
-            price="$7.99"
-            period="per month"
-          />
-        </View>
       </ScrollView>
 
       <View style={shared.footer}>
@@ -262,7 +278,9 @@ export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
             pressed && styles.pressed,
           ]}
         >
-          <Text style={shared.continueBtnText}>Start my free trial</Text>
+          <Text style={shared.continueBtnText}>
+            Start my {trialDays}-day free trial
+          </Text>
         </Pressable>
         <Pressable onPress={onFinish} style={styles.notNow}>
           <Text style={[styles.notNowText, { color: colors.secondary }]}>
@@ -270,7 +288,7 @@ export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
           </Text>
         </Pressable>
         <Text style={[styles.legal, { color: colors.secondary }]}>
-          Cancel anytime in Settings. Billing starts after your free trial.
+          No payment now. Cancel anytime in Settings.
         </Text>
       </View>
 
@@ -289,11 +307,32 @@ export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
   );
 }
 
-const CELL = 78;
+const CELL = 70;
 
 const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 16,
+  },
+  eyebrow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 10,
+  },
+  eyebrowText: {
+    fontSize: 18,
+    fontWeight: "800",
+    letterSpacing: -0.3,
+  },
+  eyebrowPill: {
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 7,
+  },
+  eyebrowPillText: {
+    fontSize: 13,
+    fontWeight: "800",
+    letterSpacing: 0.2,
   },
   unlock: {
     borderRadius: 14,
@@ -306,6 +345,159 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
   },
+
+  // Plan cards
+  featCard: {
+    borderRadius: 22,
+    borderWidth: 2,
+    padding: 16,
+    paddingTop: 22,
+    marginBottom: 12,
+  },
+  featTop: {
+    position: "absolute",
+    top: -10,
+    left: 16,
+  },
+  popPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  popPillText: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
+  featBody: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  featLeft: {
+    flex: 1,
+  },
+  featRight: {
+    alignItems: "flex-end",
+    paddingLeft: 12,
+  },
+  featTitle: {
+    fontSize: 19,
+    fontWeight: "800",
+    letterSpacing: -0.3,
+  },
+  featSub: {
+    fontSize: 13,
+    marginTop: 4,
+  },
+  strike: {
+    textDecorationLine: "line-through",
+  },
+  featPrice: {
+    fontSize: 24,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+  },
+  featPer: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  secCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderRadius: 18,
+    borderWidth: 2,
+    padding: 16,
+    marginBottom: 20,
+  },
+  secTitle: {
+    fontSize: 17,
+    fontWeight: "800",
+  },
+
+  // Comparison
+  compare: {
+    position: "relative",
+    paddingTop: 4,
+    paddingBottom: 8,
+    marginBottom: 8,
+  },
+  plusPanel: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    right: 0,
+    width: CELL,
+    borderRadius: 16,
+  },
+  compareHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+    paddingVertical: 6,
+  },
+  whatYouGet: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: "800",
+    letterSpacing: -0.3,
+  },
+  colLabel: {
+    width: CELL,
+    textAlign: "center",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  plusPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  plusPillText: {
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.2,
+  },
+  compareRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 11,
+  },
+  compareLabel: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "500",
+    paddingRight: 8,
+  },
+  compareCell: {
+    width: CELL,
+    alignItems: "center",
+  },
+  cellValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  cellValuePlus: {
+    fontWeight: "800",
+  },
+  checkCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkMark: {
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  lockIcon: {
+    fontSize: 15,
+  },
+
+  // Trial timeline
   card: {
     borderRadius: 22,
     borderWidth: 1.5,
@@ -316,66 +508,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     marginBottom: 14,
-  },
-  compare: {
-    position: "relative",
-    paddingVertical: 8,
-  },
-  plusPanel: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    right: 0,
-    width: CELL,
-    borderRadius: 16,
-  },
-  compareHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  compareLabelSpacer: {
-    flex: 1,
-  },
-  colLabel: {
-    width: CELL,
-    textAlign: "center",
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 0.6,
-  },
-  compareRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 9,
-  },
-  compareLabel: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  compareCell: {
-    width: CELL,
-    alignItems: "center",
-  },
-  cellCheck: {
-    fontSize: 16,
-    fontWeight: "800",
-  },
-  dash: {
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  cellValue: {
-    fontSize: 13,
-    fontWeight: "800",
-    textAlign: "center",
-  },
-  andMore: {
-    fontSize: 13,
-    fontWeight: "600",
-    textAlign: "center",
-    marginBottom: 18,
   },
   timelineRow: {
     flexDirection: "row",
@@ -408,59 +540,8 @@ const styles = StyleSheet.create({
   timelineBold: {
     fontWeight: "700",
   },
-  plans: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 16,
-  },
-  planCard: {
-    flex: 1,
-    borderRadius: 20,
-    borderWidth: 2,
-    paddingVertical: 22,
-    paddingHorizontal: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 150,
-  },
-  badgeWrap: {
-    position: "absolute",
-    top: -10,
-    left: 0,
-    right: 0,
-    alignItems: "center",
-  },
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 0.4,
-  },
-  planTitle: {
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 0.4,
-    textTransform: "uppercase",
-    marginBottom: 8,
-  },
-  planPrice: {
-    fontSize: 26,
-    fontWeight: "800",
-    letterSpacing: -0.5,
-  },
-  planPeriod: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  planHighlight: {
-    fontSize: 13,
-    fontWeight: "700",
-    marginTop: 10,
-  },
+
+  // Footer
   notNow: {
     paddingVertical: 10,
     alignItems: "center",
