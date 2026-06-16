@@ -66,7 +66,15 @@ export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
         </View>
       );
     }
-    return <Text style={styles.lockIcon}>🔒</Text>;
+    return (
+      <SymbolView
+        name="lock.fill"
+        size={16}
+        tintColor={colors.secondary}
+        resizeMode="scaleAspectFit"
+        style={styles.lockIcon}
+      />
+    );
   };
 
   const TimelineRow = ({
@@ -494,7 +502,8 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   lockIcon: {
-    fontSize: 15,
+    width: 16,
+    height: 16,
   },
 
   // Trial timeline
