@@ -16,9 +16,9 @@ const COMPARE: { label: string; basic: CompareCell; plus: CompareCell }[] = [
   { label: "Track workouts & PRs", basic: true, plus: true },
   { label: "Connect with friends", basic: true, plus: true },
   { label: "Routines", basic: "3", plus: "7" },
-  { label: "Streak restore tokens / mo", basic: false, plus: "4" },
   { label: "Progress history", basic: "3 mo", plus: "1 yr" },
   { label: "Graph types", basic: "Volume", plus: "All" },
+  { label: "Streak restore tokens / mo", basic: false, plus: "4" },
   { label: "Calorie tracker (manual)", basic: false, plus: "Soon" },
 ];
 
