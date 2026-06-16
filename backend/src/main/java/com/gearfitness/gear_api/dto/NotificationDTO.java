@@ -13,10 +13,12 @@ public class NotificationDTO {
 
   private UUID notificationId;
   private String type;
+  private UUID actorUserId;
   private String actorUsername;
   private String actorProfilePictureUrl;
   private UUID postId;
   private UUID workoutId;
+  private String postImageUrl;
   private String commentBody;
   private LocalDateTime createdAt;
   private boolean isRead;

@@ -10,10 +10,12 @@ import com.gearfitness.gear_api.entity.AppUser;
 import com.gearfitness.gear_api.entity.Follow;
 import com.gearfitness.gear_api.entity.Workout;
 import com.gearfitness.gear_api.repository.AppUserRepository;
+import com.gearfitness.gear_api.repository.ContentVisibilityRepository;
 import com.gearfitness.gear_api.repository.FollowRepository;
 import com.gearfitness.gear_api.repository.WorkoutRepository;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -23,7 +25,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,10 +35,14 @@ public class AppUserService {
   private static final int MIN_USERNAME_LENGTH = 3;
   private static final String USERNAME_REGEX = "^[a-z0-9._]+$";
   private static final int SEARCH_RESULT_LIMIT = 20;
+  // Minimum pg_trgm word similarity for a fuzzy (typo-tolerant) name match.
+  private static final double SEARCH_FUZZY_THRESHOLD = 0.3;
 
   private final AppUserRepository userRepository;
   private final WorkoutRepository workoutRepository;
   private final FollowRepository followRepository;
+  private final ContentVisibilityRepository contentVisibilityRepository;
+  private final StreakService streakService;
 
   /**
    * Get user profile by user ID
@@ -79,7 +84,9 @@ public class AppUserService {
       !request.getUsername().equals(user.getUsername())
     ) {
       // Check if username is already taken
-      if (userRepository.existsByUsername(request.getUsername())) {
+      if (
+        userRepository.existsByUsernameIncludingDeleted(request.getUsername())
+      ) {
         throw new RuntimeException("Username already taken");
       }
       user.setUsername(request.getUsername());
@@ -166,6 +173,7 @@ public class AppUserService {
     );
 
     Boolean isFollowing = null;
+    String followStatus = null;
     if (viewingUserId != null && !viewingUserId.equals(user.getUserId())) {
       AppUser viewingUser = userRepository.findById(viewingUserId).orElse(null);
       if (viewingUser != null) {
@@ -174,6 +182,26 @@ public class AppUserService {
           user,
           Follow.FollowStatus.ACCEPTED
         );
+        var outboundFollow = followRepository.findByFollowerAndFollowee(
+          viewingUser,
+          user
+        );
+        if (outboundFollow.isPresent()) {
+          followStatus = outboundFollow.get().getStatus().name();
+        } else {
+          var inboundBlock = followRepository.findByFollowerAndFollowee(
+            user,
+            viewingUser
+          );
+          if (
+            inboundBlock.isPresent() &&
+            inboundBlock.get().getStatus() == Follow.FollowStatus.BLOCKED
+          ) {
+            followStatus = "BLOCKED";
+          } else {
+            followStatus = "NONE";
+          }
+        }
       }
     }
 
@@ -193,6 +221,7 @@ public class AppUserService {
       .followersCount(followersCount)
       .followingCount(followingCount)
       .isFollowing(isFollowing)
+      .followStatus(followStatus)
       .build();
   }
 
@@ -232,7 +261,12 @@ public class AppUserService {
       endOfWeek
     );
 
-    // Calculate streak (consecutive completed weeks with 5+ distinct workout days)
+    // Correct a stale persisted streak before reading it, using the user's
+    // local "today". Without this, the streak surfaced on the profile/Workout
+    // header (which reads the raw stored value) keeps showing the old number
+    // after a break until some other path recomputes it — diverging from the
+    // streak dropdown, which already refreshes on read.
+    streakService.refreshStreakIfStale(user, today);
     int workoutStreak = calculateWorkoutStreak(user);
 
     // Count distinct workout days in the current week
@@ -392,11 +426,12 @@ public class AppUserService {
   }
 
   /**
-   * Ranked user search for the social tab. Results are ordered server-side by
-   * relationship to the current user (mutual > current follows them > they
-   * follow current > stranger) and then by text-match quality (username
-   * starts-with > username contains > display name starts-with > display name
-   * contains), tiebroken alphabetically by username.
+   * Ranked user search for the social tab. Results are ordered server-side by a
+   * blended relevance score: text-match quality dominates (exact > prefix >
+   * word-start > contains > trigram-fuzzy, best of username and display name)
+   * and the relationship to the current user (mutual > current follows them >
+   * they follow current) only breaks ties between comparable text matches.
+   * Typo-tolerant via pg_trgm word similarity. See {@code rankedSearch}.
    */
   public List<UserSearchResultDTO> searchUsers(
     String query,
@@ -405,7 +440,8 @@ public class AppUserService {
     List<AppUser> results = userRepository.rankedSearch(
       query,
       currentUserId,
-      PageRequest.of(0, SEARCH_RESULT_LIMIT)
+      SEARCH_FUZZY_THRESHOLD,
+      SEARCH_RESULT_LIMIT
     );
     if (results.isEmpty()) {
       return List.of();
@@ -470,10 +506,45 @@ public class AppUserService {
         .build();
     }
 
-    boolean taken = userRepository.existsByUsername(normalizedUsername);
+    boolean taken = userRepository.existsByUsernameIncludingDeleted(
+      normalizedUsername
+    );
     return UsernameAvailabilityResponse.builder()
       .available(!taken)
       .reason(taken ? "Username is already taken" : null)
       .build();
+  }
+
+  @Transactional
+  public void softDeleteAccount(UUID userId, String usernameConfirmation) {
+    AppUser user = userRepository
+      .findById(userId)
+      .orElseThrow(() -> new RuntimeException("User not found"));
+
+    if (usernameConfirmation == null || usernameConfirmation.isBlank()) {
+      throw new RuntimeException("Username confirmation is required");
+    }
+
+    if (!user.getUsername().equalsIgnoreCase(usernameConfirmation.trim())) {
+      throw new RuntimeException("Username does not match");
+    }
+
+    LocalDateTime now = LocalDateTime.now();
+
+    contentVisibilityRepository.hideAllContentForUser(userId, now);
+
+    user.setExpoPushToken(null);
+    user.setDeletedAt(now);
+    userRepository.save(user);
+  }
+
+  public UserDTO restoreAccount(UUID userId) {
+    AppUser user = userRepository
+      .findByIdIncludingDeleted(userId)
+      .orElseThrow(() -> new RuntimeException("User not found"));
+
+    user.setDeletedAt(null);
+    AppUser restored = userRepository.save(user);
+    return convertToDTO(restored);
   }
 }

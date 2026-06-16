@@ -402,17 +402,28 @@ public class WorkoutService {
     // forward from the user's local "today", not the server's UTC date.
     streakService.recalculateStreak(user, workout.getDatePerformed());
 
-    // Create post if requested
-    if (Boolean.TRUE.equals(submission.getCreatePost())) {
-      Post post = Post.builder()
-        .user(user)
-        .workout(workout)
-        .caption(submission.getCaption())
-        .imageUrl(submission.getImageUrl())
-        .build();
-
-      postRepository.save(post);
+    // Always create a post. Resolve visibility: explicit value wins; if old
+    // client sent createPost=false with no visibility, default to PRIVATE so
+    // "save only" workouts are not accidentally made public.
+    Post.PostVisibility visibility = Post.PostVisibility.PUBLIC;
+    if (
+      submission.getVisibility() != null &&
+      !submission.getVisibility().isBlank()
+    ) {
+      visibility = Post.PostVisibility.valueOf(submission.getVisibility());
+    } else if (Boolean.FALSE.equals(submission.getCreatePost())) {
+      visibility = Post.PostVisibility.PRIVATE;
     }
+
+    Post post = Post.builder()
+      .user(user)
+      .workout(workout)
+      .caption(submission.getCaption())
+      .imageUrl(submission.getImageUrl())
+      .visibility(visibility)
+      .build();
+
+    postRepository.save(post);
 
     // Return workout details
     return getWorkoutDetails(workout.getWorkoutId(), userId);
@@ -441,8 +452,8 @@ public class WorkoutService {
     }
 
     if (workout.getPhotoUrls() != null) {
-      for (String url : workout.getPhotoUrls()) {
-        s3StorageService.deleteWorkoutPhoto(url);
+      for (String key : workout.getPhotoUrls()) {
+        s3StorageService.deleteImageByKey(key);
       }
     }
 

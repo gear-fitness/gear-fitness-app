@@ -115,6 +115,15 @@ public class WorkoutController {
     }
   }
 
+  /**
+   * Legacy multipart photo upload, kept for OLD app clients (new clients upload
+   * via a presigned PUT). Same request/response contract as before — multipart
+   * "file" part, returns {"url": <value>}. The returned value is an S3 KEY (not a
+   * public URL), matching how image references are stored everywhere else; the
+   * client re-submits it in the workout's photoUrls and it is persisted as-is.
+   * The new app resolves stored keys to short-lived view urls via the images
+   * view-url endpoint.
+   */
   @PostMapping(
     value = "/photos",
     consumes = MediaType.MULTIPART_FORM_DATA_VALUE
@@ -141,13 +150,13 @@ public class WorkoutController {
         );
       }
 
-      String url = s3StorageService.uploadWorkoutPhoto(
+      String key = s3StorageService.uploadWorkoutPhoto(
         userId,
         file.getBytes(),
         contentType
       );
 
-      return ResponseEntity.ok(Map.of("url", url));
+      return ResponseEntity.ok(Map.of("url", key));
     } catch (Exception e) {
       System.err.println("Workout photo upload error: " + e.getMessage());
       e.printStackTrace();

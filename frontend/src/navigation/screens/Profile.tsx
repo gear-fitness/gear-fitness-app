@@ -13,7 +13,11 @@ import {
   Easing,
 } from "react-native";
 import { Button } from "@react-navigation/elements";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import {
+  useNavigation,
+  useRoute,
+  useFocusEffect,
+} from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import Svg, { Path } from "react-native-svg";
@@ -24,19 +28,59 @@ import {
   followUser,
   unfollowUser,
 } from "../../api/userService";
+import { blockUser } from "../../api/followService";
 import { UserProfile } from "../../api/types";
+import { useAuth } from "../../context/AuthContext";
+import { subscribeOnlineStatus } from "../../utils/network";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { socialFeedApi, FeedPost } from "../../api/socialFeedApi";
 import { FeedPostCard } from "../../components/FeedPostCard";
 import { useNormalizeFeedPosts } from "../../context/LikesContext";
 import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
 import { useSocialFeed } from "../../context/SocialFeedContext";
+import { useFollowStatus } from "../../context/FollowStatusContext";
 import { Avatar } from "../../components/Avatar";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
+import { getPendingPosts, isPendingPostId } from "../../utils/pendingPosts";
 
 const WEEK_LABELS = ["S", "M", "T", "W", "T", "F", "S"] as const;
 const GRID_ROWS = 5;
 const GRID_COLS = 7;
+
+// The activity grid mirrors the backend's `dailyActivity` array: a Sunday-first
+// window whose first cell is the Sunday (GRID_ROWS - 1) weeks before today, so
+// the bottom row is the current week. Cell `idx` therefore maps to
+// gridStart + idx days. Kept in sync with AppUserService.buildDailyActivity.
+function gridStartDate(today: Date): Date {
+  const d = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  d.setDate(d.getDate() - today.getDay() - (GRID_ROWS - 1) * GRID_COLS);
+  return d;
+}
+
+// Local YYYY-MM-DD — matches a FeedPost's `datePerformed` (a date-only value).
+function toLocalDateString(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function gridDateString(idx: number, today: Date): string {
+  const d = gridStartDate(today);
+  d.setDate(d.getDate() + idx);
+  return toLocalDateString(d);
+}
+
+// Human-readable label for a YYYY-MM-DD day, parsed as a local date so it
+// doesn't shift across timezones (e.g. "Mon, Jun 9").
+function formatDayLabel(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
 
 // Shared pulse animation hook for all skeleton blocks on the screen.
 function useSkeletonPulse() {
@@ -77,14 +121,46 @@ export function Profile() {
 
   useTrackTab(isOtherUser ? "UserProfile" : "Profile");
 
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user: authUser } = useAuth();
+  // Seed the own-profile view with the cached auth user so the screen has
+  // content immediately and stays usable while offline. The network fetch
+  // below replaces it as soon as it lands. Other-user profiles aren't
+  // cached client-side, so they fall through to the spinner as before.
+  const [profile, setProfile] = useState<UserProfile | null>(
+    isOtherUser ? null : (authUser ?? null),
+  );
+  const [loading, setLoading] = useState(isOtherUser ? true : authUser == null);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [postsLoading, setPostsLoading] = useState(false);
+  // Maps a workout day (YYYY-MM-DD) to that day's posts (newest first) so
+  // activity-grid circles can open them. A day with one post jumps straight to
+  // PostDetail; a day with several opens the DayPosts list. Built on load.
+  const [activityPostsByDate, setActivityPostsByDate] = useState<
+    Record<string, FeedPost[]>
+  >({});
+  const [followLoading, setFollowLoading] = useState(false);
   const normalizeFeedPosts = useNormalizeFeedPosts();
   const { invalidate: invalidateFeed } = useSocialFeed();
+  const { setFollowStatus: publishFollowStatus } = useFollowStatus();
+
+  // Mirror this profile's follow status into the shared store on every change
+  // (optimistic toggles, server-confirmed loads). Other screens showing a
+  // follow button for this user — e.g. the follower/following list you arrived
+  // from — pick it up and update their row without a reload.
+  useEffect(() => {
+    if (!isOtherUser || !profile) return;
+    const status =
+      profile.followStatus ?? (profile.isFollowing ? "ACCEPTED" : "NONE");
+    publishFollowStatus(profile.userId, status);
+  }, [
+    isOtherUser,
+    profile?.userId,
+    profile?.followStatus,
+    profile?.isFollowing,
+    publishFollowStatus,
+  ]);
 
   const t = isDark
     ? {
@@ -137,15 +213,66 @@ export function Profile() {
   useEffect(() => {
     loadProfile().then((profileData) => {
       if (profileData) {
-        loadUserPosts(profileData);
+        const fs =
+          profileData.followStatus ??
+          (profileData.isFollowing ? "ACCEPTED" : "NONE");
+        const locked =
+          profileData.isPrivate && fs !== "ACCEPTED" && isOtherUser;
+        if (!locked) {
+          loadUserPosts(profileData);
+          loadActivityPosts(profileData);
+        }
       }
     });
   }, []);
 
-  const handleFollowToggle = async () => {
-    if (!profile) return;
+  // Keep the own-profile view in sync with the auth-context user. When the
+  // offline queue flushes and AuthContext re-fetches the profile, this picks
+  // up the new totals without needing a manual reload.
+  useEffect(() => {
+    if (isOtherUser) return;
+    if (authUser) setProfile(authUser);
+  }, [authUser, isOtherUser]);
 
-    if (profile.isFollowing) {
+  // Refresh on reconnect so stale offline data is updated as soon as the
+  // device comes back online.
+  useEffect(() => {
+    return subscribeOnlineStatus((online) => {
+      if (!online) return;
+      loadProfile().then((profileData) => {
+        if (profileData) {
+          loadUserPosts(profileData);
+          loadActivityPosts(profileData);
+        }
+      });
+    });
+    // loadProfile/loadUserPosts are stable closures captured at mount; we
+    // intentionally don't re-subscribe each render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Re-pull pending posts whenever the screen regains focus. Posting offline
+  // from WorkoutComplete navigates back to this screen, so the synthesized
+  // "in-progress" card needs to appear without a manual refresh.
+  useFocusEffect(
+    React.useCallback(() => {
+      if (isOtherUser) return;
+      if (profile) {
+        loadUserPosts(profile);
+        loadActivityPosts(profile);
+      }
+      // loadUserPosts is a closure captured at render — re-running it on
+      // every focus is the intended behavior.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [profile, isOtherUser]),
+  );
+
+  const handleFollowToggle = async () => {
+    if (!profile || followLoading) return;
+    const status =
+      profile.followStatus ?? (profile.isFollowing ? "ACCEPTED" : "NONE");
+
+    if (status === "ACCEPTED") {
       Alert.alert(
         `Unfollow @${profile.username}?`,
         "Are you sure you want to unfollow this user?",
@@ -155,26 +282,125 @@ export function Profile() {
             text: "Unfollow",
             style: "destructive",
             onPress: async () => {
+              setFollowLoading(true);
+              // Optimistic update
+              setProfile((prev) =>
+                prev
+                  ? { ...prev, followStatus: "NONE", isFollowing: false }
+                  : prev,
+              );
               try {
                 await unfollowUser(profile.userId);
                 invalidateFeed();
                 loadProfile();
               } catch {
-                Alert.alert("Error", "Failed to update follow status");
+                setProfile((prev) =>
+                  prev
+                    ? { ...prev, followStatus: "ACCEPTED", isFollowing: true }
+                    : prev,
+                );
+                Alert.alert("Error", "Failed to unfollow this user.");
+              } finally {
+                setFollowLoading(false);
               }
             },
           },
         ],
       );
-      return;
+    } else if (status === "PENDING") {
+      setFollowLoading(true);
+      setProfile((prev) => (prev ? { ...prev, followStatus: "NONE" } : prev));
+      try {
+        await unfollowUser(profile.userId);
+        loadProfile();
+      } catch {
+        setProfile((prev) =>
+          prev ? { ...prev, followStatus: "PENDING" } : prev,
+        );
+        Alert.alert("Error", "Failed to cancel follow request.");
+      } finally {
+        setFollowLoading(false);
+      }
+    } else {
+      setFollowLoading(true);
+      // Optimistic: show "Requested" immediately for private accounts
+      const optimisticStatus = profile.isPrivate ? "PENDING" : "ACCEPTED";
+      setProfile((prev) =>
+        prev
+          ? {
+              ...prev,
+              followStatus: optimisticStatus,
+              isFollowing: optimisticStatus === "ACCEPTED",
+            }
+          : prev,
+      );
+      try {
+        const response = await followUser(profile.userId);
+        const confirmedStatus = response.status as UserProfile["followStatus"];
+        setProfile((prev) =>
+          prev
+            ? {
+                ...prev,
+                followStatus: confirmedStatus,
+                isFollowing: response.status === "ACCEPTED",
+              }
+            : prev,
+        );
+        if (response.status === "ACCEPTED") invalidateFeed();
+        loadProfile();
+      } catch {
+        setProfile((prev) =>
+          prev ? { ...prev, followStatus: "NONE", isFollowing: false } : prev,
+        );
+        Alert.alert("Error", "Failed to follow user.");
+      } finally {
+        setFollowLoading(false);
+      }
     }
+  };
 
+  const handleProfileMenu = () => {
+    if (!profile) return;
+    Alert.alert(`@${profile.username}`, undefined, [
+      {
+        text: "Block User",
+        style: "destructive",
+        onPress: () => {
+          Alert.alert(
+            `Block @${profile.username}?`,
+            "They won't be able to see your posts or find your profile. You can unblock them later in Settings.",
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Block",
+                style: "destructive",
+                onPress: async () => {
+                  try {
+                    await blockUser(profile.userId);
+                    navigation.goBack();
+                  } catch {
+                    Alert.alert("Error", "Failed to block this user.");
+                  }
+                },
+              },
+            ],
+          );
+        },
+      },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  };
+
+  const loadPendingForCurrentUser = async (
+    targetProfile: UserProfile,
+  ): Promise<FeedPost[]> => {
+    if (isOtherUser) return [];
+    if (!authUser || authUser.userId !== targetProfile.userId) return [];
     try {
-      await followUser(profile.userId);
-      invalidateFeed();
-      loadProfile();
-    } catch {
-      Alert.alert("Error", "Failed to update follow status");
+      return await getPendingPosts(authUser);
+    } catch (err) {
+      console.error("Error loading pending posts:", err);
+      return [];
     }
   };
 
@@ -183,17 +409,58 @@ export function Profile() {
     if (!targetProfile) return;
     try {
       setPostsLoading(true);
-      const response = await socialFeedApi.getUserPosts(
-        targetProfile.userId,
-        0,
-        1,
-      );
-      normalizeFeedPosts(response.content);
-      setPosts(response.content);
-    } catch (error) {
-      console.error("Error loading user posts:", error);
+      // Server posts and offline pending posts can be fetched in parallel —
+      // a pending post belongs only to the current user and never has a
+      // real workoutId, so it can't collide with anything the API returns.
+      const [response, pending] = await Promise.all([
+        socialFeedApi.getUserPosts(targetProfile.userId, 0, 1).catch((err) => {
+          console.error("Error loading user posts:", err);
+          return null;
+        }),
+        loadPendingForCurrentUser(targetProfile),
+      ]);
+      const serverPosts = response?.content ?? [];
+      normalizeFeedPosts(serverPosts);
+      setPosts([...pending, ...serverPosts]);
     } finally {
       setPostsLoading(false);
+    }
+  };
+
+  // Build the date -> posts map that backs the tappable activity circles.
+  // Posts come back ordered by createdAt DESC, so each day's array stays
+  // newest-first. We page until the grid window is covered (oldest fetched day
+  // predates it) or hit a safety cap.
+  const loadActivityPosts = async (profileData?: UserProfile) => {
+    const targetProfile = profileData || profile;
+    if (!targetProfile) return;
+    const windowStart = toLocalDateString(gridStartDate(new Date()));
+    const PAGE_SIZE = 30;
+    const MAX_PAGES = 4;
+    const map: Record<string, FeedPost[]> = {};
+    try {
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const response = await socialFeedApi.getUserPosts(
+          targetProfile.userId,
+          page,
+          PAGE_SIZE,
+        );
+        const content = response?.content ?? [];
+        normalizeFeedPosts(content);
+        for (const post of content) {
+          (map[post.datePerformed] ??= []).push(post);
+        }
+        const oldest = content[content.length - 1];
+        if (response?.last || content.length === 0) break;
+        // Stop once we've paged past the grid window. Compare createdAt (the
+        // pagination order), not datePerformed: createdAt >= datePerformed
+        // always, so any in-window post still has createdAt >= windowStart —
+        // breaking here can never skip one, even for late-synced offline posts.
+        if (oldest && oldest.createdAt < windowStart) break;
+      }
+      setActivityPostsByDate(map);
+    } catch (err) {
+      console.error("Error loading activity posts:", err);
     }
   };
 
@@ -201,17 +468,43 @@ export function Profile() {
     navigation.navigate("Comments", { postId });
   };
 
+  // Tapping an activity circle: one post opens directly in PostDetail, several
+  // open the DayPosts list for that day.
+  const openActivityDay = (dayPosts: FeedPost[]) => {
+    if (dayPosts.length === 1) {
+      navigation.navigate("PostDetail", { postId: dayPosts[0].postId });
+    } else if (dayPosts.length > 1) {
+      navigation.navigate("DayPosts", {
+        posts: dayPosts,
+        dateLabel: formatDayLabel(dayPosts[0].datePerformed),
+      });
+    }
+  };
+
   const ProfileHeader = () => {
     if (!profile) return null;
     const primaryName = profile.displayName?.trim() || profile.username;
-    const streak = profile.workoutStats.workoutStreak ?? 0;
+    const followStatus =
+      profile.followStatus ?? (profile.isFollowing ? "ACCEPTED" : "NONE");
+    const isPrivateAndLocked =
+      !!profile.isPrivate && followStatus !== "ACCEPTED" && isOtherUser;
+    const followLabel =
+      followStatus === "ACCEPTED"
+        ? "Following"
+        : followStatus === "PENDING"
+          ? "Requested"
+          : "Follow";
+    const isFollowActive =
+      followStatus === "ACCEPTED" || followStatus === "PENDING";
+
+    const streak = profile.workoutStats?.workoutStreak ?? 0;
 
     const today = new Date();
     const todayDow = today.getDay();
     const todayIdx = (GRID_ROWS - 1) * GRID_COLS + todayDow;
 
     const activity =
-      profile.workoutStats.dailyActivity ??
+      profile.workoutStats?.dailyActivity ??
       Array<number>(GRID_ROWS * GRID_COLS).fill(0);
 
     const dotColor = (level: number) =>
@@ -251,13 +544,21 @@ export function Profile() {
               @{profile.username}
             </Text>
           </View>
-          {!isOtherUser && (
+          {!isOtherUser ? (
             <TouchableOpacity
               onPress={() => navigation.navigate("Settings")}
               hitSlop={10}
               accessibilityLabel="Settings"
             >
               <Ionicons name="settings-outline" size={34} color={t.text} />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              onPress={handleProfileMenu}
+              hitSlop={10}
+              accessibilityLabel="More options"
+            >
+              <Ionicons name="ellipsis-horizontal" size={24} color={t.text} />
             </TouchableOpacity>
           )}
         </View>
@@ -267,39 +568,49 @@ export function Profile() {
             <Stat
               theme={t}
               label="WORKOUTS"
-              value={profile.workoutStats.totalWorkouts}
+              value={
+                isPrivateAndLocked
+                  ? "–"
+                  : (profile.workoutStats?.totalWorkouts ?? 0)
+              }
             />
             <TouchableOpacity
               style={styles.statCell}
-              activeOpacity={0.7}
-              onPress={() =>
-                navigation.navigate("FollowScreen", {
-                  initialTab: "followers",
-                  userId: profile.userId,
-                  username: profile.username,
-                })
+              activeOpacity={isPrivateAndLocked ? 1 : 0.7}
+              onPress={
+                isPrivateAndLocked
+                  ? undefined
+                  : () =>
+                      navigation.push("FollowScreen", {
+                        initialTab: "followers",
+                        userId: profile.userId,
+                        username: profile.username,
+                      })
               }
             >
               <Stat
                 theme={t}
                 label="FOLLOWERS"
-                value={profile.followersCount}
+                value={isPrivateAndLocked ? "–" : profile.followersCount}
               />
             </TouchableOpacity>
             <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() =>
-                navigation.navigate("FollowScreen", {
-                  initialTab: "following",
-                  userId: profile.userId,
-                  username: profile.username,
-                })
+              activeOpacity={isPrivateAndLocked ? 1 : 0.7}
+              onPress={
+                isPrivateAndLocked
+                  ? undefined
+                  : () =>
+                      navigation.push("FollowScreen", {
+                        initialTab: "following",
+                        userId: profile.userId,
+                        username: profile.username,
+                      })
               }
             >
               <Stat
                 theme={t}
                 label="FOLLOWING"
-                value={profile.followingCount}
+                value={isPrivateAndLocked ? "–" : profile.followingCount}
               />
             </TouchableOpacity>
           </View>
@@ -307,115 +618,143 @@ export function Profile() {
           {isOtherUser && (
             <TouchableOpacity
               activeOpacity={0.85}
+              disabled={followLoading}
               onPress={handleFollowToggle}
               style={[
                 styles.followBtn,
-                profile.isFollowing
+                isFollowActive
                   ? {
                       backgroundColor: "transparent",
                       borderWidth: 1,
                       borderColor: t.border,
                     }
                   : { backgroundColor: t.primaryBg },
+                followLoading && { opacity: 0.6 },
               ]}
             >
               <Text
                 style={[
                   styles.followBtnText,
-                  { color: profile.isFollowing ? t.text : t.primaryText },
+                  { color: isFollowActive ? t.text : t.primaryText },
                 ]}
               >
-                {profile.isFollowing ? "Unfollow" : "Follow"}
+                {followLabel}
               </Text>
             </TouchableOpacity>
           )}
         </View>
 
-        <View style={styles.activitySection}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.overline, { color: t.textMuted }]}>
-              ACTIVITY
-            </Text>
-            <View style={styles.streakInline}>
-              <Svg width={22} height={25} viewBox="0 0 16 18" fill="none">
+        {!isPrivateAndLocked && (
+          <View style={styles.activitySection}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.overline, { color: t.textMuted }]}>
+                ACTIVITY
+              </Text>
+              <View style={styles.streakInline}>
+                <Svg width={22} height={25} viewBox="0 0 16 18" fill="none">
+                  <Path
+                    d="M8 1.5c.8 2.6 3 3.8 3 6.8 0 1.4-.7 2.6-1.8 3.3.4-.6.5-1.4.2-2.3-.3-1-1.1-1.6-1.4-2.6C7.2 9 6 10 6 11.7c0 .6.2 1.2.4 1.7C5.3 12.7 4.5 11.4 4.5 10c0-2.5 1.6-3.8 2.6-5.8.4-.8.7-1.8.9-2.7Z"
+                    stroke="#FF6A1F"
+                    strokeWidth={1.3}
+                    strokeLinejoin="round"
+                    fill="none"
+                  />
+                </Svg>
+                <Text style={[styles.streakNumber, { color: t.text }]}>
+                  {streak}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.weekLabels}>
+              {WEEK_LABELS.map((d, i) => (
+                <View key={i} style={styles.labelCell}>
+                  <Text style={[styles.dayLabel, { color: t.textFaint }]}>
+                    {d}
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            <View style={styles.gridWrap}>
+              {Array.from({ length: GRID_ROWS }).map((_, row) => (
+                <View key={row} style={styles.gridRow}>
+                  {Array.from({ length: GRID_COLS }).map((_, col) => {
+                    const idx = row * GRID_COLS + col;
+                    const isToday = idx === todayIdx;
+                    const dayPosts =
+                      activityPostsByDate[gridDateString(idx, today)];
+                    const dotContent = (
+                      <>
+                        <View
+                          style={[
+                            styles.dot,
+                            { backgroundColor: dotColor(activity[idx]) },
+                          ]}
+                        />
+                        {isToday && (
+                          <View
+                            style={[styles.dotRing, { borderColor: t.text }]}
+                            pointerEvents="none"
+                          />
+                        )}
+                      </>
+                    );
+                    // Only days with a corresponding post are tappable; tapping
+                    // opens the workout(s) for that day.
+                    return dayPosts && dayPosts.length > 0 ? (
+                      <TouchableOpacity
+                        key={col}
+                        style={styles.dotCell}
+                        activeOpacity={0.6}
+                        accessibilityRole="button"
+                        accessibilityLabel="View workout"
+                        onPress={() => openActivityDay(dayPosts)}
+                      >
+                        {dotContent}
+                      </TouchableOpacity>
+                    ) : (
+                      <View key={col} style={styles.dotCell}>
+                        {dotContent}
+                      </View>
+                    );
+                  })}
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {!isPrivateAndLocked && (
+          <View style={styles.postsSectionHeader}>
+            <Text style={[styles.overline, { color: t.textMuted }]}>POSTS</Text>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() =>
+                navigation.navigate("UserPosts", {
+                  userId: profile.userId,
+                  username: profile.username,
+                })
+              }
+              hitSlop={10}
+              style={styles.seeAllBtn}
+            >
+              <Text style={[styles.seeAllText, { color: t.text }]}>
+                See all
+              </Text>
+              <Svg width={12} height={12} viewBox="0 0 12 12" fill="none">
                 <Path
-                  d="M8 1.5c.8 2.6 3 3.8 3 6.8 0 1.4-.7 2.6-1.8 3.3.4-.6.5-1.4.2-2.3-.3-1-1.1-1.6-1.4-2.6C7.2 9 6 10 6 11.7c0 .6.2 1.2.4 1.7C5.3 12.7 4.5 11.4 4.5 10c0-2.5 1.6-3.8 2.6-5.8.4-.8.7-1.8.9-2.7Z"
-                  stroke="#FF6A1F"
-                  strokeWidth={1.3}
+                  d="M4.5 2.5L8 6l-3.5 3.5"
+                  stroke={t.text}
+                  strokeWidth={1.5}
+                  strokeLinecap="round"
                   strokeLinejoin="round"
                   fill="none"
                 />
               </Svg>
-              <Text style={[styles.streakNumber, { color: t.text }]}>
-                {streak}
-              </Text>
-            </View>
+            </TouchableOpacity>
           </View>
-
-          <View style={styles.weekLabels}>
-            {WEEK_LABELS.map((d, i) => (
-              <View key={i} style={styles.labelCell}>
-                <Text style={[styles.dayLabel, { color: t.textFaint }]}>
-                  {d}
-                </Text>
-              </View>
-            ))}
-          </View>
-
-          <View style={styles.gridWrap}>
-            {Array.from({ length: GRID_ROWS }).map((_, row) => (
-              <View key={row} style={styles.gridRow}>
-                {Array.from({ length: GRID_COLS }).map((_, col) => {
-                  const idx = row * GRID_COLS + col;
-                  const isToday = idx === todayIdx;
-                  return (
-                    <View key={col} style={styles.dotCell}>
-                      <View
-                        style={[
-                          styles.dot,
-                          { backgroundColor: dotColor(activity[idx]) },
-                        ]}
-                      />
-                      {isToday && (
-                        <View
-                          style={[styles.dotRing, { borderColor: t.text }]}
-                          pointerEvents="none"
-                        />
-                      )}
-                    </View>
-                  );
-                })}
-              </View>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.postsSectionHeader}>
-          <Text style={[styles.overline, { color: t.textMuted }]}>POSTS</Text>
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() =>
-              navigation.navigate("UserPosts", {
-                userId: profile.userId,
-                username: profile.username,
-              })
-            }
-            hitSlop={10}
-            style={styles.seeAllBtn}
-          >
-            <Text style={[styles.seeAllText, { color: t.text }]}>See all</Text>
-            <Svg width={12} height={12} viewBox="0 0 12 12" fill="none">
-              <Path
-                d="M4.5 2.5L8 6l-3.5 3.5"
-                stroke={t.text}
-                strokeWidth={1.5}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                fill="none"
-              />
-            </Svg>
-          </TouchableOpacity>
-        </View>
+        )}
       </View>
     );
   };
@@ -448,17 +787,43 @@ export function Profile() {
               const profileData = await loadProfile();
               if (profileData) {
                 await loadUserPosts(profileData);
+                await loadActivityPosts(profileData);
               }
               setRefreshing(false);
             }}
           />
         }
       >
-        {profile ? <ProfileHeader /> : <ProfileHeaderSkeleton t={t} />}
+        {/* Call as a function (not <ProfileHeader />) so its output is inlined
+            into this tree; rendering it as a nested component type would remount
+            the subtree — and reset the Avatar's presigned-url state — on every
+            Profile re-render. ProfileHeader uses no hooks, so this is safe. */}
+        {profile ? ProfileHeader() : <ProfileHeaderSkeleton t={t} />}
 
         {profile ? (
-          posts.length > 0 ? (
-            <FeedPostCard post={posts[0]} onOpenComments={handleOpenComments} />
+          profile.isPrivate &&
+          (profile.followStatus ??
+            (profile.isFollowing ? "ACCEPTED" : "NONE")) !== "ACCEPTED" &&
+          isOtherUser ? (
+            <View style={styles.privateContainer}>
+              <Ionicons
+                name="lock-closed-outline"
+                size={48}
+                color={t.textMuted}
+              />
+              <Text style={[styles.privateTitle, { color: t.text }]}>
+                This Account is Private
+              </Text>
+              <Text style={[styles.privateSubtitle, { color: t.textMuted }]}>
+                Follow this account to see their posts.
+              </Text>
+            </View>
+          ) : posts.length > 0 ? (
+            <FeedPostCard
+              post={posts[0]}
+              onOpenComments={handleOpenComments}
+              isPending={isPendingPostId(posts[0].postId)}
+            />
           ) : postsLoading ? (
             <PostCardSkeleton t={t} />
           ) : (
@@ -810,6 +1175,26 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
+  },
+
+  privateContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingTop: 60,
+    paddingHorizontal: 40,
+    gap: 12,
+  },
+  privateTitle: {
+    fontSize: 17,
+    fontWeight: "600",
+    letterSpacing: -0.3,
+    textAlign: "center",
+  },
+  privateSubtitle: {
+    fontSize: 14,
+    textAlign: "center",
+    lineHeight: 20,
   },
 
   loader: {

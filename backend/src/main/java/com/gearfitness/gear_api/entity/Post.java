@@ -12,14 +12,28 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLRestriction;
 
 @Entity
 @Table(name = "post")
+@SQLRestriction("hidden_at IS NULL AND moderation_status = 'VISIBLE'")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class Post {
+
+  public enum PostVisibility {
+    PUBLIC,
+    FRIENDS,
+    PRIVATE,
+  }
+
+  public enum ModerationStatus {
+    VISIBLE,
+    HIDDEN,
+    REMOVED,
+  }
 
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
@@ -40,6 +54,16 @@ public class Post {
 
   @Column(name = "image_url")
   private String imageUrl;
+
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false)
+  @Builder.Default
+  private PostVisibility visibility = PostVisibility.PUBLIC;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "moderation_status", nullable = false)
+  @Builder.Default
+  private ModerationStatus moderationStatus = ModerationStatus.VISIBLE;
 
   @Column(columnDefinition = "TEXT")
   private String caption;
@@ -66,4 +90,7 @@ public class Post {
   @ToString.Exclude
   @EqualsAndHashCode.Exclude
   private Set<Notification> notifications = new HashSet<>();
+
+  @Column(name = "hidden_at")
+  private LocalDateTime hiddenAt;
 }

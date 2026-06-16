@@ -30,6 +30,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import stopwatch from "../assets/stopwatch.png";
 import { useWorkoutTimer, WorkoutSet } from "../context/WorkoutContext";
+import { useUnitPreference } from "../context/UnitPreferenceContext";
+import { toDisplayWeight, toLbs, type WeightUnit } from "../utils/weight";
 import { useSwipeableDelete } from "../hooks/useSwipeableDelete";
 import { BodyPartDTO } from "../api/exerciseService";
 import { FloatingCloseButton } from "./FloatingCloseButton";
@@ -46,6 +48,7 @@ interface ExerciseDetailContentProps {
     durationSeconds?: number;
     draftReps?: string;
     draftWeight?: string;
+    weightUnit?: WeightUnit;
   };
   onSummary: () => void;
   onAddExercise: () => void;
@@ -84,16 +87,31 @@ type EditingState = {
   previousWeight: string;
 } | null;
 
-const BAR_WEIGHT = 45;
-const PLATE_OPTIONS = [45, 35, 25, 10, 5, 2.5];
-const PLATE_HEIGHTS: Record<string, number> = {
-  "45": 36,
-  "35": 32,
-  "25": 28,
-  "10": 22,
-  "5": 18,
-  "2.5": 14,
-};
+// Standard Olympic plate sets and bar weights, in the unit being used. Plate
+// loading is a physical concept, so the kg user gets kg plates/bar — not a
+// converted lb set. The hero weight input and these constants share the same
+// unit (the user's display unit); conversion to canonical lbs happens only
+// when a set is committed.
+const BAR_WEIGHT_LBS = 45;
+const BAR_WEIGHT_KG = 20;
+const PLATE_OPTIONS_LBS = [45, 35, 25, 10, 5, 2.5];
+const PLATE_OPTIONS_KG = [25, 20, 15, 10, 5, 2.5, 1.25];
+// Visual bar heights by plate rank (largest plate → tallest), so a single
+// table works for both unit systems regardless of the plates' face values.
+const PLATE_BAR_HEIGHTS = [36, 32, 28, 24, 20, 16, 12];
+
+function barWeightFor(unit: WeightUnit): number {
+  return unit === "kg" ? BAR_WEIGHT_KG : BAR_WEIGHT_LBS;
+}
+
+function plateOptionsFor(unit: WeightUnit): number[] {
+  return unit === "kg" ? PLATE_OPTIONS_KG : PLATE_OPTIONS_LBS;
+}
+
+function plateHeight(p: number, plateOptions: number[]): number {
+  const i = plateOptions.indexOf(p);
+  return i >= 0 ? (PLATE_BAR_HEIGHTS[i] ?? 22) : 22;
+}
 
 type PlateMode = "dual" | "single";
 
@@ -101,17 +119,31 @@ function platesFromWeight(
   weight: string,
   mode: PlateMode,
   bar: number,
+  plateOptions: number[],
 ): number[] {
   const divisor = mode === "single" ? 1 : 2;
   let remaining = Math.max(0, (Number(weight || 0) - bar) / divisor);
   const stack: number[] = [];
-  for (const p of PLATE_OPTIONS) {
+  for (const p of plateOptions) {
     while (remaining >= p - 0.0001) {
       stack.push(p);
       remaining -= p;
     }
   }
   return stack;
+}
+
+function roundToPlateWeight(
+  weight: number,
+  mode: PlateMode,
+  bar: number,
+  plateOptions: number[],
+): number {
+  const divisor = mode === "single" ? 1 : 2;
+  const smallest = plateOptions[plateOptions.length - 1];
+  const perSide = Math.max(0, (weight - bar) / divisor);
+  const roundedSide = Math.round(perSide / smallest) * smallest;
+  return bar + roundedSide * divisor;
 }
 
 function formatWeight(n: number): string {
@@ -145,6 +177,30 @@ export const ExerciseDetailContent = forwardRef<
   const isDark = useColorScheme() === "dark";
   const insets = useSafeAreaInsets();
   const glassAvailable = isLiquidGlassAvailable();
+  const { weightUnit: globalUnit } = useUnitPreference();
+  // Per-exercise unit override, scoped to this workout (persisted on the
+  // WorkoutExercise, not globally). Lets you log everything in lbs but track,
+  // say, bench in kg. Resets to the global Settings unit for the next workout.
+  const [overrideUnit, setOverrideUnit] = useState<WeightUnit | undefined>(
+    exercise.weightUnit,
+  );
+  const weightUnit = overrideUnit ?? globalUnit;
+
+  // The hero weight input (currentWeight) and draftWeight are held in the
+  // user's display unit; everything persisted — loggedSets, WorkoutSet, and the
+  // submitted payload — stays canonical lbs. Convert only at this boundary.
+  const BAR_WEIGHT = barWeightFor(weightUnit);
+  const PLATE_OPTIONS = plateOptionsFor(weightUnit);
+  const lbsToInput = (lbs: string): string => {
+    const n = Number(lbs);
+    if (!lbs || lbs.trim() === "" || Number.isNaN(n)) return "";
+    return String(toDisplayWeight(n, weightUnit));
+  };
+  const inputToLbs = (display: string): string => {
+    const n = Number(display);
+    if (display.trim() === "" || Number.isNaN(n)) return "";
+    return String(toLbs(n, weightUnit));
+  };
 
   const colors: ThemeColors = isDark
     ? {
@@ -207,14 +263,33 @@ export const ExerciseDetailContent = forwardRef<
 
   const plateBar = plateBarOn ? BAR_WEIGHT : 0;
   const plateMultiplier = plateMode === "single" ? 1 : 2;
-  const plateStack = platesFromWeight(currentWeight, plateMode, plateBar);
+  const plateStack = platesFromWeight(
+    currentWeight,
+    plateMode,
+    plateBar,
+    PLATE_OPTIONS,
+  );
   const plateSideTotal = plateStack.reduce((a, b) => a + b, 0);
 
   const togglePlatesEnabled = () => {
     const next = !platesEnabled;
     setPlatesEnabled(next);
     setPlatesOpen(next);
-    if (next) setCurrentWeight(formatWeight(plateBar));
+    if (next) {
+      const current = Number(currentWeight || 0);
+      if (current > 0) {
+        const useBar = current >= BAR_WEIGHT;
+        const bar = useBar ? BAR_WEIGHT : 0;
+        setPlateBarOn(useBar);
+        setCurrentWeight(
+          formatWeight(
+            roundToPlateWeight(current, plateMode, bar, PLATE_OPTIONS),
+          ),
+        );
+      } else {
+        setCurrentWeight(formatWeight(plateBar));
+      }
+    }
   };
 
   const handleAddPlate = (p: number) => {
@@ -247,6 +322,26 @@ export const ExerciseDetailContent = forwardRef<
     const next = nextBar + plateSideTotal * plateMultiplier;
     setPlateBarOn(nextBarOn);
     setCurrentWeight(formatWeight(next));
+  };
+
+  // Tapping the unit label flips THIS exercise's unit for the current workout
+  // (not the app-wide default — that lives in Settings). The in-progress input
+  // is converted so the physical weight is preserved (e.g. 100 lbs → 45 kg).
+  // Logged sets are stored in canonical lbs and re-render in the new unit
+  // automatically; the plate calculator switches to that unit's plates. The
+  // override is workout-scoped and resets to the global default next workout.
+  const handleToggleUnit = () => {
+    const next: WeightUnit = weightUnit === "kg" ? "lbs" : "kg";
+    const n = Number(currentWeight);
+    const converted =
+      currentWeight.trim() !== "" && !Number.isNaN(n)
+        ? String(toDisplayWeight(toLbs(n, weightUnit), next))
+        : currentWeight;
+    setCurrentWeight(converted);
+    setOverrideUnit(next);
+    // Persist atomically so a save racing this toggle can't drop the unit or
+    // the freshly-converted draft.
+    saveExercise({ weightUnit: next, draftWeight: converted });
   };
 
   useEffect(() => {
@@ -305,6 +400,7 @@ export const ExerciseDetailContent = forwardRef<
     sets?: WorkoutSet[];
     draftReps?: string;
     draftWeight?: string;
+    weightUnit?: WeightUnit;
   }) => {
     let allSets: WorkoutSet[];
     if (overrides?.sets) {
@@ -316,7 +412,10 @@ export const ExerciseDetailContent = forwardRef<
       }));
       if (editing) {
         const r = currentReps.trim() || editing.originalReps;
-        const w = currentWeight.trim() || editing.originalWeight;
+        // currentWeight is in the display unit; originalWeight is already lbs.
+        const w = currentWeight.trim()
+          ? inputToLbs(currentWeight.trim())
+          : editing.originalWeight;
         if (r && w) {
           allSets.splice(editing.originalIndex, 0, { reps: r, weight: w });
         }
@@ -334,6 +433,7 @@ export const ExerciseDetailContent = forwardRef<
       durationSeconds: exercise.durationSeconds,
       draftReps: overrides?.draftReps ?? currentReps,
       draftWeight: overrides?.draftWeight ?? currentWeight,
+      weightUnit: overrides?.weightUnit ?? overrideUnit,
     });
   };
 
@@ -348,7 +448,8 @@ export const ExerciseDetailContent = forwardRef<
     if (!currentReps.trim() || !currentWeight.trim()) return;
     if (editing) {
       const reps = currentReps.trim();
-      const weight = currentWeight.trim();
+      // Persisted set weight is canonical lbs; the input is in the display unit.
+      const weight = inputToLbs(currentWeight.trim());
       const editingId = editing.id;
       const insertAt = editing.originalIndex;
       const previousReps = editing.previousReps;
@@ -377,7 +478,8 @@ export const ExerciseDetailContent = forwardRef<
       {
         id: Date.now().toString(),
         reps: currentReps.trim(),
-        weight: currentWeight.trim(),
+        // Store canonical lbs; the input is in the display unit.
+        weight: inputToLbs(currentWeight.trim()),
       },
     ];
     setLoggedSets(nextLogged);
@@ -398,7 +500,10 @@ export const ExerciseDetailContent = forwardRef<
     if (editing) {
       if (editing.id === set.id) return;
       const reps = currentReps.trim() || editing.originalReps;
-      const weight = currentWeight.trim() || editing.originalWeight;
+      // currentWeight is in the display unit; originalWeight is already lbs.
+      const weight = currentWeight.trim()
+        ? inputToLbs(currentWeight.trim())
+        : editing.originalWeight;
       workingSets = [...loggedSets];
       workingSets.splice(editing.originalIndex, 0, {
         id: editing.id,
@@ -422,7 +527,8 @@ export const ExerciseDetailContent = forwardRef<
       previousWeight: stashedPrevWeight,
     });
     setCurrentReps(set.reps);
-    setCurrentWeight(set.weight);
+    // Stored set weight is canonical lbs; show it in the display unit.
+    setCurrentWeight(lbsToInput(set.weight));
   };
 
   const getDisplayIdx = (arrayIdx: number) =>
@@ -629,11 +735,12 @@ export const ExerciseDetailContent = forwardRef<
               />
               <HeroInput
                 label="Weight"
-                unit="lbs"
+                unit={weightUnit}
                 value={currentWeight}
                 onChangeText={setCurrentWeight}
                 colors={colors}
                 allowDecimal
+                onUnitPress={handleToggleUnit}
               />
               <View
                 style={[styles.heroDivider, { backgroundColor: colors.border }]}
@@ -641,9 +748,7 @@ export const ExerciseDetailContent = forwardRef<
               <PlateLoaderToggle
                 colors={colors}
                 enabled={platesEnabled}
-                open={platesOpen}
                 onToggleEnabled={togglePlatesEnabled}
-                onToggleOpen={() => setPlatesOpen((v) => !v)}
                 bar={plateBar}
                 sideTotal={plateSideTotal}
                 mode={plateMode}
@@ -665,6 +770,8 @@ export const ExerciseDetailContent = forwardRef<
                     bar={plateBar}
                     barOn={plateBarOn}
                     mode={plateMode}
+                    barWeight={BAR_WEIGHT}
+                    plateOptions={PLATE_OPTIONS}
                     onAddPlate={handleAddPlate}
                     onPopPlate={handlePopPlate}
                     onClear={handleClearPlates}
@@ -739,6 +846,7 @@ export const ExerciseDetailContent = forwardRef<
                           idx={getDisplayIdx(loggedSets.length - 1 - index)}
                           reps={item.reps}
                           weight={item.weight}
+                          unit={weightUnit}
                           onEdit={() => handleEditSet(item)}
                         />
                       </ReanimatedSwipeable>
@@ -749,6 +857,7 @@ export const ExerciseDetailContent = forwardRef<
                 <StackedSets
                   colors={colors}
                   loggedSets={loggedSets}
+                  unit={weightUnit}
                   onExpand={() => setExpanded(true)}
                   newestDisplayIdx={getDisplayIdx(loggedSets.length - 1)}
                   onEditNewest={() =>
@@ -891,6 +1000,7 @@ function HeroInput({
   unit,
   colors,
   allowDecimal,
+  onUnitPress,
 }: {
   label: string;
   value: string;
@@ -898,6 +1008,7 @@ function HeroInput({
   unit?: string;
   colors: ThemeColors;
   allowDecimal?: boolean;
+  onUnitPress?: () => void;
 }) {
   return (
     <View style={heroStyles.row}>
@@ -915,11 +1026,23 @@ function HeroInput({
           style={[heroStyles.input, { color: colors.text }]}
           selectTextOnFocus
         />
-        {unit && (
-          <Text style={[heroStyles.unit, { color: colors.textFaint }]}>
-            {unit}
-          </Text>
-        )}
+        {unit &&
+          (onUnitPress ? (
+            <TouchableOpacity
+              onPress={onUnitPress}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityRole="button"
+              accessibilityLabel={`Weight unit: ${unit}. Tap to change.`}
+            >
+              <Text style={[heroStyles.unit, { color: colors.textFaint }]}>
+                {unit}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <Text style={[heroStyles.unit, { color: colors.textFaint }]}>
+              {unit}
+            </Text>
+          ))}
       </View>
     </View>
   );
@@ -930,12 +1053,14 @@ function SetRow({
   idx,
   reps,
   weight,
+  unit,
   onEdit,
 }: {
   colors: ThemeColors;
   idx: number;
   reps: string;
   weight: string;
+  unit: WeightUnit;
   onEdit?: () => void;
 }) {
   return (
@@ -959,10 +1084,10 @@ function SetRow({
       </View>
       <View style={setStyles.cell}>
         <Text style={[setStyles.value, { color: colors.text }]}>
-          {weight}
+          {toDisplayWeight(Number(weight) || 0, unit)}
           <Text style={[setStyles.unit, { color: colors.textFaint }]}>
             {" "}
-            lbs
+            {unit}
           </Text>
         </Text>
       </View>
@@ -984,6 +1109,7 @@ function SetRow({
 function StackedSets({
   colors,
   loggedSets,
+  unit,
   onExpand,
   newestDisplayIdx,
   onEditNewest,
@@ -991,6 +1117,7 @@ function StackedSets({
 }: {
   colors: ThemeColors;
   loggedSets: LoggedSet[];
+  unit: WeightUnit;
   onExpand: () => void;
   newestDisplayIdx: number;
   onEditNewest: () => void;
@@ -1029,6 +1156,7 @@ function StackedSets({
             idx={newestDisplayIdx}
             reps={newest.reps}
             weight={newest.weight}
+            unit={unit}
             onEdit={onEditNewest}
           />
         </ReanimatedSwipeable>
@@ -1079,9 +1207,7 @@ function PlateToggleSwitch({
 function PlateLoaderToggle({
   colors,
   enabled,
-  open,
   onToggleEnabled,
-  onToggleOpen,
   bar,
   sideTotal,
   mode,
@@ -1089,9 +1215,7 @@ function PlateLoaderToggle({
 }: {
   colors: ThemeColors;
   enabled: boolean;
-  open: boolean;
   onToggleEnabled: () => void;
-  onToggleOpen: () => void;
   bar: number;
   sideTotal: number;
   mode: PlateMode;
@@ -1106,11 +1230,7 @@ function PlateLoaderToggle({
 
   return (
     <View style={plateStyles.toggleRow}>
-      <TouchableOpacity
-        activeOpacity={0.7}
-        onPress={enabled ? onToggleOpen : onToggleEnabled}
-        style={plateStyles.toggleLabelArea}
-      >
+      <View style={plateStyles.toggleLabelArea}>
         <Text style={[plateStyles.toggleOverline, { color: colors.textMuted }]}>
           PLATE LOADED
         </Text>
@@ -1121,15 +1241,8 @@ function PlateLoaderToggle({
             {summary}
           </Text>
         )}
-      </TouchableOpacity>
+      </View>
       <View style={plateStyles.toggleControls}>
-        {enabled && (
-          <SymbolView
-            name={open ? "chevron.up" : "chevron.down"}
-            tintColor={colors.textMuted}
-            size={12}
-          />
-        )}
         <PlateToggleSwitch
           enabled={enabled}
           colors={colors}
@@ -1148,6 +1261,8 @@ function PlateLoader({
   bar,
   barOn,
   mode,
+  barWeight,
+  plateOptions,
   onAddPlate,
   onPopPlate,
   onClear,
@@ -1161,6 +1276,8 @@ function PlateLoader({
   bar: number;
   barOn: boolean;
   mode: PlateMode;
+  barWeight: number;
+  plateOptions: number[];
   onAddPlate: (p: number) => void;
   onPopPlate: () => void;
   onClear: () => void;
@@ -1244,7 +1361,7 @@ function PlateLoader({
           Include bar
           <Text style={{ color: colors.textFaint, fontWeight: "400" }}>
             {"  "}
-            {barOn ? `+${BAR_WEIGHT}` : "—"}
+            {barOn ? `+${barWeight}` : "—"}
           </Text>
         </Text>
         <PlateToggleSwitch
@@ -1268,7 +1385,7 @@ function PlateLoader({
                   style={[
                     plateStyles.plateBar,
                     {
-                      height: PLATE_HEIGHTS[String(p)] ?? 22,
+                      height: plateHeight(p, plateOptions),
                       backgroundColor: colors.text,
                     },
                   ]}
@@ -1304,7 +1421,7 @@ function PlateLoader({
                   style={[
                     plateStyles.plateBar,
                     {
-                      height: PLATE_HEIGHTS[String(p)] ?? 22,
+                      height: plateHeight(p, plateOptions),
                       backgroundColor: colors.text,
                     },
                   ]}
@@ -1344,7 +1461,7 @@ function PlateLoader({
                   style={[
                     plateStyles.plateBar,
                     {
-                      height: PLATE_HEIGHTS[String(p)] ?? 22,
+                      height: plateHeight(p, plateOptions),
                       backgroundColor: colors.text,
                     },
                   ]}
@@ -1356,7 +1473,7 @@ function PlateLoader({
       </TouchableOpacity>
 
       <View style={plateStyles.plateGrid}>
-        {[...PLATE_OPTIONS].reverse().map((p) => (
+        {[...plateOptions].reverse().map((p) => (
           <TouchableOpacity
             key={p}
             onPress={() => onAddPlate(p)}
@@ -1707,7 +1824,7 @@ const heroStyles = StyleSheet.create({
     fontVariant: ["tabular-nums"],
   },
   unit: {
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: "500",
     marginLeft: 8,
   },

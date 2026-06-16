@@ -10,6 +10,13 @@ public class FollowerDTO {
   public String profilePictureUrl;
   public boolean isFollowing;
 
+  /**
+   * Current viewer's relationship toward this user: "ACCEPTED", "PENDING",
+   * "BLOCKED", or "NONE". Drives the follow button's Follow / Requested /
+   * Following states.
+   */
+  public String followStatus;
+
   public FollowerDTO(
     UUID userId,
     String username,
@@ -27,13 +34,14 @@ public class FollowerDTO {
     String username,
     String displayName,
     String profilePictureUrl,
-    boolean isFollowing
+    String followStatus
   ) {
     this.userId = userId;
     this.username = username;
     this.displayName = displayName;
     this.profilePictureUrl = profilePictureUrl;
-    this.isFollowing = isFollowing;
+    this.followStatus = followStatus;
+    this.isFollowing = "ACCEPTED".equals(followStatus);
   }
 
   public UUID getUserId() {
@@ -54,5 +62,9 @@ public class FollowerDTO {
 
   public boolean isFollowing() {
     return isFollowing;
+  }
+
+  public String getFollowStatus() {
+    return followStatus;
   }
 }

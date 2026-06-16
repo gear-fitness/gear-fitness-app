@@ -13,10 +13,16 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import bench from "../../assets/bench.png";
 import squat from "../../assets/squat.png";
 import deadlift from "../../assets/deadlift.png";
-import { getUserPersonalRecords } from "../../api/workoutService";
+import {
+  getCachedPersonalRecords,
+  getUserPersonalRecords,
+} from "../../api/workoutService";
 import { PersonalRecord } from "../../api/types";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
+import { subscribeOnlineStatus } from "../../utils/network";
+import { useUnitPreference } from "../../context/UnitPreferenceContext";
+import { toDisplayWeight } from "../../utils/weight";
 
 type RootStackParamList = {
   PR: { userId: string };
@@ -32,23 +38,48 @@ export function PR({ route }: Props) {
   const insets = useSafeAreaInsets();
   const { userId } = route.params;
 
+  const { weightUnit } = useUnitPreference();
   const [prs, setPrs] = useState<PersonalRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Paint from the offline cache while the live request is in flight. Stops
+  // the loading spinner from blocking the screen when the device is offline.
   useEffect(() => {
-    const fetchPRs = async () => {
-      try {
-        const data = await getUserPersonalRecords(userId);
-        setPrs(data);
-        setLoading(false);
-      } catch (err: any) {
-        console.error("Error loading PRs:", err);
+    let cancelled = false;
+    (async () => {
+      const cached = await getCachedPersonalRecords(userId);
+      if (!cancelled && cached.length > 0) {
+        setPrs((prev) => (prev.length === 0 ? cached : prev));
         setLoading(false);
       }
+    })();
+    return () => {
+      cancelled = true;
     };
-
-    fetchPRs();
   }, [userId]);
+
+  const fetchPRs = React.useCallback(async () => {
+    try {
+      const data = await getUserPersonalRecords(userId);
+      setPrs(data);
+    } catch (err: any) {
+      console.error("Error loading PRs:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    fetchPRs();
+  }, [fetchPRs]);
+
+  // Refresh when connectivity returns so newly-set PRs (from a queued
+  // offline workout that just synced) show up without manual reload.
+  useEffect(() => {
+    return subscribeOnlineStatus((online) => {
+      if (online) fetchPRs();
+    });
+  }, [fetchPRs]);
 
   const getImageForExercise = (exerciseName: string) => {
     if (exerciseName === "Bench Press") return bench;
@@ -62,10 +93,10 @@ export function PR({ route }: Props) {
       return `${pr.exerciseName.toUpperCase()}\nNo PR recorded yet`;
     }
 
-    // Weight is already in lbs from backend - no conversion needed
-    const weightLbs = Math.round(pr.maxWeight);
+    // maxWeight is canonical lbs from the backend — convert to the user's unit.
+    const weight = Math.round(toDisplayWeight(pr.maxWeight, weightUnit));
 
-    return `${pr.exerciseName.toUpperCase()}\n${weightLbs} LBS x ${
+    return `${pr.exerciseName.toUpperCase()}\n${weight} ${weightUnit.toUpperCase()} x ${
       pr.repsAtMaxWeight
     } REPS\n${pr.dateAchieved || ""}`;
   };

@@ -23,6 +23,7 @@ import { FollowerUser } from "../../api/types";
 import { Avatar } from "../../components/Avatar";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
+import { useFollowStatus } from "../../context/FollowStatusContext";
 
 type Tab = "followers" | "following";
 
@@ -66,6 +67,11 @@ export default function FollowScreen() {
   const [loading, setLoading] = useState(true);
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
+  // Shared follow-status overrides. Lets a follow/unfollow done on a user's
+  // profile (after tapping into it from this list) flip their row's button here
+  // without reloading the whole list.
+  const { overrides, setFollowStatus: publishFollowStatus } = useFollowStatus();
+
   const loadData = useCallback(async () => {
     setLoading(true);
     if (!userId) {
@@ -96,22 +102,40 @@ export default function FollowScreen() {
   const handleFollowToggle = async (user: FollowerUser) => {
     if (!user.userId) return;
 
+    // Match the action to what the row actually shows (override wins).
+    const status =
+      overrides[user.userId] ??
+      user.followStatus ??
+      (user.isFollowing ? "ACCEPTED" : "NONE");
+
+    const setStatus = (newStatus: "ACCEPTED" | "PENDING" | "NONE") => {
+      const apply = (list: FollowerUser[]) =>
+        list.map((u) =>
+          u.userId === user.userId
+            ? {
+                ...u,
+                followStatus: newStatus,
+                isFollowing: newStatus === "ACCEPTED",
+              }
+            : u,
+        );
+      setFollowers((prev) => apply(prev));
+      setFollowing((prev) => apply(prev));
+      publishFollowStatus(user.userId, newStatus);
+    };
+
     try {
       setTogglingId(user.userId);
 
-      if (user.isFollowing) {
+      if (status === "ACCEPTED" || status === "PENDING") {
+        // Following → unfollow; Requested → cancel the pending request
         await unfollowUser(user.userId);
+        setStatus("NONE");
       } else {
-        await followUserByUsername(user.username);
+        // Private accounts return PENDING (Requested), public return ACCEPTED
+        const response = await followUserByUsername(user.username);
+        setStatus(response.status === "ACCEPTED" ? "ACCEPTED" : "PENDING");
       }
-
-      const flip = (list: FollowerUser[]) =>
-        list.map((u) =>
-          u.userId === user.userId ? { ...u, isFollowing: !u.isFollowing } : u,
-        );
-
-      setFollowers((prev) => flip(prev));
-      setFollowing((prev) => flip(prev));
     } catch (e) {
       console.error("Failed to toggle follow", e);
       Alert.alert("Error", "Failed to update follow status");
@@ -127,6 +151,20 @@ export default function FollowScreen() {
   const renderItem = ({ item }: { item: FollowerUser }) => {
     const isToggling = togglingId === item.userId;
     const isCurrentUser = item.username === currentUsername;
+    // A shared override (set when the user toggled follow on this person's
+    // profile or elsewhere) wins over the status the list was loaded with.
+    const status =
+      overrides[item.userId] ??
+      item.followStatus ??
+      (item.isFollowing ? "ACCEPTED" : "NONE");
+    // "Following" and "Requested" share the same outlined treatment
+    const isFollowActive = status === "ACCEPTED" || status === "PENDING";
+    const followLabel =
+      status === "ACCEPTED"
+        ? "Following"
+        : status === "PENDING"
+          ? "Requested"
+          : "Follow";
 
     return (
       <Pressable
@@ -140,7 +178,11 @@ export default function FollowScreen() {
         disabled={isCurrentUser}
         onPress={() => {
           if (isCurrentUser) return;
-          navigation.navigate("UserProfile", { username: item.username });
+          // push (not navigate) so tapping a user from a follow list stacks a
+          // fresh profile on top instead of popping back to an existing
+          // UserProfile in the stack — which would tear this screen (and its
+          // scroll position) out from underneath.
+          navigation.push("UserProfile", { username: item.username });
         }}
       >
         <Avatar
@@ -161,7 +203,7 @@ export default function FollowScreen() {
           <TouchableOpacity
             style={[
               styles.followBtn,
-              item.isFollowing
+              isFollowActive
                 ? [styles.followingBtn, { borderColor: c.followingBorder }]
                 : [styles.notFollowingBtn, { backgroundColor: c.followBtn }],
             ]}
@@ -172,18 +214,18 @@ export default function FollowScreen() {
             {isToggling ? (
               <ActivityIndicator
                 size="small"
-                color={item.isFollowing ? c.followingText : c.followBtnText}
+                color={isFollowActive ? c.followingText : c.followBtnText}
               />
             ) : (
               <Text
                 style={[
                   styles.followBtnText,
                   {
-                    color: item.isFollowing ? c.followingText : c.followBtnText,
+                    color: isFollowActive ? c.followingText : c.followBtnText,
                   },
                 ]}
               >
-                {item.isFollowing ? "Following" : "Follow"}
+                {followLabel}
               </Text>
             )}
           </TouchableOpacity>

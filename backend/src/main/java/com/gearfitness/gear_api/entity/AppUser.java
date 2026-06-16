@@ -14,10 +14,12 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLRestriction;
 
 @Entity
 @Table(name = "app_user")
 @Data
+@SQLRestriction("deleted_at IS NULL")
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -62,6 +64,11 @@ public class AppUser {
   @Column(name = "expo_push_token")
   private String expoPushToken;
 
+  // IANA zone id (e.g. "America/Denver") reported by the device, used to fire
+  // streak notifications at the user's local midnight rather than UTC.
+  @Column(name = "time_zone")
+  private String timeZone;
+
   @Column(name = "current_streak", nullable = false)
   @Builder.Default
   private Integer currentStreak = 0;
@@ -76,6 +83,9 @@ public class AppUser {
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
   private LocalDateTime createdAt;
+
+  @Column(name = "deleted_at")
+  private LocalDateTime deletedAt;
 
   // Relationships
   @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -127,4 +137,7 @@ public class AppUser {
   @ToString.Exclude
   @EqualsAndHashCode.Exclude
   private Set<Follow> followers = new HashSet<>();
+
+  @Column(name = "apple_user_id", unique = true)
+  private String appleUserId;
 }

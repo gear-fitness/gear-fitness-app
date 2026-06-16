@@ -19,7 +19,9 @@ import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
 import { CompactPostCard } from "../../components/CompactPostCard";
 import { FeedPostCard } from "../../components/FeedPostCard";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
+import { OfflineNotice } from "../../components/OfflineNotice";
 import { useTrackTab } from "../../hooks/useTrackTab";
+import { useOnlineStatus } from "../../hooks/useOnlineStatus";
 
 const PAGE_SIZE = 20;
 const GRID_PADDING_HORIZONTAL = 12;
@@ -67,6 +69,7 @@ export function UserPosts() {
   const [hasMore, setHasMore] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const normalizeFeedPosts = useNormalizeFeedPosts();
+  const online = useOnlineStatus();
 
   const cardWidth = (windowWidth - GRID_PADDING_HORIZONTAL * 2 - GRID_GAP) / 2;
 
@@ -110,6 +113,15 @@ export function UserPosts() {
   };
 
   const isGrid = viewMode === "grid";
+
+  if (!online) {
+    return (
+      <View style={{ flex: 1, backgroundColor: t.bg }}>
+        <FloatingCloseButton direction="left" accessibilityLabel="Back" />
+        <OfflineNotice message="Go back online to view all of your posts." />
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>

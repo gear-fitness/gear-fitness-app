@@ -34,6 +34,12 @@ import {
   resolveBodyVariant,
 } from "../../utils/muscleActivations";
 import { useAuth } from "../../context/AuthContext";
+import { useUnitPreference } from "../../context/UnitPreferenceContext";
+import {
+  toDisplayWeight,
+  formatWeight,
+  type WeightUnit,
+} from "../../utils/weight";
 
 const CHART_HEIGHT = 200;
 const CHART_PADDING = { top: 24, right: 20, bottom: 30, left: 50 };
@@ -54,11 +60,8 @@ const CHART_TITLES: Record<ChartType, string> = {
   session_max: "Heaviest Weight Per Session",
 };
 
-const CHART_UNITS: Record<ChartType, string> = {
-  pr: "lbs",
-  volume: "total lbs",
-  session_max: "lbs",
-};
+const chartUnitLabel = (type: ChartType, unit: WeightUnit): string =>
+  type === "volume" ? `total ${unit}` : unit;
 
 export function ExerciseHistory() {
   const navigation = useNavigation<any>();
@@ -103,10 +106,16 @@ export function ExerciseHistory() {
   const [error, setError] = useState<string | null>(null);
   const [timeScope, setTimeScope] = useState<TimeScope>("all");
   const [activeChartIndex, setActiveChartIndex] = useState(0);
+  const [historyExpanded, setHistoryExpanded] = useState(false);
 
   const screenWidth = Dimensions.get("window").width;
   const chartWidth = screenWidth - 70;
   const { user } = useAuth();
+  const { weightUnit: globalUnit } = useUnitPreference();
+  // Match the unit this exercise is being logged in this workout (its override,
+  // or the app-wide default) so the charts/history align with the logging
+  // screen. `exercise` here is the WorkoutExercise passed from that screen.
+  const weightUnit = exercise?.weightUnit ?? globalUnit;
   const bodyVariant: BodyVariant = resolveBodyVariant(user?.gender);
 
   const chartTypes: ChartType[] = ["pr", "session_max", "volume"];
@@ -442,7 +451,9 @@ export function ExerciseHistory() {
                   { color: colors.text },
                 ]}
               >
-                {set.weightLbs != null ? `${set.weightLbs} lbs` : "—"}
+                {set.weightLbs != null
+                  ? formatWeight(set.weightLbs, weightUnit, { allowZero: true })
+                  : "—"}
               </Text>
               <Text
                 style={[styles.setCell, styles.xCol, { color: colors.text }]}
@@ -496,13 +507,19 @@ export function ExerciseHistory() {
     );
   }
 
+  // All chart data is computed in canonical lbs; convert the plotted values to
+  // the user's unit so the axis scale matches the labels. lbs→kg is linear, so
+  // this is also correct for volume (total lb·reps → total kg·reps).
+  const toUnit = (data: { date: string; value: number }[]) =>
+    data.map((d) => ({ ...d, value: toDisplayWeight(d.value, weightUnit) }));
+
   const chartPages: {
     key: ChartType;
     data: { date: string; value: number }[];
   }[] = [
-    { key: "pr", data: prChartData },
-    { key: "session_max", data: sessionMaxChartData },
-    { key: "volume", data: volumeChartData },
+    { key: "pr", data: toUnit(prChartData) },
+    { key: "session_max", data: toUnit(sessionMaxChartData) },
+    { key: "volume", data: toUnit(volumeChartData) },
   ];
 
   return (
@@ -528,6 +545,23 @@ export function ExerciseHistory() {
           </Text>
         </View>
 
+        {/* Muscles Worked */}
+        {(() => {
+          const bodyParts = history?.bodyParts ?? exercise?.bodyParts ?? [];
+          if (bodyParts.length === 0) return null;
+          return (
+            <View style={styles.musclesSection}>
+              <MusclesPair
+                activations={computeExerciseActivations(bodyParts)}
+                variant={bodyVariant}
+                width={110}
+                captionStyle={{ color: colors.subtle }}
+                {...defaultDiagramPalette(isDark)}
+              />
+            </View>
+          );
+        })()}
+
         {/* Stats Row */}
         <View style={styles.statsRow}>
           <View style={[styles.statCard, { backgroundColor: colors.card }]}>
@@ -542,17 +576,21 @@ export function ExerciseHistory() {
           <View style={[styles.statCard, { backgroundColor: colors.card }]}>
             <Text style={[styles.statValue, { color: colors.text }]}>
               {history?.personalRecordLbs
-                ? `${history.personalRecordLbs}`
+                ? `${toDisplayWeight(history.personalRecordLbs, weightUnit)}`
                 : "—"}
             </Text>
             <Text style={[styles.statLabel, { color: colors.subtle }]}>
-              PR (lbs)
+              PR ({weightUnit})
             </Text>
           </View>
 
           <View style={[styles.statCard, { backgroundColor: colors.card }]}>
             <Text style={[styles.statValue, { color: colors.text }]}>
-              {bestVolume ? bestVolume.toLocaleString() : "—"}
+              {bestVolume
+                ? Math.round(
+                    toDisplayWeight(bestVolume, weightUnit),
+                  ).toLocaleString()
+                : "—"}
             </Text>
             <Text style={[styles.statLabel, { color: colors.subtle }]}>
               Best Vol
@@ -600,7 +638,7 @@ export function ExerciseHistory() {
               {CHART_TITLES[activeChart]}
             </Text>
             <Text style={[styles.chartUnit, { color: colors.subtle }]}>
-              {CHART_UNITS[activeChart]}
+              {chartUnitLabel(activeChart, weightUnit)}
             </Text>
           </View>
 
@@ -642,14 +680,28 @@ export function ExerciseHistory() {
 
         {/* History Section */}
         <View style={styles.historySection}>
-          <View style={styles.historyHeader}>
+          <TouchableOpacity
+            style={styles.historyHeader}
+            onPress={() => setHistoryExpanded((prev) => !prev)}
+            activeOpacity={scopedSessions.length > 1 ? 0.6 : 1}
+            disabled={scopedSessions.length <= 1}
+          >
             <Text style={[styles.sectionTitle, { color: colors.text }]}>
               History
             </Text>
-          </View>
+            {scopedSessions.length > 1 && (
+              <Text style={[styles.historyToggle, { color: colors.subtle }]}>
+                {historyExpanded
+                  ? "Show less ▲"
+                  : `Show all ${scopedSessions.length} ▼`}
+              </Text>
+            )}
+          </TouchableOpacity>
 
           {scopedSessions.length > 0 ? (
-            scopedSessions.map((session, i) => renderSession(session, i))
+            (historyExpanded ? scopedSessions : scopedSessions.slice(0, 1)).map(
+              (session, i) => renderSession(session, i),
+            )
           ) : (
             <View style={styles.emptyState}>
               <Text style={[styles.emptyText, { color: colors.subtle }]}>
@@ -659,26 +711,6 @@ export function ExerciseHistory() {
             </View>
           )}
         </View>
-
-        {/* Muscles Worked */}
-        {(() => {
-          const bodyParts = history?.bodyParts ?? exercise?.bodyParts ?? [];
-          if (bodyParts.length === 0) return null;
-          return (
-            <View style={styles.musclesSection}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                Muscles Worked
-              </Text>
-              <MusclesPair
-                activations={computeExerciseActivations(bodyParts)}
-                variant={bodyVariant}
-                width={140}
-                captionStyle={{ color: colors.subtle }}
-                {...defaultDiagramPalette(isDark)}
-              />
-            </View>
-          );
-        })()}
       </ScrollView>
     </SafeAreaView>
   );
@@ -712,7 +744,6 @@ const styles = StyleSheet.create({
   bodyPart: {
     fontSize: 14,
     fontWeight: "600",
-    textTransform: "uppercase",
     letterSpacing: 0.5,
   },
 
@@ -824,6 +855,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "700",
+  },
+
+  historyToggle: {
+    fontSize: 13,
+    fontWeight: "600",
   },
 
   sessionCard: {

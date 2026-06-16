@@ -39,7 +39,6 @@ import { SearchBar } from "../../components/SearchBar";
 import { UserSearchCard } from "../../components/UserSearchCard";
 import { useAuth } from "../../context/AuthContext";
 import { useSocialFeed } from "../../context/SocialFeedContext";
-import { ActivityModal } from "../../components/ActivityModal";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
 import { useHealthKitForegroundSync } from "../../hooks/useHealthKitSync";
@@ -49,7 +48,7 @@ export function Social() {
   useHealthKitForegroundSync();
 
   const { colors } = useTheme();
-  const navigation = useNavigation();
+  const navigation = useNavigation() as any;
   const { user } = useAuth();
   const glassAvailable = isLiquidGlassAvailable();
   const insets = useSafeAreaInsets();
@@ -60,7 +59,6 @@ export function Social() {
   const [userResults, setUserResults] = useState<SearchUserResult[]>([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
 
-  const [showActivity, setShowActivity] = useState(false);
   const [hasUnreadActivity, setHasUnreadActivity] = useState(false);
 
   const flatListRef = useRef<FlatList<FeedPost>>(null);
@@ -246,7 +244,7 @@ export function Social() {
         />
 
         <TouchableOpacity
-          onPress={() => setShowActivity(true)}
+          onPress={() => navigation.navigate("Activity")}
           style={[
             styles.bellButton,
             {
@@ -282,9 +280,11 @@ export function Social() {
               profilePictureUrl={item.profilePictureUrl}
               followsCurrentUser={item.followsCurrentUser}
               onPress={() => {
-                setSearchQuery("");
-                setUserResults([]);
-                navigation.navigate("UserProfile", {
+                // Keep the query/results intact so returning from the profile
+                // lands back on the same search. push() (not navigate) so a
+                // fresh profile stacks on top instead of collapsing onto an
+                // existing UserProfile already in the stack.
+                navigation.push("UserProfile", {
                   username: item.username,
                 });
               }}
@@ -304,23 +304,26 @@ export function Social() {
             <FeedPostCard post={item} onOpenComments={handleOpenComments} />
           )}
           keyExtractor={(item) => String(item.postId)}
+          scrollEnabled={feed.posts.length > 0}
           contentContainerStyle={
             feed.posts.length === 0
-              ? {
-                  ...styles.emptyContainer,
-                  paddingTop: isIOS ? 0 : HEADER_HEIGHT - insets.top,
-                }
+              ? { flexGrow: 1, justifyContent: "center" }
               : {
                   paddingTop: isIOS ? 0 : HEADER_HEIGHT - insets.top,
                   paddingBottom: MINI_PLAYER_HEIGHT + 30,
                 }
           }
-          contentInset={isIOS ? { top: HEADER_HEIGHT - insets.top } : undefined}
+          contentInset={
+            isIOS && feed.posts.length > 0
+              ? { top: HEADER_HEIGHT - insets.top }
+              : undefined
+          }
           contentOffset={
-            isIOS ? { x: 0, y: -(HEADER_HEIGHT - insets.top) } : undefined
+            isIOS && feed.posts.length > 0
+              ? { x: 0, y: -(HEADER_HEIGHT - insets.top) }
+              : undefined
           }
           scrollIndicatorInsets={{ top: HEADER_HEIGHT }}
-          ListEmptyComponent={renderEmpty}
           ListFooterComponent={renderFooter}
           refreshControl={
             <RefreshControl
@@ -339,10 +342,13 @@ export function Social() {
         />
       )}
 
-      <ActivityModal
-        visible={showActivity}
-        onClose={() => setShowActivity(false)}
-      />
+      {/* Empty state rendered as a screen-anchored overlay (not inside the
+          FlatList) so the RefreshControl's inset can't shift its position. */}
+      {searchQuery.length === 0 && feed.posts.length === 0 && (
+        <View style={styles.emptyOverlay} pointerEvents="none">
+          {renderEmpty()}
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -399,7 +405,9 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
 
-  emptyContainer: { flex: 1 },
+  emptyOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
 
   emptyState: {
     flex: 1,

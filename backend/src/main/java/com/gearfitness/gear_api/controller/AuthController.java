@@ -1,5 +1,6 @@
 package com.gearfitness.gear_api.controller;
 
+import com.gearfitness.gear_api.dto.AppleLoginRequest;
 import com.gearfitness.gear_api.dto.AuthResponse;
 import com.gearfitness.gear_api.dto.GoogleLoginRequest;
 import com.gearfitness.gear_api.dto.RefreshTokenRequest;
@@ -20,10 +21,27 @@ public class AuthController {
     @RequestBody GoogleLoginRequest request
   ) {
     try {
-      AuthResponse response = authService.authenticateWithGoogle(
-        request.getIdToken(),
-        request.getIntent()
+      AuthResponse response = authService.authenticateWithGoogle(request);
+      if (response.getError() != null) {
+        return ResponseEntity.badRequest().body(response);
+      }
+      return ResponseEntity.ok(response);
+    } catch (Exception e) {
+      return ResponseEntity.badRequest().body(
+        AuthResponse.builder()
+          .error("Authentication failed: " + e.getMessage())
+          .errorCode("AUTH_FAILED")
+          .build()
       );
+    }
+  }
+
+  @PostMapping("/apple")
+  public ResponseEntity<AuthResponse> appleLogin(
+    @RequestBody AppleLoginRequest request
+  ) {
+    try {
+      AuthResponse response = authService.authenticateWithApple(request);
       if (response.getError() != null) {
         return ResponseEntity.badRequest().body(response);
       }

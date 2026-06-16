@@ -10,7 +10,9 @@ import {
   useColorScheme,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -21,30 +23,14 @@ import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "..";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
-
-const BODY_PARTS = [
-  "CHEST",
-  "BACK",
-  "SHOULDERS",
-  "BICEPS",
-  "TRICEPS",
-  "LEGS",
-  "QUADS",
-  "HAMSTRINGS",
-  "GLUTES",
-  "CALVES",
-  "CORE",
-  "TRAPS",
-  "FOREARMS",
-  "FULL_BODY",
-  "OTHER",
-];
 import { MUSCLE_GROUPS } from "../../constants/muscleGroups";
 
-const TARGET_LABELS = {
-  PRIMARY: "P",
-  SECONDARY: "S",
-};
+/** "FULL_BODY" -> "Full Body" for display; raw enum is still sent to the API. */
+const formatMuscle = (bp: string) =>
+  bp
+    .split("_")
+    .map((w) => w.charAt(0) + w.slice(1).toLowerCase())
+    .join(" ");
 
 export function CreateExerciseScreen() {
   const navigation =
@@ -63,56 +49,76 @@ export function CreateExerciseScreen() {
     subtle: isDark ? "#aaa" : "#666",
     border: isDark ? "#333" : "#ccc",
     inputBg: isDark ? "#1c1c1e" : "#fff",
+    accent: isDark ? "#fff" : "#000",
   };
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [bodyParts, setBodyParts] = useState<BodyPartDTO[]>([
-    { bodyPart: "CHEST", targetType: "PRIMARY" },
-  ]);
+  // Exactly one primary muscle, plus any number of secondaries.
+  const [primary, setPrimary] = useState<string | null>(null);
+  const [secondary, setSecondary] = useState<string[]>([]);
+  const [secondaryOpen, setSecondaryOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const hasPrimary = bodyParts.some((bp) => bp.targetType === "PRIMARY");
-
-  const getTargetType = (bp: string): "PRIMARY" | "SECONDARY" | null => {
-    const found = bodyParts.find((b) => b.bodyPart === bp);
-    return found ? (found.targetType as "PRIMARY" | "SECONDARY") : null;
+  const selectPrimary = (bp: string) => {
+    setPrimary((prev) => (prev === bp ? null : bp));
+    // A muscle can't be primary and secondary at once.
+    setSecondary((prev) => prev.filter((m) => m !== bp));
   };
 
-  const cycleBodyPart = (bp: string) => {
-    const current = getTargetType(bp);
+  const toggleSecondary = (bp: string) => {
+    setSecondary((prev) =>
+      prev.includes(bp) ? prev.filter((m) => m !== bp) : [...prev, bp],
+    );
+  };
 
-    if (current === null) {
-      // Not selected → add as PRIMARY if none exists, otherwise SECONDARY
-      const defaultType = hasPrimary ? "SECONDARY" : "PRIMARY";
-      setBodyParts((prev) => [
-        ...prev,
-        { bodyPart: bp, targetType: defaultType },
-      ]);
-    } else if (current === "PRIMARY") {
-      // PRIMARY → SECONDARY
-      setBodyParts((prev) =>
-        prev.map((b) =>
-          b.bodyPart === bp ? { ...b, targetType: "SECONDARY" as const } : b,
-        ),
-      );
-    } else {
-      // SECONDARY → remove (unless it's the last one)
-      if (bodyParts.length > 1) {
-        setBodyParts((prev) => prev.filter((b) => b.bodyPart !== bp));
-      }
+  const goBack = () => {
+    const nav = navigation as any;
+    const parent = nav.getParent();
+    if (parent) parent.goBack();
+    else nav.goBack();
+  };
+
+  const handleDismiss = () => {
+    const hasInput =
+      !!name.trim() ||
+      !!description.trim() ||
+      !!primary ||
+      secondary.length > 0;
+
+    if (!hasInput) {
+      goBack();
+      return;
     }
+
+    Alert.alert(
+      "Discard exercise?",
+      "Your changes won't be saved.",
+      [
+        { text: "Keep editing", style: "cancel" },
+        { text: "Discard", style: "destructive", onPress: goBack },
+      ],
+      { cancelable: true },
+    );
   };
 
   const handleSave = async () => {
     const trimmed = name.trim();
     if (!trimmed) return;
 
-    if (!hasPrimary) {
-      setError("At least one body part must be PRIMARY.");
+    if (!primary) {
+      setError("Pick a primary muscle.");
       return;
     }
+
+    const bodyParts: BodyPartDTO[] = [
+      { bodyPart: primary, targetType: "PRIMARY" },
+      ...secondary.map((bp) => ({
+        bodyPart: bp,
+        targetType: "SECONDARY" as const,
+      })),
+    ];
 
     setSaving(true);
     setError(null);
@@ -143,7 +149,7 @@ export function CreateExerciseScreen() {
           },
         });
       } else {
-        navigation.goBack();
+        goBack();
       }
     } catch (err) {
       console.error("Failed to create exercise:", err);
@@ -153,12 +159,24 @@ export function CreateExerciseScreen() {
     }
   };
 
+  const canSave = !!name.trim() && !!primary;
+
+  const activeText = isDark ? "#000" : "#fff";
+  const inactiveBorder = isDark ? "rgba(255,255,255,0.22)" : "rgba(0,0,0,0.18)";
+
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.bg }]}
       edges={["bottom"]}
     >
-      <FloatingCloseButton />
+      <FloatingCloseButton onPress={handleDismiss} accessibilityLabel="Close" />
+      <FloatingCloseButton
+        position="right"
+        icon="check"
+        accessibilityLabel="Save exercise"
+        onPress={handleSave}
+        disabled={!canSave || saving}
+      />
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -216,32 +234,27 @@ export function CreateExerciseScreen() {
             ]}
           />
 
-          {/* Body Parts */}
-          <Text style={[styles.label, { color: colors.subtle }]}>
-            Body Parts
+          {/* ── Primary muscle (single-select) ── */}
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Primary muscle
           </Text>
           <Text style={[styles.hint, { color: colors.subtle }]}>
-            Tap to add. First selection is Primary. Tap again to cycle.
+            The main muscle this exercise targets. Pick one.
           </Text>
           <View style={styles.chipWrap}>
             {MUSCLE_GROUPS.map((bp) => {
-              const targetType = getTargetType(bp);
-              const isSelected = targetType !== null;
-              const activeBg = isDark ? "#fff" : "#000";
-              const activeText = isDark ? "#000" : "#fff";
-              const inactiveBorder = isDark
-                ? "rgba(255,255,255,0.22)"
-                : "rgba(0,0,0,0.18)";
-
+              const isSelected = primary === bp;
               return (
                 <TouchableOpacity
                   key={bp}
-                  onPress={() => cycleBodyPart(bp)}
+                  onPress={() => selectPrimary(bp)}
                   style={[
                     styles.chip,
                     {
-                      backgroundColor: isSelected ? activeBg : "transparent",
-                      borderColor: isSelected ? activeBg : inactiveBorder,
+                      backgroundColor: isSelected
+                        ? colors.accent
+                        : "transparent",
+                      borderColor: isSelected ? colors.accent : inactiveBorder,
                     },
                   ]}
                 >
@@ -252,66 +265,78 @@ export function CreateExerciseScreen() {
                       fontWeight: "600",
                     }}
                   >
-                    {bp}
+                    {formatMuscle(bp)}
                   </Text>
-                  {isSelected && (
-                    <View
-                      style={[
-                        styles.targetBadge,
-                        {
-                          backgroundColor: isDark
-                            ? "rgba(0,0,0,0.18)"
-                            : "rgba(255,255,255,0.3)",
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[styles.targetBadgeText, { color: activeText }]}
-                      >
-                        {TARGET_LABELS[targetType]}
-                      </Text>
-                    </View>
-                  )}
                 </TouchableOpacity>
               );
             })}
           </View>
 
-          {/* Validation hint */}
-          {!hasPrimary && bodyParts.length > 0 && (
-            <Text style={styles.warning}>
-              At least one body part must be Primary
+          {/* ── Secondary muscles (collapsible multi-select) ── */}
+          <TouchableOpacity
+            onPress={() => setSecondaryOpen((o) => !o)}
+            activeOpacity={0.7}
+            style={styles.sectionHeader}
+          >
+            <Text
+              style={[
+                styles.sectionTitle,
+                { color: colors.text, marginTop: 0 },
+              ]}
+            >
+              Secondary muscles
+              {secondary.length > 0 ? ` (${secondary.length})` : ""}
             </Text>
+            <Ionicons
+              name={secondaryOpen ? "chevron-up" : "chevron-down"}
+              size={20}
+              color={colors.subtle}
+            />
+          </TouchableOpacity>
+
+          {secondaryOpen && (
+            <>
+              <Text style={[styles.hint, { color: colors.subtle }]}>
+                Other muscles this exercise works. Optional — pick any.
+              </Text>
+              <View style={styles.chipWrap}>
+                {MUSCLE_GROUPS.filter((bp) => bp !== primary).map((bp) => {
+                  const isSelected = secondary.includes(bp);
+                  return (
+                    <TouchableOpacity
+                      key={bp}
+                      onPress={() => toggleSecondary(bp)}
+                      style={[
+                        styles.chip,
+                        {
+                          backgroundColor: isSelected
+                            ? colors.accent
+                            : "transparent",
+                          borderColor: isSelected
+                            ? colors.accent
+                            : inactiveBorder,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={{
+                          color: isSelected ? activeText : colors.text,
+                          fontSize: 13,
+                          fontWeight: "600",
+                        }}
+                      >
+                        {formatMuscle(bp)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </>
           )}
 
           {/* Error */}
           {error && <Text style={styles.error}>{error}</Text>}
         </ScrollView>
-
-        {/* Save — pinned to bottom */}
-        <View style={[styles.footer, { borderTopColor: colors.border }]}>
-          <TouchableOpacity
-            style={[styles.footerButton, { backgroundColor: "#C93838" }]}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={[styles.buttonText, { color: "#fff" }]}>Discard</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={handleSave}
-            disabled={!name.trim() || saving || !hasPrimary}
-            style={[
-              styles.footerButton,
-              { opacity: name.trim() && !saving && hasPrimary ? 1 : 0.4 },
-              { backgroundColor: isDark ? "#fff" : "#000" },
-            ]}
-          >
-            <Text
-              style={[styles.buttonText, { color: isDark ? "#000" : "#fff" }]}
-            >
-              {saving ? "Saving..." : "Save Exercise"}
-            </Text>
-          </TouchableOpacity>
-        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -338,8 +363,20 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     marginTop: 16,
   },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginTop: 24,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 24,
+  },
   hint: {
     fontSize: 12,
+    marginTop: 2,
     marginBottom: 8,
   },
   input: {
@@ -366,63 +403,12 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-  },
-  targetBadge: {
-    borderRadius: 8,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-  },
-  targetBadgeText: {
-    fontSize: 10,
-    fontWeight: "700",
-  },
-  legendRow: {
-    flexDirection: "row",
-    gap: 16,
-    marginTop: 12,
-  },
-  legendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  legendText: {
-    fontSize: 12,
-    fontWeight: "500",
-  },
-  warning: {
-    color: "#FF9500",
-    fontSize: 13,
-    marginTop: 12,
-    textAlign: "center",
+    gap: 5,
   },
   error: {
     color: "#FF3B30",
     fontSize: 13,
     marginTop: 16,
     textAlign: "center",
-  },
-  footer: {
-    padding: 12,
-    flexDirection: "row",
-    gap: 12,
-    borderTopWidth: 1,
-  },
-  footerButton: {
-    paddingVertical: 14,
-    flex: 1,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: 16,
   },
 });

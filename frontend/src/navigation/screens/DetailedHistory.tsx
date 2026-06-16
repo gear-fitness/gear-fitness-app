@@ -15,6 +15,7 @@ import React, { useState, useEffect } from "react";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { getWorkoutDetails } from "../../api/workoutService";
 import { WorkoutDetail, WorkoutExercise, WorkoutSet } from "../../api/types";
+import { isNetworkError } from "../../utils/network";
 import { parseLocalDate } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { formatTag } from "../../utils/formatTag";
@@ -27,7 +28,12 @@ import { useLikeState } from "../../context/LikesContext";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 import { MusclesPair, type BodyVariant } from "../../components/MuscleDiagram";
 import { useAuth } from "../../context/AuthContext";
+import { useUnitPreference } from "../../context/UnitPreferenceContext";
+import { toDisplayWeight } from "../../utils/weight";
 import { usePostMenu } from "../../hooks/usePostMenu";
+import { PostVisibilitySheet } from "../../components/PostVisibilitySheet";
+import { PostActionsSheet } from "../../components/PostActionsSheet";
+import { ReportPostSheet } from "../../components/ReportPostSheet";
 import {
   computeActivations,
   defaultDiagramPalette,
@@ -47,6 +53,9 @@ type RootStackParamList = {
     /** Author's username — needed for the follow/unfollow flow when the
      *  3-dots menu is tapped on someone else's workout. */
     ownerUsername?: string;
+    /** Whether the viewer follows the author, precomputed on the feed payload,
+     *  so the menu's Follow/Unfollow label is correct without a fetch. */
+    viewerFollowsAuthor?: boolean;
     initialLikeCount?: number;
     initialLikedByUser?: boolean;
   };
@@ -72,11 +81,31 @@ export function DetailedHistory({ route }: Props) {
     postId,
     ownerUserId,
     ownerUsername,
+    viewerFollowsAuthor,
     initialLikeCount,
     initialLikedByUser,
   } = route.params;
 
-  const onMenuPress = usePostMenu({ workoutId, ownerUserId, ownerUsername });
+  const {
+    onPress: onMenuPress,
+    actions: menuActions,
+    showVisibilitySheet,
+    closeVisibilitySheet,
+    pendingVisibility,
+    handleVisibilitySelect,
+    showActionsSheet,
+    closeActionsSheet,
+    onActionsSheetClosed,
+    showReportSheet,
+    closeReportSheet,
+    submitReport,
+  } = usePostMenu({
+    workoutId,
+    postId,
+    ownerUserId,
+    ownerUsername,
+    viewerFollowsAuthor,
+  });
 
   const { user } = useAuth();
   // Treat "this is the viewer's own workout" as: navigated from own history
@@ -112,7 +141,16 @@ export function DetailedHistory({ route }: Props) {
         setLoading(false);
       } catch (err: any) {
         console.error("Error loading workout details:", err);
-        setError(err.message);
+        // Surface a friendlier message when the failure is purely a
+        // connectivity problem and there was no cached summary to fall back
+        // to. Other errors keep their raw message so we don't hide bugs.
+        if (isNetworkError(err)) {
+          setError(
+            "You're offline and this workout's details aren't cached on this device.",
+          );
+        } else {
+          setError(err.message);
+        }
         setLoading(false);
       }
     };
@@ -282,6 +320,23 @@ export function DetailedHistory({ route }: Props) {
       {backButton}
       {dotsButton}
       {floatingActions}
+      <PostActionsSheet
+        visible={showActionsSheet}
+        actions={menuActions}
+        onClose={closeActionsSheet}
+        onClosed={onActionsSheetClosed}
+      />
+      <PostVisibilitySheet
+        visible={showVisibilitySheet}
+        current={pendingVisibility}
+        onSelect={handleVisibilitySelect}
+        onClose={closeVisibilitySheet}
+      />
+      <ReportPostSheet
+        visible={showReportSheet}
+        onSubmit={submitReport}
+        onClose={closeReportSheet}
+      />
       <ScrollView
         contentContainerStyle={{
           paddingTop: bodyPaddingTop,
@@ -503,6 +558,7 @@ function HistorySetRow({
   borderColor,
   textFaint,
 }: HistorySetRowProps) {
+  const { weightUnit } = useUnitPreference();
   const isPr = set.isPr;
   return (
     <View
@@ -524,8 +580,8 @@ function HistorySetRow({
       </View>
       <View style={styles.setMetric}>
         <Text style={[styles.setNumber, { color: textColor }]}>
-          {set.weightLbs ?? 0}
-          <Text style={[styles.setUnit, textFaint]}> lbs</Text>
+          {toDisplayWeight(set.weightLbs ?? 0, weightUnit)}
+          <Text style={[styles.setUnit, textFaint]}> {weightUnit}</Text>
         </Text>
       </View>
       {isPr ? (

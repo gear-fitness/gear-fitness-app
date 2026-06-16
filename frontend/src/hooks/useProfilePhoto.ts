@@ -3,6 +3,7 @@ import { Alert } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { uploadProfilePicture } from "../api/userService";
+import { invalidateImageKey } from "../api/imageService";
 import { useAuth } from "../context/AuthContext";
 
 export function useProfilePhoto() {
@@ -27,8 +28,14 @@ export function useProfilePhoto() {
         { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG },
       );
 
-      await uploadProfilePicture(manipulated.uri);
+      const updated = await uploadProfilePicture(manipulated.uri);
       await refreshUser();
+      // The profile key is deterministic (overwritten in place), so refreshUser
+      // alone won't change it. Invalidate so mounted avatars re-resolve a fresh
+      // presigned url and show the new bytes without a remount.
+      if (updated?.profilePictureUrl) {
+        invalidateImageKey(updated.profilePictureUrl);
+      }
     } catch (e: any) {
       Alert.alert("Error", e?.message || "Failed to upload profile picture");
     } finally {

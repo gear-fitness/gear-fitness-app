@@ -4,6 +4,13 @@
  */
 
 import apiClient from "./apiClient";
+import {
+  CACHE_KEYS,
+  getActiveUserId,
+  readCache,
+  writeCache,
+} from "../utils/offlineCache";
+import { isNetworkError } from "../utils/network";
 
 export interface Exercise {
   exerciseId: string;
@@ -41,23 +48,116 @@ export interface ExerciseHistory {
 }
 
 /**
- * Get all exercises
+ * Read the offline exercise catalog without touching the network.
  */
-export async function getAllExercises(): Promise<Exercise[]> {
-  const { data } = await apiClient.get<Exercise[]>("/exercises");
-  return data ?? [];
+export async function getCachedExercises(): Promise<Exercise[]> {
+  const cached = await readCache<Exercise[]>(CACHE_KEYS.exercises);
+  return cached ?? [];
 }
 
 /**
- * Get exercise history for the authenticated user
+ * Get all exercises. Tries the network first and refreshes the offline
+ * catalog on success; falls back to the cached catalog when the request
+ * fails because the device is offline. Auth or server errors are rethrown.
+ */
+export async function getAllExercises(): Promise<Exercise[]> {
+  try {
+    const { data } = await apiClient.get<Exercise[]>("/exercises");
+    const list = data ?? [];
+    await writeCache(CACHE_KEYS.exercises, list);
+    return list;
+  } catch (err) {
+    if (isNetworkError(err)) {
+      return getCachedExercises();
+    }
+    throw err;
+  }
+}
+
+export async function getCachedExerciseHistory(
+  exerciseId: string,
+): Promise<ExerciseHistory | null> {
+  const userId = await getActiveUserId();
+  if (!userId) return null;
+  return readCache<ExerciseHistory>(
+    CACHE_KEYS.exerciseHistory(userId, exerciseId),
+  );
+}
+
+/**
+ * Build an empty ExerciseHistory shell from the cached exercise catalog so
+ * the history screen can still render its zero-state offline when the user
+ * opens an exercise they've never performed.
+ */
+async function buildEmptyHistoryFromCatalog(
+  exerciseId: string,
+): Promise<ExerciseHistory | null> {
+  const catalog = await getCachedExercises();
+  const match = catalog.find((e) => e.exerciseId === exerciseId);
+  if (!match) return null;
+  return {
+    exerciseId,
+    exerciseName: match.name,
+    bodyParts: match.bodyParts,
+    totalSessions: 0,
+    personalRecordLbs: null,
+    sessions: [],
+  };
+}
+
+/**
+ * Get exercise history for the authenticated user. Writes through to a
+ * per-user offline cache so the chart screen and the exercise picker stay
+ * usable when the device is offline.
  */
 export async function getExerciseHistory(
   exerciseId: string,
 ): Promise<ExerciseHistory> {
-  const { data } = await apiClient.get<ExerciseHistory>(
-    `/exercises/${exerciseId}/history`,
-  );
-  return data;
+  try {
+    const { data } = await apiClient.get<ExerciseHistory>(
+      `/exercises/${exerciseId}/history`,
+    );
+    const userId = await getActiveUserId();
+    if (userId) {
+      await writeCache(CACHE_KEYS.exerciseHistory(userId, exerciseId), data);
+    }
+    return data;
+  } catch (err) {
+    if (isNetworkError(err)) {
+      const cached = await getCachedExerciseHistory(exerciseId);
+      if (cached) return cached;
+      const synthetic = await buildEmptyHistoryFromCatalog(exerciseId);
+      if (synthetic) return synthetic;
+    }
+    throw err;
+  }
+}
+
+/**
+ * Bulk-prewarm every history for the authenticated user in one round trip.
+ * Fans the response into the existing per-exercise cache keys so the lazy
+ * getExerciseHistory offline path keeps working unchanged. Swallows network
+ * errors because this is a background prefetch.
+ */
+export async function getAllExerciseHistory(): Promise<void> {
+  try {
+    const { data } = await apiClient.get<ExerciseHistory[]>(
+      "/exercises/history/all",
+    );
+    const userId = await getActiveUserId();
+    if (!userId || !Array.isArray(data)) return;
+    await Promise.all(
+      data.map((history) =>
+        writeCache(
+          CACHE_KEYS.exerciseHistory(userId, history.exerciseId),
+          history,
+        ),
+      ),
+    );
+  } catch (err) {
+    if (isNetworkError(err)) return;
+    throw err;
+  }
 }
 
 /**

@@ -8,6 +8,8 @@ import { EditGenderScreen } from "./screens/settings/EditGenderScreen";
 import { EditBirthdayScreen } from "./screens/settings/EditBirthdayScreen";
 import { EditHeightScreen } from "./screens/settings/EditHeightScreen";
 import { EditWeightScreen } from "./screens/settings/EditWeightScreen";
+import { BlockedUsersScreen } from "./screens/settings/BlockedUsersScreen";
+import { DeleteAccount } from "./screens/settings/DeleteAccount";
 
 export type SettingsStackParamList = {
   SettingsMain: undefined;
@@ -18,6 +20,8 @@ export type SettingsStackParamList = {
   EditBirthday: undefined;
   EditHeight: undefined;
   EditWeight: undefined;
+  BlockedUsers: undefined;
+  DeleteAccount: undefined;
 };
 
 const Stack = createNativeStackNavigator<SettingsStackParamList>();
@@ -33,6 +37,8 @@ export function SettingsNavigator() {
       <Stack.Screen name="EditBirthday" component={EditBirthdayScreen} />
       <Stack.Screen name="EditHeight" component={EditHeightScreen} />
       <Stack.Screen name="EditWeight" component={EditWeightScreen} />
+      <Stack.Screen name="BlockedUsers" component={BlockedUsersScreen} />
+      <Stack.Screen name="DeleteAccount" component={DeleteAccount} />
     </Stack.Navigator>
   );
 }

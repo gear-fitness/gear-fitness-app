@@ -3,10 +3,12 @@ package com.gearfitness.gear_api.controller;
 import com.gearfitness.gear_api.dto.FollowResponse;
 import com.gearfitness.gear_api.dto.FollowStatusResponse;
 import com.gearfitness.gear_api.dto.FollowerDTO;
+import com.gearfitness.gear_api.entity.AppUser;
 import com.gearfitness.gear_api.security.JwtService;
 import com.gearfitness.gear_api.service.FollowService;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -224,6 +226,73 @@ public class FollowController {
       return ResponseEntity.internalServerError().body(
         "Failed to decline follow request"
       );
+    }
+  }
+
+  /**
+   * POST /api/follows/block/{userId}
+   * Block a user
+   */
+  @PostMapping("/block/{userId}")
+  public ResponseEntity<?> blockUser(
+    @RequestHeader("Authorization") String authHeader,
+    @PathVariable UUID userId
+  ) {
+    try {
+      String token = authHeader.substring(7);
+      UUID blockerId = jwtService.extractUserId(token);
+      followService.blockUser(blockerId, userId);
+      return ResponseEntity.ok().build();
+    } catch (RuntimeException e) {
+      return ResponseEntity.badRequest().body(e.getMessage());
+    }
+  }
+
+  /**
+   * DELETE /api/follows/block/{userId}
+   * Unblock a user
+   */
+  @DeleteMapping("/block/{userId}")
+  public ResponseEntity<?> unblockUser(
+    @RequestHeader("Authorization") String authHeader,
+    @PathVariable UUID userId
+  ) {
+    try {
+      String token = authHeader.substring(7);
+      UUID blockerId = jwtService.extractUserId(token);
+      followService.unblockUser(blockerId, userId);
+      return ResponseEntity.ok().build();
+    } catch (RuntimeException e) {
+      return ResponseEntity.badRequest().body(e.getMessage());
+    }
+  }
+
+  /**
+   * GET /api/follows/blocked
+   * Get list of users blocked by current user
+   */
+  @GetMapping("/blocked")
+  public ResponseEntity<?> getBlockedUsers(
+    @RequestHeader("Authorization") String authHeader
+  ) {
+    try {
+      String token = authHeader.substring(7);
+      UUID userId = jwtService.extractUserId(token);
+      List<AppUser> blocked = followService.getBlockedUsers(userId);
+      List<FollowerDTO> result = blocked
+        .stream()
+        .map(u ->
+          new FollowerDTO(
+            u.getUserId(),
+            u.getUsername(),
+            u.getDisplayName(),
+            u.getProfilePictureUrl()
+          )
+        )
+        .collect(Collectors.toList());
+      return ResponseEntity.ok(result);
+    } catch (RuntimeException e) {
+      return ResponseEntity.badRequest().body(e.getMessage());
     }
   }
 

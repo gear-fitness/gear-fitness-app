@@ -10,8 +10,9 @@ type Props = {
   accessibilityLabel?: string;
   direction?: "down" | "left";
   position?: "left" | "right";
-  icon?: "chevron" | "close";
+  icon?: "chevron" | "close" | "check";
   inline?: boolean;
+  disabled?: boolean;
 };
 
 export function FloatingCloseButton({
@@ -21,6 +22,7 @@ export function FloatingCloseButton({
   position = "left",
   icon = "chevron",
   inline = false,
+  disabled = false,
 }: Props) {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
@@ -32,22 +34,26 @@ export function FloatingCloseButton({
   const border = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";
 
   const handleDefaultPress = () => {
-    const parent = navigation.getParent();
+    const nav = navigation as any;
+    const parent = nav.getParent();
     if (parent) parent.goBack();
-    else navigation.goBack();
+    else nav.goBack();
   };
 
   const iconPath =
     icon === "close"
       ? "M4 4l8 8M12 4l-8 8"
-      : direction === "left"
-        ? "M10 4l-4 4 4 4"
-        : "M4 6l4 4 4-4";
+      : icon === "check"
+        ? "M4 8.5l2.5 2.5L12 5"
+        : direction === "left"
+          ? "M10 4l-4 4 4 4"
+          : "M4 6l4 4 4-4";
 
   return (
     <TouchableOpacity
       accessibilityLabel={accessibilityLabel}
       onPress={onPress ?? handleDefaultPress}
+      disabled={disabled}
       activeOpacity={0.7}
       style={[
         styles.button,
@@ -58,6 +64,7 @@ export function FloatingCloseButton({
         {
           backgroundColor: glassAvailable ? "transparent" : surface,
           borderColor: glassAvailable ? "transparent" : border,
+          opacity: disabled ? 0.4 : 1,
         },
       ]}
     >

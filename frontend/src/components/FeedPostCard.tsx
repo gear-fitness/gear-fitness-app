@@ -4,7 +4,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   TouchableWithoutFeedback,
-  Image,
   ScrollView,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -22,13 +21,24 @@ import { useAuth } from "../context/AuthContext";
 import { useLikeState } from "../context/LikesContext";
 import { usePostMenu } from "../hooks/usePostMenu";
 import { Avatar } from "./Avatar";
+import { PostVisibilitySheet } from "./PostVisibilitySheet";
+import { PostActionsSheet } from "./PostActionsSheet";
+import { ReportPostSheet } from "./ReportPostSheet";
+import { PresignedImage } from "./PresignedImage";
 
 interface Props {
   post: FeedPost;
   onOpenComments: (postId: string) => void;
+  /**
+   * When true, render an indeterminate progress bar at the top of the card
+   * and suppress interactions whose targets only exist server-side (likes,
+   * comments, navigation to the workout detail). Used for offline posts that
+   * have been saved locally but not yet sent to the backend.
+   */
+  isPending?: boolean;
 }
 
-export function FeedPostCard({ post }: Props) {
+export function FeedPostCard({ post, isPending = false }: Props) {
   const { colors } = useTheme();
   const cardBg = colors.card;
   const innerBg = colors.card;
@@ -41,10 +51,26 @@ export function FeedPostCard({ post }: Props) {
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [scrollWidth, setScrollWidth] = useState(0);
   const navigation = useNavigation();
-  const onMenuPress = usePostMenu({
+  const {
+    onPress: onMenuPress,
+    actions: menuActions,
+    showVisibilitySheet,
+    closeVisibilitySheet,
+    pendingVisibility,
+    handleVisibilitySelect,
+    showActionsSheet,
+    closeActionsSheet,
+    onActionsSheetClosed,
+    showReportSheet,
+    closeReportSheet,
+    submitReport,
+  } = usePostMenu({
     workoutId: post.workoutId,
+    postId: post.postId,
     ownerUserId: post.userId,
     ownerUsername: post.username,
+    viewerFollowsAuthor: post.viewerFollowsAuthor,
+    currentVisibility: post.visibility ?? "PUBLIC",
   });
 
   const photos =
@@ -101,6 +127,14 @@ export function FeedPostCard({ post }: Props) {
   const textMuted: StyleProp<TextStyle> = { color: colors.text, opacity: 0.5 };
   const textFaint: StyleProp<TextStyle> = { color: colors.text, opacity: 0.4 };
 
+  const visibility = post.visibility ?? "PUBLIC";
+  const visibilityIcon =
+    isOwnPost && visibility === "FRIENDS"
+      ? "people-outline"
+      : isOwnPost && visibility === "PRIVATE"
+        ? "lock-closed-outline"
+        : null;
+
   const userHeader = (
     <View style={styles.userInfo}>
       <Avatar
@@ -108,10 +142,20 @@ export function FeedPostCard({ post }: Props) {
         profilePictureUrl={post.userProfilePictureUrl}
         size={40}
       />
-      <View>
-        <Text style={[styles.username, { color: colors.text }]}>
-          {post.username}
-        </Text>
+      <View style={styles.userNameRow}>
+        <View style={styles.userNameLine}>
+          <Text style={[styles.username, { color: colors.text }]}>
+            {post.username}
+          </Text>
+          {visibilityIcon && (
+            <Ionicons
+              name={visibilityIcon}
+              size={13}
+              color={colors.text}
+              style={styles.visIcon}
+            />
+          )}
+        </View>
         <Text style={[styles.timestamp, textFaint]}>
           {formatTimeAgo(post.createdAt)}
         </Text>
@@ -134,6 +178,24 @@ export function FeedPostCard({ post }: Props) {
         { backgroundColor: cardBg, borderColor: colors.border },
       ]}
     >
+      {isPending && <PendingProgressBar color={colors.text} />}
+      <PostActionsSheet
+        visible={showActionsSheet}
+        actions={menuActions}
+        onClose={closeActionsSheet}
+        onClosed={onActionsSheetClosed}
+      />
+      <PostVisibilitySheet
+        visible={showVisibilitySheet}
+        current={pendingVisibility}
+        onSelect={handleVisibilitySelect}
+        onClose={closeVisibilitySheet}
+      />
+      <ReportPostSheet
+        visible={showReportSheet}
+        onSubmit={submitReport}
+        onClose={closeReportSheet}
+      />
       <View style={styles.header}>
         {isOwnPost ? (
           <View style={styles.userInfoWrap}>{userHeader}</View>
@@ -141,7 +203,7 @@ export function FeedPostCard({ post }: Props) {
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() =>
-              navigation.navigate("UserProfile", {
+              (navigation as any).push("UserProfile", {
                 username: post.username,
               })
             }
@@ -175,8 +237,8 @@ export function FeedPostCard({ post }: Props) {
                 onPress={openImageViewer}
               >
                 <View style={{ width: scrollWidth, alignItems: "center" }}>
-                  <Image
-                    source={{ uri: url }}
+                  <PresignedImage
+                    imageKey={url}
                     style={[
                       styles.image,
                       { height: scrollWidth + 60, borderColor: colors.border },
@@ -208,8 +270,10 @@ export function FeedPostCard({ post }: Props) {
       )}
 
       <TouchableOpacity
-        activeOpacity={0.7}
+        activeOpacity={isPending ? 1 : 0.7}
+        disabled={isPending}
         onPress={() => {
+          if (isPending) return;
           const targetNavigator = navigation.getParent() || navigation;
           targetNavigator.navigate("DetailedHistory", {
             workoutId: post.workoutId,
@@ -218,6 +282,7 @@ export function FeedPostCard({ post }: Props) {
             postId: post.postId,
             ownerUserId: post.userId,
             ownerUsername: post.username,
+            viewerFollowsAuthor: post.viewerFollowsAuthor,
             initialLikeCount: likeCount,
             initialLikedByUser: likedByUser,
           });
@@ -303,16 +368,23 @@ export function FeedPostCard({ post }: Props) {
           },
         ]}
       >
-        <TouchableOpacity style={styles.engagementItem} onPress={handleLike}>
+        <TouchableOpacity
+          style={styles.engagementItem}
+          onPress={isPending ? undefined : handleLike}
+          disabled={isPending}
+          activeOpacity={isPending ? 1 : 0.7}
+        >
           <Ionicons
             name={likedByUser ? "heart" : "heart-outline"}
             size={24}
             color={likedByUser ? "#e74c3c" : colors.text}
+            style={isPending ? styles.engagementDisabled : undefined}
           />
           <Text
             style={[
               styles.engagementText,
               { color: likedByUser ? "#e74c3c" : colors.text },
+              isPending && styles.engagementDisabled,
             ]}
           >
             {likeCount}
@@ -320,16 +392,55 @@ export function FeedPostCard({ post }: Props) {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.engagementItem}
-          onPress={() =>
-            navigation.navigate("Comments", { postId: post.postId })
+          onPress={
+            isPending
+              ? undefined
+              : () => navigation.navigate("Comments", { postId: post.postId })
           }
+          disabled={isPending}
+          activeOpacity={isPending ? 1 : 0.7}
         >
-          <Ionicons name="chatbubble-outline" size={24} color={colors.text} />
-          <Text style={[styles.engagementText, { color: colors.text }]}>
+          <Ionicons
+            name="chatbubble-outline"
+            size={24}
+            color={colors.text}
+            style={isPending ? styles.engagementDisabled : undefined}
+          />
+          <Text
+            style={[
+              styles.engagementText,
+              { color: colors.text },
+              isPending && styles.engagementDisabled,
+            ]}
+          >
             {post.commentCount}
           </Text>
         </TouchableOpacity>
       </View>
+    </View>
+  );
+}
+
+/**
+ * Thin "almost done" progress bar drawn at the very top of a pending offline
+ * post card. The filled portion is anchored to the left and stops short of
+ * the right edge so the card reads as nearly-but-not-finished. A helper
+ * line beneath the bar tells the user how to complete the upload.
+ */
+function PendingProgressBar({ color }: { color: string }) {
+  const { dark } = useTheme();
+  const backdropColor = dark ? "#616161" : "#E5E5E5";
+  return (
+    <View>
+      <View
+        style={[styles.progressBackdrop, { backgroundColor: backdropColor }]}
+      />
+      <View style={[styles.progressTrack, { backgroundColor: `${color}33` }]}>
+        <View style={[styles.progressFill, { backgroundColor: color }]} />
+      </View>
+      <Text style={[styles.progressHint, { color, opacity: 0.55 }]}>
+        Uploading...
+      </Text>
     </View>
   );
 }
@@ -358,6 +469,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+  },
+  userNameRow: {
+    flexShrink: 1,
+  },
+  userNameLine: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  visIcon: {
+    opacity: 0.5,
   },
   username: {
     fontSize: 15,
@@ -463,5 +585,36 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     letterSpacing: -0.2,
     fontVariant: ["tabular-nums"],
+  },
+  engagementDisabled: {
+    opacity: 0.35,
+  },
+  progressBackdrop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+  },
+  progressTrack: {
+    height: 3,
+    marginRight: 64,
+    borderTopRightRadius: 2,
+    borderBottomRightRadius: 2,
+    overflow: "hidden",
+    flexDirection: "row",
+  },
+  progressFill: {
+    height: 3,
+    width: "80%",
+  },
+  progressHint: {
+    fontSize: 11,
+    fontWeight: "500",
+    letterSpacing: 0.2,
+    paddingHorizontal: 14,
+    paddingTop: 6,
+    paddingBottom: 2,
+    textAlign: "center",
   },
 });
