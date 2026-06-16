@@ -9,15 +9,17 @@ import { TrialBoostModal } from "./TrialBoostModal";
 
 type Plan = "annual" | "monthly";
 
-// Premium unlocks everything; `free` marks what the free tier also includes.
-const COMPARE: { label: string; free: boolean }[] = [
-  { label: "Track your workouts & PRs", free: true },
-  { label: "Connect with friends", free: true },
-  { label: "Custom goals & routines", free: false },
-  { label: "AI coaching & form tips", free: false },
-  { label: "Full workout history", free: false },
-  { label: "Advanced progress charts", free: false },
-  { label: "Compete on leaderboards", free: false },
+// Basic is the free tier; Plus is the paid upgrade. A boolean renders a
+// check/dash; a string renders that value in the tier's column.
+type CompareCell = boolean | string;
+const COMPARE: { label: string; basic: CompareCell; plus: CompareCell }[] = [
+  { label: "Track workouts & PRs", basic: true, plus: true },
+  { label: "Connect with friends", basic: true, plus: true },
+  { label: "Routines", basic: "3", plus: "7" },
+  { label: "Restore tokens / mo", basic: "1", plus: "4" },
+  { label: "Progress history", basic: "3 mo", plus: "1 yr" },
+  { label: "Graph types", basic: "Volume", plus: "All" },
+  { label: "Calorie tracker (manual)", basic: false, plus: "Soon" },
 ];
 
 export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
@@ -30,7 +32,7 @@ export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
   const referred = !!draft.referralSent;
   const trialDays = referred ? 7 : 3;
   const reminderDay = referred ? 5 : 2;
-  const price = plan === "annual" ? "$39.99/yr" : "$9.99/mo";
+  const price = plan === "annual" ? "$47.99/yr" : "$7.99/mo";
 
   const handleStart = () => {
     if (referred) {
@@ -41,11 +43,28 @@ export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
     setBoost(true);
   };
 
-  const Check = ({ on, accent }: { on: boolean; accent?: boolean }) => {
-    if (!on) {
+  const Cell = ({
+    value,
+    accent,
+  }: {
+    value: boolean | string;
+    accent?: boolean;
+  }) => {
+    if (typeof value === "string") {
       return (
-        <Text style={[styles.dash, { color: colors.border }]}>—</Text>
+        <Text
+          style={[
+            styles.cellValue,
+            { color: accent ? colors.text : colors.secondary },
+          ]}
+          numberOfLines={2}
+        >
+          {value}
+        </Text>
       );
+    }
+    if (!value) {
+      return <Text style={[styles.dash, { color: colors.border }]}>—</Text>;
     }
     return (
       <View
@@ -171,7 +190,7 @@ export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={shared.heading}>Try Gear Premium free</Text>
+        <Text style={shared.heading}>Try Gear Plus free</Text>
         <Text style={shared.subheading}>
           {trialDays} days free, then {price}. Cancel anytime.
         </Text>
@@ -184,7 +203,7 @@ export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
           </View>
         )}
 
-        {/* Free vs Premium comparison */}
+        {/* Basic vs Plus comparison */}
         <View
           style={[
             styles.card,
@@ -194,10 +213,10 @@ export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
           <View style={styles.compareHeader}>
             <View style={styles.compareLabelSpacer} />
             <Text style={[styles.colLabel, { color: colors.secondary }]}>
-              FREE
+              BASIC
             </Text>
             <Text style={[styles.colLabel, { color: colors.text }]}>
-              PREMIUM
+              PLUS
             </Text>
           </View>
           {COMPARE.map((row) => (
@@ -206,10 +225,10 @@ export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
                 {row.label}
               </Text>
               <View style={styles.compareCell}>
-                <Check on={row.free} />
+                <Cell value={row.basic} />
               </View>
               <View style={styles.compareCell}>
-                <Check on accent />
+                <Cell value={row.plus} accent />
               </View>
             </View>
           ))}
@@ -231,7 +250,7 @@ export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
           <TimelineRow
             icon="lock.open.fill"
             bold="Today:"
-            rest=" Unlock all Premium features"
+            rest=" Unlock all Plus features"
           />
           <TimelineRow
             icon="bell.fill"
@@ -251,14 +270,14 @@ export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
           <PlanCard
             value="annual"
             title="Yearly"
-            priceLabel="$39.99/yr"
-            sub={`${trialDays}-day free trial · $3.33/mo`}
-            badge="BEST VALUE"
+            priceLabel="$47.99/yr"
+            sub={`${trialDays}-day free trial · $4.00/mo`}
+            badge="SAVE ~50%"
           />
           <PlanCard
             value="monthly"
             title="Monthly"
-            priceLabel="$9.99/mo"
+            priceLabel="$7.99/mo"
             sub={`${trialDays}-day free trial`}
           />
         </View>
@@ -299,7 +318,7 @@ export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
   );
 }
 
-const CELL = 70;
+const CELL = 78;
 
 const styles = StyleSheet.create({
   scrollContent: {
@@ -370,6 +389,11 @@ const styles = StyleSheet.create({
   dash: {
     fontSize: 16,
     fontWeight: "700",
+  },
+  cellValue: {
+    fontSize: 13,
+    fontWeight: "700",
+    textAlign: "center",
   },
   andMore: {
     fontSize: 14,

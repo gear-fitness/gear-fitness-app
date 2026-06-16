@@ -65,7 +65,7 @@ export function ReferralStep({
 
         <Text style={[styles.sub, { color: colors.secondary }]}>
           Lifting with friends is more fun. Share with 3 friends for a 1-week
-          free Gear Premium trial.
+          free Gear Plus trial.
         </Text>
 
         {code && (
