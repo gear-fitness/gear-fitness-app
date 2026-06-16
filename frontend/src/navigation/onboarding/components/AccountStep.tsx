@@ -6,13 +6,15 @@ import {
   Pressable,
   Image,
   ScrollView,
+  Platform,
+  useColorScheme,
 } from "react-native";
 import { StepProps } from "../stepProps";
 import { OnboardingTopBar } from "./OnboardingTopBar";
 import { useOnboardingColors } from "./useOnboardingColors";
 import { makeOnboardingStyles } from "./makeOnboardingStyles";
 import { PlanSummary } from "./PlanSummary";
-import { GOOGLE_LOGO_URI } from "../socialAuthUris";
+import { GOOGLE_LOGO_URI, appleBrandLogoUri } from "../socialAuthUris";
 
 const BENEFITS = [
   "Save your plan and routines",
@@ -25,12 +27,17 @@ const BENEFITS = [
 export function AccountStep({
   draft,
   onGoogleSignUp,
+  onAppleSignUp,
   isSigningIn,
   onBack,
   progress,
 }: StepProps) {
   const colors = useOnboardingColors();
   const shared = useMemo(() => makeOnboardingStyles(colors), [colors]);
+  const isDark = useColorScheme() === "dark";
+  // Standard Apple button: dark in light mode, light in dark mode.
+  const appleBg = isDark ? "#fff" : "#000";
+  const appleFg = isDark ? "#000" : "#fff";
 
   return (
     <View style={shared.screen}>
@@ -79,6 +86,28 @@ export function AccountStep({
             </Text>
           </View>
         </Pressable>
+        {Platform.OS === "ios" && (
+          <Pressable
+            onPress={onAppleSignUp}
+            disabled={isSigningIn}
+            style={({ pressed }) => [
+              shared.continueBtn,
+              { backgroundColor: appleBg },
+              pressed && styles.pressed,
+              isSigningIn && shared.continueBtnDisabled,
+            ]}
+          >
+            <View style={styles.btnContent}>
+              <Image
+                source={{ uri: appleBrandLogoUri(isDark) }}
+                style={styles.appleLogo}
+              />
+              <Text style={[shared.continueBtnText, { color: appleFg }]}>
+                {isSigningIn ? "Signing up…" : "Sign up with Apple"}
+              </Text>
+            </View>
+          </Pressable>
+        )}
         <Text style={[styles.terms, { color: colors.secondary }]}>
           By signing up you agree to our Terms and Privacy Policy.
         </Text>
@@ -123,6 +152,12 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     marginRight: 8,
+  },
+  appleLogo: {
+    width: 18,
+    height: 22,
+    marginRight: 8,
+    resizeMode: "contain",
   },
   terms: {
     textAlign: "center",

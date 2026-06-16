@@ -12,6 +12,7 @@ import {
   GoogleSignin,
   isSuccessResponse,
 } from "@react-native-google-signin/google-signin";
+import * as AppleAuthentication from "expo-apple-authentication";
 
 import { OnboardingDraft, OnboardingStep } from "../onboarding/types";
 import {
@@ -22,7 +23,9 @@ import {
 } from "../onboarding/storage";
 import {
   AuthApiError,
+  AppleAuthIntent,
   GoogleAuthIntent,
+  loginWithApple,
   loginWithGoogle,
 } from "../../api/authService";
 import { useAuth } from "../../context/AuthContext";
@@ -126,14 +129,51 @@ export function OnboardingScreen() {
           const { idToken } = response.data;
           if (!idToken) throw new Error("No ID token received from Google");
 
-          const { token, refreshToken } = await loginWithGoogle(
-            idToken,
-            intent,
-          );
-          if (!token || !refreshToken) {
+          const result = await loginWithGoogle(idToken, intent);
+
+          // Soft-deleted account: offer to restore rather than failing.
+          if (result.accountPendingDeletion) {
+            setIsSigningIn(false); // release the lock so the prompt can re-engage
+            Alert.alert(
+              "Restore account?",
+              "This account is scheduled for deletion. Would you like to restore it?",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Restore",
+                  onPress: async () => {
+                    setIsSigningIn(true);
+                    try {
+                      const restored = await loginWithGoogle(
+                        idToken,
+                        "sign_in",
+                        true,
+                      );
+                      if (!restored.token || !restored.refreshToken) {
+                        throw new Error("Missing tokens in restore response");
+                      }
+                      await login(restored.token, restored.refreshToken);
+                      await completeOnboarding();
+                    } catch (err) {
+                      console.error("Google restore failed:", err);
+                      Alert.alert(
+                        "Couldn't restore account",
+                        "Please try signing in again.",
+                      );
+                    } finally {
+                      setIsSigningIn(false);
+                    }
+                  },
+                },
+              ],
+            );
+            return;
+          }
+
+          if (!result.token || !result.refreshToken) {
             throw new Error("Google sign-in did not return valid session tokens");
           }
-          await login(token, refreshToken);
+          await login(result.token, result.refreshToken);
 
           if (intent === "sign_up") {
             // Persist everything collected so far, then continue the flow
@@ -177,6 +217,169 @@ export function OnboardingScreen() {
     [isSigningIn, login, draft, refreshUser, goNext, goTo, completeOnboarding],
   );
 
+  const handleAppleAuth = useCallback(
+    async (intent: AppleAuthIntent) => {
+      if (isSigningIn) return;
+      setIsSigningIn(true);
+      try {
+        const credential = await AppleAuthentication.signInAsync({
+          requestedScopes: [
+            AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+            AppleAuthentication.AppleAuthenticationScope.EMAIL,
+          ],
+        });
+        if (!credential.identityToken) {
+          throw new Error("No identity token received from Apple");
+        }
+
+        const result = await loginWithApple({
+          identityToken: credential.identityToken,
+          appleUserId: credential.user,
+          email: credential.email,
+          firstName: credential.fullName?.givenName,
+          lastName: credential.fullName?.familyName,
+          intent,
+        });
+
+        // Soft-deleted account: offer to restore rather than failing.
+        if (result.accountPendingDeletion) {
+          setIsSigningIn(false); // release the lock so the prompt can re-engage
+          Alert.alert(
+            "Restore account?",
+            "This account is scheduled for deletion. Would you like to restore it?",
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Restore",
+                onPress: async () => {
+                  setIsSigningIn(true);
+                  try {
+                    const restored = await loginWithApple({
+                      identityToken: credential.identityToken!,
+                      appleUserId: credential.user,
+                      intent: "sign_in",
+                      confirmRestore: true,
+                    });
+                    if (!restored.token || !restored.refreshToken) {
+                      throw new Error("Missing tokens in restore response");
+                    }
+                    await login(restored.token, restored.refreshToken);
+                    await completeOnboarding();
+                  } catch (err) {
+                    console.error("Apple restore failed:", err);
+                    Alert.alert(
+                      "Couldn't restore account",
+                      "Please try signing in again.",
+                    );
+                  } finally {
+                    setIsSigningIn(false);
+                  }
+                },
+              },
+            ],
+          );
+          return;
+        }
+
+        // Email already used by another provider: offer to link this Apple ID.
+        if (result.accountExistsForLinking) {
+          setIsSigningIn(false);
+          const providerLabel =
+            result.existingProvider === "google"
+              ? "Google"
+              : "another provider";
+          Alert.alert(
+            "Account exists",
+            `An account already exists for this email via ${providerLabel}. Link your Apple ID to that account?`,
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Link",
+                onPress: async () => {
+                  setIsSigningIn(true);
+                  try {
+                    const linked = await loginWithApple({
+                      identityToken: credential.identityToken!,
+                      appleUserId: credential.user,
+                      email: credential.email,
+                      firstName: credential.fullName?.givenName,
+                      lastName: credential.fullName?.familyName,
+                      intent,
+                      confirmLink: true,
+                    });
+                    if (!linked.token || !linked.refreshToken) {
+                      throw new Error("Missing tokens in link response");
+                    }
+                    await login(linked.token, linked.refreshToken);
+                    // Attaching to an existing account — keep its profile,
+                    // don't sync the onboarding draft over it.
+                    await completeOnboarding();
+                  } catch (err) {
+                    console.error("Apple linking failed:", err);
+                    Alert.alert(
+                      "Couldn't link account",
+                      "Please try signing in again.",
+                    );
+                  } finally {
+                    setIsSigningIn(false);
+                  }
+                },
+              },
+            ],
+          );
+          return;
+        }
+
+        if (!result.token || !result.refreshToken) {
+          throw new Error("Apple sign-in did not return valid session tokens");
+        }
+        await login(result.token, result.refreshToken);
+
+        if (intent === "sign_up") {
+          // Persist everything collected so far, then continue the flow
+          // (referral → paywall) rather than dropping into the app.
+          await runPostSignupSync(draft, refreshUser);
+          goNext();
+        } else {
+          // Returning user signing in — straight into the app.
+          await completeOnboarding();
+        }
+      } catch (error: any) {
+        // User dismissed the native Apple sheet — nothing to surface.
+        if (error?.code === "ERR_REQUEST_CANCELED") {
+          return;
+        }
+        if (error instanceof AuthApiError) {
+          if (intent === "sign_in" && error.code === "ACCOUNT_NOT_FOUND") {
+            Alert.alert(
+              "Account Not Found",
+              "No account exists for this Apple ID. Tap Get Started to create one.",
+              [{ text: "OK", onPress: () => goTo(0) }],
+            );
+            return;
+          }
+          if (intent === "sign_up" && error.code === "ACCOUNT_ALREADY_EXISTS") {
+            Alert.alert(
+              "Account Already Exists",
+              "An account already exists for this Apple ID. Signing you in…",
+              [{ text: "OK", onPress: () => completeOnboarding() }],
+            );
+            return;
+          }
+        }
+        console.error("Apple sign-in error during onboarding:", error);
+        Alert.alert(
+          "Sign-in Failed",
+          "Something went wrong signing in with Apple. Please try again.",
+          [{ text: "OK" }],
+        );
+      } finally {
+        setIsSigningIn(false);
+      }
+    },
+    [isSigningIn, login, draft, refreshUser, goNext, goTo, completeOnboarding],
+  );
+
   const onGoogleSignIn = useCallback(
     () => handleGoogleAuth("sign_in"),
     [handleGoogleAuth],
@@ -184,6 +387,14 @@ export function OnboardingScreen() {
   const onGoogleSignUp = useCallback(
     () => handleGoogleAuth("sign_up"),
     [handleGoogleAuth],
+  );
+  const onAppleSignIn = useCallback(
+    () => handleAppleAuth("sign_in"),
+    [handleAppleAuth],
+  );
+  const onAppleSignUp = useCallback(
+    () => handleAppleAuth("sign_up"),
+    [handleAppleAuth],
   );
 
   // TESTING ONLY — advance past the current screen. On the final screen it
@@ -205,6 +416,8 @@ export function OnboardingScreen() {
       progress: LAST_STEP === 0 ? 1 : draft.step / LAST_STEP,
       onGoogleSignIn,
       onGoogleSignUp,
+      onAppleSignIn,
+      onAppleSignUp,
       isSigningIn,
       onFinish: completeOnboarding,
     }),
@@ -215,6 +428,8 @@ export function OnboardingScreen() {
       goBack,
       onGoogleSignIn,
       onGoogleSignUp,
+      onAppleSignIn,
+      onAppleSignUp,
       isSigningIn,
       completeOnboarding,
     ],

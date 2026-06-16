@@ -1,10 +1,12 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import {
   View,
   Text,
   StyleSheet,
   Pressable,
   useColorScheme,
+  Platform,
+  Alert,
 } from "react-native";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useOnboardingColors } from "./useOnboardingColors";
@@ -17,9 +19,26 @@ const LOOP_AT = 5;
 const loadingVideoDark = require("../../../../assets/loading-dark.mp4");
 const loadingVideoLight = require("../../../../assets/loading-light.mp4");
 
-export function WelcomeStep({ onNext, onGoogleSignIn }: StepProps) {
+export function WelcomeStep({
+  onNext,
+  onGoogleSignIn,
+  onAppleSignIn,
+}: StepProps) {
   const isDark = useColorScheme() === "dark";
   const colors = useOnboardingColors();
+
+  // Apple sign-in only exists on iOS; elsewhere go straight to Google.
+  const onSignIn = useCallback(() => {
+    if (Platform.OS !== "ios") {
+      onGoogleSignIn();
+      return;
+    }
+    Alert.alert("Sign in", "Choose how you'd like to sign in.", [
+      { text: "Continue with Apple", onPress: onAppleSignIn },
+      { text: "Continue with Google", onPress: onGoogleSignIn },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  }, [onAppleSignIn, onGoogleSignIn]);
   const shared = useMemo(() => makeOnboardingStyles(colors), [colors]);
 
   const player = useVideoPlayer(
@@ -77,7 +96,7 @@ export function WelcomeStep({ onNext, onGoogleSignIn }: StepProps) {
         >
           <Text style={shared.continueBtnText}>Get Started</Text>
         </Pressable>
-        <Pressable onPress={onGoogleSignIn} style={styles.signInRow}>
+        <Pressable onPress={onSignIn} style={styles.signInRow}>
           <Text style={[styles.signInText, { color: colors.secondary }]}>
             Already have an account?{" "}
             <Text style={[styles.signInLink, { color: colors.text }]}>
