@@ -1,13 +1,18 @@
 import React from "react";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 
 import { FeedPost } from "../api/socialFeedApi";
 import { Avatar } from "./Avatar";
+import { PresignedImage } from "./PresignedImage";
 import { formatDurationShort, formatTimeAgo } from "../utils/date";
 import { useLikeState } from "../context/LikesContext";
 import { usePostMenu } from "../hooks/usePostMenu";
+import { useAuth } from "../context/AuthContext";
+import { PostVisibilitySheet } from "./PostVisibilitySheet";
+import { PostActionsSheet } from "./PostActionsSheet";
+import { ReportPostSheet } from "./ReportPostSheet";
 
 export type CompactPostCardTheme = {
   surface: string;
@@ -26,16 +31,42 @@ type Props = {
 
 export function CompactPostCard({ post, theme: t, width }: Props) {
   const navigation = useNavigation<any>();
+  const { user } = useAuth();
   const {
     liked: likedByUser,
     count: likeCount,
     toggle: handleLike,
   } = useLikeState(post.postId, post);
-  const onMenuPress = usePostMenu({
+  const {
+    onPress: onMenuPress,
+    actions: menuActions,
+    showVisibilitySheet,
+    closeVisibilitySheet,
+    pendingVisibility,
+    handleVisibilitySelect,
+    showActionsSheet,
+    closeActionsSheet,
+    onActionsSheetClosed,
+    showReportSheet,
+    closeReportSheet,
+    submitReport,
+  } = usePostMenu({
     workoutId: post.workoutId,
+    postId: post.postId,
     ownerUserId: post.userId,
     ownerUsername: post.username,
+    viewerFollowsAuthor: post.viewerFollowsAuthor,
+    currentVisibility: post.visibility ?? "PUBLIC",
   });
+  const isOwnPost =
+    post.userId === user?.userId || post.username === user?.username;
+  const visibility = post.visibility ?? "PUBLIC";
+  const visibilityIcon =
+    isOwnPost && visibility === "FRIENDS"
+      ? "people-outline"
+      : isOwnPost && visibility === "PRIVATE"
+        ? "lock-closed-outline"
+        : null;
   const time = post.durationMin ? formatDurationShort(post.durationMin) : "—";
 
   const photos =
@@ -62,6 +93,7 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
       postId: post.postId,
       ownerUserId: post.userId,
       ownerUsername: post.username,
+      viewerFollowsAuthor: post.viewerFollowsAuthor,
       initialLikeCount: likeCount,
       initialLikedByUser: likedByUser,
     });
@@ -76,6 +108,23 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
         { backgroundColor: t.surface, borderColor: t.border, width },
       ]}
     >
+      <PostActionsSheet
+        visible={showActionsSheet}
+        actions={menuActions}
+        onClose={closeActionsSheet}
+        onClosed={onActionsSheetClosed}
+      />
+      <PostVisibilitySheet
+        visible={showVisibilitySheet}
+        current={pendingVisibility}
+        onSelect={handleVisibilitySelect}
+        onClose={closeVisibilitySheet}
+      />
+      <ReportPostSheet
+        visible={showReportSheet}
+        onSubmit={submitReport}
+        onClose={closeReportSheet}
+      />
       <View style={styles.cardHeader}>
         <Avatar
           username={post.username}
@@ -88,6 +137,14 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
         >
           {formatTimeAgo(post.createdAt)}
         </Text>
+        {visibilityIcon && (
+          <Ionicons
+            name={visibilityIcon}
+            size={12}
+            color={t.text}
+            style={{ opacity: 0.5 }}
+          />
+        )}
         <View style={{ flex: 1 }} />
         <TouchableOpacity
           onPress={(e) => {
@@ -132,10 +189,11 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
                   { backgroundColor: t.surface, borderColor: t.surface },
                 ]}
               >
-                <Image
-                  source={{ uri: photos[2] }}
+                <PresignedImage
+                  imageKey={photos[2]}
                   style={[styles.thumbImage, { borderColor: t.border }]}
                   resizeMode="cover"
+                  showLoader={false}
                 />
               </View>
             )}
@@ -149,10 +207,11 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
                   { backgroundColor: t.surface, borderColor: t.surface },
                 ]}
               >
-                <Image
-                  source={{ uri: photos[1] }}
+                <PresignedImage
+                  imageKey={photos[1]}
                   style={[styles.thumbImage, { borderColor: t.border }]}
                   resizeMode="cover"
+                  showLoader={false}
                 />
               </View>
             )}
@@ -162,10 +221,11 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
                 { backgroundColor: t.surface, borderColor: t.surface },
               ]}
             >
-              <Image
-                source={{ uri: photos[0] }}
+              <PresignedImage
+                imageKey={photos[0]}
                 style={[styles.thumbImage, { borderColor: t.border }]}
                 resizeMode="cover"
+                showLoader={false}
               />
             </View>
           </TouchableOpacity>

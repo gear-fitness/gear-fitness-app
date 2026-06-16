@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Text } from "@react-navigation/elements";
 import { StyleSheet, View, TouchableOpacity, Image, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -12,8 +12,6 @@ import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { useAuth } from "../../context/AuthContext";
 import { TodaysRoutines } from "../../components/TodaysRoutines";
-import { StartCountdownOverlay } from "../../components/StartCountdownOverlay";
-import { useStartCountdown } from "../../hooks/useStartCountdown";
 import { StreakDropdown } from "../../components/StreakDropdown";
 import { streakService, type StreakInfo } from "../../api/streakService";
 
@@ -67,16 +65,6 @@ export function Workout() {
   const { user, refreshUser } = useAuth();
   const { playerVisible, seconds, running, exercises, reset } =
     useWorkoutTimer();
-  const {
-    isCountdownVisible,
-    countdownValue,
-    startCountdown,
-    cancelCountdown,
-    skipCountdown,
-  } = useStartCountdown({
-    onComplete: () =>
-      navigation.navigate("WorkoutFlow", { screen: "ExerciseSelect" }),
-  });
 
   const [streakDropdownVisible, setStreakDropdownVisible] = useState(false);
   const [streakInfo, setStreakInfo] = useState<StreakInfo | null>(null);
@@ -118,15 +106,6 @@ export function Workout() {
     }
   };
 
-  useEffect(() => {
-    navigation.setOptions({
-      tabBarStyle: isCountdownVisible ? { display: "none" } : undefined,
-    });
-    return () => {
-      navigation.setOptions({ tabBarStyle: undefined });
-    };
-  }, [isCountdownVisible, navigation]);
-
   const glassAvailable = isLiquidGlassAvailable();
 
   const t = isDark
@@ -152,10 +131,10 @@ export function Workout() {
       navigation.navigate("WorkoutFlow", { screen: "WorkoutComplete" });
     } else {
       // Starting a fresh workout — explicitly clear any leftover state
-      // (timer, exercises, persisted storage) before the countdown. The
+      // (timer, exercises, persisted storage) before navigating. The
       // ExerciseDetail mount-effect's start() will release the barrier.
       reset();
-      startCountdown();
+      navigation.navigate("WorkoutFlow", { screen: "ExerciseSelect" });
     }
   };
 
@@ -304,13 +283,6 @@ export function Workout() {
         onRestore={handleRestore}
         loading={streakLoading}
         isDark={isDark}
-      />
-      <StartCountdownOverlay
-        visible={isCountdownVisible}
-        countdownValue={countdownValue}
-        isDark={isDark}
-        onCancel={cancelCountdown}
-        onSkip={skipCountdown}
       />
     </SafeAreaView>
   );

@@ -130,6 +130,9 @@ export function OnboardingScreen() {
             idToken,
             intent,
           );
+          if (!token || !refreshToken) {
+            throw new Error("Google sign-in did not return valid session tokens");
+          }
           await login(token, refreshToken);
 
           if (intent === "sign_up") {

@@ -12,9 +12,11 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLRestriction;
 
 @Entity
 @Table(name = "post_like")
+@SQLRestriction("hidden_at IS NULL")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -39,6 +41,9 @@ public class PostLike {
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
   private LocalDateTime createdAt;
+
+  @Column(name = "hidden_at")
+  private LocalDateTime hiddenAt;
 
   // Composite Key Class
   @Data

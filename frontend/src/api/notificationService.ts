@@ -1,12 +1,15 @@
 import apiClient from "./apiClient";
+import { getDeviceTimeZone } from "../utils/date";
 
 export interface NotificationDTO {
   notificationId: string;
   type: string;
+  actorUserId?: string;
   actorUsername: string;
   actorProfilePictureUrl?: string | null;
   postId?: string;
   workoutId?: string | null;
+  postImageUrl?: string | null;
   commentBody?: string;
   createdAt: string;
   isRead: boolean;
@@ -27,8 +30,15 @@ export const notificationService = {
     await apiClient.post("/notifications/mark-read");
   },
 
+  deleteNotification: async (notificationId: string): Promise<void> => {
+    await apiClient.delete(`/notifications/${notificationId}`);
+  },
+
   registerToken: async (pushToken: string): Promise<void> => {
-    await apiClient.post("/notifications/token", { token: pushToken });
+    await apiClient.post("/notifications/token", {
+      token: pushToken,
+      timeZone: getDeviceTimeZone(),
+    });
   },
 
   unregisterToken: async (): Promise<void> => {

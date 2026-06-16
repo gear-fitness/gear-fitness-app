@@ -31,7 +31,7 @@ export function CommentsScreen() {
   const goToProfile = (username: string) => {
     navigation.goBack();
     setTimeout(() => {
-      navigation.navigate("UserProfile", { username });
+      navigation.push("UserProfile", { username });
     }, 200);
   };
 

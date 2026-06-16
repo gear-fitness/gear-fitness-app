@@ -15,4 +15,12 @@ jobs:
 
       - run: npm ci
 
-      - run: npx prettier --check "**/*.java" "**/*.ts" "**/*.tsx"
+      - name: Check formatting
+        id: prettier
+        run: npx prettier --check "**/*.java" "**/*.ts" "**/*.tsx"
+
+      - name: Formatting failed
+        if: failure() && steps.prettier.conclusion == 'failure'
+        run: |
+          echo "::error::Formatting check failed. Run 'npm run format' in the project root to fix, then commit the changes."
+          exit 1

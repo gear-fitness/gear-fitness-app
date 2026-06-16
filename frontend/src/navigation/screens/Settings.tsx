@@ -18,9 +18,11 @@ import { useAuth } from "../../context/AuthContext";
 import { useThemeColors } from "../../hooks/useThemeColors";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { useProfilePhoto } from "../../hooks/useProfilePhoto";
+import { useOnlineStatus } from "../../hooks/useOnlineStatus";
 import { Avatar } from "../../components/Avatar";
 import { AvatarWithCameraOverlay } from "../../components/AvatarWithCameraOverlay";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
+import { OfflineNotice } from "../../components/OfflineNotice";
 import {
   SettingsDestructiveCell,
   SettingsCellPosition,
@@ -34,8 +36,10 @@ import {
   readFromHealthKit,
   diffSnapshot,
 } from "../../utils/healthKitSync";
-import { updateUserProfile } from "../../api/userService";
+import { updateUserProfile, updateUserPrivacy } from "../../api/userService";
 import { Height, Weight } from "../onboarding/types";
+import { useUnitPreference } from "../../context/UnitPreferenceContext";
+import { formatWeight as formatWeightWithUnit } from "../../utils/weight";
 import * as Notifications from "expo-notifications";
 
 const GENDER_LABELS: Record<string, string> = {
@@ -105,6 +109,8 @@ export function Settings() {
   const themeColors = useThemeColors();
   const insets = useSafeAreaInsets();
   const { pickAndUpload, uploading } = useProfilePhoto();
+  const online = useOnlineStatus();
+  const { weightUnit, setWeightUnit } = useUnitPreference();
 
   const [isPrivate, setIsPrivate] = useState(user?.isPrivate ?? false);
 
@@ -285,6 +291,23 @@ export function Settings() {
     }
   };
 
+  const [privacyBusy, setPrivacyBusy] = useState(false);
+
+  const handlePrivacyToggle = async (next: boolean) => {
+    if (privacyBusy) return;
+    setIsPrivate(next);
+    setPrivacyBusy(true);
+    try {
+      await updateUserPrivacy(next);
+      if (typeof refreshUser === "function") await refreshUser();
+    } catch {
+      setIsPrivate(!next);
+      Alert.alert("Couldn't update", "Failed to change privacy setting.");
+    } finally {
+      setPrivacyBusy(false);
+    }
+  };
+
   const handleLogout = () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
       { text: "Cancel", style: "cancel" },
@@ -312,10 +335,8 @@ export function Settings() {
     return `${Math.floor(h / 12)}' ${h % 12}"`;
   };
 
-  const formatWeight = (w: number | null | undefined) => {
-    if (!w) return "Not set";
-    return `${w} lbs`;
-  };
+  const formatWeight = (w: number | null | undefined) =>
+    formatWeightWithUnit(w, weightUnit);
 
   const formatGender = (g: string | null | undefined) => {
     if (!g) return "Not set";
@@ -472,8 +493,62 @@ export function Settings() {
               : "Choose a fixed appearance that overrides your device setting.",
         },
         {
+          key: "units",
+          title: "Units",
+          data: [
+            {
+              id: "unit_lbs",
+              type: "value" as const,
+              label: "Pounds (lbs)",
+              value: weightUnit === "lbs" ? "✓" : "",
+              showArrow: false,
+              onPress: () => setWeightUnit("lbs"),
+            },
+            {
+              id: "unit_kg",
+              type: "value" as const,
+              label: "Kilograms (kg)",
+              value: weightUnit === "kg" ? "✓" : "",
+              showArrow: false,
+              onPress: () => setWeightUnit("kg"),
+            },
+          ],
+          footer:
+            "Weights across the app are shown and entered in your chosen unit.",
+        },
+        {
+          key: "privacy",
+          title: "Privacy",
+          data: [
+            {
+              id: "private_account",
+              type: "toggle" as const,
+              label: "Private Account",
+              value: isPrivate,
+              onValueChange: handlePrivacyToggle,
+              disabled: privacyBusy,
+            },
+            {
+              id: "blocked_users",
+              type: "value" as const,
+              label: "Blocked Users",
+              onPress: () => navigation.navigate("BlockedUsers"),
+              showArrow: true,
+            },
+          ],
+          footer: isPrivate
+            ? "Only approved followers can see your posts and profile."
+            : "Anyone can see your posts and follow you.",
+        },
+        {
           key: "account",
           data: [
+            {
+              id: "delete_account",
+              type: "destructive",
+              title: "Delete Account",
+              onPress: () => navigation.navigate("DeleteAccount"),
+            },
             {
               id: "logout",
               type: "destructive",
@@ -577,6 +652,19 @@ export function Settings() {
       />
     );
   };
+
+  if (!online) {
+    return (
+      <View style={[styles.container, { backgroundColor: themeColors.appBg }]}>
+        <FloatingCloseButton
+          direction="left"
+          accessibilityLabel="Back"
+          onPress={() => navigation.getParent()?.goBack()}
+        />
+        <OfflineNotice message="Go back online to change your settings." />
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: themeColors.appBg }]}>

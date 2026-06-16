@@ -41,4 +41,10 @@ public class UserProfileDTO {
    * Null if viewing own profile or not authenticated
    */
   private Boolean isFollowing;
+
+  /**
+   * Follow relationship status from viewer's perspective.
+   * Values: "ACCEPTED", "PENDING", "BLOCKED", "NONE". Null if own profile.
+   */
+  private String followStatus;
 }

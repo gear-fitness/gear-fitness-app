@@ -28,6 +28,24 @@ public interface PostCommentRepository
 
   Page<PostComment> findByPost_PostId(UUID postId, Pageable pageable);
 
+  @Query(
+    """
+    SELECT c FROM PostComment c
+    WHERE c.post.postId = :postId
+    AND NOT EXISTS (
+        SELECT b FROM Follow b WHERE
+        (b.follower.userId = :viewingUserId AND b.followee.userId = c.user.userId AND b.status = 'BLOCKED')
+        OR (b.follower.userId = c.user.userId AND b.followee.userId = :viewingUserId AND b.status = 'BLOCKED')
+    )
+    ORDER BY c.createdAt DESC
+    """
+  )
+  Page<PostComment> findVisibleComments(
+    @Param("postId") UUID postId,
+    @Param("viewingUserId") UUID viewingUserId,
+    Pageable pageable
+  );
+
   long countByPost_PostId(UUID postId);
 
   default Map<UUID, Long> countByPostIds(List<UUID> postIds) {

@@ -1,11 +1,12 @@
 .DS_Store
 *.code-workspace
 node_modules/
-
+NEXT.md
 
 # Documentation files (keep README.md files visible)
 NEXT.md
 CLAUDE.md
+NEXT.md
 IMPLEMENTATION_SUMMARY.md
 SIGNUP_FEATURE_DOCUMENTATION.md
 BRANCH_CHANGES_SUMMARY.md

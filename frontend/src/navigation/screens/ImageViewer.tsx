@@ -1,6 +1,5 @@
 import { useRef, useState } from "react";
 import {
-  Image,
   NativeScrollEvent,
   NativeSyntheticEvent,
   ScrollView,
@@ -25,6 +24,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { SnapbackZoom } from "react-native-zoom-toolkit";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { PresignedImage } from "../../components/PresignedImage";
 
 type RootStackParamList = {
   ImageViewer: {
@@ -124,9 +124,9 @@ export function ImageViewer({ route }: Props) {
             contentOffset={{ x: initialIndex * width, y: 0 }}
             scrollEnabled={photos.length > 1}
           >
-            {photos.map((uri, i) => (
+            {photos.map((imageKey, i) => (
               <View
-                key={`${uri}-${i}`}
+                key={`${imageKey}-${i}`}
                 style={{
                   width,
                   height,
@@ -135,8 +135,8 @@ export function ImageViewer({ route }: Props) {
                 }}
               >
                 <SnapbackZoom scrollRef={scrollRef as never}>
-                  <Image
-                    source={{ uri }}
+                  <PresignedImage
+                    imageKey={imageKey}
                     style={{ width, height }}
                     resizeMode="contain"
                   />

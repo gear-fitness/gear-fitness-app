@@ -13,6 +13,8 @@ import Svg, { Path } from "react-native-svg";
 import React, { useState } from "react";
 
 import { useWorkoutTimer } from "../../context/WorkoutContext";
+import { useUnitPreference } from "../../context/UnitPreferenceContext";
+import { toDisplayWeight } from "../../utils/weight";
 import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
@@ -36,6 +38,7 @@ export function WorkoutSummary() {
   useTrackTab("WorkoutSummary", { isModal: true });
 
   const isDark = useColorScheme() === "dark";
+  const { weightUnit: globalUnit } = useUnitPreference();
   const ACCENT = isDark ? "#fff" : "#000";
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
@@ -156,6 +159,7 @@ export function WorkoutSummary() {
                 [...ex.sets]
                   .reverse()
                   .find((s) => s.reps !== "" && s.weight !== "") || null;
+              const rowUnit = ex.weightUnit ?? globalUnit;
 
               return (
                 <View
@@ -215,7 +219,11 @@ export function WorkoutSummary() {
                               <Text
                                 style={[styles.lastSetValue, { color: t.text }]}
                               >
-                                {last.reps}×{last.weight}
+                                {last.reps}×
+                                {toDisplayWeight(
+                                  Number(last.weight) || 0,
+                                  rowUnit,
+                                )}
                                 <Text
                                   style={[
                                     styles.lastSetUnit,
@@ -223,7 +231,7 @@ export function WorkoutSummary() {
                                   ]}
                                 >
                                   {" "}
-                                  lb
+                                  {rowUnit}
                                 </Text>
                               </Text>
                             </>

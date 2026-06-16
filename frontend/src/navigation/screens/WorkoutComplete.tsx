@@ -15,6 +15,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
+import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -22,12 +23,14 @@ import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { useSocialFeed } from "../../context/SocialFeedContext";
+import { submitWorkout, WorkoutSubmission } from "../../api/workoutService";
+import { uploadPostImage } from "../../api/imageService";
+import { isNetworkError } from "../../utils/network";
+import { enqueueWorkout } from "../../utils/workoutQueue";
 import {
-  submitWorkout,
-  uploadWorkoutPhoto,
-  WorkoutSubmission,
-} from "../../api/workoutService";
-import { getCurrentLocalDateString } from "../../utils/date";
+  getCurrentLocalDateString,
+  getLocalDateStringFromEpoch,
+} from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 import { formatTag } from "../../utils/formatTag";
@@ -57,7 +60,8 @@ export function WorkoutComplete() {
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const photoTileSize = Math.floor((screenWidth - 40 - 24) / 4);
-  const { exercises, seconds, reset } = useWorkoutTimer();
+  const { exercises, seconds, workoutStartedAtEpoch, reset } =
+    useWorkoutTimer();
   const { invalidate: invalidateFeed } = useSocialFeed();
 
   const initialBodyTags = useMemo(() => {
@@ -73,10 +77,10 @@ export function WorkoutComplete() {
   const [bodyTags, setBodyTags] = useState<string[]>(initialBodyTags);
   const [caption, setCaption] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
-  const [loadingAction, setLoadingAction] = useState<"save" | "post" | null>(
-    null,
-  );
-  const loading = loadingAction !== null;
+  const [visibility, setVisibility] = useState<
+    "PUBLIC" | "FRIENDS" | "PRIVATE"
+  >("PUBLIC");
+  const [loading, setLoading] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -138,7 +142,7 @@ export function WorkoutComplete() {
     }
     const remaining = MAX_PHOTOS - photos.length;
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"],
       allowsMultipleSelection: remaining > 1,
       selectionLimit: remaining,
       quality: 0.8,
@@ -169,7 +173,7 @@ export function WorkoutComplete() {
     else navigation.goBack();
   };
 
-  const handleSaveWorkout = async (createPost: boolean) => {
+  const handlePost = async () => {
     if (!workoutName.trim()) {
       Alert.alert("Error", "Please enter a workout name");
       return;
@@ -179,10 +183,59 @@ export function WorkoutComplete() {
       return;
     }
 
-    setLoadingAction(createPost ? "post" : "save");
+    setLoading(true);
 
+    const buildSubmission = (uploadedUrls: string[]): WorkoutSubmission => ({
+      name: workoutName,
+      durationMin,
+      // Date the workout by when it was STARTED, not when it's submitted, so a
+      // session that crosses local midnight counts on the day training began.
+      // Falls back to "now" if the start stamp is somehow missing.
+      datePerformed:
+        workoutStartedAtEpoch != null
+          ? getLocalDateStringFromEpoch(workoutStartedAtEpoch)
+          : getCurrentLocalDateString(),
+      bodyTags: bodyTags, // Send all selected tags to backend
+      exercises: exercises.map((ex) => ({
+        exerciseId: ex.exerciseId,
+        sets: ex.sets.map((set) => ({
+          reps: set.reps,
+          weight: set.weight,
+        })),
+        note: ex.note || "",
+      })),
+      // Privacy model: always create a post; the visibility selector controls
+      // the audience (PUBLIC / FRIENDS / PRIVATE), where PRIVATE is "Only me".
+      createPost: true,
+      visibility,
+      caption: caption || undefined,
+      imageUrl: uploadedUrls.length > 0 ? uploadedUrls[0] : undefined,
+      photoUrls: uploadedUrls,
+    });
+
+    const finishOffline = async (
+      alreadyUploadedUrls: string[],
+      stillPendingUris: string[],
+    ) => {
+      // Hand off to the queue. Photos that already made it to S3 are kept
+      // verbatim; the rest are kept as local URIs and uploaded at flush time.
+      await enqueueWorkout(
+        buildSubmission(alreadyUploadedUrls),
+        stillPendingUris,
+      );
+      await reset();
+      Alert.alert(
+        "Saved offline",
+        "You're offline. Your workout was saved on this device and will post automatically when you're back online.",
+        [{ text: "OK", onPress: popOutOfFlow }],
+      );
+    };
+
+    // Under the secure-s3 model these hold S3 object keys (not public URLs),
+    // returned by uploadPostImage. The field names on WorkoutSubmission keep
+    // their legacy "Url" naming; the backend stores whatever string it's given.
+    let uploadedUrls: string[] = [];
     try {
-      let uploadedUrls: string[] = [];
       if (photos.length > 0) {
         try {
           const compressed = await Promise.all(
@@ -194,37 +247,22 @@ export function WorkoutComplete() {
               ),
             ),
           );
-          const results = await Promise.all(
-            compressed.map((m) => uploadWorkoutPhoto(m.uri)),
+          uploadedUrls = await Promise.all(
+            compressed.map((m) => uploadPostImage(m.uri)),
           );
-          uploadedUrls = results.map((r) => r.url);
         } catch (uploadError) {
+          if (isNetworkError(uploadError)) {
+            await finishOffline([], [...photos]);
+            return;
+          }
           console.error("Failed to upload workout photos:", uploadError);
           Alert.alert("Error", "Failed to upload photos. Please try again.");
-          setLoadingAction(null);
+          setLoading(false);
           return;
         }
       }
 
-      const submission: WorkoutSubmission = {
-        name: workoutName,
-        durationMin,
-        datePerformed: getCurrentLocalDateString(),
-        bodyTags: bodyTags, // Send all selected tags to backend
-        exercises: exercises.map((ex) => ({
-          exerciseId: ex.exerciseId,
-          sets: ex.sets.map((set) => ({
-            reps: set.reps,
-            weight: set.weight,
-          })),
-          note: ex.note || "",
-        })),
-        createPost,
-        caption: createPost ? caption : undefined,
-        imageUrl:
-          createPost && uploadedUrls.length > 0 ? uploadedUrls[0] : undefined,
-        photoUrls: uploadedUrls,
-      };
+      const submission = buildSubmission(uploadedUrls);
 
       await submitWorkout(submission);
       // Clear in-memory + persisted state BEFORE the Alert so that any path
@@ -234,20 +272,26 @@ export function WorkoutComplete() {
       // resurrect state during the unmount that follows popOutOfFlow.
       await reset();
 
-      if (createPost) invalidateFeed();
+      invalidateFeed();
 
-      Alert.alert(
-        "Success",
-        createPost
-          ? "Workout saved and posted!"
-          : "Workout saved successfully!",
-        [{ text: "OK", onPress: popOutOfFlow }],
-      );
+      Alert.alert("Posted!", "Your workout has been posted.", [
+        { text: "OK", onPress: popOutOfFlow },
+      ]);
     } catch (error) {
-      console.error("Failed to save workout:", error);
-      Alert.alert("Error", "Failed to save workout. Please try again.");
+      if (isNetworkError(error)) {
+        try {
+          // Photos already uploaded to S3 keep their URLs; the upload phase
+          // succeeded, so there are no remaining local URIs to re-try.
+          await finishOffline(uploadedUrls, []);
+          return;
+        } catch (queueErr) {
+          console.error("Failed to queue workout offline:", queueErr);
+        }
+      }
+      console.error("Failed to post workout:", error);
+      Alert.alert("Error", "Failed to post workout. Please try again.");
     } finally {
-      setLoadingAction(null);
+      setLoading(false);
     }
   };
 
@@ -503,7 +547,7 @@ export function WorkoutComplete() {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Paired footer — hidden while keyboard is open */}
+      {/* Footer — hidden while keyboard is open */}
       {!keyboardVisible && (
         <View
           style={[
@@ -514,6 +558,59 @@ export function WorkoutComplete() {
             },
           ]}
         >
+          {/* Visibility picker */}
+          <View style={styles.visibilityRow}>
+            {(
+              [
+                { value: "PUBLIC", icon: "globe-outline", label: "Everyone" },
+                { value: "FRIENDS", icon: "people-outline", label: "Friends" },
+                {
+                  value: "PRIVATE",
+                  icon: "lock-closed-outline",
+                  label: "Only me",
+                },
+              ] as const
+            ).map((opt) => {
+              const active = visibility === opt.value;
+              return (
+                <TouchableOpacity
+                  key={opt.value}
+                  activeOpacity={0.7}
+                  onPress={() => setVisibility(opt.value)}
+                  style={[
+                    styles.visChip,
+                    {
+                      backgroundColor: active
+                        ? isDark
+                          ? "#fff"
+                          : ACCENT
+                        : t.chipBg,
+                      borderColor: active
+                        ? isDark
+                          ? "#fff"
+                          : ACCENT
+                        : t.chipBorder,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name={opt.icon}
+                    size={14}
+                    color={active ? (isDark ? "#000" : "#fff") : t.text}
+                  />
+                  <Text
+                    style={[
+                      styles.visChipLabel,
+                      { color: active ? (isDark ? "#000" : "#fff") : t.text },
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
           <View
             style={[
               styles.footerCard,
@@ -526,29 +623,15 @@ export function WorkoutComplete() {
             ]}
           >
             <TouchableOpacity
-              activeOpacity={0.7}
-              style={styles.footerBtn}
-              onPress={() => handleSaveWorkout(false)}
-              disabled={loading}
-            >
-              {loadingAction === "save" ? (
-                <ActivityIndicator color={t.text} />
-              ) : (
-                <Text style={[styles.footerBtnText, { color: t.text }]}>
-                  Save
-                </Text>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
               activeOpacity={0.85}
               style={[
                 styles.footerBtn,
                 { backgroundColor: isDark ? "#fff" : ACCENT },
               ]}
-              onPress={() => handleSaveWorkout(true)}
+              onPress={handlePost}
               disabled={loading}
             >
-              {loadingAction === "post" ? (
+              {loading ? (
                 <ActivityIndicator color={isDark ? "#000" : "#fff"} />
               ) : (
                 <View style={styles.footerBtnContent}>
@@ -804,15 +887,33 @@ const styles = StyleSheet.create({
   footerWrap: {
     paddingHorizontal: 12,
     paddingTop: 8,
+    gap: 8,
+  },
+  visibilityRow: {
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "center",
+  },
+  visChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    borderWidth: 1.5,
+  },
+  visChipLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 0.2,
   },
   footerCard: {
-    flexDirection: "row",
     padding: 4,
     borderRadius: 16,
     gap: 2,
   },
   footerBtn: {
-    flex: 1,
     height: 50,
     borderRadius: 12,
     alignItems: "center",

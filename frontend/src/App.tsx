@@ -21,6 +21,8 @@ import {
 } from "./context/WorkoutContext";
 import { LikesProvider } from "./context/LikesContext";
 import { SocialFeedProvider } from "./context/SocialFeedContext";
+import { FollowStatusProvider } from "./context/FollowStatusContext";
+import { UnitPreferenceProvider } from "./context/UnitPreferenceContext";
 import { WorkoutPlayer } from "./components/WorkoutPlayer";
 import * as Notifications from "expo-notifications";
 import {
@@ -197,16 +199,20 @@ function AppContent({
         <WorkoutTimerProvider>
           <LikesProvider>
             <SocialFeedProvider>
-              <Navigation
-                ref={navigationRef}
-                theme={theme}
-                linking={{
-                  enabled: "auto",
-                  prefixes: [prefix],
-                }}
-                onReady={() => setIsNavigationReady(true)}
-              />
-              <WorkoutPlayer />
+              <FollowStatusProvider>
+                <UnitPreferenceProvider>
+                  <Navigation
+                    ref={navigationRef}
+                    theme={theme}
+                    linking={{
+                      enabled: "auto",
+                      prefixes: [prefix],
+                    }}
+                    onReady={() => setIsNavigationReady(true)}
+                  />
+                  <WorkoutPlayer />
+                </UnitPreferenceProvider>
+              </FollowStatusProvider>
             </SocialFeedProvider>
           </LikesProvider>
         </WorkoutTimerProvider>

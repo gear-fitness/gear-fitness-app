@@ -24,6 +24,7 @@ public class WorkoutSubmissionDTO {
 
   // Optional - for creating a post
   private Boolean createPost;
+  private String visibility; // "PUBLIC" | "FRIENDS" | "PRIVATE"
   private String caption;
   private String imageUrl;
 

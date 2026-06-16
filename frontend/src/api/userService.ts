@@ -83,6 +83,10 @@ export async function updateUserProfile(
   return data;
 }
 
+export async function updateUserPrivacy(isPrivate: boolean): Promise<void> {
+  await apiClient.patch("/users/me/privacy", { isPrivate });
+}
+
 export async function searchUsers(query: string): Promise<SearchUserResult[]> {
   const { data } = await apiClient.get("/users/search", {
     params: { q: query },
@@ -122,4 +126,17 @@ export async function uploadProfilePicture(imageUri: string): Promise<any> {
 export async function deleteProfilePicture(): Promise<any> {
   const { data } = await apiClient.delete("/users/me/profile-picture");
   return data;
+}
+
+/**
+ * Soft-delete the current user's account. The account is hidden immediately
+ * and permanently deleted after 48 hours. Signing back in within that window
+ * restores it.
+ */
+export async function deleteAccount(
+  usernameConfirmation: string,
+): Promise<void> {
+  await apiClient.delete("/users/me", {
+    data: { usernameConfirmation },
+  });
 }
