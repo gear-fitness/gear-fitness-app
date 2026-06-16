@@ -16,7 +16,7 @@ const COMPARE: { label: string; basic: CompareCell; plus: CompareCell }[] = [
   { label: "Track workouts & PRs", basic: true, plus: true },
   { label: "Connect with friends", basic: true, plus: true },
   { label: "Routines", basic: "3", plus: "7" },
-  { label: "Streak restore tokens", basic: "1", plus: "4" },
+  { label: "Streak restore tokens / mo", basic: "1", plus: "4" },
   { label: "Progress history", basic: "3 mo", plus: "1 yr" },
   { label: "Graph types", basic: "Volume", plus: "All" },
   { label: "Calorie tracker (manual)", basic: false, plus: "Soon" },
@@ -32,7 +32,7 @@ export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
   const referred = !!draft.referralSent;
   const trialDays = referred ? 7 : 3;
   const reminderDay = referred ? 5 : 2;
-  const price = plan === "annual" ? "$47.99/yr" : "$7.99/mo";
+  const price = plan === "annual" ? "$47.99/year" : "$7.99/mo";
 
   const handleStart = () => {
     if (referred) {
@@ -161,7 +161,7 @@ export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
                 {trialDays}-day free trial
               </Text>
               <Text style={[styles.featSub, { color: colors.secondary }]}>
-                then <Text style={styles.strike}>$95.88</Text> → $47.99/yr
+                then <Text style={styles.strike}>$95.88</Text> → $47.99/year
               </Text>
             </View>
             <View style={styles.featRight}>
