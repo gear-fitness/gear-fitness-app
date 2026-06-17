@@ -12,20 +12,29 @@ export function GoalStep({
   onBack,
   progress,
 }: StepProps) {
+  const selected = draft.goals ?? [];
+  const toggle = (value: FitnessGoal) => {
+    const next = selected.includes(value)
+      ? selected.filter((v) => v !== value)
+      : [...selected, value];
+    updateDraft({ goals: next });
+  };
+
   return (
     <StepScaffold
       progress={progress}
       onBack={onBack}
-      heading="What's your main goal?"
-      subheading="This shapes the plan we build for you."
+      heading="What are your goals?"
+      subheading="Pick all that apply — this shapes the plan we build for you."
       onContinue={onNext}
-      continueDisabled={!draft.goal}
+      continueDisabled={!draft.goals?.length}
     >
       <OptionCardList
         minimal
+        multi
         options={GOAL_OPTIONS}
-        selected={draft.goal}
-        onSelect={(goal: FitnessGoal) => updateDraft({ goal })}
+        selected={draft.goals}
+        onSelect={toggle}
       />
     </StepScaffold>
   );

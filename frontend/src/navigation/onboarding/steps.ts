@@ -16,14 +16,14 @@ import { ProgressChartStep } from "./components/ProgressChartStep";
 import { ObstaclesStep } from "./components/ObstaclesStep";
 import { LocationStep } from "./components/LocationStep";
 import { EquipmentStep } from "./components/EquipmentStep";
-import { DaysPerWeekStep } from "./components/DaysPerWeekStep";
 import { TrainingDaysStep } from "./components/TrainingDaysStep";
 import { TimeOfDayStep } from "./components/TimeOfDayStep";
 import { SessionLengthStep } from "./components/SessionLengthStep";
 import { CommitmentStep } from "./components/CommitmentStep";
 import { HealthPermissionStep } from "./components/HealthPermissionStep";
 import { NotificationsPermissionStep } from "./components/NotificationsPermissionStep";
-import { FollowFoundersStep } from "./components/FollowFoundersStep";
+// Temporarily hidden from the flow — keep the import/component for easy restore.
+// import { FollowFoundersStep } from "./components/FollowFoundersStep";
 import { RoutineIntroStep } from "./components/RoutineIntroStep";
 import { RoutineBuilderStep } from "./components/RoutineBuilderStep";
 import { GeneratingPlanStep } from "./components/GeneratingPlanStep";
@@ -32,7 +32,8 @@ import { StatsPreviewStep } from "./components/StatsPreviewStep";
 import { UsernameStep } from "./components/UsernameStep";
 import { ProfilePhotoStep } from "./components/ProfilePhotoStep";
 import { AccountStep } from "./components/AccountStep";
-import { ReferralStep } from "./components/ReferralStep";
+// Temporarily hidden from the flow — keep the import/component for easy restore.
+// import { ReferralStep } from "./components/ReferralStep";
 import { PaywallStep } from "./components/PaywallStep";
 
 /** The ordered onboarding flow. Index === draft.step. */
@@ -52,22 +53,21 @@ export const STEP_COMPONENTS: React.ComponentType<StepProps>[] = [
   ObstaclesStep, // 12
   LocationStep, // 13
   EquipmentStep, // 14
-  DaysPerWeekStep, // 15
-  TrainingDaysStep, // 16
-  TimeOfDayStep, // 17
-  SessionLengthStep, // 18
-  CommitmentStep, // 19
-  HealthPermissionStep, // 20
-  NotificationsPermissionStep, // 21
-  FollowFoundersStep, // 22
-  RoutineIntroStep, // 23
-  RoutineBuilderStep, // 24
-  GeneratingPlanStep, // 25
-  PlanRevealStep, // 26
-  StatsPreviewStep, // 27
-  UsernameStep, // 28
-  ProfilePhotoStep, // 29
-  AccountStep, // 30
-  ReferralStep, // 31
-  PaywallStep, // 32
+  TrainingDaysStep, // 15
+  TimeOfDayStep, // 16
+  SessionLengthStep, // 17
+  CommitmentStep, // 18
+  HealthPermissionStep, // 19
+  NotificationsPermissionStep, // 20
+  // FollowFoundersStep — temporarily hidden; re-add here (and the import) to restore.
+  RoutineIntroStep, // 21
+  RoutineBuilderStep, // 22
+  GeneratingPlanStep, // 23
+  PlanRevealStep, // 24
+  StatsPreviewStep, // 25
+  UsernameStep, // 26
+  ProfilePhotoStep, // 27
+  AccountStep, // 28
+  // ReferralStep — temporarily hidden; re-add here (and the import) to restore.
+  PaywallStep, // 29
 ];

@@ -12,6 +12,12 @@ const SPLIT_OPTIONS: {
   icon: string;
 }[] = [
   {
+    value: "auto",
+    label: "Not sure yet",
+    hint: "We'll pick based on your schedule",
+    icon: "wand.and.stars",
+  },
+  {
     value: "full_body",
     label: "Full Body",
     hint: "Train everything each session",
@@ -34,12 +40,6 @@ const SPLIT_OPTIONS: {
     label: "Anterior / Posterior",
     hint: "Front-body and back-body days",
     icon: "figure.2",
-  },
-  {
-    value: "auto",
-    label: "Not sure yet",
-    hint: "We'll pick based on your schedule",
-    icon: "wand.and.stars",
   },
 ];
 

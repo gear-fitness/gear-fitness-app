@@ -15,25 +15,20 @@ export function TrainingDaysStep({
 }: StepProps) {
   const colors = useOnboardingColors();
   const selected = draft.trainingDays ?? [];
-  const target = draft.daysPerWeek;
 
   const toggle = (value: TrainingDay) => {
     const next = selected.includes(value)
       ? selected.filter((v) => v !== value)
       : [...selected, value];
-    updateDraft({ trainingDays: next });
+    updateDraft({ trainingDays: next, daysPerWeek: next.length });
   };
-
-  const subheading = target
-    ? `Pick the ${target} that work best for you.`
-    : "Tap the days you can commit to.";
 
   return (
     <StepScaffold
       progress={progress}
       onBack={onBack}
       heading="Which days work for you?"
-      subheading={subheading}
+      subheading="Pick the days you'll train. Consistency beats ambition."
       onContinue={onNext}
       continueDisabled={selected.length === 0}
     >

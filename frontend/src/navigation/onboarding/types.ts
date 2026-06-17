@@ -1,6 +1,6 @@
 export type OnboardingStep = number;
 
-export const TOTAL_STEPS = 33;
+export const TOTAL_STEPS = 30;
 
 export type Gender =
   | "male"
@@ -110,7 +110,7 @@ export interface OnboardingDraft {
   height?: Height;
   weight?: Weight;
   dob?: DOB;
-  goal?: FitnessGoal;
+  goals?: FitnessGoal[];
   split?: RoutineSplit;
   activityLevel?: ActivityLevel;
   experience?: ExperienceLevel;

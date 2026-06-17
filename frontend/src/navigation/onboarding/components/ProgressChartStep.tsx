@@ -19,7 +19,9 @@ export function ProgressChartStep({
   const chartWidth = width - 48;
 
   const projection = computeProjection(draft);
-  const goalLabel = draft.goal ? GOAL_LABELS[draft.goal] : "reach your goal";
+  const goalLabel = draft.goals?.length
+    ? GOAL_LABELS[draft.goals[0]]
+    : "reach your goal";
 
   // Headline: mirror the user's own numbers back, CalAI-style.
   let headline = "Here's where you're headed";

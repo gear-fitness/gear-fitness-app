@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -39,6 +39,22 @@ export function AccountStep({
   const appleBg = isDark ? "#fff" : "#000";
   const appleFg = isDark ? "#000" : "#fff";
 
+  // Track which provider the user tapped so only that button shows the
+  // loading state (isSigningIn alone is shared by both buttons).
+  const [pending, setPending] = useState<"google" | "apple" | null>(null);
+  useEffect(() => {
+    if (!isSigningIn) setPending(null);
+  }, [isSigningIn]);
+
+  const handleGoogle = () => {
+    setPending("google");
+    onGoogleSignUp();
+  };
+  const handleApple = () => {
+    setPending("apple");
+    onAppleSignUp();
+  };
+
   return (
     <View style={shared.screen}>
       <OnboardingTopBar progress={progress} onBack={onBack} />
@@ -71,30 +87,32 @@ export function AccountStep({
       </ScrollView>
       <View style={shared.footer}>
         <Pressable
-          onPress={onGoogleSignUp}
+          onPress={handleGoogle}
           disabled={isSigningIn}
           style={({ pressed }) => [
             shared.continueBtn,
+            styles.authBtn,
             pressed && styles.pressed,
-            isSigningIn && shared.continueBtnDisabled,
+            isSigningIn && pending !== "google" && shared.continueBtnDisabled,
           ]}
         >
           <View style={styles.btnContent}>
             <Image source={{ uri: GOOGLE_LOGO_URI }} style={styles.logo} />
-            <Text style={shared.continueBtnText}>
-              {isSigningIn ? "Signing up…" : "Sign up with Google"}
+            <Text style={[shared.continueBtnText, styles.authBtnText]}>
+              {pending === "google" ? "Signing up…" : "Sign up with Google"}
             </Text>
           </View>
         </Pressable>
         {Platform.OS === "ios" && (
           <Pressable
-            onPress={onAppleSignUp}
+            onPress={handleApple}
             disabled={isSigningIn}
             style={({ pressed }) => [
               shared.continueBtn,
+              styles.authBtn,
               { backgroundColor: appleBg },
               pressed && styles.pressed,
-              isSigningIn && shared.continueBtnDisabled,
+              isSigningIn && pending !== "apple" && shared.continueBtnDisabled,
             ]}
           >
             <View style={styles.btnContent}>
@@ -102,8 +120,14 @@ export function AccountStep({
                 source={{ uri: appleBrandLogoUri(isDark) }}
                 style={styles.appleLogo}
               />
-              <Text style={[shared.continueBtnText, { color: appleFg }]}>
-                {isSigningIn ? "Signing up…" : "Sign up with Apple"}
+              <Text
+                style={[
+                  shared.continueBtnText,
+                  styles.authBtnText,
+                  { color: appleFg },
+                ]}
+              >
+                {pending === "apple" ? "Signing up…" : "Sign up with Apple"}
               </Text>
             </View>
           </Pressable>
@@ -143,6 +167,12 @@ const styles = StyleSheet.create({
   benefitText: {
     fontSize: 16,
     fontWeight: "500",
+  },
+  authBtn: {
+    height: 52,
+  },
+  authBtnText: {
+    fontSize: 16,
   },
   btnContent: {
     flexDirection: "row",

@@ -34,4 +34,9 @@ export const FOUNDER_ACCOUNTS: SuggestedAccount[] = [
     name: "Max",
     blurb: "Co-founder · conditioning and athletics",
   },
+  {
+    username: "alex",
+    name: "Alex",
+    blurb: "Co-founder · mobility and recovery",
+  },
 ];

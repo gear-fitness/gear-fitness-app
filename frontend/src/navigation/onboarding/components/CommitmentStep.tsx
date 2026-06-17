@@ -1,14 +1,12 @@
 import React from "react";
-import { View, Text, StyleSheet, useWindowDimensions } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
+import { SymbolView } from "expo-symbols";
 import { StepProps } from "../stepProps";
 import { StepScaffold } from "./StepScaffold";
 import { useOnboardingColors } from "./useOnboardingColors";
-import { ProjectionChart } from "./ProjectionChart";
 
 export function CommitmentStep({ onNext, onBack, progress }: StepProps) {
   const colors = useOnboardingColors();
-  const { width } = useWindowDimensions();
-  const chartWidth = width - 80;
 
   return (
     <StepScaffold
@@ -19,23 +17,42 @@ export function CommitmentStep({ onNext, onBack, progress }: StepProps) {
       continueLabel="Let's build it"
     >
       <View style={styles.center}>
-        <View style={[styles.chart, { width: chartWidth }]}>
-          <ProjectionChart
-            width={chartWidth}
-            height={180}
-            startLabel="Today"
-            endLabel="12 weeks"
-            startValue="Start"
-            endValue="Stronger"
-            direction="up"
+        <View style={styles.wreathRow}>
+          <SymbolView
+            name="laurel.leading"
+            size={260}
+            tintColor={colors.text}
+            resizeMode="scaleAspectFit"
+            style={styles.laurel}
+          />
+          <View style={styles.statBlock}>
+            <Text
+              style={[styles.eyebrow, { color: colors.text }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
+            >
+              Harvard Health
+            </Text>
+            <Text style={[styles.statNumber, { color: colors.text }]}>150</Text>
+            <Text style={[styles.statLabel, { color: colors.text }]}>
+              {"minutes of exercise a week"}
+            </Text>
+          </View>
+          <SymbolView
+            name="laurel.trailing"
+            size={260}
+            tintColor={colors.text}
+            resizeMode="scaleAspectFit"
+            style={styles.laurel}
           />
         </View>
-        <Text style={[styles.lead, { color: colors.text }]}>
-          You don't need perfect. You need repeatable.
-        </Text>
-        <Text style={[styles.body, { color: colors.secondary }]}>
-          Gear keeps you on track. It nudges you to your next session, logs
-          every set, and shows your progress so it's easy to stay consistent.
+
+        <View style={[styles.rule, { backgroundColor: colors.separator }]} />
+
+        <Text style={[styles.body, { color: colors.text }]}>
+          Harvard Health recommends about 150 minutes of exercise a week to stay
+          healthy. Gear makes that achievable.
         </Text>
       </View>
     </StepScaffold>
@@ -48,22 +65,53 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingBottom: 40,
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
   },
-  chart: {
-    alignSelf: "center",
-    marginBottom: 20,
-  },
-  lead: {
-    fontSize: 24,
+  eyebrow: {
+    fontSize: 16,
     fontWeight: "700",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    marginBottom: 8,
+  },
+  wreathRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  laurel: {
+    width: 78,
+    height: 220,
+  },
+  statBlock: {
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 1,
+    paddingHorizontal: 4,
+  },
+  statNumber: {
+    fontSize: 84,
+    fontWeight: "800",
+    letterSpacing: -3,
+    lineHeight: 86,
+  },
+  statLabel: {
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: -0.2,
+    lineHeight: 18,
     textAlign: "center",
-    letterSpacing: -0.5,
-    lineHeight: 30,
-    marginBottom: 14,
+    marginTop: 6,
+    maxWidth: 150,
+  },
+  rule: {
+    height: 1,
+    width: 40,
+    marginVertical: 24,
   },
   body: {
     fontSize: 15,
+    fontWeight: "600",
     lineHeight: 23,
     textAlign: "center",
     maxWidth: 320,

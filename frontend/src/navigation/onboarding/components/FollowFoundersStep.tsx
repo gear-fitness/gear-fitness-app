@@ -35,6 +35,7 @@ export function FollowFoundersStep({
       subheading="People who train together stick with it. Follow the founders and your friends to stay motivated."
       onContinue={onNext}
       continueLabel={following.length > 0 ? "Continue" : "Maybe later"}
+      scroll
       footerExtra={
         !allSelected ? (
           <Pressable onPress={followAll} style={styles.followAll}>
@@ -109,44 +110,45 @@ export function FollowFoundersStep({
 
 const styles = StyleSheet.create({
   list: {
-    flex: 1,
     gap: 10,
   },
   row: {
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1.5,
     flexDirection: "row",
     alignItems: "center",
-    padding: 14,
-    gap: 12,
+    padding: 12,
+    gap: 10,
   },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
   },
   avatarInitial: {
-    fontSize: 20,
+    fontSize: 17,
     fontWeight: "700",
   },
   info: {
     flex: 1,
   },
   name: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "700",
   },
   blurb: {
     fontSize: 13,
-    lineHeight: 18,
+    lineHeight: 17,
     marginTop: 1,
   },
   followBtn: {
     paddingHorizontal: 16,
-    paddingVertical: 9,
+    paddingVertical: 8,
     borderRadius: 999,
+    minWidth: 92,
+    alignItems: "center",
   },
   followBtnText: {
     fontSize: 14,
