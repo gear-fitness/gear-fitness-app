@@ -39,6 +39,9 @@ export interface UserProfile {
   followingCount: number;
   isFollowing: boolean | null;
   followStatus?: "ACCEPTED" | "PENDING" | "BLOCKED" | "NONE" | null;
+  // Subscription tier (authoritative, from the RevenueCat webhook). Optional so
+  // profiles cached before this field existed still parse.
+  tier?: "BASIC" | "PLUS" | "ULTRA";
 }
 
 export interface UsernameAvailabilityResponse {

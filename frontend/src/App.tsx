@@ -13,6 +13,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { useEffect } from "react";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { PurchasesProvider } from "./context/PurchasesContext";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import {
   WorkoutTimerProvider,
@@ -90,7 +91,9 @@ export function App() {
 
   return (
     <AuthProvider>
-      <AppContent theme={theme} />
+      <PurchasesProvider>
+        <AppContent theme={theme} />
+      </PurchasesProvider>
     </AuthProvider>
   );
 }

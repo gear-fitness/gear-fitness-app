@@ -29,6 +29,9 @@ public class UserProfileDTO {
   private String profilePictureUrl;
   private LocalDateTime createdAt;
 
+  // Subscription tier: "BASIC" | "PLUS" | "ULTRA"
+  private String tier;
+
   // Workout statistics
   private WorkoutStatsDTO workoutStats;
 

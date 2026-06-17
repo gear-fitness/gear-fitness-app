@@ -1,13 +1,31 @@
 import React, { useMemo, useState } from "react";
-import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+} from "react-native";
 import { SymbolView } from "expo-symbols";
+import { PurchasesPackage } from "react-native-purchases";
 import { StepProps } from "../stepProps";
 import { OnboardingTopBar } from "./OnboardingTopBar";
 import { useOnboardingColors } from "./useOnboardingColors";
 import { makeOnboardingStyles } from "./makeOnboardingStyles";
-import { TrialBoostModal } from "./TrialBoostModal";
+import { usePurchases, PLUS_ENTITLEMENT } from "../../../context/PurchasesContext";
 
 type Plan = "annual" | "monthly";
+
+// Per-month price derived from an annual package, reusing the product's own
+// currency symbol (Hermes lacks full Intl currency formatting).
+function perMonthString(pkg?: PurchasesPackage): string {
+  if (!pkg) return "";
+  const monthly = pkg.product.price / 12;
+  const symbol = pkg.product.priceString.match(/^[^\d]*/)?.[0] ?? "";
+  return `${symbol}${monthly.toFixed(2)}`;
+}
 
 // Basic is the free tier; Plus is the paid upgrade. A boolean renders a
 // check (included) or lock (Plus-only); a string renders that value.
@@ -22,25 +40,68 @@ const COMPARE: { label: string; basic: CompareCell; plus: CompareCell }[] = [
   { label: "Calorie tracker (manual)", basic: false, plus: "Soon" },
 ];
 
-export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
+export function PaywallStep({ onFinish, onBack, progress }: StepProps) {
   const colors = useOnboardingColors();
   const shared = useMemo(() => makeOnboardingStyles(colors), [colors]);
   const [plan, setPlan] = useState<Plan>("annual");
-  const [boost, setBoost] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-  // Inviting 3 friends doubles the trial from 3 to 7 days.
-  const referred = !!draft.referralSent;
-  const trialDays = referred ? 7 : 3;
-  const reminderDay = referred ? 5 : 2;
-  const price = plan === "annual" ? "$47.99/year" : "$7.99/mo";
+  const { currentOffering, purchasePackage, restore } = usePurchases();
+  const annualPkg = currentOffering?.availablePackages.find(
+    (p) => p.packageType === "ANNUAL",
+  );
+  const monthlyPkg = currentOffering?.availablePackages.find(
+    (p) => p.packageType === "MONTHLY",
+  );
+  const selectedPkg = plan === "annual" ? annualPkg : monthlyPkg;
 
-  const handleStart = () => {
-    if (referred) {
+  // Free-trial length comes from the product's intro phase (3 days), default 3.
+  const trialDays =
+    selectedPkg?.product.introPrice?.periodNumberOfUnits ?? 3;
+  const reminderDay = Math.max(1, trialDays - 1);
+  const price =
+    plan === "annual"
+      ? annualPkg
+        ? `${annualPkg.product.priceString}/year`
+        : ""
+      : monthlyPkg
+        ? `${monthlyPkg.product.priceString}/mo`
+        : "";
+
+  const handleStart = async () => {
+    if (!selectedPkg || busy) return;
+    setBusy(true);
+    try {
+      await purchasePackage(selectedPkg);
       onFinish();
-      return;
+    } catch (e: any) {
+      // User dismissing the StoreKit sheet is not an error to surface.
+      if (!e?.userCancelled) {
+        Alert.alert("Purchase failed", "Something went wrong. Please try again.");
+      }
+    } finally {
+      setBusy(false);
     }
-    // Offer to double the trial before settling for 3 days.
-    setBoost(true);
+  };
+
+  const handleRestore = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const info = await restore();
+      if (info.entitlements.active[PLUS_ENTITLEMENT]) {
+        onFinish();
+      } else {
+        Alert.alert(
+          "Nothing to restore",
+          "No active subscription was found for this Apple ID.",
+        );
+      }
+    } catch {
+      Alert.alert("Restore failed", "Please try again.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   // Comparison cell: a value string, a filled check (included), or a lock.
@@ -137,14 +198,6 @@ export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
           Start your {trialDays}-day free trial. Cancel anytime.
         </Text>
 
-        {referred && (
-          <View style={[styles.unlock, { backgroundColor: colors.accent }]}>
-            <Text style={[styles.unlockText, { color: colors.accentText }]}>
-              🎉 You unlocked a 7-day free trial
-            </Text>
-          </View>
-        )}
-
         {/* Featured plan: annual */}
         <Pressable
           onPress={() => setPlan("annual")}
@@ -169,12 +222,12 @@ export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
                 {trialDays}-day free trial
               </Text>
               <Text style={[styles.featSub, { color: colors.secondary }]}>
-                then <Text style={styles.strike}>$95.88</Text> → $47.99/year
+                then {annualPkg?.product.priceString ?? "—"}/year
               </Text>
             </View>
             <View style={styles.featRight}>
               <Text style={[styles.featPrice, { color: colors.text }]}>
-                $4.00
+                {perMonthString(annualPkg) || "—"}
               </Text>
               <Text style={[styles.featPer, { color: colors.secondary }]}>
                 per month
@@ -201,7 +254,9 @@ export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
             </Text>
           </View>
           <View style={styles.featRight}>
-            <Text style={[styles.featPrice, { color: colors.text }]}>$7.99</Text>
+            <Text style={[styles.featPrice, { color: colors.text }]}>
+              {monthlyPkg?.product.priceString ?? "—"}
+            </Text>
             <Text style={[styles.featPer, { color: colors.secondary }]}>
               per month
             </Text>
@@ -281,16 +336,26 @@ export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
       <View style={shared.footer}>
         <Pressable
           onPress={handleStart}
+          disabled={busy || !selectedPkg}
           style={({ pressed }) => [
             shared.continueBtn,
-            pressed && styles.pressed,
+            (pressed || busy || !selectedPkg) && styles.pressed,
           ]}
         >
-          <Text style={shared.continueBtnText}>
-            Start my {trialDays}-day free trial
+          {busy ? (
+            <ActivityIndicator color={colors.accentText} />
+          ) : (
+            <Text style={shared.continueBtnText}>
+              Start my {trialDays}-day free trial
+            </Text>
+          )}
+        </Pressable>
+        <Pressable onPress={handleRestore} disabled={busy} style={styles.notNow}>
+          <Text style={[styles.notNowText, { color: colors.secondary }]}>
+            Restore purchases
           </Text>
         </Pressable>
-        <Pressable onPress={onFinish} style={styles.notNow}>
+        <Pressable onPress={onFinish} disabled={busy} style={styles.notNow}>
           <Text style={[styles.notNowText, { color: colors.secondary }]}>
             Not now
           </Text>
@@ -299,18 +364,6 @@ export function PaywallStep({ draft, onFinish, onBack, progress }: StepProps) {
           No payment now. Cancel anytime in Settings.
         </Text>
       </View>
-
-      <TrialBoostModal
-        visible={boost}
-        onDouble={() => {
-          setBoost(false);
-          onBack();
-        }}
-        onDecline={() => {
-          setBoost(false);
-          onFinish();
-        }}
-      />
     </View>
   );
 }

@@ -14,7 +14,10 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Purchases from "react-native-purchases";
 import { useAuth } from "../../context/AuthContext";
+import { usePurchases } from "../../context/PurchasesContext";
+import { useTier } from "../../hooks/useTier";
 import { useThemeColors } from "../../hooks/useThemeColors";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { useProfilePhoto } from "../../hooks/useProfilePhoto";
@@ -111,6 +114,8 @@ export function Settings() {
   const { pickAndUpload, uploading } = useProfilePhoto();
   const online = useOnlineStatus();
   const { weightUnit, setWeightUnit } = useUnitPreference();
+  const { restore } = usePurchases();
+  const { tier } = useTier();
 
   const [isPrivate, setIsPrivate] = useState(user?.isPrivate ?? false);
 
@@ -330,6 +335,35 @@ export function Settings() {
     ]);
   };
 
+  const handleManageSubscription = async () => {
+    try {
+      await Purchases.showManageSubscriptions();
+    } catch {
+      // Fallback to the App Store subscriptions page.
+      Linking.openURL("https://apps.apple.com/account/subscriptions").catch(
+        () => {},
+      );
+    }
+  };
+
+  const handleRestorePurchases = async () => {
+    try {
+      const info = await restore();
+      const active = Object.keys(info.entitlements.active);
+      Alert.alert(
+        active.length ? "Purchases restored" : "Nothing to restore",
+        active.length
+          ? "Your subscription has been restored."
+          : "No active subscription was found for this Apple ID.",
+      );
+    } catch {
+      Alert.alert("Restore failed", "Please try again.");
+    }
+  };
+
+  const tierLabel =
+    tier === "ULTRA" ? "Gear Ultra" : tier === "PLUS" ? "Gear Plus" : "Basic";
+
   const formatHeight = (h: number | null | undefined) => {
     if (!h) return "Not set";
     return `${Math.floor(h / 12)}' ${h % 12}"`;
@@ -430,6 +464,33 @@ export function Settings() {
               },
             ]
           : []),
+        {
+          key: "subscription",
+          title: "Subscription",
+          data: [
+            {
+              id: "plan",
+              type: "value",
+              label: "Plan",
+              value: tierLabel,
+              showArrow: false,
+            },
+            {
+              id: "manage_subscription",
+              type: "value",
+              label: "Manage Subscription",
+              onPress: handleManageSubscription,
+              showArrow: true,
+            },
+            {
+              id: "restore_purchases",
+              type: "value",
+              label: "Restore Purchases",
+              onPress: handleRestorePurchases,
+              showArrow: true,
+            },
+          ],
+        },
         {
           key: "notifications",
           title: "Notifications",

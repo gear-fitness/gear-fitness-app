@@ -40,6 +40,8 @@ public class SecurityConfig {
           .permitAll()
           .requestMatchers("/api/users/username-availability")
           .permitAll()
+          .requestMatchers("/api/webhooks/revenuecat")
+          .permitAll()
           .anyRequest()
           .authenticated()
       )
