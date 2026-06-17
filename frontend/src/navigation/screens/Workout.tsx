@@ -11,6 +11,7 @@ import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { useAuth } from "../../context/AuthContext";
+import { useTier } from "../../hooks/useTier";
 import { TodaysRoutines } from "../../components/TodaysRoutines";
 import { StreakDropdown } from "../../components/StreakDropdown";
 import { streakService, type StreakInfo } from "../../api/streakService";
@@ -63,6 +64,7 @@ export function Workout() {
   const isDark = scheme === "dark";
 
   const { user, refreshUser } = useAuth();
+  const { atLeast } = useTier();
   const { playerVisible, seconds, running, exercises, reset } =
     useWorkoutTimer();
 
@@ -283,6 +285,13 @@ export function Workout() {
         onRestore={handleRestore}
         loading={streakLoading}
         isDark={isDark}
+        isPlus={atLeast("PLUS")}
+        onUpsell={() => {
+          setStreakDropdownVisible(false);
+          navigation.navigate("PlusUpsell", {
+            feature: "Restore your streak with Plus",
+          });
+        }}
       />
     </SafeAreaView>
   );

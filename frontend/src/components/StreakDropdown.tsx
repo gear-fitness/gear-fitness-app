@@ -21,6 +21,10 @@ interface StreakDropdownProps {
   onRestore: () => void;
   loading: boolean;
   isDark: boolean;
+  /** Whether the user has Plus (streak restores are a Plus+ benefit). */
+  isPlus: boolean;
+  /** Invoked when a Basic user taps the locked restore affordance. */
+  onUpsell: () => void;
 }
 
 function Flame({ size }: { size: number }) {
@@ -47,6 +51,8 @@ export function StreakDropdown({
   onRestore,
   loading,
   isDark,
+  isPlus,
+  onUpsell,
 }: StreakDropdownProps) {
   const scaleAnim = useRef(new Animated.Value(0.96)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
@@ -156,7 +162,11 @@ export function StreakDropdown({
                   RESTORE TOKENS
                 </Text>
                 <Text style={[styles.tokenSub, { color: t.textFaint }]}>
-                  {tokens > 0 ? "1 available this week" : "Resets Monday"}
+                  {isPlus
+                    ? tokens > 0
+                      ? `${tokens} available this month`
+                      : "Resets monthly"
+                    : "Plus members get 4 / month"}
                 </Text>
               </View>
               <Text style={[styles.tokenCount, { color: t.text }]}>
@@ -189,25 +199,40 @@ export function StreakDropdown({
                 )}
               </TouchableOpacity>
 
-              {tokens > 0 && (
+              {!isPlus ? (
                 <TouchableOpacity
                   style={[
                     styles.filledButton,
-                    {
-                      backgroundColor: FLAME_COLOR,
-                      opacity: loading ? 0.5 : 1,
-                    },
+                    { backgroundColor: FLAME_COLOR },
                   ]}
-                  onPress={handleRestorePress}
-                  disabled={loading}
+                  onPress={onUpsell}
                   activeOpacity={0.85}
                 >
-                  {restoreLoading ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Text style={styles.filledButtonText}>Restore Streak</Text>
-                  )}
+                  <Text style={styles.filledButtonText}>
+                    🔒 Restore Streak with Plus
+                  </Text>
                 </TouchableOpacity>
+              ) : (
+                tokens > 0 && (
+                  <TouchableOpacity
+                    style={[
+                      styles.filledButton,
+                      {
+                        backgroundColor: FLAME_COLOR,
+                        opacity: loading ? 0.5 : 1,
+                      },
+                    ]}
+                    onPress={handleRestorePress}
+                    disabled={loading}
+                    activeOpacity={0.85}
+                  >
+                    {restoreLoading ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.filledButtonText}>Restore Streak</Text>
+                    )}
+                  </TouchableOpacity>
+                )
               )}
             </View>
           </TouchableOpacity>

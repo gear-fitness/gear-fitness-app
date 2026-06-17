@@ -11,6 +11,8 @@ import { View, Text } from "react-native";
 
 /* SCREENS */
 import { Profile } from "./screens/Profile";
+import { PaywallScreen } from "./screens/PaywallScreen";
+import { PlusUpsellSheet } from "./screens/PlusUpsellSheet";
 import { SettingsNavigator } from "./SettingsNavigator";
 import { Social } from "./screens/Social";
 import { Workout } from "./screens/Workout";
@@ -263,6 +265,26 @@ const RootStack = createNativeStackNavigator({
     CreateRoutine: {
       screen: CreateRoutine,
       options: { headerShown: false },
+    },
+
+    Paywall: {
+      screen: PaywallScreen,
+      options: {
+        presentation: "fullScreenModal",
+        headerShown: false,
+        gestureEnabled: true,
+        gestureDirection: "vertical",
+      },
+    },
+
+    PlusUpsell: {
+      screen: PlusUpsellSheet,
+      options: {
+        presentation: "transparentModal",
+        headerShown: false,
+        animation: "slide_from_bottom",
+        gestureEnabled: true,
+      },
     },
 
     EditRoutine: {

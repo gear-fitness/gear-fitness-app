@@ -10,6 +10,7 @@ import com.gearfitness.gear_api.entity.AppUser;
 import com.gearfitness.gear_api.entity.Exercise;
 import com.gearfitness.gear_api.entity.Routine;
 import com.gearfitness.gear_api.entity.RoutineExercise;
+import com.gearfitness.gear_api.entity.Tier;
 import com.gearfitness.gear_api.entity.Workout;
 import com.gearfitness.gear_api.entity.WorkoutExercise;
 import com.gearfitness.gear_api.repository.AppUserRepository;
@@ -25,7 +26,9 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
@@ -44,6 +47,11 @@ public class RoutineService {
     AppUser user = appUserRepository
       .findById(userId)
       .orElseThrow(() -> new RuntimeException("User not found"));
+
+    int limit = user.getTier().atLeast(Tier.PLUS) ? 7 : 3;
+    if (routineRepository.countByUser_UserId(userId) >= limit) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "ROUTINE_LIMIT");
+    }
 
     Workout workout = workoutRepository
       .findByIdWithDetails(dto.getWorkoutId())
@@ -83,6 +91,11 @@ public class RoutineService {
     AppUser user = appUserRepository
       .findById(userId)
       .orElseThrow(() -> new RuntimeException("User not found"));
+
+    int limit = user.getTier().atLeast(Tier.PLUS) ? 7 : 3;
+    if (routineRepository.countByUser_UserId(userId) >= limit) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "ROUTINE_LIMIT");
+    }
 
     Set<Routine.ScheduledDay> mappedDays = (dto.getScheduledDays() == null ||
       dto.getScheduledDays().isEmpty())

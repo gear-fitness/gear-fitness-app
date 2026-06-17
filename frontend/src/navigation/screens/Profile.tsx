@@ -31,6 +31,8 @@ import {
 import { blockUser } from "../../api/followService";
 import { UserProfile } from "../../api/types";
 import { useAuth } from "../../context/AuthContext";
+import { useTier } from "../../hooks/useTier";
+import { SymbolView } from "expo-symbols";
 import { subscribeOnlineStatus } from "../../utils/network";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { socialFeedApi, FeedPost } from "../../api/socialFeedApi";
@@ -43,6 +45,8 @@ import { Avatar } from "../../components/Avatar";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 import { getPendingPosts, isPendingPostId } from "../../utils/pendingPosts";
 
+// Accent for Gear Plus UI (sparkle icon + badge).
+const PLUS_ACCENT = "#4F6BF6";
 const WEEK_LABELS = ["S", "M", "T", "W", "T", "F", "S"] as const;
 const GRID_ROWS = 5;
 const GRID_COLS = 7;
@@ -122,6 +126,10 @@ export function Profile() {
   useTrackTab(isOtherUser ? "UserProfile" : "Profile");
 
   const { user: authUser } = useAuth();
+  const { atLeast } = useTier();
+  // Own profile only: non-Plus members see the upsell, Plus members the badge.
+  const isOwnProfile = !isOtherUser;
+  const isPlus = atLeast("PLUS");
   // Seed the own-profile view with the cached auth user so the screen has
   // content immediately and stays usable while offline. The network fetch
   // below replaces it as soon as it lands. Other-user profiles aren't
@@ -644,12 +652,49 @@ export function Profile() {
           )}
         </View>
 
+        {isOwnProfile && !isPlus && (
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate("Paywall")}
+            style={[
+              styles.plusPromo,
+              { backgroundColor: t.surface, borderColor: t.border },
+            ]}
+          >
+            <SymbolView
+              name="sparkle"
+              size={24}
+              tintColor={PLUS_ACCENT}
+              resizeMode="scaleAspectFit"
+              style={styles.plusPromoIcon}
+            />
+            <View style={styles.plusPromoTextWrap}>
+              <Text style={[styles.plusPromoTitle, { color: t.text }]}>
+                Try Plus free for 3 days
+              </Text>
+              <Text style={[styles.plusPromoSub, { color: t.textMuted }]}>
+                Routines, full history, and more
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={t.textMuted} />
+          </TouchableOpacity>
+        )}
+
         {!isPrivateAndLocked && (
           <View style={styles.activitySection}>
             <View style={styles.sectionHeader}>
-              <Text style={[styles.overline, { color: t.textMuted }]}>
-                ACTIVITY
-              </Text>
+              <View>
+                {isOwnProfile && isPlus && (
+                  <View
+                    style={[styles.plusBadge, { backgroundColor: PLUS_ACCENT }]}
+                  >
+                    <Text style={styles.plusBadgeText}>PLUS</Text>
+                  </View>
+                )}
+                <Text style={[styles.overline, { color: t.textMuted }]}>
+                  ACTIVITY
+                </Text>
+              </View>
               <View style={styles.streakInline}>
                 <Svg width={22} height={25} viewBox="0 0 16 18" fill="none">
                   <Path
@@ -1077,6 +1122,47 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     letterSpacing: -0.2,
+  },
+
+  plusPromo: {
+    marginHorizontal: 20,
+    marginBottom: 4,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  plusPromoIcon: {
+    width: 24,
+    height: 24,
+  },
+  plusPromoTextWrap: {
+    flex: 1,
+  },
+  plusPromoTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: -0.2,
+  },
+  plusPromoSub: {
+    fontSize: 12.5,
+    marginTop: 2,
+  },
+  plusBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 7,
+    marginBottom: 7,
+  },
+  plusBadgeText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.5,
   },
 
   activitySection: {
