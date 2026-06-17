@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -95,4 +96,20 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
   );
 
   Optional<Post> findByWorkout_WorkoutId(UUID workoutId);
+
+  /**
+   * Set a post's moderation status directly. Native because the entity carries
+   * an @SQLRestriction that hides non-VISIBLE posts from all JPA queries, so a
+   * managed-entity load can't reach a HIDDEN/REMOVED post to un-hide it. This
+   * is the moderation-review counterpart to the report system's inline hide.
+   */
+  @Modifying
+  @Query(
+    value = "UPDATE post SET moderation_status = :status WHERE post_id = :postId",
+    nativeQuery = true
+  )
+  int updateModerationStatus(
+    @Param("postId") UUID postId,
+    @Param("status") String status
+  );
 }

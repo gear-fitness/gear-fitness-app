@@ -28,6 +28,8 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 @RequiredArgsConstructor
@@ -41,6 +43,7 @@ public class WorkoutService {
   private final StreakService streakService;
   private final S3StorageService s3StorageService;
   private final PrService prService;
+  private final ModerationService moderationService;
 
   @Transactional(readOnly = true)
   public List<Workout> getWorkoutsByUser(UUID userId) {
@@ -424,6 +427,25 @@ public class WorkoutService {
       .build();
 
     postRepository.save(post);
+
+    // Run image moderation once this transaction commits. Deferring to
+    // afterCommit guarantees the async worker sees the persisted post row
+    // (and the image is already in S3 — the client uploads via presigned PUT
+    // before submitting). Only post images (posts/ keys) are moderated.
+    String imageKey = post.getImageUrl();
+    if (
+      imageKey != null && imageKey.startsWith(S3StorageService.POSTS_PREFIX)
+    ) {
+      UUID postId = post.getPostId();
+      TransactionSynchronizationManager.registerSynchronization(
+        new TransactionSynchronization() {
+          @Override
+          public void afterCommit() {
+            moderationService.moderatePostImage(postId, imageKey);
+          }
+        }
+      );
+    }
 
     // Return workout details
     return getWorkoutDetails(workout.getWorkoutId(), userId);

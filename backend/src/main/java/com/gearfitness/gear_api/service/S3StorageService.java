@@ -55,9 +55,10 @@ public class S3StorageService {
   /**
    * Resolve which bucket a key belongs to from its prefix. Throws for any key
    * that is not under a known prefix — this is the guard that prevents a client
-   * from presigning arbitrary objects.
+   * from presigning arbitrary objects. Public so moderation can point
+   * Rekognition at the right bucket for a stored key.
    */
-  private String bucketForKey(String key) {
+  public String bucketForKey(String key) {
     if (key == null || key.isBlank()) {
       throw new IllegalArgumentException("Image key is required");
     }
