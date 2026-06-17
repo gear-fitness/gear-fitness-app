@@ -242,6 +242,17 @@ export function OnboardingScreen() {
           firstName: credential.fullName?.givenName,
           lastName: credential.fullName?.familyName,
           intent,
+          // The backend's Apple path requires a username at creation (it's
+          // NOT NULL and, unlike the Google path, has no auto-generated
+          // fallback). Send the onboarding-chosen one; runPostSignupSync fills
+          // in the remaining profile fields right after.
+          profile:
+            intent === "sign_up"
+              ? {
+                  username: draft.profile?.username ?? null,
+                  displayName: draft.profile?.name ?? null,
+                }
+              : undefined,
         });
 
         // Soft-deleted account: offer to restore rather than failing.
