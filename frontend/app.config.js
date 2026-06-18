@@ -20,6 +20,8 @@ export default {
         ITSAppUsesNonExemptEncryption: false,
         NSPhotoLibraryUsageDescription:
           "Allow Gear Fitness to access your photos to set a profile picture.",
+        NSUserNotificationsUsageDescription:
+          "Gear Fitness sends reminders to finish your workouts and keep your training streak going.",
       },
     },
     android: {
