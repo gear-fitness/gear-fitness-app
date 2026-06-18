@@ -36,6 +36,16 @@ import { STEP_COMPONENTS } from "../onboarding/steps";
 import { runPostSignupSync } from "../onboarding/onboardingSync";
 import { TesterSkipButton } from "../onboarding/components/TesterSkipButton";
 import { TesterBackButton } from "../onboarding/components/TesterBackButton";
+import { SignInScreen } from "../onboarding/components/SignInScreen";
+import { AccountExistsScreen } from "../onboarding/components/AccountExistsScreen";
+
+/**
+ * Full-screen auth overlay shown over the current onboarding step. Replaces the
+ * native Alerts that used to handle "sign in" and "account already exists".
+ */
+type AuthOverlay =
+  | { mode: "signIn" }
+  | { mode: "accountExists"; provider: "google" | "apple" };
 
 const initialBg =
   Appearance.getColorScheme() === "dark" ? "#0a0a0a" : "#fafafa";
@@ -57,7 +67,11 @@ export function OnboardingScreen() {
   const [draft, setDraft] = useState<OnboardingDraft>(defaultDraft());
   const [hydrated, setHydrated] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
+  const [authOverlay, setAuthOverlay] = useState<AuthOverlay | null>(null);
   const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const openSignIn = useCallback(() => setAuthOverlay({ mode: "signIn" }), []);
+  const closeAuthOverlay = useCallback(() => setAuthOverlay(null), []);
 
   // ─── Hydrate saved draft on mount ───────────────────────────
   useEffect(() => {
@@ -188,6 +202,7 @@ export function OnboardingScreen() {
       } catch (error: any) {
         if (error instanceof AuthApiError) {
           if (intent === "sign_in" && error.code === "ACCOUNT_NOT_FOUND") {
+            closeAuthOverlay();
             Alert.alert(
               "Account Not Found",
               "No account exists for this Google account. Tap Get Started to create one.",
@@ -196,14 +211,7 @@ export function OnboardingScreen() {
             return;
           }
           if (intent === "sign_up" && error.code === "ACCOUNT_ALREADY_EXISTS") {
-            Alert.alert(
-              "Account Already Exists",
-              "An account already exists for this Google account. Would you like to sign in?",
-              [
-                { text: "Cancel", style: "cancel" },
-                { text: "Sign In", onPress: () => handleGoogleAuth("sign_in") },
-              ],
-            );
+            setAuthOverlay({ mode: "accountExists", provider: "google" });
             return;
           }
         }
@@ -217,7 +225,16 @@ export function OnboardingScreen() {
         setIsSigningIn(false);
       }
     },
-    [isSigningIn, login, draft, refreshUser, goNext, goTo, completeOnboarding],
+    [
+      isSigningIn,
+      login,
+      draft,
+      refreshUser,
+      goNext,
+      goTo,
+      completeOnboarding,
+      closeAuthOverlay,
+    ],
   );
 
   const handleAppleAuth = useCallback(
@@ -365,6 +382,7 @@ export function OnboardingScreen() {
         }
         if (error instanceof AuthApiError) {
           if (intent === "sign_in" && error.code === "ACCOUNT_NOT_FOUND") {
+            closeAuthOverlay();
             Alert.alert(
               "Account Not Found",
               "No account exists for this Apple ID. Tap Get Started to create one.",
@@ -373,14 +391,7 @@ export function OnboardingScreen() {
             return;
           }
           if (intent === "sign_up" && error.code === "ACCOUNT_ALREADY_EXISTS") {
-            Alert.alert(
-              "Account Already Exists",
-              "An account already exists for this Apple ID. Would you like to sign in?",
-              [
-                { text: "Cancel", style: "cancel" },
-                { text: "Sign In", onPress: () => handleAppleAuth("sign_in") },
-              ],
-            );
+            setAuthOverlay({ mode: "accountExists", provider: "apple" });
             return;
           }
         }
@@ -394,7 +405,16 @@ export function OnboardingScreen() {
         setIsSigningIn(false);
       }
     },
-    [isSigningIn, login, draft, refreshUser, goNext, goTo, completeOnboarding],
+    [
+      isSigningIn,
+      login,
+      draft,
+      refreshUser,
+      goNext,
+      goTo,
+      completeOnboarding,
+      closeAuthOverlay,
+    ],
   );
 
   const onGoogleSignIn = useCallback(
@@ -435,6 +455,7 @@ export function OnboardingScreen() {
       onGoogleSignUp,
       onAppleSignIn,
       onAppleSignUp,
+      onSignIn: openSignIn,
       isSigningIn,
       onFinish: completeOnboarding,
     }),
@@ -447,6 +468,7 @@ export function OnboardingScreen() {
       onGoogleSignUp,
       onAppleSignIn,
       onAppleSignUp,
+      openSignIn,
       isSigningIn,
       completeOnboarding,
     ],
@@ -470,6 +492,38 @@ export function OnboardingScreen() {
       <CurrentStep {...stepProps} />
       <TesterBackButton onBack={goBack} />
       <TesterSkipButton onSkip={onTesterSkip} />
+      {authOverlay && (
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: colors.screenBg ?? initialBg },
+          ]}
+        >
+          {authOverlay.mode === "signIn" ? (
+            <SignInScreen
+              onBack={closeAuthOverlay}
+              onGoogleSignIn={onGoogleSignIn}
+              onAppleSignIn={onAppleSignIn}
+              onSignUp={() => {
+                closeAuthOverlay();
+                goTo(0);
+              }}
+              isSigningIn={isSigningIn}
+            />
+          ) : (
+            <AccountExistsScreen
+              provider={authOverlay.provider}
+              onBack={closeAuthOverlay}
+              onSignIn={() =>
+                authOverlay.provider === "google"
+                  ? handleGoogleAuth("sign_in")
+                  : handleAppleAuth("sign_in")
+              }
+              isSigningIn={isSigningIn}
+            />
+          )}
+        </View>
+      )}
     </View>
   );
 }

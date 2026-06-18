@@ -33,7 +33,7 @@ export function makeOnboardingStyles(c: ThemeColors) {
     },
     continueBtn: {
       height: 60,
-      borderRadius: 999,
+      borderRadius: 14,
       backgroundColor: c.accent,
       alignItems: "center" as const,
       justifyContent: "center" as const,

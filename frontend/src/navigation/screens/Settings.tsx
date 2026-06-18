@@ -596,20 +596,21 @@ export function Settings() {
               onPress: () => navigation.navigate("BlockedUsers"),
               showArrow: true,
             },
+            {
+              id: "delete_account",
+              type: "value" as const,
+              label: "Delete Account",
+              onPress: () => navigation.navigate("DeleteAccount"),
+              showArrow: true,
+            },
           ],
           footer: isPrivate
             ? "Only approved followers can see your posts and profile."
             : "Anyone can see your posts and follow you.",
         },
         {
-          key: "account",
+          key: "logout",
           data: [
-            {
-              id: "delete_account",
-              type: "destructive",
-              title: "Delete Account",
-              onPress: () => navigation.navigate("DeleteAccount"),
-            },
             {
               id: "logout",
               type: "destructive",
@@ -691,7 +692,7 @@ export function Settings() {
     }
     if (item.type === "destructive") {
       return (
-        <View style={styles.logoutSectionWrap}>
+        <View style={styles.destructiveSectionWrap}>
           <SettingsDestructiveCell
             cardColor={themeColors.cardBg as ColorValue}
             separatorColor={themeColors.separator as ColorValue}
@@ -810,7 +811,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     opacity: 0.6,
   },
-  logoutSectionWrap: {
+  destructiveSectionWrap: {
     marginTop: 24,
   },
 });

@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
   },
   btn: {
     height: 60,
-    borderRadius: 999,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },

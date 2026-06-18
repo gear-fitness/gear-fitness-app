@@ -12,9 +12,13 @@ import { SymbolView } from "expo-symbols";
 import { PurchasesPackage } from "react-native-purchases";
 import { useOnboardingColors } from "./useOnboardingColors";
 import { makeOnboardingStyles } from "./makeOnboardingStyles";
-import { usePurchases, PLUS_ENTITLEMENT } from "../../../context/PurchasesContext";
+import { usePurchases } from "../../../context/PurchasesContext";
 
 type Plan = "annual" | "monthly";
+
+// Gear Plus accent (matches the profile page) + a lighter blue connector trail.
+const PLUS_BLUE = "#4F6BF6";
+const PLUS_BLUE_TRAIL = "#C4CEFB";
 
 // Per-month price derived from an annual package, reusing the product's own
 // currency symbol (Hermes lacks full Intl currency formatting).
@@ -32,10 +36,10 @@ const COMPARE: { label: string; basic: CompareCell; plus: CompareCell }[] = [
   { label: "Track workouts & PRs", basic: true, plus: true },
   { label: "Connect with friends", basic: true, plus: true },
   { label: "Routines", basic: "3", plus: "7" },
-  { label: "Exercise history", basic: "3 mo", plus: "All" },
+  { label: "Exercise history", basic: "3 mo", plus: "1 yr" },
   { label: "Graph types", basic: "Volume", plus: "All" },
   { label: "Streak restore tokens / mo", basic: false, plus: "4" },
-  { label: "Calorie tracker (manual)", basic: false, plus: "Soon" },
+  { label: "Calorie Tracker (Coming soon)", basic: false, plus: "Soon" },
 ];
 
 interface PaywallContentProps {
@@ -72,7 +76,7 @@ export function PaywallContent({
   const [plan, setPlan] = useState<Plan>("annual");
   const [busy, setBusy] = useState(false);
 
-  const { currentOffering, purchasePackage, restore } = usePurchases();
+  const { currentOffering, purchasePackage } = usePurchases();
   const annualPkg = currentOffering?.availablePackages.find(
     (p) => p.packageType === "ANNUAL",
   );
@@ -84,14 +88,15 @@ export function PaywallContent({
   // Free-trial length comes from the product's intro phase (3 days), default 3.
   const trialDays = selectedPkg?.product.introPrice?.periodNumberOfUnits ?? 3;
   const reminderDay = Math.max(1, trialDays - 1);
-  const price =
-    plan === "annual"
-      ? annualPkg
-        ? `${annualPkg.product.priceString}/year`
-        : ""
-      : monthlyPkg
-        ? `${monthlyPkg.product.priceString}/mo`
-        : "";
+  const chargeDate = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + trialDays);
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  })();
 
   const handleStart = async () => {
     if (!selectedPkg || busy) return;
@@ -104,26 +109,6 @@ export function PaywallContent({
       if (!e?.userCancelled) {
         Alert.alert("Purchase failed", "Something went wrong. Please try again.");
       }
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleRestore = async () => {
-    if (busy) return;
-    setBusy(true);
-    try {
-      const info = await restore();
-      if (info.entitlements.active[PLUS_ENTITLEMENT]) {
-        onDone();
-      } else {
-        Alert.alert(
-          "Nothing to restore",
-          "No active subscription was found for this Apple ID.",
-        );
-      }
-    } catch {
-      Alert.alert("Restore failed", "Please try again.");
     } finally {
       setBusy(false);
     }
@@ -165,40 +150,47 @@ export function PaywallContent({
 
   const TimelineRow = ({
     icon,
-    bold,
-    rest,
+    iconBg,
+    iconTint,
+    title,
+    body,
+    connectorColor,
     last,
   }: {
     icon: string;
-    bold: string;
-    rest: string;
+    iconBg: string;
+    iconTint: string;
+    title: string;
+    body: string;
+    connectorColor: string;
     last?: boolean;
   }) => (
     <View style={styles.timelineRow}>
       <View style={styles.timelineIconCol}>
-        <SymbolView
-          name={icon as React.ComponentProps<typeof SymbolView>["name"]}
-          size={20}
-          tintColor={colors.text}
-          resizeMode="scaleAspectFit"
-          style={styles.timelineIcon}
-        />
-        {!last && (
-          <View
-            style={[styles.timelineLine, { backgroundColor: colors.separator }]}
+        <View style={[styles.timelineBadge, { backgroundColor: iconBg }]}>
+          <SymbolView
+            name={icon as React.ComponentProps<typeof SymbolView>["name"]}
+            size={18}
+            tintColor={iconTint}
+            resizeMode="scaleAspectFit"
+            style={styles.timelineBadgeIcon}
           />
-        )}
+        </View>
+        <View
+          style={[
+            last ? styles.timelineConnectorStub : styles.timelineConnector,
+            { backgroundColor: connectorColor },
+          ]}
+        />
       </View>
-      <Text
-        style={[
-          styles.timelineText,
-          { color: colors.text },
-          last && styles.timelineTextLast,
-        ]}
-      >
-        <Text style={styles.timelineBold}>{bold}</Text>
-        {rest}
-      </Text>
+      <View style={styles.timelineContent}>
+        <Text style={[styles.timelineTitle, { color: colors.text }]}>
+          {title}
+        </Text>
+        <Text style={[styles.timelineBody, { color: colors.secondary }]}>
+          {body}
+        </Text>
+      </View>
     </View>
   );
 
@@ -215,16 +207,40 @@ export function PaywallContent({
       >
         <View style={styles.eyebrow}>
           <Text style={[styles.eyebrowText, { color: colors.text }]}>Gear</Text>
-          <View style={[styles.eyebrowPill, { backgroundColor: colors.accent }]}>
-            <Text style={[styles.eyebrowPillText, { color: colors.accentText }]}>
-              Plus
-            </Text>
+          <View style={[styles.eyebrowPill, { backgroundColor: PLUS_BLUE }]}>
+            <Text style={[styles.eyebrowPillText, { color: "#fff" }]}>Plus</Text>
           </View>
         </View>
         <Text style={shared.heading}>Achieve your goals faster</Text>
-        <Text style={shared.subheading}>
-          Start your {trialDays}-day free trial. Cancel anytime.
-        </Text>
+
+        {/* Trial timeline */}
+        <View style={styles.trialSection}>
+          <TimelineRow
+            icon="lock.open.fill"
+            iconBg={PLUS_BLUE}
+            iconTint="#fff"
+            title="Today"
+            body="Unlock all Plus features instantly."
+            connectorColor={PLUS_BLUE_TRAIL}
+          />
+          <TimelineRow
+            icon="bell.fill"
+            iconBg={PLUS_BLUE}
+            iconTint="#fff"
+            title={`In ${reminderDay} Day${reminderDay === 1 ? "" : "s"} - Reminder`}
+            body="We'll send you a reminder that your trial is ending soon if you've allowed us to notify you."
+            connectorColor={PLUS_BLUE_TRAIL}
+          />
+          <TimelineRow
+            icon="crown.fill"
+            iconBg={colors.text}
+            iconTint={colors.screenBg}
+            title={`In ${trialDays} Day${trialDays === 1 ? "" : "s"} - Billing Starts`}
+            body={`You'll be charged on ${chargeDate} unless you cancel anytime before.`}
+            connectorColor={colors.secondary}
+            last
+          />
+        </View>
 
         {/* Featured plan: annual */}
         <Pressable
@@ -247,14 +263,26 @@ export function PaywallContent({
           <View style={styles.featBody}>
             <View style={styles.featLeft}>
               <Text style={[styles.featTitle, { color: colors.text }]}>
-                {trialDays}-day free trial
+                Start for free and save 50%
               </Text>
-              <Text style={[styles.featSub, { color: colors.secondary }]}>
-                then {annualPkg?.product.priceString ?? "—"}/year
+              <Text
+                style={[
+                  styles.featSub,
+                  styles.featSubAnnual,
+                  { color: colors.secondary },
+                ]}
+              >
+                then{" "}
+                <Text style={styles.featSubAnnualPrice}>
+                  {annualPkg?.product.priceString ?? "—"}
+                </Text>{" "}
+                billed annually
               </Text>
             </View>
             <View style={styles.featRight}>
-              <Text style={[styles.featPrice, { color: colors.text }]}>
+              <Text
+                style={[styles.featPriceSmall, { color: colors.secondary }]}
+              >
                 {perMonthString(annualPkg) || "—"}
               </Text>
               <Text style={[styles.featPer, { color: colors.secondary }]}>
@@ -330,33 +358,6 @@ export function PaywallContent({
           ))}
         </View>
 
-        {/* How your trial works */}
-        <View
-          style={[
-            styles.card,
-            { backgroundColor: colors.cardBg, borderColor: colors.border },
-          ]}
-        >
-          <Text style={[styles.cardTitle, { color: colors.text }]}>
-            How your trial works
-          </Text>
-          <TimelineRow
-            icon="lock.open.fill"
-            bold="Today:"
-            rest=" Unlock all Plus features"
-          />
-          <TimelineRow
-            icon="bell.fill"
-            bold={`Day ${reminderDay}:`}
-            rest=" Get a reminder before your trial ends"
-          />
-          <TimelineRow
-            icon="checkmark.seal.fill"
-            bold={`Day ${trialDays}:`}
-            rest={` You'll be charged ${price}`}
-            last
-          />
-        </View>
       </ScrollView>
 
       <View style={shared.footer}>
@@ -375,11 +376,6 @@ export function PaywallContent({
               Start my {trialDays}-day free trial
             </Text>
           )}
-        </Pressable>
-        <Pressable onPress={handleRestore} disabled={busy} style={styles.notNow}>
-          <Text style={[styles.notNowText, { color: colors.secondary }]}>
-            Restore purchases
-          </Text>
         </Pressable>
         {showDismiss && (
           <Pressable onPress={onDone} disabled={busy} style={styles.notNow}>
@@ -466,10 +462,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 4,
   },
+  featSubAnnual: {
+    fontSize: 15,
+  },
+  featSubAnnualPrice: {
+    fontWeight: "700",
+  },
   featPrice: {
     fontSize: 24,
     fontWeight: "800",
     letterSpacing: -0.5,
+  },
+  featPriceSmall: {
+    fontSize: 15,
+    fontWeight: "600",
+    letterSpacing: -0.2,
   },
   featPer: {
     fontSize: 12,
@@ -574,6 +581,9 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 14,
   },
+  trialSection: {
+    marginBottom: 14,
+  },
   cardTitle: {
     fontSize: 16,
     fontWeight: "700",
@@ -584,31 +594,47 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
   },
   timelineIconCol: {
-    width: 28,
+    width: 40,
     alignItems: "center",
   },
-  timelineIcon: {
-    width: 20,
-    height: 20,
+  timelineBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  timelineLine: {
-    width: 1.5,
-    flex: 1,
-    minHeight: 16,
-    marginVertical: 2,
+  timelineBadgeIcon: {
+    width: 18,
+    height: 18,
   },
-  timelineText: {
+  timelineConnector: {
+    width: 6,
     flex: 1,
-    fontSize: 15,
+    minHeight: 24,
+    borderRadius: 3,
+    marginVertical: 3,
+  },
+  timelineConnectorStub: {
+    width: 6,
+    height: 18,
+    borderRadius: 3,
+    marginTop: 3,
+  },
+  timelineContent: {
+    flex: 1,
+    paddingLeft: 14,
+    paddingBottom: 18,
+  },
+  timelineTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    letterSpacing: -0.3,
+    marginBottom: 3,
+  },
+  timelineBody: {
+    fontSize: 14.5,
     lineHeight: 20,
-    paddingBottom: 16,
-    paddingLeft: 8,
-  },
-  timelineTextLast: {
-    paddingBottom: 0,
-  },
-  timelineBold: {
-    fontWeight: "700",
   },
   notNow: {
     paddingVertical: 10,

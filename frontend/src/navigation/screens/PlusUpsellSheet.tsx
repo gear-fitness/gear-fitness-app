@@ -1,11 +1,19 @@
-import React from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import React, { useEffect, useRef } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  Animated,
+  Dimensions,
+} from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SymbolView } from "expo-symbols";
 import { useThemeColors } from "../../hooks/useThemeColors";
 
 const PLUS_ACCENT = "#4F6BF6";
+const OFFSCREEN = Dimensions.get("window").height;
 
 /**
  * Lightweight bottom-sheet upsell for Gear Plus, shown as a transparentModal.
@@ -24,18 +32,60 @@ export function PlusUpsellSheet() {
     feature ??
     "Get more routines, full exercise history, all charts, and streak restores.";
 
-  const dismiss = () => navigation.goBack();
+  const translateY = useRef(new Animated.Value(OFFSCREEN)).current;
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const closing = useRef(false);
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(backdropOpacity, {
+        toValue: 0.5,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.spring(translateY, {
+        toValue: 0,
+        useNativeDriver: true,
+        bounciness: 2,
+      }),
+    ]).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const animateClose = (after: () => void) => {
+    if (closing.current) return;
+    closing.current = true;
+    Animated.parallel([
+      Animated.timing(backdropOpacity, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: OFFSCREEN,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => after());
+  };
+
+  const dismiss = () => animateClose(() => navigation.goBack());
   const upgrade = () => navigation.replace("Paywall");
 
   return (
     <View style={styles.root}>
-      <Pressable style={styles.backdrop} onPress={dismiss} />
-      <View
+      <Animated.View
+        style={[styles.backdrop, { opacity: backdropOpacity }]}
+        pointerEvents="none"
+      />
+      <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} />
+      <Animated.View
         style={[
           styles.card,
           {
             backgroundColor: colors.cardBg,
             paddingBottom: 20 + insets.bottom,
+            transform: [{ translateY }],
           },
         ]}
       >
@@ -70,7 +120,7 @@ export function PlusUpsellSheet() {
             Not now
           </Text>
         </Pressable>
-      </View>
+      </Animated.View>
     </View>
   );
 }
@@ -82,7 +132,7 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "#000",
   },
   card: {
     borderTopLeftRadius: 24,

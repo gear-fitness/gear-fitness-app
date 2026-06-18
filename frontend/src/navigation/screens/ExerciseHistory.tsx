@@ -47,7 +47,7 @@ import { PlusLockOverlay } from "../../components/PlusLockOverlay";
 const CHART_HEIGHT = 200;
 const CHART_PADDING = { top: 24, right: 20, bottom: 30, left: 50 };
 
-type TimeScope = "1m" | "3m" | "6m" | "1y" | "all";
+type TimeScope = "1m" | "3m" | "6m" | "1y";
 type ChartType = "pr" | "volume" | "session_max";
 
 const TIME_SCOPES: { key: TimeScope; label: string }[] = [
@@ -55,11 +55,10 @@ const TIME_SCOPES: { key: TimeScope; label: string }[] = [
   { key: "3m", label: "3M" },
   { key: "6m", label: "6M" },
   { key: "1y", label: "1Y" },
-  { key: "all", label: "ALL" },
 ];
 
 // Scopes Basic users may not view; they resolve to "3m" for charts.
-const LOCKED_SCOPES = new Set<TimeScope>(["6m", "1y", "all"]);
+const LOCKED_SCOPES = new Set<TimeScope>(["6m", "1y"]);
 
 const CHART_TITLES: Record<ChartType, string> = {
   pr: "PR Over Time",
@@ -111,7 +110,7 @@ export function ExerciseHistory() {
   const [history, setHistory] = useState<ExerciseHistoryType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [timeScope, setTimeScope] = useState<TimeScope>("all");
+  const [timeScope, setTimeScope] = useState<TimeScope>("1m");
   const [activeChartIndex, setActiveChartIndex] = useState(0);
   const [historyExpanded, setHistoryExpanded] = useState(false);
 
@@ -127,7 +126,7 @@ export function ExerciseHistory() {
   const weightUnit = exercise?.weightUnit ?? globalUnit;
   const bodyVariant: BodyVariant = resolveBodyVariant(user?.gender);
 
-  const chartTypes: ChartType[] = ["pr", "session_max", "volume"];
+  const chartTypes: ChartType[] = ["volume", "pr", "session_max"];
   const activeChart = chartTypes[activeChartIndex];
 
   useEffect(() => {
@@ -146,7 +145,8 @@ export function ExerciseHistory() {
   }, [exercise.exerciseId]);
 
   // Guard the effective scope so a Basic user never charts beyond 3 months.
-  // (Default state is "all", which for Basic resolves to "3m".)
+  // (Default state is "1m", an unlocked scope for all tiers, so effectiveScope
+  // leaves it as "1m".)
   const effectiveScope: TimeScope = isPlus
     ? timeScope
     : LOCKED_SCOPES.has(timeScope)
@@ -289,6 +289,9 @@ export function ExerciseHistory() {
             width: chartWidth,
             height: CHART_HEIGHT,
             position: "relative",
+            backgroundColor: colors.card,
+            borderRadius: 8,
+            overflow: "hidden",
           }}
         >
           <PlusLockOverlay
@@ -298,6 +301,10 @@ export function ExerciseHistory() {
               })
             }
             label="Plus"
+            // The wrapper already paints the grey chart-card background; keep the
+            // overlay itself transparent so the locked slot blends with the chart
+            // instead of the overlay's default near-white translucent fill.
+            style={{ backgroundColor: "transparent" }}
           />
         </View>
       );
@@ -560,9 +567,9 @@ export function ExerciseHistory() {
     key: ChartType;
     data: { date: string; value: number }[];
   }[] = [
+    { key: "volume", data: toUnit(volumeChartData) },
     { key: "pr", data: toUnit(prChartData) },
     { key: "session_max", data: toUnit(sessionMaxChartData) },
-    { key: "volume", data: toUnit(volumeChartData) },
   ];
 
   // History list: Basic users are capped to the last 3 months (display only —
@@ -658,7 +665,7 @@ export function ExerciseHistory() {
         <View style={styles.scopeRow}>
           {TIME_SCOPES.map((scope) => {
             const locked = !isPlus && LOCKED_SCOPES.has(scope.key);
-            const isActive = timeScope === scope.key;
+            const isActive = effectiveScope === scope.key;
             return (
               <TouchableOpacity
                 key={scope.key}

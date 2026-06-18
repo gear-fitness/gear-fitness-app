@@ -8,6 +8,8 @@ export interface StepProps {
   onBack: () => void;
   /** 0..1 position in the flow, for the progress bar. */
   progress: number;
+  /** Welcome screen: open the dedicated "sign in to an existing account" screen. */
+  onSignIn: () => void;
   /** Welcome screen: sign in an existing user with Google. */
   onGoogleSignIn: () => void;
   /** Account creation screen: sign up a new user with Google. */

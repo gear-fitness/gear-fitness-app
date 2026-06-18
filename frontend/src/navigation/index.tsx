@@ -282,8 +282,8 @@ const RootStack = createNativeStackNavigator({
       options: {
         presentation: "transparentModal",
         headerShown: false,
-        animation: "slide_from_bottom",
-        gestureEnabled: true,
+        animation: "none",
+        gestureEnabled: false,
       },
     },
 
