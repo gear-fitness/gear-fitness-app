@@ -271,7 +271,7 @@ export function Social() {
         <FlatList
           data={userResults}
           keyExtractor={(item) => String(item.userId)}
-          contentContainerStyle={{ paddingTop: HEADER_HEIGHT }}
+          contentContainerStyle={{ paddingTop: HEADER_HEIGHT - insets.top }}
           scrollIndicatorInsets={{ top: HEADER_HEIGHT }}
           renderItem={({ item }) => (
             <UserSearchCard

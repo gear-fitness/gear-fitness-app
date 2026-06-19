@@ -490,8 +490,8 @@ export function OnboardingScreen() {
       ]}
     >
       <CurrentStep {...stepProps} />
-      <TesterBackButton onBack={goBack} />
-      <TesterSkipButton onSkip={onTesterSkip} />
+      {__DEV__ && <TesterBackButton onBack={goBack} />}
+      {__DEV__ && <TesterSkipButton onSkip={onTesterSkip} />}
       {authOverlay && (
         <View
           style={[

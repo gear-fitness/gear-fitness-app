@@ -35,6 +35,8 @@ export function GeneratingPlanStep({ onNext }: StepProps) {
     (p) => {
       p.loop = true;
       p.muted = true;
+      // Don't seize the iOS audio session / stop the user's music.
+      p.audioMixingMode = "mixWithOthers";
       p.timeUpdateEventInterval = 0.1;
       p.play();
     },

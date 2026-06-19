@@ -57,8 +57,8 @@ const TIME_SCOPES: { key: TimeScope; label: string }[] = [
   { key: "1y", label: "1Y" },
 ];
 
-// Scopes Basic users may not view; they resolve to "3m" for charts.
-const LOCKED_SCOPES = new Set<TimeScope>(["6m", "1y"]);
+// Scopes Basic users may not view; they resolve to "1m" for charts.
+const LOCKED_SCOPES = new Set<TimeScope>(["3m", "6m", "1y"]);
 
 const CHART_TITLES: Record<ChartType, string> = {
   pr: "PR Over Time",
@@ -144,13 +144,13 @@ export function ExerciseHistory() {
     load();
   }, [exercise.exerciseId]);
 
-  // Guard the effective scope so a Basic user never charts beyond 3 months.
+  // Guard the effective scope so a Basic user never charts beyond 1 month.
   // (Default state is "1m", an unlocked scope for all tiers, so effectiveScope
   // leaves it as "1m".)
   const effectiveScope: TimeScope = isPlus
     ? timeScope
     : LOCKED_SCOPES.has(timeScope)
-      ? "3m"
+      ? "1m"
       : timeScope;
 
   // Filter sessions by time scope
@@ -572,14 +572,14 @@ export function ExerciseHistory() {
     { key: "session_max", data: toUnit(sessionMaxChartData) },
   ];
 
-  // History list: Basic users are capped to the last 3 months (display only —
-  // the fetched data is untouched). Basic's effectiveScope is already ≤3m so
+  // History list: Basic users are capped to the last 1 month (display only —
+  // the fetched data is untouched). Basic's effectiveScope is already ≤1m so
   // this is usually a no-op, but enforce it explicitly.
   const historySessions = isPlus
     ? scopedSessions
     : (() => {
         const cutoff = new Date();
-        cutoff.setMonth(cutoff.getMonth() - 3);
+        cutoff.setMonth(cutoff.getMonth() - 1);
         return scopedSessions.filter(
           (s) => new Date(s.datePerformed + "T00:00:00") >= cutoff,
         );

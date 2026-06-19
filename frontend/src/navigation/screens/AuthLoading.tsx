@@ -24,6 +24,9 @@ export function AuthLoadingScreen() {
     (p) => {
       p.loop = false;
       p.muted = true;
+      // Mix with other audio so starting this (silent) launch video doesn't
+      // seize the iOS audio session and stop the user's music/podcast.
+      p.audioMixingMode = "mixWithOthers";
       p.timeUpdateEventInterval = 0.1;
       p.play();
     },

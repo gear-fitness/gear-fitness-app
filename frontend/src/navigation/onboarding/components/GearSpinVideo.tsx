@@ -30,6 +30,8 @@ export function GearSpinVideo({
       // Play through once and hold on the final frame.
       p.loop = false;
       p.muted = true;
+      // Don't seize the iOS audio session / stop the user's music.
+      p.audioMixingMode = "mixWithOthers";
       // When starting mid-clip we play after seeking, once the duration is
       // known (see the sourceLoad effect below).
       if (playLastSeconds <= 0) p.play();

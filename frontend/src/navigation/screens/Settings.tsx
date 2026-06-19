@@ -361,6 +361,21 @@ export function Settings() {
     }
   };
 
+  const handleContactSupport = async () => {
+    const url =
+      "mailto:support@gearfitness.app?subject=Gear%20Fitness%20Support";
+    try {
+      if (await Linking.canOpenURL(url)) {
+        await Linking.openURL(url);
+        return;
+      }
+    } catch {
+      // fall through to the manual prompt
+    }
+    // No mail app configured — show the address so the user can still reach us.
+    Alert.alert("Contact Support", "Email us at support@gearfitness.app");
+  };
+
   const tierLabel =
     tier === "ULTRA" ? "Gear Ultra" : tier === "PLUS" ? "Gear Plus" : "Basic";
 
@@ -576,6 +591,21 @@ export function Settings() {
           ],
           footer:
             "Weights across the app are shown and entered in your chosen unit.",
+        },
+        {
+          key: "support",
+          title: "Support",
+          data: [
+            {
+              id: "contact_support",
+              type: "value" as const,
+              label: "Contact Support",
+              onPress: handleContactSupport,
+              showArrow: true,
+            },
+          ],
+          footer:
+            "Questions, bug reports, or to report objectionable content or abusive users — email support@gearfitness.app.",
         },
         {
           key: "privacy",

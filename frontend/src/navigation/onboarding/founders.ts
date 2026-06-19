@@ -1,4 +1,8 @@
-/** Curated accounts surfaced on the social/accountability step. Real user
+/** NOT CURRENTLY IMPLEMENTED — the founder/accountability step is hidden from
+ *  onboarding, so these accounts are not surfaced to users. Left in place for
+ *  when the step is re-enabled (see TODO below to wire real accounts first).
+ *
+ *  Curated accounts surfaced on the social/accountability step. Real user
  *  search needs auth, which the user doesn't have yet during onboarding, so
  *  these handles are queued in the draft and followed right after sign-up.
  *  Update the usernames to match the real founder/ambassador accounts. */
