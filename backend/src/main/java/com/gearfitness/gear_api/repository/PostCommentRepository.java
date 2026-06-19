@@ -3,6 +3,7 @@ package com.gearfitness.gear_api.repository;
 import com.gearfitness.gear_api.entity.PostComment;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
@@ -47,6 +48,16 @@ public interface PostCommentRepository
   );
 
   long countByPost_PostId(UUID postId);
+
+  /**
+   * Fetch a comment ignoring the entity-level @SQLRestriction, so moderation
+   * actions (report, delete) can resolve a comment that is already hidden.
+   */
+  @Query(
+    value = "SELECT * FROM post_comment WHERE comment_id = :id",
+    nativeQuery = true
+  )
+  Optional<PostComment> findByIdIncludingHidden(@Param("id") UUID id);
 
   default Map<UUID, Long> countByPostIds(List<UUID> postIds) {
     if (postIds == null || postIds.isEmpty()) {

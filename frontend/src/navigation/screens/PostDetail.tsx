@@ -64,7 +64,7 @@ export function PostDetail({ route }: Props) {
     if (!openCommentsOnMount || commentsOpenedRef.current) return;
     commentsOpenedRef.current = true;
     const timer = setTimeout(() => {
-      navigation.navigate("Comments", { postId });
+      navigation.navigate("Comments", { postId, postOwnerId: post?.userId });
       navigation.setParams({ openCommentsOnMount: undefined });
     }, 1000);
     return () => clearTimeout(timer);
@@ -125,7 +125,10 @@ export function PostDetail({ route }: Props) {
         <FeedPostCard
           post={post}
           onOpenComments={(id) =>
-            navigation.navigate("Comments", { postId: id })
+            navigation.navigate("Comments", {
+              postId: id,
+              postOwnerId: post.userId,
+            })
           }
         />
       </ScrollView>

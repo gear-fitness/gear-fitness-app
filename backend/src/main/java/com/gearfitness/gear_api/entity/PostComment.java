@@ -16,12 +16,18 @@ import org.hibernate.annotations.SQLRestriction;
 
 @Entity
 @Table(name = "post_comment")
-@SQLRestriction("hidden_at IS NULL")
+@SQLRestriction("hidden_at IS NULL AND moderation_status = 'VISIBLE'")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class PostComment {
+
+  public enum ModerationStatus {
+    VISIBLE,
+    HIDDEN,
+    REMOVED,
+  }
 
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
@@ -55,4 +61,9 @@ public class PostComment {
 
   @Column(name = "hidden_at")
   private LocalDateTime hiddenAt;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "moderation_status", nullable = false)
+  @Builder.Default
+  private ModerationStatus moderationStatus = ModerationStatus.VISIBLE;
 }

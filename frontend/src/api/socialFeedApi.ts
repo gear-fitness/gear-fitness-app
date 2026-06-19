@@ -91,6 +91,10 @@ export const socialFeedApi = {
     return data;
   },
 
+  deleteComment: async (postId: string, commentId: string): Promise<void> => {
+    await apiClient.delete(`/posts/${postId}/comments/${commentId}`);
+  },
+
   updatePostVisibility: async (
     postId: string,
     visibility: "PUBLIC" | "FRIENDS" | "PRIVATE",

@@ -256,7 +256,10 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
         <TouchableOpacity
           activeOpacity={0.7}
           onPress={() =>
-            navigation.navigate("Comments", { postId: post.postId })
+            navigation.navigate("Comments", {
+              postId: post.postId,
+              postOwnerId: post.userId,
+            })
           }
           hitSlop={8}
           style={styles.footerItem}

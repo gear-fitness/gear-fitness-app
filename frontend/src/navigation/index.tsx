@@ -358,6 +358,7 @@ declare global {
 
       Comments: {
         postId: string;
+        postOwnerId?: string;
       };
 
       ImageViewer: {

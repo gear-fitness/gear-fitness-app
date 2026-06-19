@@ -13,6 +13,7 @@ import com.gearfitness.gear_api.repository.PostCommentRepository;
 import com.gearfitness.gear_api.repository.PostLikeRepository;
 import com.gearfitness.gear_api.repository.PostRepository;
 import jakarta.transaction.Transactional;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -178,6 +179,37 @@ public class PostInteractionService {
     }
 
     return mapToDTO(savedComment);
+  }
+
+  /**
+   * Soft-deletes a comment. Allowed for the comment's author or the owner of
+   * the post the comment is on (post owners can moderate their own threads).
+   */
+  public void deleteComment(UUID userId, UUID commentId) {
+    PostComment comment = postCommentRepository
+      .findByIdIncludingHidden(commentId)
+      .orElseThrow(() ->
+        new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment not found")
+      );
+
+    boolean isAuthor = comment.getUser().getUserId().equals(userId);
+    boolean isPostOwner = comment
+      .getPost()
+      .getUser()
+      .getUserId()
+      .equals(userId);
+
+    if (!isAuthor && !isPostOwner) {
+      throw new ResponseStatusException(
+        HttpStatus.FORBIDDEN,
+        "You cannot delete this comment"
+      );
+    }
+
+    if (comment.getHiddenAt() == null) {
+      comment.setHiddenAt(LocalDateTime.now());
+      postCommentRepository.save(comment);
+    }
   }
 
   private CommentDTO mapToDTO(PostComment comment) {

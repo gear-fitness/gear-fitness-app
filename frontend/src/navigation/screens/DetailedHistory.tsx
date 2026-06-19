@@ -220,7 +220,9 @@ export function DetailedHistory({ route }: Props) {
 
       <TouchableOpacity
         accessibilityLabel="Comments"
-        onPress={() => navigation.navigate("Comments", { postId })}
+        onPress={() =>
+          navigation.navigate("Comments", { postId, postOwnerId: ownerUserId })
+        }
         activeOpacity={0.7}
         style={[
           styles.floatingButton,

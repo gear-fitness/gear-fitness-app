@@ -9,6 +9,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -73,5 +74,17 @@ public class PostInteractionController {
       request.getBody()
     );
     return ResponseEntity.ok(comment);
+  }
+
+  @DeleteMapping("/{postId}/comments/{commentId}")
+  public ResponseEntity<Void> deleteComment(
+    @RequestHeader("Authorization") String authHeader,
+    @PathVariable UUID postId,
+    @PathVariable UUID commentId
+  ) {
+    String token = authHeader.substring(7);
+    UUID userId = jwtService.extractUserId(token);
+    postInteractionService.deleteComment(userId, commentId);
+    return ResponseEntity.noContent().build();
   }
 }

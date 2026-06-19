@@ -395,7 +395,11 @@ export function FeedPostCard({ post, isPending = false }: Props) {
           onPress={
             isPending
               ? undefined
-              : () => navigation.navigate("Comments", { postId: post.postId })
+              : () =>
+                  navigation.navigate("Comments", {
+                    postId: post.postId,
+                    postOwnerId: post.userId,
+                  })
           }
           disabled={isPending}
           activeOpacity={isPending ? 1 : 0.7}

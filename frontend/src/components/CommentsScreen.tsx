@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   View,
   FlatList,
@@ -10,6 +10,7 @@ import {
   Text,
   Keyboard,
   KeyboardEvent,
+  Alert,
 } from "react-native";
 import {
   SafeAreaView,
@@ -18,15 +19,22 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme, useRoute, useNavigation } from "@react-navigation/native";
 import { socialFeedApi, Comment } from "../api/socialFeedApi";
+import { reportService, ReportReason } from "../api/reportService";
+import { blockUser } from "../api/followService";
+import { useAuth } from "../context/AuthContext";
 import { parseServerDate } from "../utils/date";
 import { Avatar } from "./Avatar";
+import { PostActionsSheet, PostAction } from "./PostActionsSheet";
+import { ReportCommentSheet } from "./ReportCommentSheet";
 
 export function CommentsScreen() {
   const { colors } = useTheme();
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const postId = route.params?.postId;
+  const postOwnerId: string | undefined = route.params?.postOwnerId;
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
 
   const goToProfile = (username: string) => {
     navigation.goBack();
@@ -40,6 +48,123 @@ export function CommentsScreen() {
   const [commenting, setCommenting] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  // Per-comment 3-dot menu (report / block / delete), mirroring the post sheet.
+  const [actionTarget, setActionTarget] = useState<Comment | null>(null);
+  const [showActionsSheet, setShowActionsSheet] = useState(false);
+  const [showReportSheet, setShowReportSheet] = useState(false);
+
+  // Defer opening the next sheet until the actions sheet has finished closing,
+  // so two bottom sheets never stack on iOS (mirrors usePostMenu).
+  const pendingActionRef = useRef<(() => void) | null>(null);
+  const closeActionsThen = (fn: () => void) => {
+    pendingActionRef.current = fn;
+    setShowActionsSheet(false);
+  };
+  const onActionsSheetClosed = () => {
+    const fn = pendingActionRef.current;
+    pendingActionRef.current = null;
+    fn?.();
+  };
+
+  const openCommentMenu = (item: Comment) => {
+    setActionTarget(item);
+    setShowActionsSheet(true);
+  };
+
+  const confirmDelete = (item: Comment) => {
+    Alert.alert("Delete comment?", "This comment will be removed.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await socialFeedApi.deleteComment(postId, item.commentId);
+            setComments((prev) =>
+              prev.filter((c) => c.commentId !== item.commentId),
+            );
+          } catch {
+            Alert.alert("Couldn't delete", "Please try again in a moment.");
+          }
+        },
+      },
+    ]);
+  };
+
+  const confirmBlock = (item: Comment) => {
+    Alert.alert(
+      `Block @${item.username}?`,
+      "They won't be able to see your posts or follow you, and you won't see theirs.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Block",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await blockUser(item.userId);
+              setComments((prev) =>
+                prev.filter((c) => c.userId !== item.userId),
+              );
+            } catch {
+              Alert.alert("Couldn't block", "Failed to block this user.");
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const submitReport = async (reason: ReportReason, note?: string) => {
+    setShowReportSheet(false);
+    const target = actionTarget;
+    if (!target) return;
+    try {
+      await reportService.reportComment(target.commentId, reason, note);
+      Alert.alert(
+        "Report submitted",
+        "Thanks for letting us know. Our team will review this comment.",
+      );
+    } catch (e: any) {
+      if (e?.response?.status === 409) {
+        Alert.alert("Already reported", "You've already reported this comment.");
+      } else {
+        Alert.alert("Couldn't submit report", "Please try again in a moment.");
+      }
+    }
+  };
+
+  const buildActions = (item: Comment): PostAction[] => {
+    const isOwn = !!user?.userId && item.userId === user.userId;
+    const isPostOwner = !!postOwnerId && postOwnerId === user?.userId;
+    const actions: PostAction[] = [];
+    if (!isOwn) {
+      actions.push({
+        key: "report",
+        icon: "flag-outline",
+        label: "Report",
+        onPress: () => closeActionsThen(() => setShowReportSheet(true)),
+      });
+      actions.push({
+        key: "block",
+        icon: "ban-outline",
+        label: "Block",
+        destructive: true,
+        onPress: () => closeActionsThen(() => confirmBlock(item)),
+      });
+    }
+    if (isOwn || isPostOwner) {
+      actions.push({
+        key: "delete",
+        icon: "trash-outline",
+        label: "Delete",
+        destructive: true,
+        onPress: () => closeActionsThen(() => confirmDelete(item)),
+      });
+    }
+    return actions;
+  };
 
   const [, forceUpdate] = useState(0);
 
@@ -151,6 +276,19 @@ export function CommentsScreen() {
           >
             {formatTimeAgo(item.createdAt)}
           </Text>
+          <TouchableOpacity
+            onPress={() => openCommentMenu(item)}
+            hitSlop={10}
+            accessibilityLabel="More options"
+            style={styles.menuButton}
+          >
+            <Ionicons
+              name="ellipsis-horizontal"
+              size={16}
+              color={colors.text}
+              style={{ opacity: 0.6 }}
+            />
+          </TouchableOpacity>
         </View>
         <Text style={[styles.commentBody, { color: colors.text }]}>
           {item.body}
@@ -232,6 +370,18 @@ export function CommentsScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      <PostActionsSheet
+        visible={showActionsSheet}
+        actions={actionTarget ? buildActions(actionTarget) : []}
+        onClose={() => setShowActionsSheet(false)}
+        onClosed={onActionsSheetClosed}
+      />
+      <ReportCommentSheet
+        visible={showReportSheet}
+        onSubmit={submitReport}
+        onClose={() => setShowReportSheet(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -268,6 +418,10 @@ const styles = StyleSheet.create({
   },
   timestamp: {
     fontSize: 12,
+  },
+  menuButton: {
+    marginLeft: "auto",
+    paddingHorizontal: 4,
   },
   commentBody: {
     fontSize: 14,
