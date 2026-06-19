@@ -98,6 +98,19 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
   Optional<Post> findByWorkout_WorkoutId(UUID workoutId);
 
   /**
+   * Find a post by its workout regardless of moderation state. Native so it
+   * bypasses the @SQLRestriction on Post (which hides HIDDEN/REMOVED/soft-hidden
+   * posts from entity queries) — needed when deleting a workout whose post was
+   * hidden by moderation, so the post can still be cleaned up rather than
+   * orphaning the workout_id foreign key. Mirrors updateModerationStatus.
+   */
+  @Query(
+    value = "SELECT * FROM post WHERE workout_id = :workoutId",
+    nativeQuery = true
+  )
+  Optional<Post> findAnyByWorkoutId(@Param("workoutId") UUID workoutId);
+
+  /**
    * Set a post's moderation status directly. Native because the entity carries
    * an @SQLRestriction that hides non-VISIBLE posts from all JPA queries, so a
    * managed-entity load can't reach a HIDDEN/REMOVED post to un-hide it. This
