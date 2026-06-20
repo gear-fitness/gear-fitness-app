@@ -34,7 +34,7 @@ export function usePostMenu(args: {
 }) {
   const { user } = useAuth();
   const navigation = useNavigation();
-  const { invalidate } = useSocialFeed();
+  const { invalidateAll } = useSocialFeed();
 
   const isOwn =
     args.ownerUserId === undefined || args.ownerUserId === user?.userId;
@@ -96,7 +96,7 @@ export function usePostMenu(args: {
       } else {
         await followUser(targetId);
       }
-      invalidate();
+      invalidateAll();
     } catch {
       Alert.alert("Couldn't update", "Failed to update follow status.");
     }
@@ -118,7 +118,7 @@ export function usePostMenu(args: {
           onPress: async () => {
             try {
               await blockUser(targetId);
-              invalidate();
+              invalidateAll();
               navigation.goBack();
             } catch {
               Alert.alert("Couldn't block", "Failed to block this user.");
@@ -137,7 +137,7 @@ export function usePostMenu(args: {
       await socialFeedApi.updatePostVisibility(args.postId, v);
       savedVisibilityRef.current = v;
       args.onVisibilityChanged?.(v);
-      invalidate();
+      invalidateAll();
     } catch {
       setPendingVisibility(savedVisibilityRef.current);
       Alert.alert("Couldn't update", "Failed to change visibility.");

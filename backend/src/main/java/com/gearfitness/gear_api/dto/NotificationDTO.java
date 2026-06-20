@@ -20,6 +20,8 @@ public class NotificationDTO {
   private UUID workoutId;
   private String postImageUrl;
   private String commentBody;
+  /** Thread-root comment id for reply/mention notifications, for deep-linking. */
+  private UUID focusCommentId;
   private LocalDateTime createdAt;
   private boolean isRead;
 }

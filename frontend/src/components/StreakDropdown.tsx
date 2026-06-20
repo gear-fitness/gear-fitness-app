@@ -8,9 +8,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import Svg, { Path } from "react-native-svg";
+import { Ionicons } from "@expo/vector-icons";
 import type { StreakInfo } from "../api/streakService";
+import { StreakIcon } from "./StreakIcon";
 
+/** Brand orange used for the dropdown's call-to-action buttons. */
 const FLAME_COLOR = "#FF6A1F";
 
 interface StreakDropdownProps {
@@ -21,22 +23,10 @@ interface StreakDropdownProps {
   onRestore: () => void;
   loading: boolean;
   isDark: boolean;
-}
-
-function Flame({ size }: { size: number }) {
-  const w = size;
-  const h = (size * 18) / 16;
-  return (
-    <Svg width={w} height={h} viewBox="0 0 16 18" fill="none">
-      <Path
-        d="M8 1.5c.8 2.6 3 3.8 3 6.8 0 1.4-.7 2.6-1.8 3.3.4-.6.5-1.4.2-2.3-.3-1-1.1-1.6-1.4-2.6C7.2 9 6 10 6 11.7c0 .6.2 1.2.4 1.7C5.3 12.7 4.5 11.4 4.5 10c0-2.5 1.6-3.8 2.6-5.8.4-.8.7-1.8.9-2.7Z"
-        stroke={FLAME_COLOR}
-        strokeWidth={1.3}
-        strokeLinejoin="round"
-        fill="none"
-      />
-    </Svg>
-  );
+  /** Whether the user has Plus (streak restores are a Plus+ benefit). */
+  isPlus: boolean;
+  /** Invoked when a Basic user taps the locked restore affordance. */
+  onUpsell: () => void;
 }
 
 export function StreakDropdown({
@@ -47,6 +37,8 @@ export function StreakDropdown({
   onRestore,
   loading,
   isDark,
+  isPlus,
+  onUpsell,
 }: StreakDropdownProps) {
   const scaleAnim = useRef(new Animated.Value(0.96)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
@@ -135,7 +127,7 @@ export function StreakDropdown({
           <TouchableOpacity activeOpacity={1}>
             {/* Streak hero */}
             <View style={styles.streakHeader}>
-              <Flame size={64} />
+              <StreakIcon streak={currentStreak} size={64} isDark={isDark} />
               <Text style={[styles.streakNumber, { color: t.text }]}>
                 {currentStreak}
               </Text>
@@ -156,7 +148,11 @@ export function StreakDropdown({
                   RESTORE TOKENS
                 </Text>
                 <Text style={[styles.tokenSub, { color: t.textFaint }]}>
-                  {tokens > 0 ? "1 available this week" : "Resets Monday"}
+                  {isPlus
+                    ? tokens > 0
+                      ? `${tokens} available this month`
+                      : "Resets monthly"
+                    : "Plus members get 4 / month"}
                 </Text>
               </View>
               <Text style={[styles.tokenCount, { color: t.text }]}>
@@ -189,25 +185,48 @@ export function StreakDropdown({
                 )}
               </TouchableOpacity>
 
-              {tokens > 0 && (
+              {!isPlus ? (
                 <TouchableOpacity
                   style={[
                     styles.filledButton,
-                    {
-                      backgroundColor: FLAME_COLOR,
-                      opacity: loading ? 0.5 : 1,
-                    },
+                    { flexDirection: "row", backgroundColor: t.text },
                   ]}
-                  onPress={handleRestorePress}
-                  disabled={loading}
+                  onPress={onUpsell}
                   activeOpacity={0.85}
                 >
-                  {restoreLoading ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Text style={styles.filledButtonText}>Restore Streak</Text>
-                  )}
+                  <Ionicons
+                    name="lock-closed"
+                    size={16}
+                    color={t.bg}
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text style={[styles.filledButtonText, { color: t.bg }]}>
+                    Restore Streak with Plus
+                  </Text>
                 </TouchableOpacity>
+              ) : (
+                tokens > 0 && (
+                  <TouchableOpacity
+                    style={[
+                      styles.filledButton,
+                      {
+                        backgroundColor: FLAME_COLOR,
+                        opacity: loading ? 0.5 : 1,
+                      },
+                    ]}
+                    onPress={handleRestorePress}
+                    disabled={loading}
+                    activeOpacity={0.85}
+                  >
+                    {restoreLoading ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.filledButtonText}>
+                        Restore Streak
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                )
               )}
             </View>
           </TouchableOpacity>
@@ -235,7 +254,9 @@ const styles = StyleSheet.create({
   },
   streakHeader: {
     flexDirection: "row",
-    alignItems: "center",
+    // Bottom-align so the number's baseline sits on the flame's base, rather
+    // than floating at the geometric center of the taller full-size flame.
+    alignItems: "flex-end",
     justifyContent: "center",
     gap: 6,
   },
@@ -245,6 +266,9 @@ const styles = StyleSheet.create({
     letterSpacing: -1.6,
     lineHeight: 64,
     fontVariant: ["tabular-nums"],
+    // Drop the number so its baseline lands on the flame's base (digits sit on
+    // the baseline with empty descent space below them). Scaled to this font size.
+    transform: [{ translateY: 11 }],
   },
   overline: {
     fontSize: 12,

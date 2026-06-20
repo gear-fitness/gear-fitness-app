@@ -11,6 +11,7 @@ export interface NotificationDTO {
   workoutId?: string | null;
   postImageUrl?: string | null;
   commentBody?: string;
+  focusCommentId?: string | null;
   createdAt: string;
   isRead: boolean;
 }

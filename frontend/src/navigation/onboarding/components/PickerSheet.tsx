@@ -158,7 +158,7 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       marginHorizontal: 16,
       marginTop: 10,
       height: 56,
-      borderRadius: 999,
+      borderRadius: 14,
       backgroundColor: c.accent,
       alignItems: "center",
       justifyContent: "center",

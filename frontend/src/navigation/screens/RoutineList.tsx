@@ -22,6 +22,7 @@ import { useThemeColors } from "../../hooks/useThemeColors";
 import { getPrimaryBodyPart } from "../../utils/exerciseUtils";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
+import { useTier } from "../../hooks/useTier";
 
 function useSkeletonPulse() {
   const opacity = useRef(new Animated.Value(0.4)).current;
@@ -114,6 +115,8 @@ export function RoutineList() {
   const navigation = useNavigation<any>();
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
+  const { atLeast } = useTier();
+  const isPlus = atLeast("PLUS");
 
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [loading, setLoading] = useState(true);
@@ -200,10 +203,21 @@ export function RoutineList() {
     );
   };
 
+  const handleAddPress = () => {
+    const limit = isPlus ? 7 : 3;
+    if (routines.length >= limit && !isPlus) {
+      navigation.navigate("PlusUpsell", {
+        feature: "Create up to 7 routines with Plus",
+      });
+      return;
+    }
+    navigation.navigate("CreateRoutine");
+  };
+
   const renderAddCard = () => (
     <TouchableOpacity
       style={[styles.addCard, { borderColor: colors.dashedBorder }]}
-      onPress={() => navigation.navigate("CreateRoutine")}
+      onPress={handleAddPress}
       activeOpacity={0.7}
     >
       <Text style={[styles.addCardPlus, { color: colors.dashedBorder }]}>

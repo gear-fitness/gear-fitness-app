@@ -11,6 +11,8 @@ import { View, Text } from "react-native";
 
 /* SCREENS */
 import { Profile } from "./screens/Profile";
+import { PaywallScreen } from "./screens/PaywallScreen";
+import { PlusUpsellSheet } from "./screens/PlusUpsellSheet";
 import { SettingsNavigator } from "./SettingsNavigator";
 import { Social } from "./screens/Social";
 import { Workout } from "./screens/Workout";
@@ -22,7 +24,6 @@ import { ShareWorkout } from "./screens/ShareWorkout";
 import { PostDetail } from "./screens/PostDetail";
 import { WorkoutFlowNavigator } from "./WorkoutFlowNavigator";
 import { OnboardingScreen } from "./screens/Onboarding";
-import { WorkoutChat } from "./screens/WorkoutChat";
 import { AuthLoadingScreen } from "./screens/AuthLoading";
 import { CommentsScreen } from "../components/CommentsScreen";
 import { ExerciseList } from "./screens/ExerciseList";
@@ -91,13 +92,6 @@ const HomeTabs = createBottomTabNavigator({
       screen: Profile,
       options: {
         tabBarIcon: { type: "sfSymbol", name: "person.fill" },
-      },
-    },
-    AiChat: {
-      screen: WorkoutChat,
-      options: {
-        ...(majorVersionIOS >= 26 && { tabBarSystemItem: "search" }),
-        tabBarIcon: { type: "sfSymbol", name: "sparkle" },
       },
     },
   },
@@ -265,6 +259,26 @@ const RootStack = createNativeStackNavigator({
       options: { headerShown: false },
     },
 
+    Paywall: {
+      screen: PaywallScreen,
+      options: {
+        presentation: "fullScreenModal",
+        headerShown: false,
+        gestureEnabled: true,
+        gestureDirection: "vertical",
+      },
+    },
+
+    PlusUpsell: {
+      screen: PlusUpsellSheet,
+      options: {
+        presentation: "transparentModal",
+        headerShown: false,
+        animation: "none",
+        gestureEnabled: false,
+      },
+    },
+
     EditRoutine: {
       screen: EditRoutine,
       options: { headerShown: false },
@@ -336,6 +350,8 @@ declare global {
 
       Comments: {
         postId: string;
+        postOwnerId?: string;
+        focusCommentId?: string;
       };
 
       ImageViewer: {

@@ -108,6 +108,14 @@ function renderAction(item: NotificationDTO): string {
       return item.commentBody
         ? ` commented: ${item.commentBody}`
         : " commented on your post";
+    case "REPLY":
+      return item.commentBody
+        ? ` replied: ${item.commentBody}`
+        : " replied to your comment";
+    case "MENTION":
+      return item.commentBody
+        ? ` mentioned you: ${item.commentBody}`
+        : " mentioned you";
     default:
       return " interacted";
   }
@@ -224,7 +232,11 @@ export function Activity() {
   const renderRowBody = (item: NotificationDTO) => {
     const isFollowRequest = item.type === "FOLLOW_REQUEST";
     const hasThumbnail =
-      (item.type === "LIKE" || item.type === "COMMENT") && !!item.postImageUrl;
+      (item.type === "LIKE" ||
+        item.type === "COMMENT" ||
+        item.type === "REPLY" ||
+        item.type === "MENTION") &&
+      !!item.postImageUrl;
 
     const handlePress = () => {
       if (isFollowRequest) return;
@@ -234,6 +246,16 @@ export function Activity() {
         navigation.navigate("PostDetail", {
           postId: item.postId,
           openCommentsOnMount: true,
+        });
+      } else if (
+        (item.type === "REPLY" || item.type === "MENTION") &&
+        item.postId
+      ) {
+        navigation.navigate("PostDetail", {
+          postId: item.postId,
+          // A caption mention has no comment thread (no commentBody/focus id).
+          openCommentsOnMount: !!item.focusCommentId,
+          focusCommentId: item.focusCommentId ?? undefined,
         });
       } else if (item.type === "LIKE" && item.postId) {
         navigation.navigate("PostDetail", { postId: item.postId });

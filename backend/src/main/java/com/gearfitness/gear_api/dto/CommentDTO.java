@@ -20,4 +20,10 @@ public class CommentDTO {
   private String userProfilePictureUrl;
   private String body;
   private LocalDateTime createdAt;
+
+  /** Top-level parent comment id; null for top-level comments. */
+  private UUID parentCommentId;
+
+  /** Visible reply count; only populated for top-level comments. */
+  private Long replyCount;
 }

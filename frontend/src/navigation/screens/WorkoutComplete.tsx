@@ -33,6 +33,7 @@ import {
 } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
+import { MentionTextInput } from "../../components/MentionTextInput";
 import { formatTag } from "../../utils/formatTag";
 import { getAllBodyPartNames } from "../../utils/exerciseUtils";
 import { MUSCLE_GROUPS } from "../../constants/muscleGroups";
@@ -62,7 +63,7 @@ export function WorkoutComplete() {
   const photoTileSize = Math.floor((screenWidth - 40 - 24) / 4);
   const { exercises, seconds, workoutStartedAtEpoch, reset } =
     useWorkoutTimer();
-  const { invalidate: invalidateFeed } = useSocialFeed();
+  const { invalidateAll: invalidateFeeds } = useSocialFeed();
 
   const initialBodyTags = useMemo(() => {
     const tags = new Set(
@@ -272,7 +273,7 @@ export function WorkoutComplete() {
       // resurrect state during the unmount that follows popOutOfFlow.
       await reset();
 
-      invalidateFeed();
+      invalidateFeeds();
 
       Alert.alert("Posted!", "Your workout has been posted.", [
         { text: "OK", onPress: popOutOfFlow },
@@ -451,7 +452,7 @@ export function WorkoutComplete() {
               },
             ]}
           >
-            <TextInput
+            <MentionTextInput
               value={caption}
               onChangeText={setCaption}
               placeholder="Felt strong today. Hit a PR on…"
