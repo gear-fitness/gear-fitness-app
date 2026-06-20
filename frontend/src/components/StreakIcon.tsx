@@ -55,7 +55,11 @@ export function StreakIcon({ streak, size, isDark, style }: StreakIconProps) {
       source={tier.source}
       resizeMode="contain"
       accessibilityLabel={`${streak} day streak`}
-      style={[{ width: renderSize, height: renderSize }, tintColor ? { tintColor } : null, style]}
+      style={[
+        { width: renderSize, height: renderSize },
+        tintColor ? { tintColor } : null,
+        style,
+      ]}
     />
   );
 }

@@ -40,11 +40,7 @@ export type RoutineSplit =
   | "anterior_posterior"
   | "auto";
 
-export type ExperienceLevel =
-  | "none"
-  | "beginner"
-  | "intermediate"
-  | "advanced";
+export type ExperienceLevel = "none" | "beginner" | "intermediate" | "advanced";
 
 export type TrainingLocation = "gym" | "home" | "both" | "other";
 

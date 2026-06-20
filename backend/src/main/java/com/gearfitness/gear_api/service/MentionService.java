@@ -62,9 +62,10 @@ public class MentionService {
     PostComment storageParent,
     UUID alreadyNotifiedId
   ) {
-    UUID focusCommentId = storageParent != null
-      ? storageParent.getCommentId()
-      : comment.getCommentId();
+    UUID focusCommentId =
+      storageParent != null
+        ? storageParent.getCommentId()
+        : comment.getCommentId();
     String data = String.format(
       "{\"type\":\"MENTION\",\"screen\":\"PostDetail\",\"params\":{\"postId\":\"%s\",\"openCommentsOnMount\":true,\"focusCommentId\":\"%s\"}}",
       post.getPostId(),

@@ -224,9 +224,8 @@ public class PostInteractionService {
           "Comment does not belong to this post"
         );
       }
-      storageParent = target.getParentComment() != null
-        ? target.getParentComment()
-        : target;
+      storageParent =
+        target.getParentComment() != null ? target.getParentComment() : target;
     }
 
     PostComment comment = PostComment.builder()

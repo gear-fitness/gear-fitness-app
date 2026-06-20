@@ -135,11 +135,17 @@ export function AccountStep({
         )}
         <Text style={[styles.terms, { color: colors.secondary }]}>
           By signing up you agree to our{" "}
-          <Text style={[styles.termsLink, { color: colors.text }]} onPress={openTerms}>
+          <Text
+            style={[styles.termsLink, { color: colors.text }]}
+            onPress={openTerms}
+          >
             Terms
           </Text>{" "}
           and{" "}
-          <Text style={[styles.termsLink, { color: colors.text }]} onPress={openPrivacy}>
+          <Text
+            style={[styles.termsLink, { color: colors.text }]}
+            onPress={openPrivacy}
+          >
             Privacy Policy
           </Text>
           .

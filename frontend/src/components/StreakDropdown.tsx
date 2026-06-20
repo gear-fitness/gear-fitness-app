@@ -221,7 +221,9 @@ export function StreakDropdown({
                     {restoreLoading ? (
                       <ActivityIndicator size="small" color="#fff" />
                     ) : (
-                      <Text style={styles.filledButtonText}>Restore Streak</Text>
+                      <Text style={styles.filledButtonText}>
+                        Restore Streak
+                      </Text>
                     )}
                   </TouchableOpacity>
                 )

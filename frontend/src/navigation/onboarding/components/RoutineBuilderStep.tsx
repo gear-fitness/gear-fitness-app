@@ -46,7 +46,10 @@ export function RoutineBuilderStep({
   const shared = useMemo(() => makeOnboardingStyles(colors), [colors]);
 
   // Real exercise catalog (global/public, no auth needed during onboarding).
-  const { exercises, loading } = useExerciseList(true, getPublicExerciseCatalog);
+  const { exercises, loading } = useExerciseList(
+    true,
+    getPublicExerciseCatalog,
+  );
 
   const routines = useMemo<DraftRoutine[]>(
     () =>

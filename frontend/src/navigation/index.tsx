@@ -24,7 +24,6 @@ import { ShareWorkout } from "./screens/ShareWorkout";
 import { PostDetail } from "./screens/PostDetail";
 import { WorkoutFlowNavigator } from "./WorkoutFlowNavigator";
 import { OnboardingScreen } from "./screens/Onboarding";
-import { WorkoutChat } from "./screens/WorkoutChat";
 import { AuthLoadingScreen } from "./screens/AuthLoading";
 import { CommentsScreen } from "../components/CommentsScreen";
 import { ExerciseList } from "./screens/ExerciseList";
@@ -93,13 +92,6 @@ const HomeTabs = createBottomTabNavigator({
       screen: Profile,
       options: {
         tabBarIcon: { type: "sfSymbol", name: "person.fill" },
-      },
-    },
-    AiChat: {
-      screen: WorkoutChat,
-      options: {
-        ...(majorVersionIOS >= 26 && { tabBarSystemItem: "search" }),
-        tabBarIcon: { type: "sfSymbol", name: "sparkle" },
       },
     },
   },

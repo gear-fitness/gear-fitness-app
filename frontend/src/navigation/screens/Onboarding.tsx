@@ -185,7 +185,9 @@ export function OnboardingScreen() {
           }
 
           if (!result.token || !result.refreshToken) {
-            throw new Error("Google sign-in did not return valid session tokens");
+            throw new Error(
+              "Google sign-in did not return valid session tokens",
+            );
           }
           await login(result.token, result.refreshToken);
 

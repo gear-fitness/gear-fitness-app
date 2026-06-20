@@ -36,13 +36,7 @@ const ROW = ex("Barbell Row", p("BACK"), s("BICEPS"), s("FOREARMS"), s("CORE"));
 const PULLDOWN = ex("Lat Pulldown", p("BACK"), s("BICEPS"), s("FOREARMS"));
 const PULLUP = ex("Pull Up", p("BACK"), s("BICEPS"), s("FOREARMS"));
 const CURL = ex("Dumbbell Curl", p("BICEPS"), s("FOREARMS"));
-const SQUAT = ex(
-  "Squat",
-  p("QUADS"),
-  s("GLUTES"),
-  s("HAMSTRINGS"),
-  s("CORE"),
-);
+const SQUAT = ex("Squat", p("QUADS"), s("GLUTES"), s("HAMSTRINGS"), s("CORE"));
 const LEG_PRESS = ex("Leg Press", p("QUADS"), s("GLUTES"));
 const RDL = ex(
   "Romanian Deadlift",

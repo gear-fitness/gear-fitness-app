@@ -54,7 +54,9 @@ public class RevenueCatWebhookService {
 
   /** Constant-time comparison of the Authorization header against the secret. */
   public boolean isAuthorized(String authHeader) {
-    if (authHeader == null || webhookSecret == null || webhookSecret.isEmpty()) {
+    if (
+      authHeader == null || webhookSecret == null || webhookSecret.isEmpty()
+    ) {
       return false;
     }
     return MessageDigest.isEqual(

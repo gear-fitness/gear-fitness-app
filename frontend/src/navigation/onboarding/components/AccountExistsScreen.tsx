@@ -72,7 +72,10 @@ export function AccountExistsScreen({
         <Pressable
           onPress={onBack}
           disabled={isSigningIn}
-          style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.secondaryBtn,
+            pressed && styles.pressed,
+          ]}
         >
           <Text style={[styles.secondaryBtnText, { color: colors.secondary }]}>
             Go back

@@ -9,7 +9,8 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface CommentReportRepository
-  extends JpaRepository<CommentReport, UUID> {
+  extends JpaRepository<CommentReport, UUID>
+{
   boolean existsByReporter_UserIdAndComment_CommentId(
     UUID reporterId,
     UUID commentId

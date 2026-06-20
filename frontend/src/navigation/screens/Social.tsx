@@ -141,7 +141,9 @@ function FeedList({
           isIOS && feed.posts.length > 0 ? { top: HEADER_HEIGHT } : undefined
         }
         contentOffset={
-          isIOS && feed.posts.length > 0 ? { x: 0, y: -HEADER_HEIGHT } : undefined
+          isIOS && feed.posts.length > 0
+            ? { x: 0, y: -HEADER_HEIGHT }
+            : undefined
         }
         scrollIndicatorInsets={{ top: HEADER_HEIGHT }}
         ListFooterComponent={renderFooter}
@@ -514,7 +516,10 @@ export function Social() {
 
         {searchExpanded && (
           <View
-            style={[styles.searchResults, { backgroundColor: colors.background }]}
+            style={[
+              styles.searchResults,
+              { backgroundColor: colors.background },
+            ]}
           >
             <FlatList
               data={userResults}

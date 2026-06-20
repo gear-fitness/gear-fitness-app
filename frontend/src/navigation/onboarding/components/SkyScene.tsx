@@ -41,10 +41,18 @@ export function SkyScene({ index }: { index: number }) {
   });
 
   const op = (range: number[], out: number[]) =>
-    t.interpolate({ inputRange: range, outputRange: out, extrapolate: "clamp" });
+    t.interpolate({
+      inputRange: range,
+      outputRange: out,
+      extrapolate: "clamp",
+    });
 
   const skies: { key: string; colors: [string, string]; opacity: any }[] = [
-    { key: "dawn", colors: ["#FDEAC4", "#BFD8EE"], opacity: op([0, 1], [1, 0]) },
+    {
+      key: "dawn",
+      colors: ["#FDEAC4", "#BFD8EE"],
+      opacity: op([0, 1], [1, 0]),
+    },
     {
       key: "day",
       colors: ["#6FC0F2", "#CFEBFF"],

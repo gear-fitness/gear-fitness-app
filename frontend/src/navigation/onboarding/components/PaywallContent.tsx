@@ -116,7 +116,10 @@ export function PaywallContent({
     } catch (e: any) {
       // User dismissing the StoreKit sheet is not an error to surface.
       if (!e?.userCancelled) {
-        Alert.alert("Purchase failed", "Something went wrong. Please try again.");
+        Alert.alert(
+          "Purchase failed",
+          "Something went wrong. Please try again.",
+        );
       }
     } finally {
       setBusy(false);
@@ -130,7 +133,10 @@ export function PaywallContent({
       const info = await restore();
       const active = Object.keys(info.entitlements.active);
       if (active.length) {
-        Alert.alert("Purchases restored", "Your subscription has been restored.");
+        Alert.alert(
+          "Purchases restored",
+          "Your subscription has been restored.",
+        );
         onDone();
       } else {
         Alert.alert(
@@ -164,7 +170,9 @@ export function PaywallContent({
     if (value) {
       return (
         <View style={[styles.checkCircle, { backgroundColor: colors.accent }]}>
-          <Text style={[styles.checkMark, { color: colors.accentText }]}>✓</Text>
+          <Text style={[styles.checkMark, { color: colors.accentText }]}>
+            ✓
+          </Text>
         </View>
       );
     }
@@ -239,7 +247,9 @@ export function PaywallContent({
         <View style={styles.eyebrow}>
           <Text style={[styles.eyebrowText, { color: colors.text }]}>Gear</Text>
           <View style={[styles.eyebrowPill, { backgroundColor: PLUS_BLUE }]}>
-            <Text style={[styles.eyebrowPillText, { color: "#fff" }]}>Plus</Text>
+            <Text style={[styles.eyebrowPillText, { color: "#fff" }]}>
+              Plus
+            </Text>
           </View>
         </View>
         <Text style={shared.heading}>Achieve your goals faster</Text>
@@ -296,7 +306,9 @@ export function PaywallContent({
           <View style={styles.featBody}>
             <View style={styles.featLeft}>
               <Text style={[styles.featTitle, { color: colors.text }]}>
-                {showTrial ? "Start for free and save 50%" : "Save 50% with annual"}
+                {showTrial
+                  ? "Start for free and save 50%"
+                  : "Save 50% with annual"}
               </Text>
               <Text
                 style={[
@@ -337,7 +349,9 @@ export function PaywallContent({
           ]}
         >
           <View style={styles.featLeft}>
-            <Text style={[styles.secTitle, { color: colors.text }]}>Monthly</Text>
+            <Text style={[styles.secTitle, { color: colors.text }]}>
+              Monthly
+            </Text>
             <Text style={[styles.featSub, { color: colors.secondary }]}>
               No commitment. Cancel anytime.
             </Text>
@@ -366,8 +380,12 @@ export function PaywallContent({
               Basic
             </Text>
             <View style={styles.compareCell}>
-              <View style={[styles.plusPill, { backgroundColor: colors.accent }]}>
-                <Text style={[styles.plusPillText, { color: colors.accentText }]}>
+              <View
+                style={[styles.plusPill, { backgroundColor: colors.accent }]}
+              >
+                <Text
+                  style={[styles.plusPillText, { color: colors.accentText }]}
+                >
                   Plus
                 </Text>
               </View>
@@ -390,7 +408,6 @@ export function PaywallContent({
             </View>
           ))}
         </View>
-
       </ScrollView>
 
       <View style={shared.footer}>

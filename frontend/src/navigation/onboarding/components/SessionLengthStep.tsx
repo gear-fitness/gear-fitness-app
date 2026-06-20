@@ -7,14 +7,13 @@ import { BatteryScene } from "./BatteryScene";
 import { SESSION_LENGTH_OPTIONS } from "../intakeOptions";
 import { SessionLength } from "../types";
 
-const SLIDER_OPTIONS: SliderOption<SessionLength>[] = SESSION_LENGTH_OPTIONS.map(
-  (o) => ({
+const SLIDER_OPTIONS: SliderOption<SessionLength>[] =
+  SESSION_LENGTH_OPTIONS.map((o) => ({
     value: o.value,
     label: o.label,
     short: `${o.value}m`,
     hint: o.hint,
-  }),
-);
+  }));
 
 const ORDER = SLIDER_OPTIONS.map((o) => o.value);
 

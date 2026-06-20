@@ -41,46 +41,48 @@ export function BirthdayStep({
       onContinue={handleContinue}
     >
       <View style={styles.center}>
-        <Text style={[shared.heading, styles.heading]}>When were you born?</Text>
+        <Text style={[shared.heading, styles.heading]}>
+          When were you born?
+        </Text>
         <View style={styles.pickerRow}>
           <Picker
-          selectedValue={month}
-          onValueChange={(m: number) => {
-            setMonth(m);
-            clampDay(m, year);
-          }}
-          style={[styles.picker, { flex: 1.4 }]}
-          itemStyle={[styles.pickerItem, { color: colors.text }]}
-        >
-          {DOB_MONTHS.map((m, i) => (
-            <Picker.Item key={i} label={m} value={i} />
-          ))}
-        </Picker>
-        <Picker
-          selectedValue={day}
-          onValueChange={setDay}
-          style={[styles.picker, { flex: 0.8 }]}
-          itemStyle={[styles.pickerItem, { color: colors.text }]}
-        >
-          {Array.from(
-            { length: getDaysInMonth(month, year) },
-            (_, i) => i + 1,
-          ).map((d) => (
-            <Picker.Item key={d} label={`${d}`} value={d} />
-          ))}
-        </Picker>
-        <Picker
-          selectedValue={year}
-          onValueChange={(y: number) => {
-            setYear(y);
-            clampDay(month, y);
-          }}
-          style={[styles.picker, { flex: 1.1 }]}
-          itemStyle={[styles.pickerItem, { color: colors.text }]}
-        >
-          {DOB_YEARS.map((y) => (
-            <Picker.Item key={y} label={`${y}`} value={y} />
-          ))}
+            selectedValue={month}
+            onValueChange={(m: number) => {
+              setMonth(m);
+              clampDay(m, year);
+            }}
+            style={[styles.picker, { flex: 1.4 }]}
+            itemStyle={[styles.pickerItem, { color: colors.text }]}
+          >
+            {DOB_MONTHS.map((m, i) => (
+              <Picker.Item key={i} label={m} value={i} />
+            ))}
+          </Picker>
+          <Picker
+            selectedValue={day}
+            onValueChange={setDay}
+            style={[styles.picker, { flex: 0.8 }]}
+            itemStyle={[styles.pickerItem, { color: colors.text }]}
+          >
+            {Array.from(
+              { length: getDaysInMonth(month, year) },
+              (_, i) => i + 1,
+            ).map((d) => (
+              <Picker.Item key={d} label={`${d}`} value={d} />
+            ))}
+          </Picker>
+          <Picker
+            selectedValue={year}
+            onValueChange={(y: number) => {
+              setYear(y);
+              clampDay(month, y);
+            }}
+            style={[styles.picker, { flex: 1.1 }]}
+            itemStyle={[styles.pickerItem, { color: colors.text }]}
+          >
+            {DOB_YEARS.map((y) => (
+              <Picker.Item key={y} label={`${y}`} value={y} />
+            ))}
           </Picker>
         </View>
       </View>

@@ -22,14 +22,46 @@ export const STREAK_MILESTONES = [1, 7, 30, 100, 200, 300] as const;
 // `color` is the flame's dominant hue for that tier — used as the accent for
 // the profile activity grid so the heatmap "levels up" with the streak.
 // Tier 0 reuses the base orange so a broken streak doesn't grey out the graph.
-const STREAK_TIERS: { min: number; source: ImageSourcePropType; color: string }[] = [
-  { min: 300, source: require("../../assets/streak/streak-300.png"), color: "#22ABFF" },
-  { min: 200, source: require("../../assets/streak/streak-200.png"), color: "#9C2BE0" },
-  { min: 100, source: require("../../assets/streak/streak-100.png"), color: "#E0218A" },
-  { min: 30, source: require("../../assets/streak/streak-30.png"), color: "#F5301F" },
-  { min: 7, source: require("../../assets/streak/streak-7.png"), color: "#FB4D2A" },
-  { min: 1, source: require("../../assets/streak/streak-1.png"), color: "#FF6A1F" },
-  { min: 0, source: require("../../assets/streak/streak-1.png"), color: "#FF6A1F" },
+const STREAK_TIERS: {
+  min: number;
+  source: ImageSourcePropType;
+  color: string;
+}[] = [
+  {
+    min: 300,
+    source: require("../../assets/streak/streak-300.png"),
+    color: "#22ABFF",
+  },
+  {
+    min: 200,
+    source: require("../../assets/streak/streak-200.png"),
+    color: "#9C2BE0",
+  },
+  {
+    min: 100,
+    source: require("../../assets/streak/streak-100.png"),
+    color: "#E0218A",
+  },
+  {
+    min: 30,
+    source: require("../../assets/streak/streak-30.png"),
+    color: "#F5301F",
+  },
+  {
+    min: 7,
+    source: require("../../assets/streak/streak-7.png"),
+    color: "#FB4D2A",
+  },
+  {
+    min: 1,
+    source: require("../../assets/streak/streak-1.png"),
+    color: "#FF6A1F",
+  },
+  {
+    min: 0,
+    source: require("../../assets/streak/streak-1.png"),
+    color: "#FF6A1F",
+  },
 ];
 
 export interface StreakTier {

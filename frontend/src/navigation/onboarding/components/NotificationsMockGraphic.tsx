@@ -26,7 +26,9 @@ export function NotificationsMockGraphic({
 
   return (
     <View style={styles.wrap}>
-      <View style={[styles.card, { width: cardWidth, backgroundColor: cardBg }]}>
+      <View
+        style={[styles.card, { width: cardWidth, backgroundColor: cardBg }]}
+      >
         <Text style={[styles.title, { color: colors.text }]}>
           “Gear Fitness” would like to send you Notifications
         </Text>
@@ -51,7 +53,9 @@ export function NotificationsMockGraphic({
               pressed && styles.pressed,
             ]}
           >
-            <Text style={[styles.btnText, styles.allow, { color: colors.text }]}>
+            <Text
+              style={[styles.btnText, styles.allow, { color: colors.text }]}
+            >
               Allow
             </Text>
           </Pressable>

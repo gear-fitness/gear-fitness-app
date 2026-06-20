@@ -63,7 +63,9 @@ export function ProfilePhotoStep({
     <View style={shared.screen}>
       <OnboardingTopBar progress={progress} onBack={onBack} />
       <View style={styles.center}>
-        <Text style={[shared.heading, styles.heading]}>Add a profile photo</Text>
+        <Text style={[shared.heading, styles.heading]}>
+          Add a profile photo
+        </Text>
         <Text style={[shared.subheading, styles.sub]}>
           Help your friends recognize you on Gear.
         </Text>

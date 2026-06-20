@@ -682,7 +682,9 @@ export function Profile() {
             />
             <View style={styles.plusPromoTextWrap}>
               <Text style={[styles.plusPromoTitle, { color: t.text }]}>
-                {trialEligible ? "Try Plus free for 3 days" : "Upgrade to Gear Plus"}
+                {trialEligible
+                  ? "Try Plus free for 3 days"
+                  : "Upgrade to Gear Plus"}
               </Text>
               <Text style={[styles.plusPromoSub, { color: t.textMuted }]}>
                 Routines, full history, and more

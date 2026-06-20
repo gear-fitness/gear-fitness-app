@@ -19,14 +19,11 @@ export function useResumeVideoOnForeground(
   shouldResumeRef.current = shouldResume;
 
   useEffect(() => {
-    const sub = AppState.addEventListener(
-      "change",
-      (next: AppStateStatus) => {
-        if (next === "active" && shouldResumeRef.current()) {
-          player.play();
-        }
-      },
-    );
+    const sub = AppState.addEventListener("change", (next: AppStateStatus) => {
+      if (next === "active" && shouldResumeRef.current()) {
+        player.play();
+      }
+    });
     return () => sub.remove();
   }, [player]);
 }

@@ -93,7 +93,9 @@ export function SignInScreen({
                 styles.authBtn,
                 { backgroundColor: appleBg },
                 pressed && styles.pressed,
-                isSigningIn && pending !== "apple" && shared.continueBtnDisabled,
+                isSigningIn &&
+                  pending !== "apple" &&
+                  shared.continueBtnDisabled,
               ]}
             >
               <View style={styles.btnContent}>
@@ -150,11 +152,17 @@ export function SignInScreen({
       <View style={styles.footer}>
         <Text style={[styles.terms, { color: colors.secondary }]}>
           By continuing you agree to our{" "}
-          <Text style={[styles.termsLink, { color: colors.text }]} onPress={openTerms}>
+          <Text
+            style={[styles.termsLink, { color: colors.text }]}
+            onPress={openTerms}
+          >
             Terms of Service
           </Text>{" "}
           and{" "}
-          <Text style={[styles.termsLink, { color: colors.text }]} onPress={openPrivacy}>
+          <Text
+            style={[styles.termsLink, { color: colors.text }]}
+            onPress={openPrivacy}
+          >
             Privacy Policy
           </Text>
           .

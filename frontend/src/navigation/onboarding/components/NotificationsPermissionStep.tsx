@@ -18,7 +18,10 @@ export function NotificationsPermissionStep({
     acting.current = true;
     const { status } = await Notifications.requestPermissionsAsync();
     updateDraft({
-      permissions: { ...draft.permissions, notifications: status === "granted" },
+      permissions: {
+        ...draft.permissions,
+        notifications: status === "granted",
+      },
     });
     onNext();
   };

@@ -31,7 +31,9 @@ export function HeightStep({
       continueDisabled={!height}
     >
       <View style={styles.center}>
-        <Text style={[shared.heading, styles.heading]}>What's your height?</Text>
+        <Text style={[shared.heading, styles.heading]}>
+          What's your height?
+        </Text>
         <HeightPickerInline
           initial={draft.height}
           onChange={setHeight}

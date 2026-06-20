@@ -13,12 +13,13 @@ const SHORT_LABELS: Record<ActivityLevel, string> = {
   very_active: "Very active",
 };
 
-const CRITTERS: Record<ActivityLevel, SliderOption<ActivityLevel>["critter"]> = {
-  sedentary: "couch",
-  light: "turtle",
-  moderate: "bunny",
-  very_active: "bird",
-};
+const CRITTERS: Record<ActivityLevel, SliderOption<ActivityLevel>["critter"]> =
+  {
+    sedentary: "couch",
+    light: "turtle",
+    moderate: "bunny",
+    very_active: "bird",
+  };
 
 const SLIDER_OPTIONS: SliderOption<ActivityLevel>[] = ACTIVITY_OPTIONS.map(
   (o) => ({

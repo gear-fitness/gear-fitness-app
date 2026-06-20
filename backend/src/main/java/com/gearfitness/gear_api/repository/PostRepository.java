@@ -115,10 +115,7 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
     ORDER BY p.createdAt DESC
     """
   )
-  Page<Post> findDiscoverPosts(
-    @Param("userId") UUID userId,
-    Pageable pageable
-  );
+  Page<Post> findDiscoverPosts(@Param("userId") UUID userId, Pageable pageable);
 
   Optional<Post> findByWorkout_WorkoutId(UUID workoutId);
 }

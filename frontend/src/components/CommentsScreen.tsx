@@ -192,7 +192,10 @@ export function CommentsScreen() {
       );
     } catch (e: any) {
       if (e?.response?.status === 409) {
-        Alert.alert("Already reported", "You've already reported this comment.");
+        Alert.alert(
+          "Already reported",
+          "You've already reported this comment.",
+        );
       } else {
         Alert.alert("Couldn't submit report", "Please try again in a moment.");
       }
@@ -234,7 +237,12 @@ export function CommentsScreen() {
     setLoadingReplies((prev) => new Set(prev).add(commentId));
     try {
       // Replies are small; load up to 100 in one page (oldest-first).
-      const response = await socialFeedApi.getReplies(postId, commentId, 0, 100);
+      const response = await socialFeedApi.getReplies(
+        postId,
+        commentId,
+        0,
+        100,
+      );
       setRepliesByParent((prev) => ({
         ...prev,
         [commentId]: response.content,
@@ -452,7 +460,10 @@ export function CommentsScreen() {
           style={styles.replyButton}
         >
           <Text
-            style={[styles.replyButtonText, { color: colors.text, opacity: 0.6 }]}
+            style={[
+              styles.replyButtonText,
+              { color: colors.text, opacity: 0.6 },
+            ]}
           >
             Reply
           </Text>
@@ -475,7 +486,9 @@ export function CommentsScreen() {
             style={styles.viewRepliesButton}
             hitSlop={6}
           >
-            <View style={[styles.replyLine, { backgroundColor: colors.border }]} />
+            <View
+              style={[styles.replyLine, { backgroundColor: colors.border }]}
+            />
             <Text
               style={[
                 styles.viewRepliesText,

@@ -58,15 +58,14 @@ export function FollowFoundersStep({
               ]}
             >
               {acct.photoUri ? (
-                <Image
-                  source={{ uri: acct.photoUri }}
-                  style={styles.avatar}
-                />
+                <Image source={{ uri: acct.photoUri }} style={styles.avatar} />
               ) : (
                 <View
                   style={[styles.avatar, { backgroundColor: colors.photoBg }]}
                 >
-                  <Text style={[styles.avatarInitial, { color: colors.secondary }]}>
+                  <Text
+                    style={[styles.avatarInitial, { color: colors.secondary }]}
+                  >
                     {acct.name.charAt(0).toUpperCase()}
                   </Text>
                 </View>
