@@ -12,9 +12,6 @@ import { Ionicons } from "@expo/vector-icons";
 import type { StreakInfo } from "../api/streakService";
 import { StreakIcon } from "./StreakIcon";
 
-/** Brand orange used for the dropdown's call-to-action buttons. */
-const FLAME_COLOR = "#FF6A1F";
-
 interface StreakDropdownProps {
   visible: boolean;
   onClose: () => void;
@@ -210,7 +207,7 @@ export function StreakDropdown({
                     style={[
                       styles.filledButton,
                       {
-                        backgroundColor: FLAME_COLOR,
+                        backgroundColor: t.text,
                         opacity: loading ? 0.5 : 1,
                       },
                     ]}
@@ -219,9 +216,9 @@ export function StreakDropdown({
                     activeOpacity={0.85}
                   >
                     {restoreLoading ? (
-                      <ActivityIndicator size="small" color="#fff" />
+                      <ActivityIndicator size="small" color={t.bg} />
                     ) : (
-                      <Text style={styles.filledButtonText}>
+                      <Text style={[styles.filledButtonText, { color: t.bg }]}>
                         Restore Streak
                       </Text>
                     )}

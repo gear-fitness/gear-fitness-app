@@ -524,7 +524,7 @@ export function Social() {
             <FlatList
               data={userResults}
               keyExtractor={(item) => String(item.userId)}
-              contentContainerStyle={{ paddingTop: HEADER_HEIGHT - insets.top }}
+              contentContainerStyle={{ paddingTop: HEADER_HEIGHT }}
               scrollIndicatorInsets={{ top: HEADER_HEIGHT }}
               keyboardShouldPersistTaps="handled"
               renderItem={({ item }) => (
