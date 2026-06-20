@@ -14,6 +14,7 @@ import org.springframework.stereotype.Repository;
 public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
   Optional<AppUser> findByEmail(String email);
   Optional<AppUser> findByUsername(String username);
+  Optional<AppUser> findByUsernameIgnoreCase(String username);
 
   /**
    * Relevance-first user search for the social tab.

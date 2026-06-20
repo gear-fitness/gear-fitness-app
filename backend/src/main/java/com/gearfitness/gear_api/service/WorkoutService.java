@@ -41,6 +41,7 @@ public class WorkoutService {
   private final StreakService streakService;
   private final S3StorageService s3StorageService;
   private final PrService prService;
+  private final MentionService mentionService;
 
   @Transactional(readOnly = true)
   public List<Workout> getWorkoutsByUser(UUID userId) {
@@ -424,6 +425,11 @@ public class WorkoutService {
       .build();
 
     postRepository.save(post);
+
+    // Notify any @mentioned users in the caption.
+    if (post.getCaption() != null && !post.getCaption().isBlank()) {
+      mentionService.notifyCaptionMentions(user, post.getCaption(), post);
+    }
 
     // Return workout details
     return getWorkoutDetails(workout.getWorkoutId(), userId);

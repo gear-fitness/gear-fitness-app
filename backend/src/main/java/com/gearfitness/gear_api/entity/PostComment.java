@@ -16,12 +16,18 @@ import org.hibernate.annotations.SQLRestriction;
 
 @Entity
 @Table(name = "post_comment")
-@SQLRestriction("hidden_at IS NULL")
+@SQLRestriction("hidden_at IS NULL AND moderation_status = 'VISIBLE'")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class PostComment {
+
+  public enum ModerationStatus {
+    VISIBLE,
+    HIDDEN,
+    REMOVED,
+  }
 
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
@@ -40,6 +46,16 @@ public class PostComment {
   @EqualsAndHashCode.Exclude
   private AppUser user;
 
+  /**
+   * Top-level comment this is a reply to. NULL for top-level comments.
+   * One-level only: replies to a reply collapse onto the same top-level parent.
+   */
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "parent_comment_id")
+  @ToString.Exclude
+  @EqualsAndHashCode.Exclude
+  private PostComment parentComment;
+
   @Column(nullable = false, columnDefinition = "TEXT")
   private String body;
 
@@ -55,4 +71,9 @@ public class PostComment {
 
   @Column(name = "hidden_at")
   private LocalDateTime hiddenAt;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "moderation_status", nullable = false)
+  @Builder.Default
+  private ModerationStatus moderationStatus = ModerationStatus.VISIBLE;
 }

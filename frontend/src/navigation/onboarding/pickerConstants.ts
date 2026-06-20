@@ -35,4 +35,8 @@ export const DOB_MONTHS_SHORT = [
   "Dec",
 ];
 
-export const DOB_YEARS = Array.from({ length: 80 }, (_, i) => 2007 - i);
+// Years from the current year back 120 years — no minimum-age cap.
+export const DOB_YEARS = Array.from(
+  { length: 120 },
+  (_, i) => new Date().getFullYear() - i,
+);

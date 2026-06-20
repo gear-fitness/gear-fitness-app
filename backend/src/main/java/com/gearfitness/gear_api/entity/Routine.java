@@ -3,7 +3,9 @@ package com.gearfitness.gear_api.entity;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -43,7 +45,7 @@ public class Routine {
   @Column(name = "scheduled_day")
   @Enumerated(EnumType.STRING)
   @Builder.Default
-  private List<ScheduledDay> scheduledDays = new ArrayList<>();
+  private Set<ScheduledDay> scheduledDays = new LinkedHashSet<>();
 
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)

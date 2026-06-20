@@ -4,16 +4,15 @@ import com.gearfitness.gear_api.dto.StreakInfoDTO;
 import com.gearfitness.gear_api.entity.AppUser;
 import com.gearfitness.gear_api.entity.RestDay;
 import com.gearfitness.gear_api.entity.StreakRestore;
+import com.gearfitness.gear_api.entity.Tier;
 import com.gearfitness.gear_api.repository.AppUserRepository;
 import com.gearfitness.gear_api.repository.RestDayRepository;
 import com.gearfitness.gear_api.repository.StreakRestoreRepository;
 import com.gearfitness.gear_api.repository.WorkoutRepository;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
-import java.time.temporal.TemporalAdjusters;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -97,7 +96,7 @@ public class StreakService {
       );
 
     if (getRestoreTokensRemaining(user, today) <= 0) {
-      throw new IllegalStateException("No restore tokens available this week");
+      throw new IllegalStateException("No restore tokens available");
     }
 
     LocalDate yesterday = today.minusDays(1);
@@ -207,18 +206,22 @@ public class StreakService {
   }
 
   private int getRestoreTokensRemaining(AppUser user, LocalDate today) {
-    LocalDate monday = today.with(
-      TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)
-    );
-    LocalDate sunday = monday.plusDays(6);
+    // Streak restores are a Plus+ benefit. Basic users get none.
+    if (!user.getTier().atLeast(Tier.PLUS)) {
+      return 0;
+    }
 
-    long usedThisWeek = streakRestoreRepository.countByUserAndUsedAtBetween(
+    // Plus gets 4 tokens per calendar month.
+    LocalDate firstOfMonth = today.withDayOfMonth(1);
+    LocalDate lastOfMonth = today.withDayOfMonth(today.lengthOfMonth());
+
+    long usedThisMonth = streakRestoreRepository.countByUserAndUsedAtBetween(
       user,
-      monday.atStartOfDay(),
-      sunday.atTime(LocalTime.MAX)
+      firstOfMonth.atStartOfDay(),
+      lastOfMonth.atTime(LocalTime.MAX)
     );
 
-    return Math.max(0, 1 - (int) usedThisWeek);
+    return Math.max(0, 4 - (int) usedThisMonth);
   }
 
   private boolean isTodayLogged(AppUser user, LocalDate today) {

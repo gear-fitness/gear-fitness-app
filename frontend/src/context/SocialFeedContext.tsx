@@ -7,11 +7,19 @@ import React, {
   useRef,
   useSyncExternalStore,
 } from "react";
-import { FeedPost, socialFeedApi } from "../api/socialFeedApi";
+import { FeedPost, Page, socialFeedApi } from "../api/socialFeedApi";
 import { useNormalizeFeedPosts } from "./LikesContext";
 import { useAuth } from "./AuthContext";
 
 const PAGE_SIZE = 5;
+
+/**
+ * Identifies an independent feed. Each key owns its own state, pagination,
+ * scroll position, and staleness. "following" and "discover" exist today;
+ * "group:<id>" is reserved for the planned Groups feature so adding a group
+ * feed is just a new key, not a rewrite.
+ */
+export type FeedKey = "following" | "discover" | `group:${string}`;
 
 type Status = "idle" | "loading" | "ready" | "error";
 
@@ -37,16 +45,34 @@ const INITIAL_STATE: FeedState = {
   isStale: false,
 };
 
+type FeedEntry = {
+  state: FeedState;
+  scrollOffset: number;
+  generation: number;
+};
+
+/**
+ * Maps a feed key to the function that fetches one page of it. Groups will
+ * slot in here once their endpoint exists.
+ */
+function fetcherFor(
+  key: FeedKey,
+): (page: number, size: number) => Promise<Page<FeedPost>> {
+  if (key === "discover") return socialFeedApi.getDiscoverFeed;
+  return socialFeedApi.getFeed; // "following" (and the default)
+}
+
 type SocialFeedContextValue = {
-  subscribe: (cb: () => void) => () => void;
-  getSnapshot: () => FeedState;
-  initialLoadIfNeeded: () => void;
-  refresh: () => Promise<void>;
-  loadMore: () => Promise<void>;
-  invalidate: () => void;
-  refreshIfStaleAndHidden: () => void;
-  getScrollOffset: () => number;
-  setScrollOffset: (offset: number) => void;
+  subscribe: (key: FeedKey, cb: () => void) => () => void;
+  getSnapshot: (key: FeedKey) => FeedState;
+  initialLoadIfNeeded: (key: FeedKey) => void;
+  refresh: (key: FeedKey) => Promise<void>;
+  loadMore: (key: FeedKey) => Promise<void>;
+  invalidate: (key: FeedKey) => void;
+  invalidateAll: () => void;
+  refreshIfStaleAndHidden: (key: FeedKey) => void;
+  getScrollOffset: (key: FeedKey) => number;
+  setScrollOffset: (key: FeedKey, offset: number) => void;
   clear: () => void;
 };
 
@@ -57,148 +83,210 @@ export function SocialFeedProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const stateRef = useRef<FeedState>(INITIAL_STATE);
-  const subscribersRef = useRef<Set<() => void>>(new Set());
-  const fetchGenerationRef = useRef(0);
-  const scrollOffsetRef = useRef(0);
+  // One entry per feed key. Kept in a ref (not React state) and mutated in
+  // place; entry.state is replaced immutably so useSyncExternalStore sees a
+  // stable reference between notifications.
+  const feedsRef = useRef<Map<FeedKey, FeedEntry>>(new Map());
+  const subscribersRef = useRef<Map<FeedKey, Set<() => void>>>(new Map());
 
   const { user } = useAuth();
   const normalizeFeedPosts = useNormalizeFeedPosts();
 
-  const notify = useCallback(() => {
-    subscribersRef.current.forEach((cb) => cb());
+  // Lazily create (once) and return the entry for a key. Reads must NOT
+  // allocate a new state object, or getSnapshot would loop.
+  const ensure = useCallback((key: FeedKey): FeedEntry => {
+    let entry = feedsRef.current.get(key);
+    if (!entry) {
+      entry = { state: INITIAL_STATE, scrollOffset: 0, generation: 0 };
+      feedsRef.current.set(key, entry);
+    }
+    return entry;
   }, []);
 
-  const subscribe = useCallback((cb: () => void) => {
-    subscribersRef.current.add(cb);
+  const notify = useCallback((key: FeedKey) => {
+    subscribersRef.current.get(key)?.forEach((cb) => cb());
+  }, []);
+
+  const subscribe = useCallback((key: FeedKey, cb: () => void) => {
+    let set = subscribersRef.current.get(key);
+    if (!set) {
+      set = new Set();
+      subscribersRef.current.set(key, set);
+    }
+    set.add(cb);
     return () => {
-      subscribersRef.current.delete(cb);
+      subscribersRef.current.get(key)?.delete(cb);
     };
   }, []);
 
-  const getSnapshot = useCallback(() => stateRef.current, []);
-
-  const setState = useCallback(
-    (updater: (prev: FeedState) => FeedState) => {
-      stateRef.current = updater(stateRef.current);
-      notify();
-    },
-    [notify],
+  const getSnapshot = useCallback(
+    (key: FeedKey) => ensure(key).state,
+    [ensure],
   );
 
-  const refresh = useCallback(async () => {
-    const generation = ++fetchGenerationRef.current;
-    setState((prev) => ({ ...prev, refreshing: true, error: null }));
-    try {
-      const response = await socialFeedApi.getFeed(0, PAGE_SIZE);
-      if (fetchGenerationRef.current !== generation) return;
-      normalizeFeedPosts(response.content);
-      scrollOffsetRef.current = 0;
-      setState((prev) => ({
-        ...prev,
-        posts: response.content,
-        status: "ready",
-        refreshing: false,
-        currentPage: 0,
-        hasMore: !response.last,
-        error: null,
-        isStale: false,
-      }));
-    } catch (err: any) {
-      if (fetchGenerationRef.current !== generation) return;
-      console.error("Error refreshing feed:", err);
-      setState((prev) => ({
-        ...prev,
-        refreshing: false,
-        error: err?.message ?? "Failed to refresh feed",
-      }));
-    }
-  }, [normalizeFeedPosts, setState]);
+  const setState = useCallback(
+    (key: FeedKey, updater: (prev: FeedState) => FeedState) => {
+      const entry = ensure(key);
+      entry.state = updater(entry.state);
+      notify(key);
+    },
+    [ensure, notify],
+  );
 
-  const initialLoadIfNeeded = useCallback(() => {
-    const s = stateRef.current;
-    if (s.status !== "idle") return;
-    const generation = ++fetchGenerationRef.current;
-    setState((prev) => ({ ...prev, status: "loading", error: null }));
-    (async () => {
+  const refresh = useCallback(
+    async (key: FeedKey) => {
+      const entry = ensure(key);
+      const generation = ++entry.generation;
+      setState(key, (prev) => ({ ...prev, refreshing: true, error: null }));
       try {
-        const response = await socialFeedApi.getFeed(0, PAGE_SIZE);
-        if (fetchGenerationRef.current !== generation) return;
+        const response = await fetcherFor(key)(0, PAGE_SIZE);
+        if (entry.generation !== generation) return;
         normalizeFeedPosts(response.content);
-        setState((prev) => ({
+        entry.scrollOffset = 0;
+        setState(key, (prev) => ({
           ...prev,
           posts: response.content,
           status: "ready",
+          refreshing: false,
           currentPage: 0,
           hasMore: !response.last,
           error: null,
           isStale: false,
         }));
       } catch (err: any) {
-        if (fetchGenerationRef.current !== generation) return;
-        console.error("Error loading feed:", err);
-        setState((prev) => ({
+        if (entry.generation !== generation) return;
+        console.error("Error refreshing feed:", err);
+        setState(key, (prev) => ({
           ...prev,
-          status: "error",
-          error: err?.message ?? "Failed to load feed",
+          refreshing: false,
+          error: err?.message ?? "Failed to refresh feed",
         }));
       }
-    })();
-  }, [normalizeFeedPosts, setState]);
+    },
+    [ensure, normalizeFeedPosts, setState],
+  );
 
-  const loadMore = useCallback(async () => {
-    const s = stateRef.current;
-    if (!s.hasMore || s.loadingMore || s.status === "loading" || s.refreshing) {
-      return;
-    }
+  const initialLoadIfNeeded = useCallback(
+    (key: FeedKey) => {
+      const entry = ensure(key);
+      if (entry.state.status !== "idle") return;
+      const generation = ++entry.generation;
+      setState(key, (prev) => ({ ...prev, status: "loading", error: null }));
+      (async () => {
+        try {
+          const response = await fetcherFor(key)(0, PAGE_SIZE);
+          if (entry.generation !== generation) return;
+          normalizeFeedPosts(response.content);
+          setState(key, (prev) => ({
+            ...prev,
+            posts: response.content,
+            status: "ready",
+            currentPage: 0,
+            hasMore: !response.last,
+            error: null,
+            isStale: false,
+          }));
+        } catch (err: any) {
+          if (entry.generation !== generation) return;
+          console.error("Error loading feed:", err);
+          setState(key, (prev) => ({
+            ...prev,
+            status: "error",
+            error: err?.message ?? "Failed to load feed",
+          }));
+        }
+      })();
+    },
+    [ensure, normalizeFeedPosts, setState],
+  );
 
-    const nextPage = s.currentPage + 1;
-    // Capture current generation; if invalidate/refresh bumps it before we resolve,
-    // we drop the response to avoid appending to a stale post list.
-    const generation = fetchGenerationRef.current;
-    setState((prev) => ({ ...prev, loadingMore: true }));
-    try {
-      const response = await socialFeedApi.getFeed(nextPage, PAGE_SIZE);
-      if (fetchGenerationRef.current !== generation) {
-        setState((prev) => ({ ...prev, loadingMore: false }));
+  const loadMore = useCallback(
+    async (key: FeedKey) => {
+      const entry = ensure(key);
+      const s = entry.state;
+      if (
+        !s.hasMore ||
+        s.loadingMore ||
+        s.status === "loading" ||
+        s.refreshing
+      ) {
         return;
       }
-      normalizeFeedPosts(response.content);
-      setState((prev) => ({
-        ...prev,
-        posts: [...prev.posts, ...response.content],
-        currentPage: nextPage,
-        hasMore: !response.last,
-        loadingMore: false,
-      }));
-    } catch (err: any) {
-      console.error("Error loading more posts:", err);
-      setState((prev) => ({ ...prev, loadingMore: false }));
-    }
-  }, [normalizeFeedPosts, setState]);
 
-  const invalidate = useCallback(() => {
-    setState((prev) => ({ ...prev, isStale: true }));
-  }, [setState]);
+      const nextPage = s.currentPage + 1;
+      // Capture current generation; if invalidate/refresh bumps it before we
+      // resolve, we drop the response to avoid appending to a stale post list.
+      const generation = entry.generation;
+      setState(key, (prev) => ({ ...prev, loadingMore: true }));
+      try {
+        const response = await fetcherFor(key)(nextPage, PAGE_SIZE);
+        if (entry.generation !== generation) {
+          setState(key, (prev) => ({ ...prev, loadingMore: false }));
+          return;
+        }
+        normalizeFeedPosts(response.content);
+        setState(key, (prev) => ({
+          ...prev,
+          posts: [...prev.posts, ...response.content],
+          currentPage: nextPage,
+          hasMore: !response.last,
+          loadingMore: false,
+        }));
+      } catch (err: any) {
+        console.error("Error loading more posts:", err);
+        setState(key, (prev) => ({ ...prev, loadingMore: false }));
+      }
+    },
+    [ensure, normalizeFeedPosts, setState],
+  );
 
-  const refreshIfStaleAndHidden = useCallback(() => {
-    const s = stateRef.current;
-    if (!s.isStale) return;
-    if (s.status === "loading" || s.refreshing) return;
-    void refresh();
-  }, [refresh]);
+  const invalidate = useCallback(
+    (key: FeedKey) => {
+      setState(key, (prev) => ({ ...prev, isStale: true }));
+    },
+    [setState],
+  );
 
-  const getScrollOffset = useCallback(() => scrollOffsetRef.current, []);
+  // Mark every live feed stale. Used after an action that can affect more than
+  // one feed (new post, follow/unfollow, block, visibility change).
+  const invalidateAll = useCallback(() => {
+    feedsRef.current.forEach((entry, key) => {
+      entry.state = { ...entry.state, isStale: true };
+      notify(key);
+    });
+  }, [notify]);
 
-  const setScrollOffset = useCallback((offset: number) => {
-    scrollOffsetRef.current = offset;
-  }, []);
+  const refreshIfStaleAndHidden = useCallback(
+    (key: FeedKey) => {
+      const s = ensure(key).state;
+      if (!s.isStale) return;
+      if (s.status === "loading" || s.refreshing) return;
+      void refresh(key);
+    },
+    [ensure, refresh],
+  );
+
+  const getScrollOffset = useCallback(
+    (key: FeedKey) => ensure(key).scrollOffset,
+    [ensure],
+  );
+
+  const setScrollOffset = useCallback(
+    (key: FeedKey, offset: number) => {
+      ensure(key).scrollOffset = offset;
+    },
+    [ensure],
+  );
 
   const clear = useCallback(() => {
-    fetchGenerationRef.current++;
-    scrollOffsetRef.current = 0;
-    stateRef.current = INITIAL_STATE;
-    notify();
+    // Wipe every feed: bump generations so in-flight fetches drop, reset state
+    // and scroll, and notify so mounted lists re-render to the empty state.
+    feedsRef.current.forEach((entry, key) => {
+      entry.generation++;
+      entry.state = INITIAL_STATE;
+      entry.scrollOffset = 0;
+      notify(key);
+    });
   }, [notify]);
 
   const prevUserIdRef = useRef(user?.userId ?? null);
@@ -220,6 +308,7 @@ export function SocialFeedProvider({
       refresh,
       loadMore,
       invalidate,
+      invalidateAll,
       refreshIfStaleAndHidden,
       getScrollOffset,
       setScrollOffset,
@@ -232,6 +321,7 @@ export function SocialFeedProvider({
       refresh,
       loadMore,
       invalidate,
+      invalidateAll,
       refreshIfStaleAndHidden,
       getScrollOffset,
       setScrollOffset,
@@ -254,9 +344,46 @@ function useSocialFeedContext(): SocialFeedContextValue {
   return ctx;
 }
 
-export function useSocialFeed() {
+/**
+ * Consume a single feed by key. Returns the same shape regardless of key, so
+ * callers (and FeedPostCard) are agnostic to which feed they render. Defaults
+ * to "following" so existing call sites keep working unchanged.
+ */
+export function useSocialFeed(feedKey: FeedKey = "following") {
   const ctx = useSocialFeedContext();
-  const state = useSyncExternalStore(ctx.subscribe, ctx.getSnapshot);
+
+  // subscribe/getSnapshot MUST be memoized on feedKey, or useSyncExternalStore
+  // re-subscribes every render.
+  const subscribe = useCallback(
+    (cb: () => void) => ctx.subscribe(feedKey, cb),
+    [ctx, feedKey],
+  );
+  const getSnapshot = useCallback(
+    () => ctx.getSnapshot(feedKey),
+    [ctx, feedKey],
+  );
+  const state = useSyncExternalStore(subscribe, getSnapshot);
+
+  const initialLoadIfNeeded = useCallback(
+    () => ctx.initialLoadIfNeeded(feedKey),
+    [ctx, feedKey],
+  );
+  const refresh = useCallback(() => ctx.refresh(feedKey), [ctx, feedKey]);
+  const loadMore = useCallback(() => ctx.loadMore(feedKey), [ctx, feedKey]);
+  const invalidate = useCallback(() => ctx.invalidate(feedKey), [ctx, feedKey]);
+  const refreshIfStaleAndHidden = useCallback(
+    () => ctx.refreshIfStaleAndHidden(feedKey),
+    [ctx, feedKey],
+  );
+  const getScrollOffset = useCallback(
+    () => ctx.getScrollOffset(feedKey),
+    [ctx, feedKey],
+  );
+  const setScrollOffset = useCallback(
+    (offset: number) => ctx.setScrollOffset(feedKey, offset),
+    [ctx, feedKey],
+  );
+
   return {
     posts: state.posts,
     status: state.status,
@@ -265,13 +392,14 @@ export function useSocialFeed() {
     hasMore: state.hasMore,
     error: state.error,
     isStale: state.isStale,
-    initialLoadIfNeeded: ctx.initialLoadIfNeeded,
-    refresh: ctx.refresh,
-    loadMore: ctx.loadMore,
-    invalidate: ctx.invalidate,
-    refreshIfStaleAndHidden: ctx.refreshIfStaleAndHidden,
-    getScrollOffset: ctx.getScrollOffset,
-    setScrollOffset: ctx.setScrollOffset,
+    initialLoadIfNeeded,
+    refresh,
+    loadMore,
+    invalidate,
+    invalidateAll: ctx.invalidateAll,
+    refreshIfStaleAndHidden,
+    getScrollOffset,
+    setScrollOffset,
     clear: ctx.clear,
   };
 }

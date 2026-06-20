@@ -94,5 +94,28 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
     Pageable pageable
   );
 
+  /**
+   * Discover feed: all PUBLIC posts from non-private accounts, so users can
+   * find each other. Excludes posts from private accounts (a private account's
+   * PUBLIC posts stay visible to its followers in the following feed, but are
+   * never surfaced to strangers here) and any account blocked in either
+   * direction relative to the viewer. The viewer's own public posts are
+   * included. Newest first.
+   */
+  @Query(
+    """
+    SELECT p FROM Post p
+    WHERE p.visibility = 'PUBLIC'
+    AND p.user.isPrivate = false
+    AND NOT EXISTS (
+        SELECT b FROM Follow b WHERE
+        (b.follower.userId = :userId AND b.followee.userId = p.user.userId AND b.status = 'BLOCKED')
+        OR (b.follower.userId = p.user.userId AND b.followee.userId = :userId AND b.status = 'BLOCKED')
+    )
+    ORDER BY p.createdAt DESC
+    """
+  )
+  Page<Post> findDiscoverPosts(@Param("userId") UUID userId, Pageable pageable);
+
   Optional<Post> findByWorkout_WorkoutId(UUID workoutId);
 }

@@ -10,5 +10,7 @@ export DATABASE_PASSWORD="mypassword"
 export GOOGLE_CLIENT_ID="637676049223-kg32deotit3muuhi3j1q253vfhotnoai.apps.googleusercontent.com"
 export CORS_ALLOWED_ORIGINS="http://localhost:3000,http://localhost:5173"
 export GEMINI_API_KEY="CHANGE-ME-TO-SECURE-API-KEY"
+# Must match the Authorization header set on the RevenueCat dashboard webhook.
+export REVENUECAT_WEBHOOK_SECRET="CHANGE-ME-TO-SECURE-SECRET"
 
 ./gradlew bootRun

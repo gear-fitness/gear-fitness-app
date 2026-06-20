@@ -13,6 +13,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { useEffect } from "react";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { PurchasesProvider } from "./context/PurchasesContext";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import {
   WorkoutTimerProvider,
@@ -90,7 +91,9 @@ export function App() {
 
   return (
     <AuthProvider>
-      <AppContent theme={theme} />
+      <PurchasesProvider>
+        <AppContent theme={theme} />
+      </PurchasesProvider>
     </AuthProvider>
   );
 }
@@ -143,6 +146,17 @@ function AppContent({
           navigationRef.current.navigate("PostDetail", {
             postId: data.params.postId,
             openCommentsOnMount: true,
+          });
+        }
+        break;
+      case "REPLY":
+      case "MENTION":
+        if (data.params?.postId) {
+          navigationRef.current.navigate("PostDetail", {
+            postId: data.params.postId,
+            // Caption mentions omit these → just open the post.
+            openCommentsOnMount: data.params?.openCommentsOnMount === true,
+            focusCommentId: data.params?.focusCommentId,
           });
         }
         break;

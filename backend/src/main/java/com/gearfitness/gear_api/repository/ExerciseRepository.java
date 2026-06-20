@@ -16,4 +16,7 @@ public interface ExerciseRepository extends JpaRepository<Exercise, UUID> {
   List<Exercise> findByBodyPart(@Param("bodyPart") MuscleGroup bodyPart);
 
   List<Exercise> findByUserIsNullOrUserUserId(UUID userId);
+
+  /** Global catalog only — exercises with no owning user. */
+  List<Exercise> findByUserIsNull();
 }
