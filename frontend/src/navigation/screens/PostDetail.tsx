@@ -21,6 +21,7 @@ type RootStackParamList = {
   PostDetail: {
     postId: string;
     openCommentsOnMount?: boolean;
+    focusCommentId?: string;
   };
 };
 
@@ -32,7 +33,7 @@ export function PostDetail({ route }: Props) {
   const navigation = useNavigation();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const { postId, openCommentsOnMount } = route.params;
+  const { postId, openCommentsOnMount, focusCommentId } = route.params;
 
   const [post, setPost] = useState<FeedPost | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,7 +65,11 @@ export function PostDetail({ route }: Props) {
     if (!openCommentsOnMount || commentsOpenedRef.current) return;
     commentsOpenedRef.current = true;
     const timer = setTimeout(() => {
-      navigation.navigate("Comments", { postId, postOwnerId: post?.userId });
+      navigation.navigate("Comments", {
+        postId,
+        postOwnerId: post?.userId,
+        focusCommentId,
+      });
       navigation.setParams({ openCommentsOnMount: undefined });
     }, 1000);
     return () => clearTimeout(timer);

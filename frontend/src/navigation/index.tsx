@@ -359,6 +359,7 @@ declare global {
       Comments: {
         postId: string;
         postOwnerId?: string;
+        focusCommentId?: string;
       };
 
       ImageViewer: {

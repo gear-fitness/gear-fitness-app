@@ -13,6 +13,7 @@ import { PurchasesPackage } from "react-native-purchases";
 import { useOnboardingColors } from "./useOnboardingColors";
 import { makeOnboardingStyles } from "./makeOnboardingStyles";
 import { usePurchases } from "../../../context/PurchasesContext";
+import { openTerms, openPrivacy } from "../../../constants/legal";
 
 type Plan = "annual" | "monthly";
 
@@ -75,7 +76,9 @@ export function PaywallContent({
   const [plan, setPlan] = useState<Plan>("annual");
   const [busy, setBusy] = useState(false);
 
-  const { currentOffering, purchasePackage } = usePurchases();
+  const { currentOffering, purchasePackage, restore, trialEligible } =
+    usePurchases();
+  const [restoring, setRestoring] = useState(false);
   const annualPkg = currentOffering?.availablePackages.find(
     (p) => p.packageType === "ANNUAL",
   );
@@ -84,8 +87,15 @@ export function PaywallContent({
   );
   const selectedPkg = plan === "annual" ? annualPkg : monthlyPkg;
 
+  // Only promise a free trial when (a) the selected product actually carries an
+  // intro offer and (b) RevenueCat confirms this Apple ID is still eligible for
+  // it. A user who already used the trial is ineligible — Apple drops the trial
+  // and charges immediately — so for them we show plain subscribe copy instead.
+  const introOffer = selectedPkg?.product.introPrice;
+  const showTrial = trialEligible && !!introOffer;
+
   // Free-trial length comes from the product's intro phase (3 days), default 3.
-  const trialDays = selectedPkg?.product.introPrice?.periodNumberOfUnits ?? 3;
+  const trialDays = introOffer?.periodNumberOfUnits ?? 3;
   const reminderDay = Math.max(1, trialDays - 1);
   const chargeDate = (() => {
     const d = new Date();
@@ -110,6 +120,28 @@ export function PaywallContent({
       }
     } finally {
       setBusy(false);
+    }
+  };
+
+  const handleRestore = async () => {
+    if (restoring || busy) return;
+    setRestoring(true);
+    try {
+      const info = await restore();
+      const active = Object.keys(info.entitlements.active);
+      if (active.length) {
+        Alert.alert("Purchases restored", "Your subscription has been restored.");
+        onDone();
+      } else {
+        Alert.alert(
+          "Nothing to restore",
+          "No active subscription was found for this Apple ID.",
+        );
+      }
+    } catch {
+      Alert.alert("Restore failed", "Please try again.");
+    } finally {
+      setRestoring(false);
     }
   };
 
@@ -212,34 +244,36 @@ export function PaywallContent({
         </View>
         <Text style={shared.heading}>Achieve your goals faster</Text>
 
-        {/* Trial timeline */}
-        <View style={styles.trialSection}>
-          <TimelineRow
-            icon="lock.open.fill"
-            iconBg={PLUS_BLUE}
-            iconTint="#fff"
-            title="Today"
-            body="Unlock all Plus features instantly."
-            connectorColor={PLUS_BLUE_TRAIL}
-          />
-          <TimelineRow
-            icon="bell.fill"
-            iconBg={PLUS_BLUE}
-            iconTint="#fff"
-            title={`In ${reminderDay} Day${reminderDay === 1 ? "" : "s"} - Reminder`}
-            body="We'll send you a reminder that your trial is ending soon if you've allowed us to notify you."
-            connectorColor={PLUS_BLUE_TRAIL}
-          />
-          <TimelineRow
-            icon="crown.fill"
-            iconBg={colors.text}
-            iconTint={colors.screenBg}
-            title={`In ${trialDays} Day${trialDays === 1 ? "" : "s"} - Billing Starts`}
-            body={`You'll be charged on ${chargeDate} unless you cancel anytime before.`}
-            connectorColor={colors.secondary}
-            last
-          />
-        </View>
+        {/* Trial timeline — only shown when the user is trial-eligible */}
+        {showTrial && (
+          <View style={styles.trialSection}>
+            <TimelineRow
+              icon="lock.open.fill"
+              iconBg={PLUS_BLUE}
+              iconTint="#fff"
+              title="Today"
+              body="Unlock all Plus features instantly."
+              connectorColor={PLUS_BLUE_TRAIL}
+            />
+            <TimelineRow
+              icon="bell.fill"
+              iconBg={PLUS_BLUE}
+              iconTint="#fff"
+              title={`In ${reminderDay} Day${reminderDay === 1 ? "" : "s"} - Reminder`}
+              body="We'll send you a reminder that your trial is ending soon if you've allowed us to notify you."
+              connectorColor={PLUS_BLUE_TRAIL}
+            />
+            <TimelineRow
+              icon="crown.fill"
+              iconBg={colors.text}
+              iconTint={colors.screenBg}
+              title={`In ${trialDays} Day${trialDays === 1 ? "" : "s"} - Billing Starts`}
+              body={`You'll be charged on ${chargeDate} unless you cancel anytime before.`}
+              connectorColor={colors.secondary}
+              last
+            />
+          </View>
+        )}
 
         {/* Featured plan: annual */}
         <Pressable
@@ -262,7 +296,7 @@ export function PaywallContent({
           <View style={styles.featBody}>
             <View style={styles.featLeft}>
               <Text style={[styles.featTitle, { color: colors.text }]}>
-                Start for free and save 50%
+                {showTrial ? "Start for free and save 50%" : "Save 50% with annual"}
               </Text>
               <Text
                 style={[
@@ -372,7 +406,7 @@ export function PaywallContent({
             <ActivityIndicator color={colors.accentText} />
           ) : (
             <Text style={shared.continueBtnText}>
-              Start my {trialDays}-day free trial
+              {showTrial ? `Start my ${trialDays}-day free trial` : "Subscribe"}
             </Text>
           )}
         </Pressable>
@@ -384,8 +418,35 @@ export function PaywallContent({
           </Pressable>
         )}
         <Text style={[styles.legal, { color: colors.secondary }]}>
-          No payment now. Cancel anytime in Settings.
+          {showTrial
+            ? "No payment now. Your free trial converts to a subscription that automatically renews until cancelled. Cancel anytime in Settings."
+            : "Your subscription automatically renews until cancelled. Cancel anytime in Settings."}
         </Text>
+        <View style={styles.legalLinksRow}>
+          <Text
+            style={[styles.legalLink, { color: colors.secondary }]}
+            onPress={handleRestore}
+            suppressHighlighting
+          >
+            {restoring ? "Restoring…" : "Restore Purchases"}
+          </Text>
+          <Text style={[styles.legalDot, { color: colors.secondary }]}>·</Text>
+          <Text
+            style={[styles.legalLink, { color: colors.secondary }]}
+            onPress={openTerms}
+            suppressHighlighting
+          >
+            Terms
+          </Text>
+          <Text style={[styles.legalDot, { color: colors.secondary }]}>·</Text>
+          <Text
+            style={[styles.legalLink, { color: colors.secondary }]}
+            onPress={openPrivacy}
+            suppressHighlighting
+          >
+            Privacy
+          </Text>
+        </View>
       </View>
     </View>
   );
@@ -647,6 +708,21 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 11,
     lineHeight: 16,
+  },
+  legalLinksRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 6,
+  },
+  legalLink: {
+    fontSize: 11,
+    fontWeight: "600",
+    textDecorationLine: "underline",
+  },
+  legalDot: {
+    fontSize: 11,
   },
   pressed: {
     opacity: 0.75,

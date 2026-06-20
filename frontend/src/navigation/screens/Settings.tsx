@@ -44,6 +44,7 @@ import { Height, Weight } from "../onboarding/types";
 import { useUnitPreference } from "../../context/UnitPreferenceContext";
 import { formatWeight as formatWeightWithUnit } from "../../utils/weight";
 import * as Notifications from "expo-notifications";
+import { openTerms, openPrivacy } from "../../constants/legal";
 
 const GENDER_LABELS: Record<string, string> = {
   male: "Male",
@@ -606,6 +607,26 @@ export function Settings() {
           ],
           footer:
             "Questions, bug reports, or to report objectionable content or abusive users — email support@gearfitness.app.",
+        },
+        {
+          key: "legal",
+          title: "Legal",
+          data: [
+            {
+              id: "terms_of_service",
+              type: "value" as const,
+              label: "Terms of Service",
+              onPress: openTerms,
+              showArrow: true,
+            },
+            {
+              id: "privacy_policy",
+              type: "value" as const,
+              label: "Privacy Policy",
+              onPress: openPrivacy,
+              showArrow: true,
+            },
+          ],
         },
         {
           key: "privacy",

@@ -149,6 +149,17 @@ function AppContent({
           });
         }
         break;
+      case "REPLY":
+      case "MENTION":
+        if (data.params?.postId) {
+          navigationRef.current.navigate("PostDetail", {
+            postId: data.params.postId,
+            // Caption mentions omit these → just open the post.
+            openCommentsOnMount: data.params?.openCommentsOnMount === true,
+            focusCommentId: data.params?.focusCommentId,
+          });
+        }
+        break;
       case "UNFINISHED_WORKOUT":
         // Always dismiss the tapped notification, regardless of whether we
         // navigate. Only route to WorkoutSummary if storage actually has an

@@ -13,6 +13,7 @@ import { FloatingCloseButton } from "../../../components/FloatingCloseButton";
 import { useOnboardingColors } from "./useOnboardingColors";
 import { makeOnboardingStyles } from "./makeOnboardingStyles";
 import { GOOGLE_LOGO_URI, appleBrandLogoUri } from "../socialAuthUris";
+import { openTerms, openPrivacy } from "../../../constants/legal";
 
 const gearLogoDark = require("../../../../assets/GearLogo.png");
 const gearLogoLight = require("../../../../assets/GearLogoInverse.png");
@@ -148,7 +149,15 @@ export function SignInScreen({
 
       <View style={styles.footer}>
         <Text style={[styles.terms, { color: colors.secondary }]}>
-          By continuing you agree to our Terms of Service and Privacy Policy.
+          By continuing you agree to our{" "}
+          <Text style={[styles.termsLink, { color: colors.text }]} onPress={openTerms}>
+            Terms of Service
+          </Text>{" "}
+          and{" "}
+          <Text style={[styles.termsLink, { color: colors.text }]} onPress={openPrivacy}>
+            Privacy Policy
+          </Text>
+          .
         </Text>
       </View>
     </View>
@@ -225,6 +234,10 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 12,
     lineHeight: 18,
+  },
+  termsLink: {
+    fontWeight: "600",
+    textDecorationLine: "underline",
   },
   pressed: {
     opacity: 0.75,

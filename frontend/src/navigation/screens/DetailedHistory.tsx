@@ -34,6 +34,7 @@ import { usePostMenu } from "../../hooks/usePostMenu";
 import { PostVisibilitySheet } from "../../components/PostVisibilitySheet";
 import { PostActionsSheet } from "../../components/PostActionsSheet";
 import { ReportPostSheet } from "../../components/ReportPostSheet";
+import { MentionableText } from "../../components/MentionableText";
 import {
   computeActivations,
   defaultDiagramPalette,
@@ -378,9 +379,10 @@ export function DetailedHistory({ route }: Props) {
           </View>
 
           {caption && (
-            <Text style={[styles.caption, { color: colors.text }]}>
-              {caption}
-            </Text>
+            <MentionableText
+              text={caption}
+              style={[styles.caption, { color: colors.text }]}
+            />
           )}
 
           <TouchableOpacity

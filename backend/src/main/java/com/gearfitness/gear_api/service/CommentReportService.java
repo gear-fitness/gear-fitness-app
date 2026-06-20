@@ -7,6 +7,7 @@ import com.gearfitness.gear_api.repository.AppUserRepository;
 import com.gearfitness.gear_api.repository.CommentReportRepository;
 import com.gearfitness.gear_api.repository.PostCommentRepository;
 import jakarta.transaction.Transactional;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -112,6 +113,17 @@ public class CommentReportService {
     ) {
       comment.setModerationStatus(PostComment.ModerationStatus.HIDDEN);
       postCommentRepository.save(comment);
+
+      // Cascade: hiding a top-level comment hides its visible replies too, so
+      // the post comment count stays consistent with what can be displayed.
+      if (comment.getParentComment() == null) {
+        List<PostComment> replies =
+          postCommentRepository.findByParentComment_CommentId(commentId);
+        for (PostComment reply : replies) {
+          reply.setModerationStatus(PostComment.ModerationStatus.HIDDEN);
+        }
+        postCommentRepository.saveAll(replies);
+      }
     }
   }
 }

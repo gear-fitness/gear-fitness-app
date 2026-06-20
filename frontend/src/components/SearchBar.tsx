@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import {
   StyleSheet,
   TextInput,
@@ -19,15 +20,20 @@ interface SearchBarProps {
   style?: StyleProp<ViewStyle>;
 }
 
-export function SearchBar({
-  value,
-  onChangeText,
-  placeholder = "Search",
-  autoFocus,
-  returnKeyType,
-  onSubmitEditing,
-  style,
-}: SearchBarProps) {
+// Forwards a ref to the inner TextInput so callers can focus/blur imperatively
+// (e.g. the collapsible search on the social screen).
+export const SearchBar = forwardRef<TextInput, SearchBarProps>(function SearchBar(
+  {
+    value,
+    onChangeText,
+    placeholder = "Search",
+    autoFocus,
+    returnKeyType,
+    onSubmitEditing,
+    style,
+  },
+  ref,
+) {
   const { colors } = useTheme();
 
   return (
@@ -45,6 +51,7 @@ export function SearchBar({
         style={styles.icon}
       />
       <TextInput
+        ref={ref}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
@@ -64,7 +71,7 @@ export function SearchBar({
       )}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

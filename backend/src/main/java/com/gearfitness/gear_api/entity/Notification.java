@@ -57,6 +57,8 @@ public class Notification {
     FOLLOW_REQUEST,
     COMMENT,
     LIKE,
+    REPLY,
+    MENTION,
   }
 
   @Column(name = "hidden_at")

@@ -22,6 +22,15 @@ interface PurchasesContextType {
   customerInfo: CustomerInfo | null;
   currentOffering: PurchasesOffering | null;
   isReady: boolean;
+  /**
+   * Whether THIS Apple ID is still eligible for the intro free trial. Apple
+   * grants a trial only once per subscription group, so a user who already
+   * used it is ineligible — Apple silently drops the trial and charges
+   * immediately at purchase. We default to `false` and only flip to `true`
+   * once RevenueCat confirms eligibility, so the UI never promises a trial
+   * the user won't actually get (RevenueCat's own guidance for unknown status).
+   */
+  trialEligible: boolean;
   purchasePackage: (pkg: PurchasesPackage) => Promise<void>;
   restore: () => Promise<CustomerInfo>;
   refreshCustomerInfo: () => Promise<void>;
@@ -40,6 +49,7 @@ export function PurchasesProvider({ children }: { children: ReactNode }) {
   const [currentOffering, setCurrentOffering] =
     useState<PurchasesOffering | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const [trialEligible, setTrialEligible] = useState(false);
 
   // Configure once on mount (iOS only for now).
   useEffect(() => {
@@ -66,6 +76,23 @@ export function PurchasesProvider({ children }: { children: ReactNode }) {
         const offerings = await Purchases.getOfferings();
         setCurrentOffering(offerings.current);
         setCustomerInfo(await Purchases.getCustomerInfo());
+
+        // Check intro-trial eligibility for this Apple ID. All packages share
+        // one subscription group, so eligibility is the same across them — any
+        // ELIGIBLE means the trial will actually apply at purchase.
+        const ids = (offerings.current?.availablePackages ?? []).map(
+          (p) => p.product.identifier,
+        );
+        if (ids.length) {
+          const elig =
+            await Purchases.checkTrialOrIntroductoryPriceEligibility(ids);
+          const ELIGIBLE =
+            Purchases.INTRO_ELIGIBILITY_STATUS
+              .INTRO_ELIGIBILITY_STATUS_ELIGIBLE;
+          setTrialEligible(
+            Object.values(elig).some((e) => e.status === ELIGIBLE),
+          );
+        }
       } catch (e) {
         console.warn("RevenueCat: failed to load offerings/customerInfo", e);
       } finally {
@@ -128,6 +155,7 @@ export function PurchasesProvider({ children }: { children: ReactNode }) {
         customerInfo,
         currentOffering,
         isReady,
+        trialEligible,
         purchasePackage,
         restore,
         refreshCustomerInfo,

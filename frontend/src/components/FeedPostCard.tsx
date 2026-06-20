@@ -21,6 +21,7 @@ import { useAuth } from "../context/AuthContext";
 import { useLikeState } from "../context/LikesContext";
 import { usePostMenu } from "../hooks/usePostMenu";
 import { Avatar } from "./Avatar";
+import { MentionableText } from "./MentionableText";
 import { PostVisibilitySheet } from "./PostVisibilitySheet";
 import { PostActionsSheet } from "./PostActionsSheet";
 import { ReportPostSheet } from "./ReportPostSheet";
@@ -347,15 +348,14 @@ export function FeedPostCard({ post, isPending = false }: Props) {
         )}
 
         {post.caption && (
-          <Text
+          <MentionableText
+            text={post.caption}
             style={[
               styles.caption,
               { color: colors.text },
               hasPhotos && { paddingHorizontal: contentPaddingHorizontal },
             ]}
-          >
-            {post.caption}
-          </Text>
+          />
         )}
       </TouchableOpacity>
 

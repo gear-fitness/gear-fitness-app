@@ -16,25 +16,9 @@ import { TodaysRoutines } from "../../components/TodaysRoutines";
 import { StreakDropdown } from "../../components/StreakDropdown";
 import { StreakIcon } from "../../components/StreakIcon";
 import { streakService, type StreakInfo } from "../../api/streakService";
+import { QUOTES } from "../../constants/quotes";
 
 const SERIF = "LibreCaslonText_400Regular";
-
-const QUOTES = [
-  "The only bad workout is the one that didn’t happen.",
-  "Discipline is choosing between what you want now and what you want most.",
-  "Strength doesn’t come from what you can do. It comes from overcoming what you couldn’t.",
-  "Small steps every day.",
-  "You don’t have to be extreme, just consistent.",
-  "Sweat now, shine later.",
-  "The body achieves what the mind believes.",
-  "Don’t count the days. Make the days count.",
-  "Train insane or remain the same.",
-  "Progress, not perfection.",
-  "Your only limit is you.",
-  "One more rep. One more set. One more day.",
-  "Rest, but never quit.",
-  "Be stronger than your excuses.",
-];
 
 function dailyQuote(): string {
   const d = new Date();

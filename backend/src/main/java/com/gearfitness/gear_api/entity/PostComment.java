@@ -46,6 +46,16 @@ public class PostComment {
   @EqualsAndHashCode.Exclude
   private AppUser user;
 
+  /**
+   * Top-level comment this is a reply to. NULL for top-level comments.
+   * One-level only: replies to a reply collapse onto the same top-level parent.
+   */
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "parent_comment_id")
+  @ToString.Exclude
+  @EqualsAndHashCode.Exclude
+  private PostComment parentComment;
+
   @Column(nullable = false, columnDefinition = "TEXT")
   private String body;
 

@@ -32,6 +32,7 @@ import { blockUser } from "../../api/followService";
 import { UserProfile } from "../../api/types";
 import { useAuth } from "../../context/AuthContext";
 import { useTier } from "../../hooks/useTier";
+import { usePurchases } from "../../context/PurchasesContext";
 import { SymbolView } from "expo-symbols";
 import { subscribeOnlineStatus } from "../../utils/network";
 import { useTrackTab } from "../../hooks/useTrackTab";
@@ -139,6 +140,7 @@ export function Profile() {
 
   const { user: authUser } = useAuth();
   const { atLeast } = useTier();
+  const { trialEligible } = usePurchases();
   // Own profile only: non-Plus members see the upsell, Plus members the badge.
   const isOwnProfile = !isOtherUser;
   const isPlus = atLeast("PLUS");
@@ -162,7 +164,7 @@ export function Profile() {
   >({});
   const [followLoading, setFollowLoading] = useState(false);
   const normalizeFeedPosts = useNormalizeFeedPosts();
-  const { invalidate: invalidateFeed } = useSocialFeed();
+  const { invalidateAll: invalidateFeeds } = useSocialFeed();
   const { setFollowStatus: publishFollowStatus } = useFollowStatus();
 
   // Mirror this profile's follow status into the shared store on every change
@@ -305,7 +307,7 @@ export function Profile() {
               );
               try {
                 await unfollowUser(profile.userId);
-                invalidateFeed();
+                invalidateFeeds();
                 loadProfile();
               } catch {
                 setProfile((prev) =>
@@ -360,7 +362,7 @@ export function Profile() {
               }
             : prev,
         );
-        if (response.status === "ACCEPTED") invalidateFeed();
+        if (response.status === "ACCEPTED") invalidateFeeds();
         loadProfile();
       } catch {
         setProfile((prev) =>
@@ -680,7 +682,7 @@ export function Profile() {
             />
             <View style={styles.plusPromoTextWrap}>
               <Text style={[styles.plusPromoTitle, { color: t.text }]}>
-                Try Plus free for 3 days
+                {trialEligible ? "Try Plus free for 3 days" : "Upgrade to Gear Plus"}
               </Text>
               <Text style={[styles.plusPromoSub, { color: t.textMuted }]}>
                 Routines, full history, and more
