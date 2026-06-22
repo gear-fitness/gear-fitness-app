@@ -204,10 +204,9 @@ export function RoutineList() {
   };
 
   const handleAddPress = () => {
-    const limit = isPlus ? 7 : 3;
-    if (routines.length >= limit && !isPlus) {
+    if (!isPlus && routines.length >= 3) {
       navigation.navigate("PlusUpsell", {
-        feature: "Create up to 7 routines with Plus",
+        feature: "Create unlimited routines with Plus",
       });
       return;
     }

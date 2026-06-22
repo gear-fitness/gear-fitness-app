@@ -48,8 +48,10 @@ public class RoutineService {
       .findById(userId)
       .orElseThrow(() -> new RuntimeException("User not found"));
 
-    int limit = user.getTier().atLeast(Tier.PLUS) ? 7 : 3;
-    if (routineRepository.countByUser_UserId(userId) >= limit) {
+    if (
+      !user.getTier().atLeast(Tier.PLUS) &&
+      routineRepository.countByUser_UserId(userId) >= 3
+    ) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "ROUTINE_LIMIT");
     }
 
@@ -92,8 +94,10 @@ public class RoutineService {
       .findById(userId)
       .orElseThrow(() -> new RuntimeException("User not found"));
 
-    int limit = user.getTier().atLeast(Tier.PLUS) ? 7 : 3;
-    if (routineRepository.countByUser_UserId(userId) >= limit) {
+    if (
+      !user.getTier().atLeast(Tier.PLUS) &&
+      routineRepository.countByUser_UserId(userId) >= 3
+    ) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "ROUTINE_LIMIT");
     }
 
