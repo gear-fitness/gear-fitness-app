@@ -94,7 +94,8 @@ export function PR({ route }: Props) {
     }
 
     // maxWeight is canonical lbs from the backend — convert to the user's unit.
-    const weight = Math.round(toDisplayWeight(pr.maxWeight, weightUnit));
+    // No extra rounding: set weights can be half-pounds (e.g. 22.5).
+    const weight = toDisplayWeight(pr.maxWeight, weightUnit);
 
     return `${pr.exerciseName.toUpperCase()}\n${weight} ${weightUnit.toUpperCase()} x ${
       pr.repsAtMaxWeight

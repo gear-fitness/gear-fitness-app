@@ -13,6 +13,7 @@ import * as Haptics from "expo-haptics";
 import { useOnboardingColors } from "./useOnboardingColors";
 import { UnitToggle } from "./MetricPickers";
 import { Weight } from "../types";
+import { LBS_PER_KG } from "../../../utils/weight";
 
 type Colors = ReturnType<typeof useOnboardingColors>;
 
@@ -160,7 +161,9 @@ export function WeightRuler({
   const switchUnit = (next: "lbs" | "kg") => {
     if (next === unit) return;
     const converted =
-      next === "kg" ? Math.round(val / 2.205) : Math.round(val * 2.205);
+      next === "kg"
+        ? Math.round(val / LBS_PER_KG)
+        : Math.round(val * LBS_PER_KG);
     setUnit(next);
     setVal(converted);
   };
