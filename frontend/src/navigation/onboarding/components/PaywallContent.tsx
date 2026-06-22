@@ -36,7 +36,7 @@ type CompareCell = boolean | string;
 const COMPARE: { label: string; basic: CompareCell; plus: CompareCell }[] = [
   { label: "Track workouts & PRs", basic: true, plus: true },
   { label: "Connect with friends", basic: true, plus: true },
-  { label: "Routines", basic: "3", plus: "7" },
+  { label: "Routines", basic: "3", plus: "Unlimited" },
   { label: "Exercise history", basic: "1 mo", plus: "1 yr" },
   { label: "Graph types", basic: "Volume", plus: "All" },
   { label: "Streak restore tokens / mo", basic: false, plus: "4" },
@@ -162,6 +162,8 @@ export function PaywallContent({
             { color: colors.text },
           ]}
           numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.8}
         >
           {value}
         </Text>

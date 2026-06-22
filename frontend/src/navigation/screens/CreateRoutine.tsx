@@ -155,7 +155,7 @@ export function CreateRoutine({
     } catch (err: any) {
       if (err?.response?.status === 403) {
         navigation.navigate("PlusUpsell", {
-          feature: "Create up to 7 routines with Plus",
+          feature: "Create unlimited routines with Plus",
         });
         return;
       }
@@ -174,7 +174,7 @@ export function CreateRoutine({
     } catch (err: any) {
       if (err?.response?.status === 403) {
         navigation.navigate("PlusUpsell", {
-          feature: "Create up to 7 routines with Plus",
+          feature: "Create unlimited routines with Plus",
         });
         return;
       }
