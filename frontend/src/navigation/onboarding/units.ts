@@ -1,3 +1,4 @@
+import { LBS_PER_KG } from "../../utils/weight";
 import { Height, Weight } from "./types";
 
 export function heightToInches(h?: Height): number | null {
@@ -9,7 +10,7 @@ export function heightToInches(h?: Height): number | null {
 export function weightToLbs(w?: Weight): number | null {
   if (!w) return null;
   if (w.unit === "lbs") return w.value;
-  return Math.round(w.value * 2.205);
+  return Math.round(w.value * LBS_PER_KG);
 }
 
 export function formatWeight(w?: Weight): string {
