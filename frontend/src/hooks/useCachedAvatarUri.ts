@@ -50,9 +50,11 @@ export function useCachedAvatarUri(
       if (cancelled) return;
       setCached(getCachedProfilePictureUriSync(key) ?? null);
     })();
+    // Re-read this key's cached file on any cache change. Setting null when the
+    // entry is gone is intentional: after an eviction (re-upload) the avatar
+    // must fall back to the freshly presigned url instead of the stale file.
     const unsubscribe = subscribeProfilePictureCache(() => {
-      const local = getCachedProfilePictureUriSync(key);
-      if (local) setCached(local);
+      setCached(getCachedProfilePictureUriSync(key) ?? null);
     });
     return () => {
       cancelled = true;
