@@ -204,11 +204,18 @@ export function OnboardingScreen() {
       } catch (error: any) {
         if (error instanceof AuthApiError) {
           if (intent === "sign_in" && error.code === "ACCOUNT_NOT_FOUND") {
+            // ─── New Google user → required onboarding ───────────────
+            // Account creation is gated behind onboarding, so we can't
+            // sign them in here. Surfacing an error-styled "Account Not
+            // Found" dialog makes the sign-in look broken (App Review
+            // flagged the Apple equivalent), so we redirect into
+            // onboarding and explain it with friendly, informational copy.
             closeAuthOverlay();
+            goTo(1); // NameStep — first onboarding question (skip Welcome)
             Alert.alert(
-              "Account Not Found",
-              "No account exists for this Google account. Tap Get Started to create one.",
-              [{ text: "OK", onPress: () => goTo(0) }],
+              "Let's set up your account",
+              "You don't have an account yet — we'll walk you through a quick setup.",
+              [{ text: "OK" }],
             );
             return;
           }
@@ -384,11 +391,18 @@ export function OnboardingScreen() {
         }
         if (error instanceof AuthApiError) {
           if (intent === "sign_in" && error.code === "ACCOUNT_NOT_FOUND") {
+            // ─── New Apple user → required onboarding ────────────────
+            // Account creation is gated behind onboarding, so we can't
+            // sign them in here. App Review flagged the old error-styled
+            // "Account Not Found" dialog as a broken Apple sign-in, so we
+            // redirect into onboarding and just explain it with friendly,
+            // informational copy (no error styling).
             closeAuthOverlay();
+            goTo(1); // NameStep — first onboarding question (skip Welcome)
             Alert.alert(
-              "Account Not Found",
-              "No account exists for this Apple ID. Tap Get Started to create one.",
-              [{ text: "OK", onPress: () => goTo(0) }],
+              "Let's set up your account",
+              "You don't have an account yet — we'll walk you through a quick setup.",
+              [{ text: "OK" }],
             );
             return;
           }
@@ -508,7 +522,7 @@ export function OnboardingScreen() {
               onAppleSignIn={onAppleSignIn}
               onSignUp={() => {
                 closeAuthOverlay();
-                goTo(0);
+                goTo(1); // NameStep — first onboarding question (skip Welcome)
               }}
               isSigningIn={isSigningIn}
             />
