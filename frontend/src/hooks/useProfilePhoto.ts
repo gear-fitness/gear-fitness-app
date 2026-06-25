@@ -4,6 +4,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { uploadProfilePicture } from "../api/userService";
 import { invalidateImageKey } from "../api/imageService";
+import { evictProfilePicture } from "../utils/profilePictureCache";
 import { useAuth } from "../context/AuthContext";
 
 export function useProfilePhoto() {
@@ -29,13 +30,17 @@ export function useProfilePhoto() {
       );
 
       const updated = await uploadProfilePicture(manipulated.uri);
-      await refreshUser();
       // The profile key is deterministic (overwritten in place), so refreshUser
-      // alone won't change it. Invalidate so mounted avatars re-resolve a fresh
-      // presigned url and show the new bytes without a remount.
-      if (updated?.profilePictureUrl) {
-        invalidateImageKey(updated.profilePictureUrl);
+      // alone won't change it. Bust BOTH caches for the key before refreshing:
+      // the presigned-url cache so avatars re-resolve a fresh url, and the
+      // on-disk byte cache so the stale local file stops winning (and so the
+      // pre-warm inside refreshUser re-downloads the new bytes).
+      const key = updated?.profilePictureUrl;
+      if (key) {
+        invalidateImageKey(key);
+        await evictProfilePicture(key);
       }
+      await refreshUser();
     } catch (e: any) {
       Alert.alert("Error", e?.message || "Failed to upload profile picture");
     } finally {
