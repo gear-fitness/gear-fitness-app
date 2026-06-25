@@ -101,7 +101,7 @@ public class S3StorageService {
     byte[] imageBytes,
     String contentType
   ) {
-    String key = PROFILE_PICTURES_PREFIX + userId + ".jpg";
+    String key = profilePictureKey(userId);
 
     PutObjectRequest putRequest = PutObjectRequest.builder()
       .bucket(profileBucket)
@@ -112,6 +112,46 @@ public class S3StorageService {
     s3Client.putObject(putRequest, RequestBody.fromBytes(imageBytes));
 
     return key;
+  }
+
+  /**
+   * The deterministic S3 key for a user's profile picture. Stable across
+   * re-uploads so a new picture overwrites the old object in place.
+   */
+  public String profilePictureKey(UUID userId) {
+    return PROFILE_PICTURES_PREFIX + userId + ".jpg";
+  }
+
+  /**
+   * Generate a presigned PUT url for the caller's profile picture (direct
+   * client-to-S3 upload, mirroring the post-image flow). The key is
+   * deterministic per user so re-uploads overwrite in place. The client must PUT
+   * with a Content-Type matching {@code contentType} exactly or S3 returns
+   * SignatureDoesNotMatch.
+   *
+   * Preferred over {@link #uploadProfilePicture} (proxy/multipart) because the
+   * image bytes never traverse the backend — avoiding WAF/proxy rules that 403
+   * a multipart body.
+   */
+  public PresignedUpload generateProfilePictureUploadUrl(
+    UUID userId,
+    String contentType
+  ) {
+    String key = profilePictureKey(userId);
+
+    PutObjectRequest putRequest = PutObjectRequest.builder()
+      .bucket(profileBucket)
+      .key(key)
+      .contentType(contentType)
+      .build();
+
+    PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
+      .signatureDuration(UPLOAD_URL_TTL)
+      .putObjectRequest(putRequest)
+      .build();
+
+    String url = s3Presigner.presignPutObject(presignRequest).url().toString();
+    return new PresignedUpload(key, url);
   }
 
   public void deleteProfilePicture(UUID userId) {

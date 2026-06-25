@@ -1,4 +1,5 @@
 import apiClient from "./apiClient";
+import { uploadImageToS3 } from "./imageService";
 import {
   UserProfile,
   FollowerUser,
@@ -104,18 +105,23 @@ export async function checkUsernameAvailability(
 }
 
 /**
- * Upload a profile picture
+ * Upload a profile picture via a presigned PUT (direct client-to-S3), mirroring
+ * the post-image flow. The bytes never traverse the backend, so a WAF/proxy in
+ * front of the API can't 403 the multipart body (which is what the old proxy
+ * upload hit). Returns the updated user, including the new profilePictureUrl.
  */
 export async function uploadProfilePicture(imageUri: string): Promise<any> {
-  const formData = new FormData();
-  formData.append("file", {
-    uri: imageUri,
-    type: "image/jpeg",
-    name: "profile.jpg",
-  } as any);
-
-  const { data } = await apiClient.post("/users/me/profile-picture", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
+  const contentType = "image/jpeg";
+  // 1. Mint a deterministic key + presigned PUT url.
+  const { data: presign } = await apiClient.post(
+    "/users/me/profile-picture/upload-url",
+    { contentType },
+  );
+  // 2. Upload the image bytes straight to S3.
+  await uploadImageToS3(presign.uploadUrl, imageUri, contentType);
+  // 3. Persist the key on the profile and return the updated user.
+  const { data } = await apiClient.put("/users/me/profile-picture", {
+    key: presign.key,
   });
   return data;
 }

@@ -110,7 +110,7 @@ export function SignInScreen({
                     { color: appleFg },
                   ]}
                 >
-                  {pending === "apple" ? "Signing in…" : "Continue with Apple"}
+                  {pending === "apple" ? "Signing in…" : "Sign in with Apple"}
                 </Text>
               </View>
             </Pressable>
@@ -128,7 +128,7 @@ export function SignInScreen({
             <View style={styles.btnContent}>
               <Image source={{ uri: GOOGLE_LOGO_URI }} style={styles.logo} />
               <Text style={[shared.continueBtnText, styles.authBtnText]}>
-                {pending === "google" ? "Signing in…" : "Continue with Google"}
+                {pending === "google" ? "Signing in…" : "Sign in with Google"}
               </Text>
             </View>
           </Pressable>
