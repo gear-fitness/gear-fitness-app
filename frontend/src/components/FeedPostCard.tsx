@@ -167,10 +167,7 @@ export function FeedPostCard({ post, isPending = false }: Props) {
   const hasDuration = post.durationMin != null && post.durationMin > 0;
   const hasMuscles = Array.isArray(post.bodyTags) && post.bodyTags.length > 0;
   const hasPhotos = photos.length > 0;
-  const contentPaddingHorizontal =
-    hasPhotos && scrollWidth > 0
-      ? 14 + Math.max(0, (scrollWidth - 300) / 2)
-      : 16;
+  const contentPaddingHorizontal = 16;
 
   return (
     <View
@@ -237,13 +234,10 @@ export function FeedPostCard({ post, isPending = false }: Props) {
                 key={`${url}-${i}`}
                 onPress={openImageViewer}
               >
-                <View style={{ width: scrollWidth, alignItems: "center" }}>
+                <View style={{ width: scrollWidth }}>
                   <PresignedImage
                     imageKey={url}
-                    style={[
-                      styles.image,
-                      { height: scrollWidth + 60, borderColor: colors.border },
-                    ]}
+                    style={[styles.image, { borderColor: colors.border }]}
                     resizeMode="cover"
                   />
                 </View>
@@ -500,7 +494,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   image: {
-    width: 300,
+    width: "100%",
+    aspectRatio: 3 / 4,
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
   },
