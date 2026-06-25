@@ -129,6 +129,44 @@ export async function cacheProfilePicture(
   }
 }
 
+/**
+ * Drop the cached bytes for `cacheKey` and notify subscribers. Use after
+ * re-uploading a profile picture: the key is deterministic (it never changes
+ * across uploads), so without this the stale on-disk file keeps winning over
+ * the freshly uploaded image. Deletes both the mapped file and the
+ * deterministic dest path — the latter in case the map entry was lost but the
+ * file (whose name derives from the stable key) survived, which would otherwise
+ * short-circuit the next download via the `dest.exists` guard.
+ */
+export async function evictProfilePicture(
+  cacheKey: string | null | undefined,
+): Promise<void> {
+  if (!cacheKey) return;
+  await ensureLoaded();
+
+  const mapped = memCache[cacheKey];
+  if (mapped) {
+    try {
+      const f = new File(mapped);
+      if (f.exists) f.delete();
+    } catch (err) {
+      console.error("Failed to delete cached profile picture file:", err);
+    }
+  }
+
+  try {
+    const dir = new Directory(Paths.cache, SUBDIR);
+    const dest = new File(dir, `${safeKey(cacheKey)}${inferExt(cacheKey)}`);
+    if (dest.exists) dest.delete();
+  } catch (err) {
+    console.error("Failed to delete cached profile picture file:", err);
+  }
+
+  delete memCache[cacheKey];
+  notify();
+  await persistMap();
+}
+
 export function subscribeProfilePictureCache(cb: () => void): () => void {
   listeners.add(cb);
   return () => {
