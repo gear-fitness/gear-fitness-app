@@ -51,9 +51,8 @@ export function HealthPermissionStep({
       hero={<HealthSyncGraphic />}
       title="Connect to Apple Health"
       description="Sync your stats and activity between Gear and Apple Health to keep everything accurate in one place."
-      primaryLabel="Connect Apple Health"
+      primaryLabel="Continue"
       onPrimary={onPrimary}
-      onSkip={onNext}
       busy={busy}
     />
   );

@@ -103,11 +103,13 @@ export function PermissionScreen({
               <Text style={shared.continueBtnText}>{primaryLabel}</Text>
             )}
           </Pressable>
-          <Pressable onPress={onSkip} style={styles.skip}>
-            <Text style={[styles.skipText, { color: colors.secondary }]}>
-              Skip for now
-            </Text>
-          </Pressable>
+          {onSkip ? (
+            <Pressable onPress={onSkip} style={styles.skip}>
+              <Text style={[styles.skipText, { color: colors.secondary }]}>
+                Skip for now
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
       )}
     </View>
