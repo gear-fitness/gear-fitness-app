@@ -157,3 +157,65 @@ export interface Routine {
   scheduledDays: string[];
   exercises: RoutineExercise[];
 }
+
+export interface FoodItem {
+  foodId: string;
+  fdcId: number | null;
+  description: string;
+  brandOwner: string | null;
+  dataType: string | null;
+  servingSize: number | null;
+  servingUnit: string | null;
+  householdServing: string | null;
+  // Nutrient values are per 100 g.
+  calories: number | null;
+  proteinG: number | null;
+  carbsG: number | null;
+  fatG: number | null;
+}
+
+export type ServingUnit = "SERVING" | "GRAM";
+
+export interface MealCategory {
+  categoryId: string;
+  name: string;
+  displayOrder: number;
+}
+
+export interface FoodLogEntry {
+  entryId: string;
+  foodId: string | null;
+  categoryId: string | null;
+  categoryName: string | null;
+  description: string;
+  quantity: number;
+  unit: ServingUnit;
+  // Consumed amounts (already scaled by quantity).
+  calories: number | null;
+  proteinG: number | null;
+  carbsG: number | null;
+  fatG: number | null;
+}
+
+export interface NutritionGoal {
+  calorieGoal: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+  isCustom: boolean;
+}
+
+export interface MacroTotals {
+  calories: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+}
+
+export interface DaySummary {
+  date: string;
+  goal: NutritionGoal;
+  totals: MacroTotals;
+  categories: MealCategory[];
+  entries: FoodLogEntry[];
+}

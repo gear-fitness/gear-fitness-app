@@ -1,0 +1,33 @@
+fdc_id,description,brand_owner,data_type,serving_size,serving_unit,household_serving,calories,protein_g,carbs_g,fat_g
+171077,"Chicken, broilers or fryers, breast, meat only, cooked, roasted",,sr_legacy,,,,165,31.02,0,3.57
+174608,"Egg, whole, raw, fresh",,sr_legacy,,,,143,12.56,0.72,9.51
+169744,"Rice, white, long-grain, regular, cooked",,sr_legacy,,,,130,2.69,28.17,0.28
+168878,"Oats, whole grain, rolled, old fashioned",,sr_legacy,,,,389,16.89,66.27,6.9
+170417,"Broccoli, cooked, boiled, drained, without salt",,sr_legacy,,,,35,2.38,7.18,0.41
+169097,"Banana, raw",,sr_legacy,,,,89,1.09,22.84,0.33
+171688,"Beef, ground, 90% lean meat / 10% fat, cooked, pan-broiled",,sr_legacy,,,,209,26.61,0,10.9
+174843,"Greek yogurt, plain, nonfat",,sr_legacy,,,,59,10.19,3.6,0.39
+170567,"Sweet potato, cooked, baked in skin, flesh, without salt",,sr_legacy,,,,90,2.01,20.71,0.15
+171413,"Almonds, raw",,sr_legacy,,,,579,21.15,21.55,49.93
+175167,"Salmon, Atlantic, farmed, cooked, dry heat",,sr_legacy,,,,206,22.1,0,12.35
+168462,"Apple, raw, with skin",,sr_legacy,,,,52,0.26,13.81,0.17
+169967,"Bread, whole-wheat, commercially prepared",,sr_legacy,,,,247,12.95,41.29,3.55
+170457,"Spinach, raw",,sr_legacy,,,,23,2.86,3.63,0.39
+171287,"Peanut butter, smooth style, with salt",,sr_legacy,,,,588,22.21,19.56,49.94
+173944,"Tuna, light, canned in water, drained solids",,sr_legacy,,,,116,25.51,0,0.82
+169640,"Avocado, raw, all commercial varieties",,sr_legacy,,,,160,2,8.53,14.66
+170148,"Potato, baked, flesh and skin, without salt",,sr_legacy,,,,93,2.5,21.15,0.13
+172421,"Cheese, cheddar",,sr_legacy,,,,403,22.87,3.09,33.31
+171890,"Milk, whole, 3.25% milkfat, with added vitamin D",,sr_legacy,,,,61,3.15,4.78,3.25
+168409,"Rice, brown, long-grain, cooked",,sr_legacy,,,,123,2.74,25.58,0.97
+170556,"Carrots, raw",,sr_legacy,,,,41,0.93,9.58,0.24
+173687,"Black beans, mature seeds, cooked, boiled, without salt",,sr_legacy,,,,132,8.86,23.71,0.54
+168917,"Quinoa, cooked",,sr_legacy,,,,120,4.4,21.3,1.92
+170554,"Blueberries, raw",,sr_legacy,,,,57,0.74,14.49,0.33
+171705,"Pork, fresh, loin, tenderloin, cooked, roasted",,sr_legacy,,,,143,26.37,0,3.46
+175140,"Shrimp, cooked",,sr_legacy,,,,99,20.91,0.2,1.08
+169909,"Lentils, mature seeds, cooked, boiled, without salt",,sr_legacy,,,,116,9.02,20.13,0.38
+170851,"Pasta, cooked, enriched, without added salt",,sr_legacy,,,,158,5.8,30.86,0.93
+2103039,"Whole Grain Old Fashioned Oats","Quaker",branded_food,40,g,"1/2 cup dry",379,13.3,67.4,6.5
+2257030,"Creamy Peanut Butter","Jif",branded_food,32,g,"2 tbsp",588,22,22,50
+2024576,"Greek Nonfat Yogurt, Plain","Chobani",branded_food,170,g,"1 container",59,10,3.6,0
