@@ -29,6 +29,7 @@ export async function clearCache(key: string): Promise<void> {
 
 export const CACHE_KEYS = {
   exercises: "@offline_exercises",
+  cardioActivities: "@offline_cardio_activities",
   routines: (userId: string) => `@offline_routines_${userId}`,
   userProfile: (userId: string) => `@offline_user_profile_${userId}`,
   lastUserId: "@offline_last_user_id",

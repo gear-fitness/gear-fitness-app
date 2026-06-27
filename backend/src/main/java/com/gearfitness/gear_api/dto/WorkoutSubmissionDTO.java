@@ -21,6 +21,7 @@ public class WorkoutSubmissionDTO {
   private String datePerformed; // Optional - date in YYYY-MM-DD format from client
   private List<MuscleGroup> bodyTags;
   private List<ExerciseSubmissionDTO> exercises;
+  private List<CardioSubmissionDTO> cardio;
 
   // Optional - for creating a post
   private Boolean createPost;
@@ -48,5 +49,18 @@ public class WorkoutSubmissionDTO {
 
     private Integer reps;
     private String weight; // String from frontend, will convert to BigDecimal
+  }
+
+  @Data
+  @NoArgsConstructor
+  @AllArgsConstructor
+  public static class CardioSubmissionDTO {
+
+    private String activityType;
+    private Integer durationSeconds;
+    private String distanceMeters; // optional, String from frontend -> BigDecimal
+    private Integer caloriesBurned; // optional
+    private String intensityLevel; // optional, String from frontend -> BigDecimal
+    private String notes; // optional
   }
 }

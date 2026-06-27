@@ -1,12 +1,19 @@
 import { Text } from "@react-navigation/elements";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColorScheme } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
+import { useEffect, useState } from "react";
+import { SymbolView } from "expo-symbols";
 import { useExerciseList } from "../../hooks/useExerciseList";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { ExerciseListView } from "../../components/ExerciseListView";
 import { Exercise } from "../../api/exerciseService";
+import {
+  CardioActivity,
+  getAllCardioActivities,
+  getCachedCardioActivities,
+} from "../../api/cardioService";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 
@@ -17,10 +24,32 @@ export function ExerciseSelect() {
   const route = useRoute<any>();
   const isDark = useColorScheme() === "dark";
   const { exercises } = useExerciseList();
-  const { showPlayer, start, swapExercise, setActiveExercise } =
+  const { showPlayer, start, swapExercise, setActiveExercise, resetCardio } =
     useWorkoutTimer();
   const insets = useSafeAreaInsets();
   const swapTargetId: string | undefined = route.params?.swapTargetId;
+
+  const [mode, setMode] = useState<"exercise" | "cardio">(
+    route.params?.mode === "cardio" ? "cardio" : "exercise",
+  );
+  const [cardioActivities, setCardioActivities] = useState<CardioActivity[]>(
+    [],
+  );
+
+  useEffect(() => {
+    let active = true;
+    getCachedCardioActivities().then((cached) => {
+      if (active && cached.length) setCardioActivities(cached);
+    });
+    getAllCardioActivities()
+      .then((list) => {
+        if (active) setCardioActivities(list);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleExercisePress = (exercise: Exercise) => {
     start();
@@ -58,6 +87,19 @@ export function ExerciseSelect() {
     });
   };
 
+  const handleCardioPress = (activity: CardioActivity) => {
+    start();
+    resetCardio();
+    navigation.replace("ExerciseDetail", {
+      kind: "cardio",
+      cardio: {
+        workoutCardioId: Date.now().toString(),
+        cardioActivityId: activity.cardioActivityId,
+        activityType: activity.name,
+      },
+    });
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: isDark ? "#000" : "#fff" }}>
       <FloatingCloseButton
@@ -84,18 +126,52 @@ export function ExerciseSelect() {
           { top: insets.top + 10, color: isDark ? "#fff" : "#000" },
         ]}
       >
-        Select Exercise
+        {mode === "cardio" ? "Select Cardio" : "Select Exercise"}
       </Text>
 
-      <View style={{ flex: 1, paddingTop: insets.top + 60 }}>
-        <ExerciseListView
-          exercises={exercises}
-          onExercisePress={handleExercisePress}
-          onCreateExercise={() =>
-            navigation.navigate("CreateExercise", { startWorkout: true })
-          }
-          loading={exercises.length === 0}
+      <TouchableOpacity
+        onPress={() => setMode((m) => (m === "cardio" ? "exercise" : "cardio"))}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        accessibilityLabel={
+          mode === "cardio" ? "Switch to exercises" : "Switch to cardio"
+        }
+        style={[
+          styles.toggle,
+          {
+            top: insets.top + 10,
+            backgroundColor: isDark
+              ? "rgba(255,255,255,0.08)"
+              : "rgba(0,0,0,0.05)",
+          },
+        ]}
+      >
+        <SymbolView
+          name={mode === "cardio" ? "dumbbell.fill" : "figure.run"}
+          tintColor={isDark ? "#fff" : "#000"}
+          size={22}
         />
+      </TouchableOpacity>
+
+      <View style={{ flex: 1, paddingTop: insets.top + 60 }}>
+        {mode === "cardio" ? (
+          <ExerciseListView
+            mode="cardio"
+            exercises={[]}
+            onExercisePress={() => {}}
+            cardioActivities={cardioActivities}
+            onCardioPress={handleCardioPress}
+            loading={cardioActivities.length === 0}
+          />
+        ) : (
+          <ExerciseListView
+            exercises={exercises}
+            onExercisePress={handleExercisePress}
+            onCreateExercise={() =>
+              navigation.navigate("CreateExercise", { startWorkout: true })
+            }
+            loading={exercises.length === 0}
+          />
+        )}
       </View>
     </View>
   );
@@ -112,5 +188,15 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "700",
     zIndex: 9,
+  },
+  toggle: {
+    position: "absolute",
+    right: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
   },
 });

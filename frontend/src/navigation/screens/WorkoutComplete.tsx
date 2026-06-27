@@ -61,7 +61,7 @@ export function WorkoutComplete() {
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const photoTileSize = Math.floor((screenWidth - 40 - 24) / 4);
-  const { exercises, seconds, workoutStartedAtEpoch, reset } =
+  const { exercises, cardioEntries, seconds, workoutStartedAtEpoch, reset } =
     useWorkoutTimer();
   const { invalidateAll: invalidateFeeds } = useSocialFeed();
 
@@ -179,8 +179,8 @@ export function WorkoutComplete() {
       Alert.alert("Error", "Please enter a workout name");
       return;
     }
-    if (exercises.length === 0) {
-      Alert.alert("Error", "No exercises to save");
+    if (exercises.length === 0 && cardioEntries.length === 0) {
+      Alert.alert("Error", "Add at least one exercise or cardio entry to save");
       return;
     }
 
@@ -204,6 +204,14 @@ export function WorkoutComplete() {
           weight: set.weight,
         })),
         note: ex.note || "",
+      })),
+      cardio: cardioEntries.map((c) => ({
+        activityType: c.activityType,
+        durationSeconds: c.durationSeconds,
+        distanceMeters: c.distance || undefined,
+        caloriesBurned: c.calories ? Number(c.calories) : undefined,
+        intensityLevel: c.intensity || undefined,
+        notes: c.note || undefined,
       })),
       // Privacy model: always create a post; the visibility selector controls
       // the audience (PUBLIC / FRIENDS / PRIVATE), where PRIVATE is "Only me".
@@ -439,6 +447,37 @@ export function WorkoutComplete() {
             })}
           </View>
         </Section>
+
+        {/* Cardio summary */}
+        {cardioEntries.length > 0 && (
+          <Section label={`Cardio (${cardioEntries.length})`} t={t}>
+            <View style={styles.exerciseList}>
+              {cardioEntries.map((c) => {
+                const mins = Math.floor(c.durationSeconds / 60);
+                const secs = c.durationSeconds % 60;
+                return (
+                  <View
+                    key={c.workoutCardioId}
+                    style={[
+                      styles.exerciseCard,
+                      { backgroundColor: t.surface, borderColor: t.border },
+                    ]}
+                  >
+                    <Text
+                      style={[styles.exerciseName, { color: t.text }]}
+                      numberOfLines={1}
+                    >
+                      {c.activityType}
+                    </Text>
+                    <Text style={[styles.setsCount, { color: t.textMuted }]}>
+                      {mins}:{String(secs).padStart(2, "0")}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          </Section>
+        )}
 
         {/* Caption */}
         <Section label="How'd it go?" t={t}>

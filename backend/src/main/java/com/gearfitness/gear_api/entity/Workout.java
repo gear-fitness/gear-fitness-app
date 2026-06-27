@@ -81,6 +81,18 @@ public class Workout {
   @EqualsAndHashCode.Exclude
   private List<WorkoutExercise> workoutExercises = new ArrayList<>();
 
+  @OneToMany(
+    mappedBy = "workout",
+    cascade = CascadeType.ALL,
+    orphanRemoval = true,
+    fetch = FetchType.EAGER
+  )
+  @OrderBy("position ASC")
+  @Builder.Default
+  @ToString.Exclude
+  @EqualsAndHashCode.Exclude
+  private List<WorkoutCardio> workoutCardios = new ArrayList<>();
+
   @OneToOne(
     mappedBy = "workout",
     cascade = CascadeType.ALL,

@@ -126,6 +126,17 @@ export interface WorkoutExercise {
   sets: WorkoutSet[];
 }
 
+export interface WorkoutCardio {
+  workoutCardioId: string;
+  activityType: string;
+  durationSeconds: number;
+  distanceMeters: number | null;
+  caloriesBurned: number | null;
+  intensityLevel: number | null;
+  notes: string | null;
+  position: number;
+}
+
 export interface WorkoutDetail {
   workoutId: string;
   name: string;
@@ -133,6 +144,7 @@ export interface WorkoutDetail {
   durationMin: number | null;
   bodyTags: string[];
   exercises: WorkoutExercise[];
+  cardio?: WorkoutCardio[];
 }
 
 export interface PersonalRecord {

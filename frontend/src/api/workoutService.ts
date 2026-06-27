@@ -32,6 +32,7 @@ export interface WorkoutSubmission {
   datePerformed?: string; // Optional - date in YYYY-MM-DD format
   bodyTags: string[];
   exercises: ExerciseSubmission[];
+  cardio?: CardioSubmission[];
   createPost?: boolean;
   visibility?: "PUBLIC" | "FRIENDS" | "PRIVATE";
   caption?: string;
@@ -48,6 +49,15 @@ export interface ExerciseSubmission {
 export interface SetSubmission {
   reps: string;
   weight: string;
+}
+
+export interface CardioSubmission {
+  activityType: string;
+  durationSeconds: number;
+  distanceMeters?: string;
+  caloriesBurned?: number;
+  intensityLevel?: string;
+  notes?: string;
 }
 
 export interface WorkoutDetailResponse {
@@ -69,6 +79,16 @@ export interface WorkoutDetailResponse {
       weightLbs: string;
       isPr: boolean;
     }>;
+  }>;
+  cardio?: Array<{
+    workoutCardioId: string;
+    activityType: string;
+    durationSeconds: number;
+    distanceMeters: string | null;
+    caloriesBurned: number | null;
+    intensityLevel: string | null;
+    notes: string | null;
+    position: number;
   }>;
   photoUrls: string[];
 }
@@ -98,6 +118,16 @@ function responseToDetail(res: WorkoutDetailResponse): WorkoutDetail {
         weightLbs: s.weightLbs ? Number(s.weightLbs) : null,
         isPr: s.isPr,
       })),
+    })),
+    cardio: (res.cardio ?? []).map((c) => ({
+      workoutCardioId: c.workoutCardioId,
+      activityType: c.activityType,
+      durationSeconds: c.durationSeconds,
+      distanceMeters: c.distanceMeters != null ? Number(c.distanceMeters) : null,
+      caloriesBurned: c.caloriesBurned,
+      intensityLevel: c.intensityLevel != null ? Number(c.intensityLevel) : null,
+      notes: c.notes,
+      position: c.position,
     })),
   };
 }

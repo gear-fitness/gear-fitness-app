@@ -3,6 +3,7 @@ package com.gearfitness.gear_api.service;
 import com.gearfitness.gear_api.dto.BodyPartDTO;
 import com.gearfitness.gear_api.dto.DailyVolumeDTO;
 import com.gearfitness.gear_api.dto.WeeklyVolumeDTO;
+import com.gearfitness.gear_api.dto.WorkoutCardioDTO;
 import com.gearfitness.gear_api.dto.WorkoutDetailDTO;
 import com.gearfitness.gear_api.dto.WorkoutExerciseDTO;
 import com.gearfitness.gear_api.dto.WorkoutSetDTO;
@@ -11,6 +12,7 @@ import com.gearfitness.gear_api.entity.AppUser;
 import com.gearfitness.gear_api.entity.Exercise;
 import com.gearfitness.gear_api.entity.Post;
 import com.gearfitness.gear_api.entity.Workout;
+import com.gearfitness.gear_api.entity.WorkoutCardio;
 import com.gearfitness.gear_api.entity.WorkoutExercise;
 import com.gearfitness.gear_api.entity.WorkoutSet;
 import com.gearfitness.gear_api.repository.AppUserRepository;
@@ -106,6 +108,24 @@ public class WorkoutService {
       })
       .collect(Collectors.toList());
 
+    List<WorkoutCardioDTO> cardio = workout
+      .getWorkoutCardios()
+      .stream()
+      .sorted(Comparator.comparing(WorkoutCardio::getPosition))
+      .map(wc ->
+        new WorkoutCardioDTO(
+          wc.getWorkoutCardioId(),
+          wc.getActivityType(),
+          wc.getDurationSeconds(),
+          wc.getDistanceMeters(),
+          wc.getCaloriesBurned(),
+          wc.getIntensityLevel(),
+          isOwner ? wc.getNotes() : null,
+          wc.getPosition()
+        )
+      )
+      .collect(Collectors.toList());
+
     return WorkoutDetailDTO.builder()
       .workoutId(workout.getWorkoutId())
       .name(workout.getName())
@@ -117,6 +137,7 @@ public class WorkoutService {
           : List.of()
       )
       .exercises(exercises)
+      .cardio(cardio)
       .photoUrls(
         workout.getPhotoUrls() != null
           ? new ArrayList<>(workout.getPhotoUrls())
@@ -384,6 +405,30 @@ public class WorkoutService {
       workout.getWorkoutExercises().add(workoutExercise);
     }
 
+    // Create cardio entries. activity_type is the denormalized catalog name sent
+    // by the client; positions are independent from the exercise positions.
+    if (submission.getCardio() != null) {
+      int cardioPosition = 1;
+      for (WorkoutSubmissionDTO.CardioSubmissionDTO cardioDto : submission.getCardio()) {
+        if (cardioDto.getDurationSeconds() == null) {
+          continue;
+        }
+
+        WorkoutCardio workoutCardio = WorkoutCardio.builder()
+          .workout(workout)
+          .activityType(cardioDto.getActivityType())
+          .durationSeconds(cardioDto.getDurationSeconds())
+          .distanceMeters(parseDecimal(cardioDto.getDistanceMeters()))
+          .caloriesBurned(cardioDto.getCaloriesBurned())
+          .intensityLevel(parseDecimal(cardioDto.getIntensityLevel()))
+          .notes(cardioDto.getNotes())
+          .position(cardioPosition++)
+          .build();
+
+        workout.getWorkoutCardios().add(workoutCardio);
+      }
+    }
+
     // Save complete workout with exercises and sets
     workout = workoutRepository.save(workout);
 
@@ -433,6 +478,18 @@ public class WorkoutService {
 
     // Return workout details
     return getWorkoutDetails(workout.getWorkoutId(), userId);
+  }
+
+  /** Parse an optional numeric string from the client into a BigDecimal. */
+  private static BigDecimal parseDecimal(String value) {
+    if (value == null || value.trim().isEmpty()) {
+      return null;
+    }
+    try {
+      return new BigDecimal(value.trim());
+    } catch (NumberFormatException e) {
+      return null;
+    }
   }
 
   @Transactional
