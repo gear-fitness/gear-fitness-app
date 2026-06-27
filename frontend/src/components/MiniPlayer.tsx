@@ -14,8 +14,16 @@ interface MiniPlayerProps {
 }
 
 export function MiniPlayer({ onTap, isVisible }: MiniPlayerProps) {
-  const { seconds, running, start, pause, exercises, currentExerciseId } =
-    useWorkoutTimer();
+  const {
+    seconds,
+    running,
+    start,
+    pause,
+    exercises,
+    currentExerciseId,
+    currentCardioId,
+    cardioEntries,
+  } = useWorkoutTimer();
   const { weightUnit: globalUnit } = useUnitPreference();
   const isDark = useColorScheme() === "dark";
 
@@ -29,6 +37,10 @@ export function MiniPlayer({ onTap, isVisible }: MiniPlayerProps) {
   const currentExercise = exercises.find(
     (ex) => ex.workoutExerciseId === currentExerciseId,
   );
+  // A cardio entry takes priority when it's the current player item.
+  const currentCardio = cardioEntries.find(
+    (c) => c.workoutCardioId === currentCardioId,
+  );
   const weightUnit = currentExercise?.weightUnit ?? globalUnit;
 
   const formatTime = (t: number) =>
@@ -41,6 +53,17 @@ export function MiniPlayer({ onTap, isVisible }: MiniPlayerProps) {
   const validSets =
     currentExercise?.sets.filter((s) => s.reps && s.weight) || [];
   const lastSet = validSets[validSets.length - 1];
+
+  // Cardio subtitle: duration plus any logged distance/calories.
+  const cardioSubtitle = currentCardio
+    ? [
+        formatTime(currentCardio.durationSeconds),
+        currentCardio.distance ? `${currentCardio.distance} mi` : null,
+        currentCardio.calories ? `${currentCardio.calories} cal` : null,
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : "";
 
   const styles = StyleSheet.create({
     container: {
@@ -123,7 +146,22 @@ export function MiniPlayer({ onTap, isVisible }: MiniPlayerProps) {
         ]}
       >
         <View style={styles.leftContent}>
-          {currentExercise ? (
+          {currentCardio ? (
+            <>
+              <Text
+                style={[styles.exerciseName, { color: colors.text }]}
+                numberOfLines={1}
+              >
+                {currentCardio.activityType}
+              </Text>
+              <Text
+                style={[styles.setInfo, { color: colors.subtle }]}
+                numberOfLines={1}
+              >
+                {cardioSubtitle}
+              </Text>
+            </>
+          ) : currentExercise ? (
             <>
               <Text
                 style={[styles.exerciseName, { color: colors.text }]}

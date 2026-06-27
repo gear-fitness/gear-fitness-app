@@ -90,10 +90,13 @@ export function ExerciseSelect() {
   const handleCardioPress = (activity: CardioActivity) => {
     start();
     resetCardio();
+    // When swapping the activity of an existing entry, reuse its id so the new
+    // selection overwrites it in place instead of creating a second entry.
+    const swapCardioId: string | undefined = route.params?.swapCardioId;
     navigation.replace("ExerciseDetail", {
       kind: "cardio",
       cardio: {
-        workoutCardioId: Date.now().toString(),
+        workoutCardioId: swapCardioId ?? Date.now().toString(),
         cardioActivityId: activity.cardioActivityId,
         activityType: activity.name,
       },
@@ -107,11 +110,18 @@ export function ExerciseSelect() {
         accessibilityLabel="Back"
         onPress={() => {
           const returnTo = route.params?.returnTo;
-          if (returnTo === "ExerciseDetail") {
+          if (returnTo === "ExerciseDetail" && route.params?.exercise) {
+            // Lifting "next/swap" flow — return to the exercise we came from.
             navigation.replace("ExerciseDetail", {
               exercise: route.params.exercise,
             });
-          } else if (returnTo === "WorkoutSummary") {
+          } else if (
+            returnTo === "ExerciseDetail" ||
+            returnTo === "WorkoutSummary"
+          ) {
+            // Cardio add/swap flows arrive here with no exercise param; the
+            // cardio entry already lives in the workout, so fall back to the
+            // summary instead of a lifting detail with an undefined exercise.
             navigation.replace("WorkoutSummary");
           } else {
             const parent = navigation.getParent();

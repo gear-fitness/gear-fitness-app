@@ -17,12 +17,26 @@ export function WorkoutPlayer() {
     activeTab,
     lastModalScreen,
     currentExerciseId,
+    currentCardioId,
     exercises,
+    cardioEntries,
   } = useWorkoutTimer();
   const insets = useSafeAreaInsets();
   const slideAnim = useRef(new Animated.Value(0)).current;
 
   const handleTap = () => {
+    if (lastModalScreen === "ExerciseDetail" && currentCardioId) {
+      const c = cardioEntries.find(
+        (e) => e.workoutCardioId === currentCardioId,
+      );
+      if (c) {
+        navigationRef.current?.navigate("WorkoutFlow", {
+          screen: "ExerciseDetail",
+          params: { kind: "cardio", cardio: c },
+        });
+        return;
+      }
+    }
     if (lastModalScreen === "ExerciseDetail" && currentExerciseId) {
       const ex = exercises.find(
         (e) => e.workoutExerciseId === currentExerciseId,

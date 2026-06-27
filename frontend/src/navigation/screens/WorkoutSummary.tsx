@@ -68,7 +68,7 @@ export function WorkoutSummary() {
   const { getSwipeableProps: getCardioSwipeableProps } = useSwipeableDelete({
     onDelete: (id) => removeCardioEntry(id),
     deleteTitle: "Delete Cardio",
-    deleteMessage: "Are you sure you want to remove this cardio entry?",
+    deleteMessage: "Are you sure you want to remove this cardio activity?",
   });
 
   const formatDuration = (s: number) =>
@@ -327,14 +327,25 @@ export function WorkoutSummary() {
                   style={styles.exerciseCardWrapper}
                 >
                   <Swipeable {...getCardioSwipeableProps(c.workoutCardioId)}>
-                    <TouchableOpacity
-                      activeOpacity={0.7}
-                      onPress={() =>
-                        navigation.replace("ExerciseDetail", {
-                          kind: "cardio",
-                          cardio: c,
-                        })
-                      }
+                    <View
+                      onTouchStart={(e) => {
+                        setTouchStart({
+                          x: e.nativeEvent.pageX,
+                          y: e.nativeEvent.pageY,
+                        });
+                      }}
+                      onTouchEnd={(e) => {
+                        if (!touchStart) return;
+                        const dx = Math.abs(e.nativeEvent.pageX - touchStart.x);
+                        const dy = Math.abs(e.nativeEvent.pageY - touchStart.y);
+                        if (dx < 5 && dy < 5) {
+                          navigation.replace("ExerciseDetail", {
+                            kind: "cardio",
+                            cardio: c,
+                          });
+                        }
+                        setTouchStart(null);
+                      }}
                     >
                       <View
                         style={[
@@ -390,7 +401,7 @@ export function WorkoutSummary() {
                           />
                         </Svg>
                       </View>
-                    </TouchableOpacity>
+                    </View>
                   </Swipeable>
                 </View>
               );

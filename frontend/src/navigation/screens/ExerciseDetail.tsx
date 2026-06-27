@@ -25,22 +25,28 @@ function LiftingDetail() {
 
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const routeExercise = route.params.exercise;
+  const routeExercise = route.params?.exercise;
 
   const { start, exercises, setCurrentExercise, setActiveExercise } =
     useWorkoutTimer();
   const liveExercise = exercises.find(
-    (e) => e.workoutExerciseId === routeExercise.workoutExerciseId,
+    (e) => e.workoutExerciseId === routeExercise?.workoutExerciseId,
   );
   const exercise = liveExercise ?? routeExercise;
   const contentRef = useRef<ExerciseDetailContentRef>(null);
 
   useEffect(() => {
+    // Defensive: if we somehow landed here without an exercise (e.g. a stray
+    // navigation from a cardio flow), don't crash — just back out.
+    if (!exercise) {
+      navigation.goBack();
+      return;
+    }
     start();
     if (exercise.workoutExerciseId) {
       setActiveExercise(exercise.workoutExerciseId);
     }
-  }, [exercise.workoutExerciseId]);
+  }, [exercise?.workoutExerciseId]);
 
   // Save before leaving screen
   useEffect(() => {
@@ -49,6 +55,8 @@ function LiftingDetail() {
     });
     return unsubscribe;
   }, [navigation]);
+
+  if (!exercise) return null;
 
   const handleNextExercise = () => {
     const currentIdx = exercises.findIndex(
@@ -94,7 +102,8 @@ function CardioDetail() {
   const route = useRoute<any>();
   const routeCardio = route.params.cardio;
 
-  const { start, cardioEntries, startCardio, resetCardio } = useWorkoutTimer();
+  const { start, cardioEntries, startCardio, resetCardio, showCardio } =
+    useWorkoutTimer();
   const liveCardio = cardioEntries.find(
     (c) => c.workoutCardioId === routeCardio.workoutCardioId,
   );
@@ -103,6 +112,10 @@ function CardioDetail() {
 
   useEffect(() => {
     start();
+    // Register this cardio as the player's current item so minimizing the
+    // detail collapses back to the player showing this cardio (mirrors how
+    // LiftingDetail registers its exercise via showPlayer/setActiveExercise).
+    showCardio(cardio.workoutCardioId);
     // Auto-start the cardio stopwatch on first open of a fresh entry so the
     // user lands on a running timer; reopening a saved entry leaves it alone.
     if (!liveCardio) {
@@ -120,9 +133,21 @@ function CardioDetail() {
 
   const handleAddCardio = () => {
     resetCardio();
+    // After logging, drop the user on the main exercise picker so they can pick
+    // their next exercise (lifting or cardio) from the full list.
+    navigation.replace("ExerciseSelect", {
+      returnTo: "WorkoutSummary",
+    });
+  };
+
+  // Change the activity type for this same entry. Passing swapCardioId keeps the
+  // workoutCardioId stable so picking a new activity overwrites this entry in
+  // place rather than appending a second one.
+  const handleSwapCardio = () => {
     navigation.replace("ExerciseSelect", {
       returnTo: "ExerciseDetail",
       mode: "cardio",
+      swapCardioId: cardio.workoutCardioId,
     });
   };
 
@@ -132,6 +157,7 @@ function CardioDetail() {
       cardio={cardio}
       onSummary={() => navigation.replace("WorkoutSummary")}
       onAddCardio={handleAddCardio}
+      onSwapCardio={handleSwapCardio}
     />
   );
 }

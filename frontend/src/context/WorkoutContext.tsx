@@ -69,6 +69,7 @@ interface PersistedWorkoutState {
   cardioRunning: boolean;
   playerVisible: boolean;
   currentExerciseId: string | null;
+  currentCardioId: string | null;
   activeTab: string;
   lastModalScreen: LastModalScreen;
   activeExerciseId: string | null;
@@ -176,9 +177,15 @@ interface WorkoutContextValue {
   // Player state
   playerVisible: boolean;
   currentExerciseId: string | null;
+  // The cardio entry the player is currently representing. Mutually exclusive
+  // with currentExerciseId — whichever was opened last is the "current" item so
+  // minimizing the detail collapses back to it.
+  currentCardioId: string | null;
   showPlayer: (exerciseId: string) => void;
+  showCardio: (cardioId: string) => void;
   hidePlayer: () => void;
   setCurrentExercise: (id: string) => void;
+  setCurrentCardio: (id: string | null) => void;
 
   // Active-exercise timing (the exercise whose per-exercise clock is ticking)
   activeExerciseId: string | null;
@@ -233,6 +240,7 @@ export function WorkoutTimerProvider({
   const [currentExerciseId, setCurrentExerciseId] = useState<string | null>(
     null,
   );
+  const [currentCardioId, setCurrentCardioId] = useState<string | null>(null);
 
   // Tab tracking
   const [activeTab, setActiveTab] = useState("Home"); // Default to Home tab
@@ -284,6 +292,7 @@ export function WorkoutTimerProvider({
         cardioRunning,
         playerVisible,
         currentExerciseId,
+        currentCardioId,
         activeTab,
         lastModalScreen,
         activeExerciseId,
@@ -379,6 +388,7 @@ export function WorkoutTimerProvider({
       restoreCardioTimerState(parsed);
       setPlayerVisible(parsed.playerVisible);
       setCurrentExerciseId(parsed.currentExerciseId);
+      setCurrentCardioId(parsed.currentCardioId ?? null);
       setActiveTab(parsed.activeTab);
       setLastModalScreen(parsed.lastModalScreen ?? null);
       setActiveExerciseId(parsed.activeExerciseId ?? null);
@@ -467,6 +477,7 @@ export function WorkoutTimerProvider({
     cardioTotalElapsedSeconds,
     playerVisible,
     currentExerciseId,
+    currentCardioId,
     activeTab,
     lastModalScreen,
     totalElapsedSeconds,
@@ -818,6 +829,7 @@ export function WorkoutTimerProvider({
     setLastModalScreen(null);
     setActiveExerciseId(null);
     setActiveExerciseStartedAt(null);
+    setCurrentCardioId(null);
     hidePlayer();
 
     // Clear persisted state
@@ -828,12 +840,36 @@ export function WorkoutTimerProvider({
   // Player actions
   const showPlayer = (exerciseId: string) => {
     setCurrentExerciseId(exerciseId);
+    // An exercise is now the current player item; clear any cardio pointer so
+    // the two stay mutually exclusive.
+    setCurrentCardioId(null);
     setPlayerVisible(true);
+  };
+
+  // Mark a cardio entry as the current player item (mirrors showPlayer). Clears
+  // currentExerciseId so the MiniPlayer/expand target resolves to the cardio.
+  const showCardio = (cardioId: string) => {
+    setCurrentCardioId(cardioId);
+    setCurrentExerciseId(null);
+    setPlayerVisible(true);
+  };
+
+  // Set the current exercise, clearing any cardio pointer (used by the
+  // "next exercise" / summary-tap flows).
+  const setCurrentExercise = (id: string) => {
+    setCurrentExerciseId(id);
+    setCurrentCardioId(null);
+  };
+
+  const setCurrentCardio = (id: string | null) => {
+    setCurrentCardioId(id);
+    if (id) setCurrentExerciseId(null);
   };
 
   const hidePlayer = () => {
     setPlayerVisible(false);
     setCurrentExerciseId(null);
+    setCurrentCardioId(null);
   };
 
   const loadFromRoutine = async (
@@ -905,9 +941,12 @@ export function WorkoutTimerProvider({
         resetCardio,
         playerVisible,
         currentExerciseId,
+        currentCardioId,
         showPlayer,
+        showCardio,
         hidePlayer,
-        setCurrentExercise: setCurrentExerciseId,
+        setCurrentExercise,
+        setCurrentCardio,
         activeExerciseId,
         activeExerciseStartedAt,
         setActiveExercise,
