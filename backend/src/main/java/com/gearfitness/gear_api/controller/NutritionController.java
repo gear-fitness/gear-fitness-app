@@ -1,11 +1,9 @@
 package com.gearfitness.gear_api.controller;
 
-import com.gearfitness.gear_api.dto.CreateCategoryRequest;
 import com.gearfitness.gear_api.dto.DaySummaryDTO;
 import com.gearfitness.gear_api.dto.FoodItemDTO;
 import com.gearfitness.gear_api.dto.LogEntryDTO;
 import com.gearfitness.gear_api.dto.LogFoodRequest;
-import com.gearfitness.gear_api.dto.MealCategoryDTO;
 import com.gearfitness.gear_api.dto.NutritionGoalDTO;
 import com.gearfitness.gear_api.dto.UpdateGoalRequest;
 import com.gearfitness.gear_api.security.JwtService;
@@ -25,11 +23,13 @@ public class NutritionController {
   private final NutritionService nutritionService;
   private final JwtService jwtService;
 
-  // ---------------------------------------------------------------- foods
-
+  /**
+   * Search the seeded USDA food database. A blank/absent query returns the
+   * default browse list (used by the Add Food screen before the user types).
+   */
   @GetMapping("/foods/search")
   public ResponseEntity<List<FoodItemDTO>> searchFoods(
-    @RequestParam("q") String query,
+    @RequestParam(value = "q", required = false, defaultValue = "") String query,
     @RequestParam(defaultValue = "0") int page,
     @RequestHeader("Authorization") String authHeader
   ) {
@@ -42,58 +42,7 @@ public class NutritionController {
     }
   }
 
-  // ------------------------------------------------------------ categories
-
-  @GetMapping("/categories")
-  public ResponseEntity<List<MealCategoryDTO>> getCategories(
-    @RequestHeader("Authorization") String authHeader
-  ) {
-    try {
-      UUID userId = jwtService.extractUserId(authHeader.substring(7));
-      return ResponseEntity.ok(nutritionService.getCategories(userId));
-    } catch (Exception e) {
-      e.printStackTrace();
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-    }
-  }
-
-  @PostMapping("/categories")
-  public ResponseEntity<MealCategoryDTO> createCategory(
-    @RequestBody CreateCategoryRequest req,
-    @RequestHeader("Authorization") String authHeader
-  ) {
-    try {
-      UUID userId = jwtService.extractUserId(authHeader.substring(7));
-      return ResponseEntity.status(HttpStatus.CREATED).body(
-        nutritionService.createCategory(userId, req)
-      );
-    } catch (IllegalArgumentException e) {
-      return ResponseEntity.badRequest().build();
-    } catch (Exception e) {
-      e.printStackTrace();
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-    }
-  }
-
-  @DeleteMapping("/categories/{categoryId}")
-  public ResponseEntity<Void> deleteCategory(
-    @PathVariable UUID categoryId,
-    @RequestHeader("Authorization") String authHeader
-  ) {
-    try {
-      UUID userId = jwtService.extractUserId(authHeader.substring(7));
-      nutritionService.deleteCategory(userId, categoryId);
-      return ResponseEntity.noContent().build();
-    } catch (IllegalArgumentException e) {
-      return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-    } catch (Exception e) {
-      e.printStackTrace();
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-    }
-  }
-
-  // ------------------------------------------------------------------- day
-
+  /** Goal, consumed totals, and logged entries for a given day. */
   @GetMapping("/day")
   public ResponseEntity<DaySummaryDTO> getDay(
     @RequestParam(required = false) String date,
@@ -110,8 +59,7 @@ public class NutritionController {
     }
   }
 
-  // ----------------------------------------------------------------- log
-
+  /** Log a food (seeded reference or quick-add). */
   @PostMapping("/log")
   public ResponseEntity<LogEntryDTO> logFood(
     @RequestBody LogFoodRequest req,
@@ -147,8 +95,6 @@ public class NutritionController {
     }
   }
 
-  // ----------------------------------------------------------------- goals
-
   @GetMapping("/goal")
   public ResponseEntity<NutritionGoalDTO> getGoal(
     @RequestHeader("Authorization") String authHeader
@@ -162,6 +108,7 @@ public class NutritionController {
     }
   }
 
+  /** Manually override the daily targets. */
   @PutMapping("/goal")
   public ResponseEntity<NutritionGoalDTO> updateGoal(
     @RequestBody UpdateGoalRequest req,
@@ -178,6 +125,7 @@ public class NutritionController {
     }
   }
 
+  /** Recompute the daily targets from the user's profile (clears custom flag). */
   @PostMapping("/goal/recalculate")
   public ResponseEntity<NutritionGoalDTO> recalculateGoal(
     @RequestHeader("Authorization") String authHeader

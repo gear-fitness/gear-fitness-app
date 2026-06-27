@@ -4,19 +4,15 @@ import com.gearfitness.gear_api.dto.DaySummaryDTO;
 import com.gearfitness.gear_api.dto.FoodItemDTO;
 import com.gearfitness.gear_api.dto.LogEntryDTO;
 import com.gearfitness.gear_api.dto.LogFoodRequest;
-import com.gearfitness.gear_api.dto.MealCategoryDTO;
-import com.gearfitness.gear_api.dto.CreateCategoryRequest;
 import com.gearfitness.gear_api.dto.NutritionGoalDTO;
 import com.gearfitness.gear_api.dto.UpdateGoalRequest;
 import com.gearfitness.gear_api.entity.AppUser;
 import com.gearfitness.gear_api.entity.FoodItem;
 import com.gearfitness.gear_api.entity.FoodLogEntry;
-import com.gearfitness.gear_api.entity.MealCategory;
 import com.gearfitness.gear_api.entity.NutritionGoal;
 import com.gearfitness.gear_api.repository.AppUserRepository;
 import com.gearfitness.gear_api.repository.FoodItemRepository;
 import com.gearfitness.gear_api.repository.FoodLogEntryRepository;
-import com.gearfitness.gear_api.repository.MealCategoryRepository;
 import com.gearfitness.gear_api.repository.NutritionGoalRepository;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
@@ -34,72 +30,23 @@ import org.springframework.stereotype.Service;
 public class NutritionService {
 
   private static final int DEFAULT_PAGE_SIZE = 25;
-  private static final List<String> DEFAULT_CATEGORY_NAMES =
-    List.of("Breakfast", "Lunch", "Dinner");
 
   private final FoodItemRepository foodItemRepository;
   private final FoodLogEntryRepository foodLogEntryRepository;
   private final NutritionGoalRepository nutritionGoalRepository;
-  private final MealCategoryRepository mealCategoryRepository;
   private final AppUserRepository appUserRepository;
 
   // ---------------------------------------------------------------- search
 
   public List<FoodItemDTO> searchFoods(String query, int page) {
-    if (query == null || query.isBlank()) {
-      return List.of();
-    }
     int offset = Math.max(page, 0) * DEFAULT_PAGE_SIZE;
-    return foodItemRepository
-      .search(query.trim(), DEFAULT_PAGE_SIZE, offset)
-      .stream()
-      .map(FoodItemDTO::from)
-      .collect(Collectors.toList());
-  }
-
-  // --------------------------------------------------------------- categories
-
-  @Transactional
-  public List<MealCategoryDTO> getCategories(UUID userId) {
-    return getOrCreateDefaultCategories(userId)
-      .stream()
-      .map(MealCategoryDTO::from)
-      .collect(Collectors.toList());
-  }
-
-  @Transactional
-  public MealCategoryDTO createCategory(UUID userId, CreateCategoryRequest req) {
-    if (req.getName() == null || req.getName().isBlank()) {
-      throw new IllegalArgumentException("Category name must not be blank");
-    }
-    AppUser user = appUserRepository
-      .findById(userId)
-      .orElseThrow(() -> new IllegalArgumentException("User not found"));
-
-    String name = req.getName().trim();
-    if (mealCategoryRepository.findByUser_UserIdAndName(userId, name).isPresent()) {
-      throw new IllegalArgumentException("Category already exists: " + name);
-    }
-
-    int nextOrder = mealCategoryRepository.findMaxDisplayOrderByUserId(userId) + 1;
-    MealCategory category = MealCategory.builder()
-      .user(user)
-      .name(name)
-      .displayOrder(nextOrder)
-      .build();
-    return MealCategoryDTO.from(mealCategoryRepository.save(category));
-  }
-
-  @Transactional
-  public void deleteCategory(UUID userId, UUID categoryId) {
-    MealCategory category = mealCategoryRepository
-      .findById(categoryId)
-      .orElseThrow(() -> new IllegalArgumentException("Category not found"));
-    if (!category.getUser().getUserId().equals(userId)) {
-      throw new IllegalArgumentException("Unauthorized");
-    }
-    // ON DELETE CASCADE in the schema removes associated food_log_entry rows.
-    mealCategoryRepository.delete(category);
+    // A blank query returns the default browse list rather than nothing, so the
+    // Add Food screen's pre-search list comes from this same table — there is no
+    // second food source.
+    List<FoodItem> items = (query == null || query.isBlank())
+      ? foodItemRepository.browse(DEFAULT_PAGE_SIZE, offset)
+      : foodItemRepository.search(query.trim(), DEFAULT_PAGE_SIZE, offset);
+    return items.stream().map(FoodItemDTO::from).collect(Collectors.toList());
   }
 
   // ------------------------------------------------------------------- day
@@ -109,8 +56,6 @@ public class NutritionService {
     LocalDate date = (dateStr != null && !dateStr.isBlank())
       ? LocalDate.parse(dateStr)
       : LocalDate.now();
-
-    List<MealCategory> categories = getOrCreateDefaultCategories(userId);
 
     List<FoodLogEntry> entries =
       foodLogEntryRepository.findByUser_UserIdAndLogDateOrderByCreatedAtAsc(
@@ -130,7 +75,6 @@ public class NutritionService {
       date.toString(),
       NutritionGoalDTO.from(getOrCreateGoalEntity(userId)),
       totals,
-      categories.stream().map(MealCategoryDTO::from).collect(Collectors.toList()),
       entries.stream().map(LogEntryDTO::from).collect(Collectors.toList())
     );
   }
@@ -147,16 +91,6 @@ public class NutritionService {
       ? LocalDate.parse(req.getDate())
       : LocalDate.now();
 
-    MealCategory category = null;
-    if (req.getCategoryId() != null) {
-      category = mealCategoryRepository
-        .findById(req.getCategoryId())
-        .orElseThrow(() -> new IllegalArgumentException("Category not found"));
-      if (!category.getUser().getUserId().equals(userId)) {
-        throw new IllegalArgumentException("Unauthorized");
-      }
-    }
-
     FoodLogEntry.ServingUnit unit = req.getUnit() == null
       ? FoodLogEntry.ServingUnit.SERVING
       : FoodLogEntry.ServingUnit.valueOf(req.getUnit().toUpperCase());
@@ -166,7 +100,7 @@ public class NutritionService {
 
     FoodLogEntry.FoodLogEntryBuilder entry = FoodLogEntry.builder()
       .user(user)
-      .category(category)
+      .category(req.getCategory())
       .logDate(date)
       .quantity(quantity)
       .unit(unit);
@@ -200,6 +134,7 @@ public class NutritionService {
         .carbsG(scale(food.getCarbsG(), factor))
         .fatG(scale(food.getFatG(), factor));
     } else {
+      // Quick-add: the provided macros are the totals for this entry.
       entry
         .description(
           req.getDescription() == null ? "Quick add" : req.getDescription()
@@ -268,30 +203,10 @@ public class NutritionService {
     return NutritionGoalDTO.from(nutritionGoalRepository.save(goal));
   }
 
-  // ------------------------------------------------------------------ private
-
-  private List<MealCategory> getOrCreateDefaultCategories(UUID userId) {
-    List<MealCategory> existing =
-      mealCategoryRepository.findByUser_UserIdOrderByDisplayOrderAsc(userId);
-    if (!existing.isEmpty()) return existing;
-
-    AppUser user = appUserRepository
-      .findById(userId)
-      .orElseThrow(() -> new IllegalArgumentException("User not found"));
-
-    List<MealCategory> defaults = new java.util.ArrayList<>();
-    for (int i = 0; i < DEFAULT_CATEGORY_NAMES.size(); i++) {
-      defaults.add(
-        MealCategory.builder()
-          .user(user)
-          .name(DEFAULT_CATEGORY_NAMES.get(i))
-          .displayOrder(i)
-          .build()
-      );
-    }
-    return mealCategoryRepository.saveAll(defaults);
-  }
-
+  /**
+   * Returns the user's goal, creating an auto-calculated one (never marked
+   * custom) the first time it's needed.
+   */
   private NutritionGoal getOrCreateGoalEntity(UUID userId) {
     return nutritionGoalRepository
       .findByUser_UserId(userId)
@@ -309,6 +224,11 @@ public class NutritionService {
       });
   }
 
+  /**
+   * Mifflin-St Jeor BMR x a lightly-active factor, with a protein-forward macro
+   * split. Falls back to a sensible 2000 kcal default when the profile is
+   * missing the height / weight / age needed for the formula.
+   */
   void applyAutoGoal(NutritionGoal goal, AppUser user) {
     Integer weightLbs = user.getWeightLbs();
     Integer heightInches = user.getHeightInches();
@@ -329,11 +249,11 @@ public class NutritionService {
       double heightCm = heightInches * 2.54;
       double sexOffset = sexOffset(user.getGender());
       double bmr = 10 * weightKg + 6.25 * heightCm - 5 * age + sexOffset;
-      double tdee = bmr * 1.375;
+      double tdee = bmr * 1.375; // lightly active
 
       calories = (int) Math.round(tdee);
-      proteinG = (int) Math.round(weightLbs * 1.0);
-      fatG = (int) Math.round((calories * 0.25) / 9.0);
+      proteinG = (int) Math.round(weightLbs * 1.0); // ~1 g per lb
+      fatG = (int) Math.round((calories * 0.25) / 9.0); // 25% of kcal from fat
       int remaining = calories - (proteinG * 4) - (fatG * 9);
       carbsG = (int) Math.round(Math.max(remaining, 0) / 4.0);
     }
@@ -345,12 +265,14 @@ public class NutritionService {
   }
 
   private double sexOffset(String gender) {
-    if (gender == null) return -78;
+    if (gender == null) return -78; // neutral midpoint of +5 / -161
     String g = gender.trim().toLowerCase();
     if (g.startsWith("m")) return 5;
     if (g.startsWith("f")) return -161;
     return -78;
   }
+
+  // ------------------------------------------------------------------ helpers
 
   private static double toDouble(BigDecimal v) {
     return v == null ? 0 : v.doubleValue();

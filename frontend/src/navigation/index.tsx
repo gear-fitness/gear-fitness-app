@@ -39,8 +39,7 @@ import { Activity } from "./screens/Activity";
 import FollowScreen from "./screens/FollowScreen";
 import { ImageViewer } from "./screens/ImageViewer";
 import { CalorieTracker } from "./screens/nutrition/CalorieTracker";
-import { FoodSearch } from "./screens/nutrition/FoodSearch";
-import { FoodDetail } from "./screens/nutrition/FoodDetail";
+import { AddFood } from "./screens/nutrition/AddFood";
 import { NutritionGoals } from "./screens/nutrition/NutritionGoals";
 import { Platform } from "react-native";
 
@@ -306,22 +305,9 @@ const RootStack = createNativeStackNavigator({
       options: { headerShown: false },
     },
 
-    FoodSearch: {
-      screen: FoodSearch,
-      options: {
-        presentation: "modal",
-        headerShown: false,
-        gestureEnabled: true,
-      },
-    },
-
-    FoodDetail: {
-      screen: FoodDetail,
-      options: {
-        presentation: "modal",
-        headerShown: false,
-        gestureEnabled: true,
-      },
+    AddFood: {
+      screen: AddFood,
+      options: { headerShown: false },
     },
 
     NutritionGoals: {
@@ -353,11 +339,7 @@ declare global {
       };
       Activity: undefined;
       Nutrition: undefined;
-      FoodSearch: { mealType: import("../api/types").MealType };
-      FoodDetail: {
-        food: import("../api/types").FoodItem;
-        mealType: import("../api/types").MealType;
-      };
+      AddFood: { category?: string } | undefined;
       NutritionGoals: undefined;
 
       FollowScreen: {

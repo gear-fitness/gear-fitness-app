@@ -32,9 +32,11 @@ public class FoodLogEntry {
   @JoinColumn(name = "food_id")
   private FoodItem food;
 
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "category_id")
-  private MealCategory category;
+  // Free-text label for the client-side visual card this entry belongs to
+  // (e.g. "Breakfast", "Meal Prep"). Categories have no backing table; this is
+  // just metadata so the entry reappears under the right card on reload.
+  @Column(name = "category", length = 100)
+  private String category;
 
   @Column(name = "log_date", nullable = false)
   private LocalDate logDate;

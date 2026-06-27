@@ -2,13 +2,16 @@
  * API calls for calorie & macro tracking. The food database is seeded from USDA
  * FoodData Central; daily logs and goals are per-user (scoped server-side by the
  * JWT attached in apiClient).
+ *
+ * Note: meal categories (Breakfast/Lunch/etc.) are purely client-side visual
+ * cards managed in NutritionContext — there is no category API. Each log entry
+ * just carries a free-text `category` label.
  */
 import apiClient from "./apiClient";
 import {
   DaySummary,
   FoodItem,
   FoodLogEntry,
-  MealCategory,
   NutritionGoal,
   ServingUnit,
 } from "./types";
@@ -32,7 +35,7 @@ export async function getDay(date: string): Promise<DaySummary> {
 
 export interface LogFoodPayload {
   foodId?: string | null;
-  categoryId?: string | null;
+  category: string;
   date: string;
   quantity: number;
   unit: ServingUnit;
@@ -78,23 +81,4 @@ export async function recalcGoal(): Promise<NutritionGoal> {
     "/nutrition/goal/recalculate",
   );
   return data;
-}
-
-export async function getCategories(): Promise<MealCategory[]> {
-  const { data } = await apiClient.get<MealCategory[]>(
-    "/nutrition/categories",
-  );
-  return data ?? [];
-}
-
-export async function createCategory(name: string): Promise<MealCategory> {
-  const { data } = await apiClient.post<MealCategory>(
-    "/nutrition/categories",
-    { name },
-  );
-  return data;
-}
-
-export async function deleteCategory(categoryId: string): Promise<void> {
-  await apiClient.delete(`/nutrition/categories/${categoryId}`);
 }

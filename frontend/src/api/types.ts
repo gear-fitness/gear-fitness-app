@@ -176,17 +176,11 @@ export interface FoodItem {
 
 export type ServingUnit = "SERVING" | "GRAM";
 
-export interface MealCategory {
-  categoryId: string;
-  name: string;
-  displayOrder: number;
-}
-
 export interface FoodLogEntry {
   entryId: string;
   foodId: string | null;
-  categoryId: string | null;
-  categoryName: string | null;
+  // Free-text label for the client-side visual card this entry belongs to.
+  category: string | null;
   description: string;
   quantity: number;
   unit: ServingUnit;
@@ -216,6 +210,5 @@ export interface DaySummary {
   date: string;
   goal: NutritionGoal;
   totals: MacroTotals;
-  categories: MealCategory[];
   entries: FoodLogEntry[];
 }

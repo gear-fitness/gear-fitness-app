@@ -12,7 +12,7 @@ import lombok.Data;
 public class LogFoodRequest {
 
   private UUID foodId;
-  private UUID categoryId;
+  private String category; // visual card label, e.g. "Breakfast"
   private String date; // YYYY-MM-DD
   private Double quantity;
   private String unit; // SERVING | GRAM

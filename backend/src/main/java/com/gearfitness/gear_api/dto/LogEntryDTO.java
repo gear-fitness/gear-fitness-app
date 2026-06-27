@@ -13,8 +13,7 @@ public class LogEntryDTO {
 
   private UUID entryId;
   private UUID foodId;
-  private UUID categoryId;
-  private String categoryName;
+  private String category;
   private String description;
   private Double quantity;
   private String unit;
@@ -27,8 +26,7 @@ public class LogEntryDTO {
     return new LogEntryDTO(
       e.getEntryId(),
       e.getFood() == null ? null : e.getFood().getFoodId(),
-      e.getCategory() == null ? null : e.getCategory().getCategoryId(),
-      e.getCategory() == null ? null : e.getCategory().getName(),
+      e.getCategory(),
       e.getDescription(),
       e.getQuantity() == null ? null : e.getQuantity().doubleValue(),
       e.getUnit().name(),

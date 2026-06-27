@@ -5,7 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/** A full day of nutrition: the goal, consumed totals, categories, and logged entries. */
+/** A full day of nutrition: the goal, consumed totals, and logged entries. */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -14,7 +14,6 @@ public class DaySummaryDTO {
   private String date;
   private NutritionGoalDTO goal;
   private Totals totals;
-  private List<MealCategoryDTO> categories;
   private List<LogEntryDTO> entries;
 
   @Data

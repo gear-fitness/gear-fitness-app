@@ -45,4 +45,22 @@ public interface FoodItemRepository extends JpaRepository<FoodItem, UUID> {
     @Param("limit") int limit,
     @Param("offset") int offset
   );
+
+  /**
+   * Default browse list shown before the user types a query. Favors whole foods
+   * (no brand) and shorter, less-specific descriptions so the list stays useful
+   * even once the table is loaded with a heavy USDA extract.
+   */
+  @Query(
+    value = """
+        SELECT * FROM food_item f
+        ORDER BY
+          CASE WHEN f.brand_owner IS NULL THEN 0 ELSE 1 END ASC,
+          LENGTH(f.description) ASC,
+          f.description ASC
+        LIMIT :limit OFFSET :offset
+    """,
+    nativeQuery = true
+  )
+  List<FoodItem> browse(@Param("limit") int limit, @Param("offset") int offset);
 }
