@@ -56,6 +56,7 @@ function FeedList({
   feed,
   variant,
   onScroll,
+  onMomentumScrollEnd,
   onOpenComments,
   listRef,
   scrollsToTop,
@@ -63,6 +64,7 @@ function FeedList({
   feed: Feed;
   variant: FeedKey;
   onScroll: (e: NativeSyntheticEvent<NativeScrollEvent>) => void;
+  onMomentumScrollEnd?: () => void;
   onOpenComments: (postId: string) => void;
   listRef?: Ref<FlatList>;
   // iOS status-bar-tap scroll-to-top. Only the visible feed may enable it: the
@@ -163,6 +165,7 @@ function FeedList({
           />
         }
         onScroll={onScroll}
+        onMomentumScrollEnd={onMomentumScrollEnd}
         scrollEventThrottle={16}
         onEndReached={() => void feed.loadMore()}
         onEndReachedThreshold={0.5}
@@ -203,6 +206,11 @@ export function Social() {
   // top. Each list keeps its own scroll, so we only ever touch the active one.
   const followingListRef = useRef<FlatList>(null);
   const discoverListRef = useRef<FlatList>(null);
+
+  // When a tab re-tap scrolls a feed to the top, we defer its refresh until the
+  // scroll lands (onMomentumScrollEnd) so the RefreshControl's spinner-reveal
+  // can't race the scroll. Holds the feed key awaiting that refresh, else null.
+  const pendingRefreshRef = useRef<FeedKey | null>(null);
 
   // Tab tap -> page the swiper (which fires onPageSelected -> setActiveFeed).
   const goToFeed = (key: FeedKey) => {
@@ -302,9 +310,24 @@ export function Social() {
     const listRef = isDiscover ? discoverListRef : followingListRef;
     // The lists carry a top contentInset on iOS (HEADER_HEIGHT), so their
     // resting "top" sits at -HEADER_HEIGHT; Android's top is plain 0.
-    const topOffset = Platform.OS === "ios" ? -(SEARCH_ROW_HEIGHT + insets.top) : 0;
-    listRef.current?.scrollToOffset({ offset: topOffset, animated: true });
-    if (!feed.refreshing) void feed.refresh();
+    const isIOS = Platform.OS === "ios";
+    const topOffset = isIOS ? -(SEARCH_ROW_HEIGHT + insets.top) : 0;
+    // When scrolled well away from the top on iOS, the RefreshControl's
+    // spinner-reveal animation races an animated scroll-to-top and parks the
+    // list short. So defer the refresh until the scroll actually lands
+    // (onMomentumScrollEnd fires it). Otherwise — Android (its refresh spinner
+    // is an overlay, no race) or already near the top (the scroll is a
+    // no-op/negligible, and a no-op animated scroll emits no momentum event that
+    // could carry a deferred refresh) — scroll and refresh together.
+    if (isIOS && lastYRef.current > SEARCH_ROW_HEIGHT) {
+      pendingRefreshRef.current = activeFeed;
+      listRef.current?.scrollToOffset({ offset: topOffset, animated: true });
+    } else {
+      // animated:false on iOS so the tiny near-top scroll can't race the
+      // immediate refresh; Android keeps its smooth scroll.
+      listRef.current?.scrollToOffset({ offset: topOffset, animated: !isIOS });
+      if (!feed.refreshing) void feed.refresh();
+    }
   };
 
   const setHeaderHidden = (hidden: boolean) => {
@@ -352,6 +375,17 @@ export function Social() {
     }
     if (delta > 3) setHeaderHidden(true);
     else if (delta < -3) setHeaderHidden(false);
+  };
+
+  // A deferred tab-re-tap refresh fires here, once the scroll-to-top has landed.
+  // Only the visible feed emits scroll events, and only a pending re-tap sets
+  // the ref — user-driven scrolls leave it null and are ignored.
+  const onMomentumScrollEnd = () => {
+    const key = pendingRefreshRef.current;
+    if (!key) return;
+    pendingRefreshRef.current = null;
+    const feed = key === "discover" ? discover : following;
+    if (!feed.refreshing) void feed.refresh();
   };
 
   // Search users (debounced so a fast typist doesn't fire a request per keystroke)
@@ -551,6 +585,7 @@ export function Social() {
               feed={following}
               variant="following"
               onScroll={onScroll}
+              onMomentumScrollEnd={onMomentumScrollEnd}
               onOpenComments={handleOpenComments}
               listRef={followingListRef}
               scrollsToTop={activeFeed === "following" && !searchExpanded}
@@ -561,6 +596,7 @@ export function Social() {
               feed={discover}
               variant="discover"
               onScroll={onScroll}
+              onMomentumScrollEnd={onMomentumScrollEnd}
               onOpenComments={handleOpenComments}
               listRef={discoverListRef}
               scrollsToTop={activeFeed === "discover" && !searchExpanded}
