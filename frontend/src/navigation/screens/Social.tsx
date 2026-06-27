@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, type Ref } from "react";
 import {
   View,
   FlatList,
@@ -57,11 +57,17 @@ function FeedList({
   variant,
   onScroll,
   onOpenComments,
+  listRef,
+  scrollsToTop,
 }: {
   feed: Feed;
   variant: FeedKey;
   onScroll: (e: NativeSyntheticEvent<NativeScrollEvent>) => void;
   onOpenComments: (postId: string) => void;
+  listRef?: Ref<FlatList>;
+  // iOS status-bar-tap scroll-to-top. Only the visible feed may enable it: the
+  // gesture is ignored by iOS if more than one on-screen scroll view has it on.
+  scrollsToTop?: boolean;
 }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -117,6 +123,8 @@ function FeedList({
   return (
     <View style={styles.flex1}>
       <FlatList
+        ref={listRef}
+        scrollsToTop={scrollsToTop}
         data={feed.posts}
         renderItem={({ item }) => (
           <FeedPostCard post={item} onOpenComments={onOpenComments} />
@@ -191,10 +199,32 @@ export function Social() {
   const discover = useSocialFeed("discover");
   const pagerRef = useRef<PagerView>(null);
 
+  // Per-feed list refs so a re-tap of the tab can scroll the *visible* feed to
+  // top. Each list keeps its own scroll, so we only ever touch the active one.
+  const followingListRef = useRef<FlatList>(null);
+  const discoverListRef = useRef<FlatList>(null);
+
   // Tab tap -> page the swiper (which fires onPageSelected -> setActiveFeed).
   const goToFeed = (key: FeedKey) => {
     pagerRef.current?.setPage(FEED_ORDER.indexOf(key));
   };
+
+  // Holds the latest re-tap handler. The tabPress listener below subscribes
+  // once (only `navigation` is stable enough to depend on) and always invokes
+  // the current handler via this ref, so the logic never reads a stale tab or
+  // search state and we don't re-subscribe on every render. The handler itself
+  // is (re)assigned further down, after search state/handlers are defined.
+  const onActiveTabReTap = useRef<() => void>(() => {});
+
+  // Instagram-style "tap the active tab again". The bottom tab fires tabPress
+  // on every tap of the Explore icon — including when this screen is already
+  // focused. That re-tap (isFocused) is our only trigger.
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("tabPress", () => {
+      if (navigation.isFocused()) onActiveTabReTap.current();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchExpanded, setSearchExpanded] = useState(false);
@@ -256,6 +286,26 @@ export function Social() {
   };
 
   const toggleSearch = () => (searchExpanded ? closeSearch() : openSearch());
+
+  // Re-tapping the Explore tab: bail out of search first; otherwise jump the
+  // *visible* feed to top and refresh it. Reassigned every render so it always
+  // closes over the current tab + search + refreshing state (see the ref/
+  // listener wiring above). Routing by `activeFeed` keeps the other feed's
+  // scroll position and data untouched.
+  onActiveTabReTap.current = () => {
+    if (searchExpanded) {
+      closeSearch();
+      return;
+    }
+    const isDiscover = activeFeed === "discover";
+    const feed = isDiscover ? discover : following;
+    const listRef = isDiscover ? discoverListRef : followingListRef;
+    // The lists carry a top contentInset on iOS (HEADER_HEIGHT), so their
+    // resting "top" sits at -HEADER_HEIGHT; Android's top is plain 0.
+    const topOffset = Platform.OS === "ios" ? -(SEARCH_ROW_HEIGHT + insets.top) : 0;
+    listRef.current?.scrollToOffset({ offset: topOffset, animated: true });
+    if (!feed.refreshing) void feed.refresh();
+  };
 
   const setHeaderHidden = (hidden: boolean) => {
     if (isHiddenRef.current === hidden) return;
@@ -502,6 +552,8 @@ export function Social() {
               variant="following"
               onScroll={onScroll}
               onOpenComments={handleOpenComments}
+              listRef={followingListRef}
+              scrollsToTop={activeFeed === "following" && !searchExpanded}
             />
           </View>
           <View key="discover" style={styles.flex1} collapsable={false}>
@@ -510,6 +562,8 @@ export function Social() {
               variant="discover"
               onScroll={onScroll}
               onOpenComments={handleOpenComments}
+              listRef={discoverListRef}
+              scrollsToTop={activeFeed === "discover" && !searchExpanded}
             />
           </View>
         </PagerView>
