@@ -307,33 +307,21 @@ export function PaywallContent({
           </View>
           <View style={styles.featBody}>
             <View style={styles.featLeft}>
-              <Text style={[styles.featTitle, { color: colors.text }]}>
-                {showTrial
-                  ? "Start for free and save 50%"
-                  : "Save 50% with annual"}
+              <Text style={[styles.secTitle, { color: colors.text }]}>
+                Annual
               </Text>
-              <Text
-                style={[
-                  styles.featSub,
-                  styles.featSubAnnual,
-                  { color: colors.secondary },
-                ]}
-              >
-                then{" "}
-                <Text style={styles.featSubAnnualPrice}>
-                  {annualPkg?.product.priceString ?? "—"}
-                </Text>{" "}
-                billed annually
+              <Text style={[styles.featSub, { color: colors.secondary }]}>
+                {perMonthString(annualPkg)
+                  ? `${perMonthString(annualPkg)}/mo · Save 50%`
+                  : "Save 50%"}
               </Text>
             </View>
             <View style={styles.featRight}>
-              <Text
-                style={[styles.featPriceSmall, { color: colors.secondary }]}
-              >
-                {perMonthString(annualPkg) || "—"}
+              <Text style={[styles.featPrice, { color: colors.text }]}>
+                {annualPkg?.product.priceString ?? "—"}
               </Text>
               <Text style={[styles.featPer, { color: colors.secondary }]}>
-                per month
+                per year
               </Text>
             </View>
           </View>
@@ -425,7 +413,7 @@ export function PaywallContent({
             <ActivityIndicator color={colors.accentText} />
           ) : (
             <Text style={shared.continueBtnText}>
-              {showTrial ? `Start my ${trialDays}-day free trial` : "Subscribe"}
+              {showTrial ? "Continue" : "Subscribe"}
             </Text>
           )}
         </Pressable>
@@ -532,30 +520,14 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     paddingLeft: 12,
   },
-  featTitle: {
-    fontSize: 19,
-    fontWeight: "800",
-    letterSpacing: -0.3,
-  },
   featSub: {
     fontSize: 13,
     marginTop: 4,
-  },
-  featSubAnnual: {
-    fontSize: 15,
-  },
-  featSubAnnualPrice: {
-    fontWeight: "700",
   },
   featPrice: {
     fontSize: 24,
     fontWeight: "800",
     letterSpacing: -0.5,
-  },
-  featPriceSmall: {
-    fontSize: 15,
-    fontWeight: "600",
-    letterSpacing: -0.2,
   },
   featPer: {
     fontSize: 12,
