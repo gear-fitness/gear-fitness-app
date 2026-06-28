@@ -8,6 +8,7 @@ import React, {
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { WeightUnit } from "../utils/weight";
+import { DistanceUnit } from "../utils/distance";
 
 /**
  * App-wide weight-unit preference (lbs / kg). Local-only, persisted to
@@ -20,13 +21,13 @@ import { WeightUnit } from "../utils/weight";
  * screen) — that override is workout-scoped and resets to this default for the
  * next workout.
  */
-export type DistanceUnit = "mi" | "km";
+export type { DistanceUnit };
 export type EnergyUnit = "cal" | "kcal";
 
 type UnitPreferenceContextValue = {
   weightUnit: WeightUnit;
   setWeightUnit: (unit: WeightUnit) => void;
-  // Cardio display units. Distance is stored canonically in miles, so this only
+  // Cardio display units. Distance is stored canonically in meters, so this only
   // affects how it's shown/entered; energy is purely a label (cal === kcal).
   distanceUnit: DistanceUnit;
   setDistanceUnit: (unit: DistanceUnit) => void;

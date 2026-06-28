@@ -6,6 +6,7 @@ import stopwatch from "../assets/stopwatch.png";
 import { useWorkoutTimer } from "../context/WorkoutContext";
 import { useUnitPreference } from "../context/UnitPreferenceContext";
 import { toDisplayWeight } from "../utils/weight";
+import { formatDistance } from "../utils/distance";
 import { GlassView } from "expo-glass-effect";
 
 interface MiniPlayerProps {
@@ -29,7 +30,7 @@ export function MiniPlayer({ onTap, isVisible }: MiniPlayerProps) {
     startCardioFrom,
     pauseCardio,
   } = useWorkoutTimer();
-  const { weightUnit: globalUnit } = useUnitPreference();
+  const { weightUnit: globalUnit, distanceUnit } = useUnitPreference();
   const isDark = useColorScheme() === "dark";
 
   const colors = {
@@ -63,7 +64,9 @@ export function MiniPlayer({ onTap, isVisible }: MiniPlayerProps) {
   // the main timer position on the right, ticking).
   const cardioSubtitle = currentCardio
     ? [
-        currentCardio.distance ? `${currentCardio.distance} mi` : null,
+        currentCardio.distance
+          ? formatDistance(Number(currentCardio.distance), distanceUnit)
+          : null,
         currentCardio.calories ? `${currentCardio.calories} cal` : null,
       ]
         .filter(Boolean)

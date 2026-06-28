@@ -30,7 +30,7 @@ import {
   useUnitPreference,
   DistanceUnit,
 } from "../context/UnitPreferenceContext";
-import { milesToKm, kmToMiles } from "../utils/distance";
+import { toDisplayDistance, distanceToMeters } from "../utils/distance";
 import { FloatingCloseButton } from "./FloatingCloseButton";
 import { FloatingKeyboardDismiss } from "./FloatingKeyboardDismiss";
 
@@ -148,17 +148,19 @@ function formatHMS(total: number): string {
 
 // Seed chip edit-state from the entry being opened so reopening a saved cardio
 // (or returning from Summary) shows its previously entered values rather than
-// wiping them on the next save. Distance is stored canonically in miles, so it's
-// converted to the active display unit (km) when needed.
+// wiping them on the next save. Distance is stored canonically in meters, so
+// it's converted to the active display unit (mi / km) for the input.
 function seedChipValues(
   cardio: CardioDetailContentProps["cardio"],
   distanceUnit: DistanceUnit,
 ): ChipValues {
-  const milesRaw = cardio.distance ?? "";
-  let distanceValue = milesRaw;
-  if (milesRaw && distanceUnit === "km") {
-    const n = Number(milesRaw);
-    if (!Number.isNaN(n)) distanceValue = String(milesToKm(n));
+  const metersRaw = cardio.distance ?? "";
+  let distanceValue = metersRaw;
+  if (metersRaw) {
+    const n = Number(metersRaw);
+    if (!Number.isNaN(n)) {
+      distanceValue = String(toDisplayDistance(n, distanceUnit));
+    }
   }
   return {
     distance: { selected: !!cardio.distance, value: distanceValue },
@@ -185,8 +187,7 @@ export const CardioDetailContent = forwardRef<
   const isDark = useColorScheme() === "dark";
   const insets = useSafeAreaInsets();
   const glassAvailable = isLiquidGlassAvailable();
-  const { distanceUnit, setDistanceUnit, energyUnit, setEnergyUnit } =
-    useUnitPreference();
+  const { distanceUnit, energyUnit, setEnergyUnit } = useUnitPreference();
 
   const [chipValues, setChipValues] = useState<ChipValues>(() =>
     seedChipValues(cardio, distanceUnit),
@@ -259,15 +260,16 @@ export const CardioDetailContent = forwardRef<
   const timerValue = showingTotal ? seconds : liveCardioSeconds;
 
   // The distance field holds a value in the active display unit; the entry
-  // stores it canonically in MILES (converting from km when needed), so the
-  // submit (miles -> meters) and Summary/MiniPlayer "mi" display stay correct.
-  const distanceAsMiles = (): string | undefined => {
+  // stores it canonically in METERS (mi -> meters via ×1609.34, km via ×1000),
+  // so submit passes meters straight through and every display site converts
+  // back from meters via the unit preference.
+  const distanceAsMeters = (): string | undefined => {
     if (!chipValues.distance.selected) return undefined;
     const raw = chipValues.distance.value.trim();
     if (!raw) return undefined;
     const n = Number(raw);
     if (Number.isNaN(n)) return raw;
-    return distanceUnit === "km" ? String(kmToMiles(n)) : raw;
+    return String(distanceToMeters(n, distanceUnit));
   };
 
   const buildEntry = (): CardioEntry => ({
@@ -275,7 +277,7 @@ export const CardioDetailContent = forwardRef<
     cardioActivityId: cardio.cardioActivityId,
     activityType: cardio.activityType,
     durationSeconds: effectiveDurationSeconds,
-    distance: distanceAsMiles(),
+    distance: distanceAsMeters(),
     calories: chipValues.calories.selected
       ? chipValues.calories.value.trim() || undefined
       : undefined,
@@ -402,20 +404,6 @@ export const CardioDetailContent = forwardRef<
       ...chipValues,
       [key]: { ...chipValues[key], value },
     });
-  };
-
-  // Toggle mi <-> km, converting the in-progress distance value in place so the
-  // physical distance is preserved (mirrors the weight unit toggle). The pref
-  // is session-wide and persisted.
-  const toggleDistanceUnit = () => {
-    const next: DistanceUnit = distanceUnit === "mi" ? "km" : "mi";
-    const raw = chipValues.distance.value.trim();
-    const n = Number(raw);
-    if (raw !== "" && !Number.isNaN(n)) {
-      const converted = next === "km" ? milesToKm(n) : kmToMiles(n);
-      setFieldValue("distance", String(converted));
-    }
-    setDistanceUnit(next);
   };
 
   // cal and kcal are the same unit in fitness — pure label toggle, no math.
@@ -704,12 +692,10 @@ export const CardioDetailContent = forwardRef<
                     : key === "calories"
                       ? energyUnit
                       : undefined;
+                // Distance unit is driven by the global settings preference now
+                // (no in-screen toggle); only the energy label still toggles.
                 const onUnitPress =
-                  key === "distance"
-                    ? toggleDistanceUnit
-                    : key === "calories"
-                      ? toggleEnergyUnit
-                      : undefined;
+                  key === "calories" ? toggleEnergyUnit : undefined;
                 return (
                   <View key={key}>
                     <View

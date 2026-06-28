@@ -41,6 +41,8 @@ export interface CardioEntry {
   activityType: string;
   durationSeconds: number;
   // Optional numeric inputs kept as raw strings while editing; parsed at submit.
+  // distance is canonical METERS (converted from the user's display unit in
+  // CardioDetailContent); display sites convert back via the unit preference.
   distance?: string;
   calories?: string;
   intensity?: string;

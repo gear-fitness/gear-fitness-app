@@ -15,6 +15,7 @@ import React, { useState } from "react";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { useUnitPreference } from "../../context/UnitPreferenceContext";
 import { toDisplayWeight } from "../../utils/weight";
+import { formatDistance } from "../../utils/distance";
 import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
@@ -38,7 +39,7 @@ export function WorkoutSummary() {
   useTrackTab("WorkoutSummary", { isModal: true });
 
   const isDark = useColorScheme() === "dark";
-  const { weightUnit: globalUnit } = useUnitPreference();
+  const { weightUnit: globalUnit, distanceUnit } = useUnitPreference();
   const ACCENT = isDark ? "#fff" : "#000";
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
@@ -315,7 +316,9 @@ export function WorkoutSummary() {
           <View style={styles.exerciseList}>
             {cardioEntries.map((c) => {
               const details = [
-                c.distance ? `${c.distance} mi` : null,
+                c.distance
+                  ? formatDistance(Number(c.distance), distanceUnit)
+                  : null,
                 c.calories ? `${c.calories} cal` : null,
               ]
                 .filter(Boolean)

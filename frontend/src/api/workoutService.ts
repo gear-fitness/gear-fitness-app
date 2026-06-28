@@ -20,7 +20,6 @@ import {
   writeCache,
 } from "../utils/offlineCache";
 import { isNetworkError } from "../utils/network";
-import { metersToMiles } from "../utils/distance";
 import {
   getPendingWorkouts,
   isPendingWorkoutId,
@@ -124,11 +123,9 @@ function responseToDetail(res: WorkoutDetailResponse): WorkoutDetail {
       workoutCardioId: c.workoutCardioId,
       activityType: c.activityType,
       durationSeconds: c.durationSeconds,
-      // Stored as meters; expose miles (2dp) to the UI, which works in miles.
-      distanceMeters:
-        c.distanceMeters != null
-          ? metersToMiles(Number(c.distanceMeters))
-          : null,
+      // Kept canonically in meters; each display site converts to the user's
+      // distance unit via the unit preference.
+      distanceMeters: c.distanceMeters != null ? Number(c.distanceMeters) : null,
       caloriesBurned: c.caloriesBurned,
       intensityLevel: c.intensityLevel != null ? Number(c.intensityLevel) : null,
       notes: c.notes,
@@ -156,6 +153,7 @@ async function cacheSubmittedWorkout(
     const userId = await getActiveUserId();
     if (!userId) return;
 
+    const firstCardio = res.cardio?.[0];
     const summary: Workout = {
       workoutId: res.workoutId,
       name: res.name,
@@ -164,6 +162,9 @@ async function cacheSubmittedWorkout(
       durationMin: res.durationMin,
       exerciseCount: res.exercises.length,
       bodyTags: res.bodyTags ?? [],
+      cardioCount: res.cardio?.length ?? 0,
+      cardioActivityType: firstCardio?.activityType ?? null,
+      cardioDurationSeconds: firstCardio?.durationSeconds ?? null,
     };
     // Prepend as the newest entry, de-duping any existing copy of this id so a
     // re-submit or queue-flush can't double it up. A later getUserWorkouts()
@@ -317,6 +318,8 @@ export async function getWorkoutDetails(
     const { data } = await apiClient.get<WorkoutDetail>(
       `/workouts/${workoutId}`,
     );
+    // Cardio distance stays in canonical meters; display sites convert per the
+    // user's distance unit preference.
     // Write through so a later offline view shows the full set-level detail.
     await writeCache(CACHE_KEYS.workoutDetail(workoutId), data);
     return data;
