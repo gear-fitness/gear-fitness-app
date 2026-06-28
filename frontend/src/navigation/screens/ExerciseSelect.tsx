@@ -24,8 +24,14 @@ export function ExerciseSelect() {
   const route = useRoute<any>();
   const isDark = useColorScheme() === "dark";
   const { exercises } = useExerciseList();
-  const { showPlayer, start, swapExercise, setActiveExercise, resetCardio } =
-    useWorkoutTimer();
+  const {
+    showPlayer,
+    start,
+    swapExercise,
+    swapCardio,
+    setActiveExercise,
+    resetCardio,
+  } = useWorkoutTimer();
   const insets = useSafeAreaInsets();
   const swapTargetId: string | undefined = route.params?.swapTargetId;
 
@@ -89,14 +95,33 @@ export function ExerciseSelect() {
 
   const handleCardioPress = (activity: CardioActivity) => {
     start();
+    // Reset the cardio stopwatch (00:00) for both new and swapped entries.
     resetCardio();
-    // When swapping the activity of an existing entry, reuse its id so the new
-    // selection overwrites it in place instead of creating a second entry.
+
     const swapCardioId: string | undefined = route.params?.swapCardioId;
+    if (swapCardioId) {
+      // Swap: update the existing entry in place (new activity, wiped data) so
+      // CardioDetail resolves the live entry with the NEW activityType, then
+      // navigate back to it. Mirrors the exercise swapTargetId branch.
+      swapCardio(swapCardioId, {
+        cardioActivityId: activity.cardioActivityId,
+        activityType: activity.name,
+      });
+      navigation.replace("ExerciseDetail", {
+        kind: "cardio",
+        cardio: {
+          workoutCardioId: swapCardioId,
+          cardioActivityId: activity.cardioActivityId,
+          activityType: activity.name,
+        },
+      });
+      return;
+    }
+
     navigation.replace("ExerciseDetail", {
       kind: "cardio",
       cardio: {
-        workoutCardioId: swapCardioId ?? Date.now().toString(),
+        workoutCardioId: Date.now().toString(),
         cardioActivityId: activity.cardioActivityId,
         activityType: activity.name,
       },

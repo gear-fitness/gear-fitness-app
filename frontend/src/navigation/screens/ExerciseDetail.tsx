@@ -102,8 +102,14 @@ function CardioDetail() {
   const route = useRoute<any>();
   const routeCardio = route.params.cardio;
 
-  const { start, cardioEntries, startCardio, resetCardio, showCardio } =
-    useWorkoutTimer();
+  const {
+    start,
+    cardioEntries,
+    resetCardio,
+    showCardio,
+    removeCardioEntry,
+    freezeActiveExercise,
+  } = useWorkoutTimer();
   const liveCardio = cardioEntries.find(
     (c) => c.workoutCardioId === routeCardio.workoutCardioId,
   );
@@ -111,17 +117,22 @@ function CardioDetail() {
   const contentRef = useRef<CardioDetailContentRef>(null);
 
   useEffect(() => {
+    // Ensure the global workout timer is running, but do NOT auto-start the
+    // cardio-scoped stopwatch — it stays at 00:00 until the user taps play.
     start();
+    // Stop the previously-active exercise's per-exercise clock so the time spent
+    // logging cardio never accrues to a lifting exercise's duration. This only
+    // touches the per-exercise timer; the global workout timer keeps running.
+    freezeActiveExercise();
     // Register this cardio as the player's current item so minimizing the
     // detail collapses back to the player showing this cardio (mirrors how
     // LiftingDetail registers its exercise via showPlayer/setActiveExercise).
     showCardio(cardio.workoutCardioId);
-    // Auto-start the cardio stopwatch on first open of a fresh entry so the
-    // user lands on a running timer; reopening a saved entry leaves it alone.
-    if (!liveCardio) {
-      startCardio();
-    }
   }, [cardio.workoutCardioId]);
+
+  // NOTE: the cardio stopwatch is intentionally NOT paused on unmount — it lives
+  // in WorkoutContext and keeps ticking so the MiniPlayer can show/control it
+  // live after the user minimizes. It still never touches the global timer.
 
   // Save before leaving screen
   useEffect(() => {
@@ -131,12 +142,15 @@ function CardioDetail() {
     return unsubscribe;
   }, [navigation]);
 
-  const handleAddCardio = () => {
+  const handleCancelCardio = () => {
+    // Discard this entry entirely: remove it from the workout, reset the cardio
+    // stopwatch, then drop the user on the cardio picker so they can choose a
+    // different activity (or toggle back to exercises).
+    removeCardioEntry(cardio.workoutCardioId);
     resetCardio();
-    // After logging, drop the user on the main exercise picker so they can pick
-    // their next exercise (lifting or cardio) from the full list.
     navigation.replace("ExerciseSelect", {
       returnTo: "WorkoutSummary",
+      mode: "cardio",
     });
   };
 
@@ -156,7 +170,7 @@ function CardioDetail() {
       ref={contentRef}
       cardio={cardio}
       onSummary={() => navigation.replace("WorkoutSummary")}
-      onAddCardio={handleAddCardio}
+      onCancelCardio={handleCancelCardio}
       onSwapCardio={handleSwapCardio}
     />
   );

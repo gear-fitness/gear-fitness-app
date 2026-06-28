@@ -23,6 +23,11 @@ export function MiniPlayer({ onTap, isVisible }: MiniPlayerProps) {
     currentExerciseId,
     currentCardioId,
     cardioEntries,
+    cardioSeconds,
+    cardioRunning,
+    startCardio,
+    startCardioFrom,
+    pauseCardio,
   } = useWorkoutTimer();
   const { weightUnit: globalUnit } = useUnitPreference();
   const isDark = useColorScheme() === "dark";
@@ -54,16 +59,41 @@ export function MiniPlayer({ onTap, isVisible }: MiniPlayerProps) {
     currentExercise?.sets.filter((s) => s.reps && s.weight) || [];
   const lastSet = validSets[validSets.length - 1];
 
-  // Cardio subtitle: duration plus any logged distance/calories.
+  // Cardio subtitle: any logged distance/calories (the live duration is shown in
+  // the main timer position on the right, ticking).
   const cardioSubtitle = currentCardio
     ? [
-        formatTime(currentCardio.durationSeconds),
         currentCardio.distance ? `${currentCardio.distance} mi` : null,
         currentCardio.calories ? `${currentCardio.calories} cal` : null,
       ]
         .filter(Boolean)
-        .join(" · ")
+        .join(" · ") || "Cardio in progress"
     : "";
+
+  // When a cardio entry is the current item, the main timer + play/pause act on
+  // the cardio-scoped stopwatch (which ticks live from WorkoutContext); for a
+  // lifting exercise they act on the global workout timer, as before.
+  const liveCardioSeconds =
+    cardioRunning || cardioSeconds > 0
+      ? cardioSeconds
+      : (currentCardio?.durationSeconds ?? 0);
+  const displaySeconds = currentCardio ? liveCardioSeconds : seconds;
+  const displayRunning = currentCardio ? cardioRunning : running;
+
+  const handlePlayPause = () => {
+    if (currentCardio) {
+      if (cardioRunning) {
+        pauseCardio();
+      } else if (cardioSeconds === 0 && currentCardio.durationSeconds > 0) {
+        // Resume from the entry's stored duration rather than restarting at zero.
+        startCardioFrom(currentCardio.durationSeconds);
+      } else {
+        startCardio();
+      }
+    } else {
+      running ? pause() : start();
+    }
+  };
 
   const styles = StyleSheet.create({
     container: {
@@ -196,19 +226,19 @@ export function MiniPlayer({ onTap, isVisible }: MiniPlayerProps) {
             style={[styles.timerIcon, { tintColor: colors.text }]}
           />
           <Text style={[styles.timerText, { color: colors.text }]}>
-            {formatTime(seconds)}
+            {formatTime(displaySeconds)}
           </Text>
 
           {isVisible && (
             <TouchableOpacity
               onPress={(e) => {
                 e.stopPropagation();
-                running ? pause() : start();
+                handlePlayPause();
               }}
               style={styles.playPauseButton}
             >
               <SymbolView
-                name={running ? "pause.fill" : "play.fill"}
+                name={displayRunning ? "pause.fill" : "play.fill"}
                 tintColor={isDark ? "#fff" : "#000"}
                 size={14}
               />

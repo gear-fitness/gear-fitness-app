@@ -15,6 +15,7 @@ import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import {
   useState,
   useEffect,
+  useRef,
   forwardRef,
   useImperativeHandle,
 } from "react";
@@ -25,6 +26,11 @@ import { useNavigation } from "@react-navigation/native";
 
 import stopwatch from "../assets/stopwatch.png";
 import { useWorkoutTimer, CardioEntry } from "../context/WorkoutContext";
+import {
+  useUnitPreference,
+  DistanceUnit,
+} from "../context/UnitPreferenceContext";
+import { milesToKm, kmToMiles } from "../utils/distance";
 import { FloatingCloseButton } from "./FloatingCloseButton";
 import { FloatingKeyboardDismiss } from "./FloatingKeyboardDismiss";
 
@@ -61,7 +67,7 @@ interface CardioDetailContentProps {
     note?: string;
   };
   onSummary: () => void;
-  onAddCardio: () => void;
+  onCancelCardio: () => void;
   onSwapCardio?: () => void;
 }
 
@@ -83,14 +89,19 @@ type ThemeColors = {
   stepperBorder: string;
 };
 
-const CHIP_CONFIG: { key: ChipKey; label: string; unit?: string }[] = [
-  { key: "distance", label: "Distance", unit: "mi" },
-  { key: "calories", label: "Calories", unit: "cal" },
+// Unit labels are dynamic (distance: mi/km, calories: cal/kcal, intensity:
+// none) and resolved per-key at render time from the unit preference.
+const CHIP_CONFIG: { key: ChipKey; label: string }[] = [
+  { key: "distance", label: "Distance" },
+  { key: "calories", label: "Calories" },
   { key: "intensity", label: "Intensity" },
 ];
 
 const INTENSITY_TOOLTIP =
   "A single number for how hard the effort was — use whatever your machine shows: treadmill incline %, bike resistance level, elliptical ramp, etc. Leave blank if not applicable.";
+
+// "In progress" green, matching the WorkoutSummary live indicator.
+const RECORDING_GREEN = "#22B574";
 
 const formatTime = (t: number) =>
   `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(
@@ -98,29 +109,59 @@ const formatTime = (t: number) =>
     "0",
   )}`;
 
-// MM:SS "fill-through" input, iOS-timer style: digits accumulate from the right
-// (the last two are seconds, the rest minutes). "1530" -> 15:30, "130" -> 01:30.
-function digitsToParts(digits: string): { mm: string; ss: string } {
-  const padded = digits.replace(/\D/g, "").slice(-4).padStart(4, "0");
-  return { mm: padded.slice(0, 2), ss: padded.slice(2) };
+// HH:MM:SS, capped at 23:59:59.
+const MAX_DURATION_SECONDS = 23 * 3600 + 59 * 60 + 59;
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+// HH:MM:SS "fill-through" input, iOS-timer style: digits accumulate from the
+// right (last two are seconds, next two minutes, next two hours).
+// "1530" -> 00:15:30, "10000" -> 01:00:00.
+function digitsToParts(digits: string): { hh: string; mm: string; ss: string } {
+  const padded = digits.replace(/\D/g, "").slice(-6).padStart(6, "0");
+  return {
+    hh: padded.slice(0, 2),
+    mm: padded.slice(2, 4),
+    ss: padded.slice(4, 6),
+  };
 }
 
 function digitsToDisplay(digits: string): string {
-  const { mm, ss } = digitsToParts(digits);
-  return `${mm}:${ss}`;
+  const { hh, mm, ss } = digitsToParts(digits);
+  return `${hh}:${mm}:${ss}`;
 }
 
 function digitsToSeconds(digits: string): number {
-  const { mm, ss } = digitsToParts(digits);
-  return parseInt(mm, 10) * 60 + parseInt(ss, 10);
+  const { hh, mm, ss } = digitsToParts(digits);
+  const total =
+    parseInt(hh, 10) * 3600 + parseInt(mm, 10) * 60 + parseInt(ss, 10);
+  return Math.min(total, MAX_DURATION_SECONDS);
+}
+
+// HH:MM:SS display of a raw second count (used for the big duration readout).
+function formatHMS(total: number): string {
+  const t = Math.max(0, Math.floor(total));
+  return `${pad2(Math.floor(t / 3600))}:${pad2(
+    Math.floor((t % 3600) / 60),
+  )}:${pad2(t % 60)}`;
 }
 
 // Seed chip edit-state from the entry being opened so reopening a saved cardio
 // (or returning from Summary) shows its previously entered values rather than
-// wiping them on the next save.
-function seedChipValues(cardio: CardioDetailContentProps["cardio"]): ChipValues {
+// wiping them on the next save. Distance is stored canonically in miles, so it's
+// converted to the active display unit (km) when needed.
+function seedChipValues(
+  cardio: CardioDetailContentProps["cardio"],
+  distanceUnit: DistanceUnit,
+): ChipValues {
+  const milesRaw = cardio.distance ?? "";
+  let distanceValue = milesRaw;
+  if (milesRaw && distanceUnit === "km") {
+    const n = Number(milesRaw);
+    if (!Number.isNaN(n)) distanceValue = String(milesToKm(n));
+  }
   return {
-    distance: { selected: !!cardio.distance, value: cardio.distance ?? "" },
+    distance: { selected: !!cardio.distance, value: distanceValue },
     calories: { selected: !!cardio.calories, value: cardio.calories ?? "" },
     intensity: { selected: !!cardio.intensity, value: cardio.intensity ?? "" },
   };
@@ -129,12 +170,13 @@ function seedChipValues(cardio: CardioDetailContentProps["cardio"]): ChipValues 
 export const CardioDetailContent = forwardRef<
   CardioDetailContentRef,
   CardioDetailContentProps
->(({ cardio, onSummary, onAddCardio, onSwapCardio }, ref) => {
+>(({ cardio, onSummary, onCancelCardio, onSwapCardio }, ref) => {
   const {
     seconds,
     cardioSeconds,
     cardioRunning,
     startCardio,
+    startCardioFrom,
     pauseCardio,
     resetCardio,
     addCardioEntry,
@@ -143,9 +185,11 @@ export const CardioDetailContent = forwardRef<
   const isDark = useColorScheme() === "dark";
   const insets = useSafeAreaInsets();
   const glassAvailable = isLiquidGlassAvailable();
+  const { distanceUnit, setDistanceUnit, energyUnit, setEnergyUnit } =
+    useUnitPreference();
 
   const [chipValues, setChipValues] = useState<ChipValues>(() =>
-    seedChipValues(cardio),
+    seedChipValues(cardio, distanceUnit),
   );
   const [note, setNote] = useState(cardio.note ?? "");
   const [noteModalVisible, setNoteModalVisible] = useState(false);
@@ -153,12 +197,17 @@ export const CardioDetailContent = forwardRef<
   // Tapping the top-bar stopwatch flips to the whole-session timer (mirrors
   // ExerciseDetailContent).
   const [showingTotal, setShowingTotal] = useState(false);
-  // Manually typed duration override, held as up-to-4 MM:SS digits ("1530" ->
-  // 15:30). When non-empty it overrides the live stopwatch for what gets logged.
+  // Manual duration entry. `durationDigits` is the in-progress HH:MM:SS typing
+  // buffer; on confirm it's committed to `manualDurationSeconds`, which then
+  // overrides the live stopwatch for what gets logged (and seeds the timer when
+  // play is pressed). null = no manual value entered.
   const [editingDuration, setEditingDuration] = useState(false);
   const [durationDigits, setDurationDigits] = useState("");
+  const [manualDurationSeconds, setManualDurationSeconds] = useState<
+    number | null
+  >(null);
   // Idle duration baseline — the stored entry duration shown when the stopwatch
-  // is at zero. Reset zeroes this so the display returns to 00:00 and stays.
+  // is at zero. Reset zeroes this so the display returns to 00:00:00 and stays.
   const [baselineSeconds, setBaselineSeconds] = useState(
     cardio.durationSeconds ?? 0,
   );
@@ -199,26 +248,34 @@ export const CardioDetailContent = forwardRef<
   const stopwatchActive = cardioRunning || cardioSeconds > 0;
   const liveCardioSeconds = stopwatchActive ? cardioSeconds : baselineSeconds;
 
-  // A manually entered duration overrides the live stopwatch for what gets
-  // logged; the stopwatch keeps running underneath and the top bar still
-  // reflects it.
-  const manualSeconds =
-    durationDigits !== "" ? digitsToSeconds(durationDigits) : null;
-  const effectiveDurationSeconds = manualSeconds ?? liveCardioSeconds;
+  // A committed manual duration overrides the live stopwatch for what gets
+  // logged and displayed; the stopwatch keeps running underneath and the top
+  // bar still reflects it.
+  const effectiveDurationSeconds = manualDurationSeconds ?? liveCardioSeconds;
   const hasStarted = isRunning || effectiveDurationSeconds > 0;
 
   // Top-bar timer: the cardio stopwatch, or the whole workout session when
   // toggled.
   const timerValue = showingTotal ? seconds : liveCardioSeconds;
 
+  // The distance field holds a value in the active display unit; the entry
+  // stores it canonically in MILES (converting from km when needed), so the
+  // submit (miles -> meters) and Summary/MiniPlayer "mi" display stay correct.
+  const distanceAsMiles = (): string | undefined => {
+    if (!chipValues.distance.selected) return undefined;
+    const raw = chipValues.distance.value.trim();
+    if (!raw) return undefined;
+    const n = Number(raw);
+    if (Number.isNaN(n)) return raw;
+    return distanceUnit === "km" ? String(kmToMiles(n)) : raw;
+  };
+
   const buildEntry = (): CardioEntry => ({
     workoutCardioId: cardio.workoutCardioId,
     cardioActivityId: cardio.cardioActivityId,
     activityType: cardio.activityType,
     durationSeconds: effectiveDurationSeconds,
-    distance: chipValues.distance.selected
-      ? chipValues.distance.value.trim() || undefined
-      : undefined,
+    distance: distanceAsMiles(),
     calories: chipValues.calories.selected
       ? chipValues.calories.value.trim() || undefined
       : undefined,
@@ -228,7 +285,12 @@ export const CardioDetailContent = forwardRef<
     note: note.trim() || undefined,
   });
 
+  // Set when the user cancels this entry, so the beforeRemove save() that fires
+  // during the navigation away can't re-add the entry we just discarded.
+  const cancelledRef = useRef(false);
+
   const saveCardio = () => {
+    if (cancelledRef.current) return;
     addCardioEntry(buildEntry());
   };
 
@@ -236,12 +298,11 @@ export const CardioDetailContent = forwardRef<
 
   useEffect(() => {
     const listener = Keyboard.addListener("keyboardDidHide", () => {
-      setEditingDuration(false);
       saveCardio();
     });
     return () => listener.remove();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chipValues, note, durationDigits, effectiveDurationSeconds]);
+  }, [chipValues, note, manualDurationSeconds, effectiveDurationSeconds]);
 
   // Auto-revert the top-bar timer back from TOTAL after a few seconds.
   useEffect(() => {
@@ -269,11 +330,12 @@ export const CardioDetailContent = forwardRef<
   const doReset = () => {
     // Zero the cardio-scoped stopwatch entirely (cardioSeconds/cardioRunning/
     // cardioStartTimestamp/cardioTotalElapsedSeconds), drop the idle baseline to
-    // 0 so the display reads 00:00 and stays there, and clear all fields + any
-    // manually typed duration.
+    // 0 so the display reads 00:00:00 and stays there, and clear all fields plus
+    // any manually entered duration.
     resetCardio();
     setBaselineSeconds(0);
     setDurationDigits("");
+    setManualDurationSeconds(null);
     setEditingDuration(false);
     setChipValues({
       distance: { selected: false, value: "" },
@@ -282,15 +344,44 @@ export const CardioDetailContent = forwardRef<
     });
   };
 
+  // Enter edit mode with an empty buffer so the user types the duration fresh
+  // (digits fill right-to-left through HH:MM:SS).
   const beginEditDuration = () => {
-    // Seed the editable field from the currently displayed duration so the user
-    // edits from the live value rather than a blank field.
-    const total = effectiveDurationSeconds;
-    const seeded = `${String(Math.floor(total / 60)).padStart(2, "0")}${String(
-      total % 60,
-    ).padStart(2, "0")}`;
-    setDurationDigits(seeded === "0000" ? "" : seeded);
+    setDurationDigits("");
     setEditingDuration(true);
+  };
+
+  // Commit the typed digits to manualDurationSeconds (skip if nothing was
+  // typed, so an accidental tap doesn't override the live value with 0).
+  const commitDuration = () => {
+    if (durationDigits !== "") {
+      setManualDurationSeconds(digitsToSeconds(durationDigits));
+    }
+    setDurationDigits("");
+    setEditingDuration(false);
+  };
+
+  const handlePlayPause = () => {
+    if (isRunning) {
+      pauseCardio();
+      return;
+    }
+    // Pick up any manual value — committed, or still being typed if the user
+    // tapped play straight from the editor.
+    const pending =
+      editingDuration && durationDigits !== ""
+        ? digitsToSeconds(durationDigits)
+        : null;
+    const seed = pending ?? manualDurationSeconds;
+    if (seed != null) {
+      // Count up FROM the manually entered duration rather than zero.
+      startCardioFrom(seed);
+      setManualDurationSeconds(null);
+      setDurationDigits("");
+      setEditingDuration(false);
+    } else {
+      startCardio();
+    }
   };
 
   const handleClose = () => {
@@ -313,6 +404,25 @@ export const CardioDetailContent = forwardRef<
     });
   };
 
+  // Toggle mi <-> km, converting the in-progress distance value in place so the
+  // physical distance is preserved (mirrors the weight unit toggle). The pref
+  // is session-wide and persisted.
+  const toggleDistanceUnit = () => {
+    const next: DistanceUnit = distanceUnit === "mi" ? "km" : "mi";
+    const raw = chipValues.distance.value.trim();
+    const n = Number(raw);
+    if (raw !== "" && !Number.isNaN(n)) {
+      const converted = next === "km" ? milesToKm(n) : kmToMiles(n);
+      setFieldValue("distance", String(converted));
+    }
+    setDistanceUnit(next);
+  };
+
+  // cal and kcal are the same unit in fitness — pure label toggle, no math.
+  const toggleEnergyUnit = () => {
+    setEnergyUnit(energyUnit === "cal" ? "kcal" : "cal");
+  };
+
   const openNoteModal = () => {
     setNoteDraft(note);
     setNoteModalVisible(true);
@@ -325,6 +435,44 @@ export const CardioDetailContent = forwardRef<
 
   const showIntensityInfo = () => {
     Alert.alert("Intensity", INTENSITY_TOOLTIP);
+  };
+
+  const handleSwapPress = () => {
+    if (!onSwapCardio) return;
+    Alert.alert(
+      "Switch Activity",
+      "Are you sure you want to switch activities? Your current duration, fields, and data will be lost.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Switch", style: "destructive", onPress: () => onSwapCardio() },
+      ],
+    );
+  };
+
+  const handleCancel = () => {
+    Alert.alert(
+      "Cancel Cardio",
+      "Are you sure you want to cancel? Your cardio data will not be saved.",
+      [
+        { text: "Keep Going", style: "cancel" },
+        { text: "Cancel Entry", style: "destructive", onPress: doCancel },
+      ],
+    );
+  };
+
+  const doCancel = () => {
+    // Block the beforeRemove save first, then clear local fields and hand off to
+    // the wrapper to remove the entry + reset the timer + navigate.
+    cancelledRef.current = true;
+    setChipValues({
+      distance: { selected: false, value: "" },
+      calories: { selected: false, value: "" },
+      intensity: { selected: false, value: "" },
+    });
+    setManualDurationSeconds(null);
+    setDurationDigits("");
+    setEditingDuration(false);
+    onCancelCardio();
   };
 
   const topBarButtonStyle = [
@@ -416,7 +564,7 @@ export const CardioDetailContent = forwardRef<
                 CARDIO
               </Text>
               <TouchableOpacity
-                onPress={onSwapCardio}
+                onPress={handleSwapPress}
                 activeOpacity={0.6}
                 disabled={!onSwapCardio}
                 style={styles.titleRow}
@@ -459,16 +607,12 @@ export const CardioDetailContent = forwardRef<
                     <TextInput
                       value={digitsToDisplay(durationDigits)}
                       onChangeText={(text) =>
-                        setDurationDigits(text.replace(/\D/g, "").slice(-4))
+                        setDurationDigits(text.replace(/\D/g, "").slice(-6))
                       }
-                      onBlur={() => setEditingDuration(false)}
+                      onBlur={commitDuration}
                       keyboardType="number-pad"
                       autoFocus
-                      style={[
-                        heroStyles.input,
-                        cardioStyles.durationDisplay,
-                        { color: colors.text },
-                      ]}
+                      style={[cardioStyles.durationText, { color: colors.text }]}
                     />
                   ) : (
                     <TouchableOpacity
@@ -477,20 +621,22 @@ export const CardioDetailContent = forwardRef<
                       style={cardioStyles.durationDisplay}
                     >
                       <Text
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
                         style={[
-                          heroStyles.input,
+                          cardioStyles.durationText,
                           {
                             color: hasStarted ? colors.text : colors.textFaint,
                           },
                         ]}
                       >
-                        {formatTime(effectiveDurationSeconds)}
+                        {formatHMS(effectiveDurationSeconds)}
                       </Text>
                     </TouchableOpacity>
                   )}
                   <TouchableOpacity
                     activeOpacity={0.85}
-                    onPress={isRunning ? pauseCardio : startCardio}
+                    onPress={handlePlayPause}
                     style={[
                       cardioStyles.playButton,
                       { backgroundColor: colors.accent },
@@ -549,9 +695,21 @@ export const CardioDetailContent = forwardRef<
               </ScrollView>
 
               {/* Expanded fields — only for selected chips, in fixed order */}
-              {CHIP_CONFIG.map(({ key, label, unit }) => {
+              {CHIP_CONFIG.map(({ key, label }) => {
                 if (!chipValues[key].selected) return null;
                 const isIntensity = key === "intensity";
+                const fieldUnit =
+                  key === "distance"
+                    ? distanceUnit
+                    : key === "calories"
+                      ? energyUnit
+                      : undefined;
+                const onUnitPress =
+                  key === "distance"
+                    ? toggleDistanceUnit
+                    : key === "calories"
+                      ? toggleEnergyUnit
+                      : undefined;
                 return (
                   <View key={key}>
                     <View
@@ -596,13 +754,38 @@ export const CardioDetailContent = forwardRef<
                           selectTextOnFocus
                           style={[heroStyles.input, { color: colors.text }]}
                         />
-                        {unit && (
-                          <Text
-                            style={[heroStyles.unit, { color: colors.textFaint }]}
-                          >
-                            {unit}
-                          </Text>
-                        )}
+                        {fieldUnit &&
+                          (onUnitPress ? (
+                            <TouchableOpacity
+                              onPress={onUnitPress}
+                              hitSlop={{
+                                top: 12,
+                                bottom: 12,
+                                left: 12,
+                                right: 12,
+                              }}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Unit: ${fieldUnit}. Tap to change.`}
+                            >
+                              <Text
+                                style={[
+                                  heroStyles.unit,
+                                  { color: colors.textMuted },
+                                ]}
+                              >
+                                {fieldUnit}
+                              </Text>
+                            </TouchableOpacity>
+                          ) : (
+                            <Text
+                              style={[
+                                heroStyles.unit,
+                                { color: colors.textFaint },
+                              ]}
+                            >
+                              {fieldUnit}
+                            </Text>
+                          ))}
                       </View>
                     </View>
                   </View>
@@ -632,7 +815,7 @@ export const CardioDetailContent = forwardRef<
                 <View
                   style={[
                     cardioStyles.recordingDot,
-                    { backgroundColor: colors.text },
+                    { backgroundColor: RECORDING_GREEN },
                   ]}
                 />
                 <Text style={[cardioStyles.hintText, { color: colors.textMuted }]}>
@@ -641,12 +824,15 @@ export const CardioDetailContent = forwardRef<
               </View>
             ) : (
               <View style={cardioStyles.hintRow}>
-                <Image
-                  source={stopwatch}
-                  style={[cardioStyles.hintIcon, { tintColor: colors.textFaint }]}
+                <SymbolView
+                  name="play.circle"
+                  tintColor={colors.textFaint}
+                  size={18}
                 />
                 <Text style={[cardioStyles.hintText, { color: colors.textFaint }]}>
-                  Tap to start timing your session
+                  {cardioSeconds > 0
+                    ? "Tap to resume timing your session"
+                    : "Tap to start timing your session"}
                 </Text>
               </View>
             )}
@@ -664,15 +850,15 @@ export const CardioDetailContent = forwardRef<
           >
             <TouchableOpacity
               style={styles.footerSecondary}
-              onPress={() => handleSave(onSummary)}
+              onPress={handleCancel}
             >
               <Text style={[styles.footerSecondaryText, { color: colors.text }]}>
-                Summary
+                Cancel
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.footerPrimary, { backgroundColor: colors.accent }]}
-              onPress={() => handleSave(onAddCardio)}
+              onPress={() => handleSave(onSummary)}
             >
               <Text
                 style={[styles.footerPrimaryText, { color: colors.accentText }]}
@@ -1020,6 +1206,17 @@ const cardioStyles = StyleSheet.create({
   durationDisplay: {
     flex: 1,
   },
+  // HH:MM:SS is wider than the single-number hero fields, so it gets a smaller
+  // size to fit alongside the play button.
+  durationText: {
+    flex: 1,
+    fontSize: 48,
+    fontWeight: "700",
+    letterSpacing: -1,
+    padding: 0,
+    margin: 0,
+    fontVariant: ["tabular-nums"],
+  },
   playButton: {
     width: 54,
     height: 54,
@@ -1061,7 +1258,6 @@ const cardioStyles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 8,
   },
-  hintIcon: { width: 16, height: 16 },
   recordingDot: {
     width: 9,
     height: 9,

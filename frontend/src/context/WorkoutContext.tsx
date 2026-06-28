@@ -155,6 +155,12 @@ interface WorkoutContextValue {
       bodyParts?: BodyPartDTO[];
     },
   ) => void;
+  // Replace the cardio entry at `workoutCardioId` with a new activity, wiping
+  // its duration/fields — matches the "Switch Activity" confirmation.
+  swapCardio: (
+    workoutCardioId: string,
+    replacement: { cardioActivityId: string; activityType: string },
+  ) => void;
   // True when there's an in-flight workout: any exercises, a running timer,
   // or accumulated elapsed time. Use this to gate new-workout entry points
   // (routines etc.) so a Start tap doesn't silently destroy a live workout.
@@ -171,6 +177,9 @@ interface WorkoutContextValue {
   cardioSeconds: number;
   cardioRunning: boolean;
   startCardio: () => void;
+  // Start the cardio stopwatch counting up FROM a given second value (used when
+  // the user manually typed a duration before pressing play).
+  startCardioFrom: (fromSeconds: number) => void;
   pauseCardio: () => void;
   resetCardio: () => void;
 
@@ -191,6 +200,9 @@ interface WorkoutContextValue {
   activeExerciseId: string | null;
   activeExerciseStartedAt: number | null;
   setActiveExercise: (id: string) => void;
+  // Stop the active exercise's per-exercise clock (commit elapsed, clear
+  // pointer). Called when leaving an exercise for cardio.
+  freezeActiveExercise: () => void;
 
   // Tab tracking
   activeTab: string;
@@ -653,6 +665,21 @@ export function WorkoutTimerProvider({
     }
   };
 
+  // Seed the elapsed counters to `fromSeconds` and start running, so the
+  // stopwatch counts up FROM the manually entered duration rather than zero.
+  // Writes ONLY the cardio-scoped state (cardioTotalElapsedSeconds/cardioSeconds/
+  // cardioStartTimestamp/cardioRunning) — never the global workout timer
+  // (seconds/totalElapsedSeconds/startTimestamp/running). The manual cardio
+  // duration must never bleed into the global timer.
+  const startCardioFrom = (fromSeconds: number) => {
+    suppressWritesRef.current = false;
+    const base = Math.max(0, Math.floor(fromSeconds));
+    setCardioTotalElapsedSeconds(base);
+    setCardioSeconds(base);
+    setCardioStartTimestamp(Date.now());
+    setCardioRunning(true);
+  };
+
   const pauseCardio = () => {
     if (cardioStartTimestamp !== null) {
       const currentElapsed = Math.floor(
@@ -709,21 +736,54 @@ export function WorkoutTimerProvider({
     }
   };
 
+  // Replace the cardio entry at `workoutCardioId` in place with a new activity.
+  // All entry data (duration, distance, calories, intensity, note) is wiped to
+  // match the "Switch Activity" confirmation. The cardio stopwatch lives outside
+  // the entry, so the callsite resets it separately.
+  const swapCardio = (
+    workoutCardioId: string,
+    replacement: { cardioActivityId: string; activityType: string },
+  ) => {
+    if (suppressWritesRef.current) return;
+    setImmediateSaveCounter((c) => c + 1);
+    setCardioEntries((prev) =>
+      prev.map((c) =>
+        c.workoutCardioId === workoutCardioId
+          ? {
+              workoutCardioId,
+              cardioActivityId: replacement.cardioActivityId,
+              activityType: replacement.activityType,
+              durationSeconds: 0,
+              distance: undefined,
+              calories: undefined,
+              intensity: undefined,
+              note: undefined,
+            }
+          : c,
+      ),
+    );
+  };
+
   // Freeze the currently-active exercise's per-exercise timer by merging the
-  // elapsed delta into its durationSeconds, then clear the active pointer.
+  // elapsed delta into its durationSeconds, then clear the active pointer so the
+  // ticker stops. Used when leaving an exercise for the cardio screen, so time
+  // spent logging cardio never accrues to a lifting exercise's duration. Clears
+  // the pointer even when the exercise is already paused (no delta to merge).
   const freezeActiveExercise = () => {
     if (suppressWritesRef.current) return;
-    if (activeExerciseId === null || activeExerciseStartedAt === null) return;
-    const delta = Math.floor((Date.now() - activeExerciseStartedAt) / 1000);
-    if (delta > 0) {
-      const targetId = activeExerciseId;
-      setExercises((prev) =>
-        prev.map((ex) =>
-          ex.workoutExerciseId === targetId
-            ? { ...ex, durationSeconds: (ex.durationSeconds ?? 0) + delta }
-            : ex,
-        ),
-      );
+    if (activeExerciseId === null) return;
+    if (activeExerciseStartedAt !== null) {
+      const delta = Math.floor((Date.now() - activeExerciseStartedAt) / 1000);
+      if (delta > 0) {
+        const targetId = activeExerciseId;
+        setExercises((prev) =>
+          prev.map((ex) =>
+            ex.workoutExerciseId === targetId
+              ? { ...ex, durationSeconds: (ex.durationSeconds ?? 0) + delta }
+              : ex,
+          ),
+        );
+      }
     }
     setActiveExerciseId(null);
     setActiveExerciseStartedAt(null);
@@ -929,6 +989,7 @@ export function WorkoutTimerProvider({
         updateExercise,
         removeExercise,
         swapExercise,
+        swapCardio,
         hasActiveWorkout,
         cardioEntries,
         addCardioEntry,
@@ -937,6 +998,7 @@ export function WorkoutTimerProvider({
         cardioSeconds,
         cardioRunning,
         startCardio,
+        startCardioFrom,
         pauseCardio,
         resetCardio,
         playerVisible,
@@ -950,6 +1012,7 @@ export function WorkoutTimerProvider({
         activeExerciseId,
         activeExerciseStartedAt,
         setActiveExercise,
+        freezeActiveExercise,
         // Tab tracking
         activeTab,
         setActiveTab,

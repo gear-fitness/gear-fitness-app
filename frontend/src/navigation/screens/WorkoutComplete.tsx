@@ -37,6 +37,7 @@ import { MentionTextInput } from "../../components/MentionTextInput";
 import { formatTag } from "../../utils/formatTag";
 import { getAllBodyPartNames } from "../../utils/exerciseUtils";
 import { MUSCLE_GROUPS } from "../../constants/muscleGroups";
+import { milesToMeters } from "../../utils/distance";
 
 const ACCENT = "#111";
 const DESTRUCTIVE = "#C93838";
@@ -205,14 +206,20 @@ export function WorkoutComplete() {
         })),
         note: ex.note || "",
       })),
-      cardio: cardioEntries.map((c) => ({
-        activityType: c.activityType,
-        durationSeconds: c.durationSeconds,
-        distanceMeters: c.distance || undefined,
-        caloriesBurned: c.calories ? Number(c.calories) : undefined,
-        intensityLevel: c.intensity || undefined,
-        notes: c.note || undefined,
-      })),
+      cardio: cardioEntries.map((c) => {
+        // Distance is entered/displayed in miles; the backend stores meters.
+        const miles = c.distance ? Number(c.distance) : NaN;
+        return {
+          activityType: c.activityType,
+          durationSeconds: c.durationSeconds,
+          distanceMeters: Number.isFinite(miles)
+            ? String(milesToMeters(miles))
+            : undefined,
+          caloriesBurned: c.calories ? Number(c.calories) : undefined,
+          intensityLevel: c.intensity || undefined,
+          notes: c.note || undefined,
+        };
+      }),
       // Privacy model: always create a post; the visibility selector controls
       // the audience (PUBLIC / FRIENDS / PRIVATE), where PRIVATE is "Only me".
       createPost: true,

@@ -20,6 +20,7 @@ import {
   writeCache,
 } from "../utils/offlineCache";
 import { isNetworkError } from "../utils/network";
+import { metersToMiles } from "../utils/distance";
 import {
   getPendingWorkouts,
   isPendingWorkoutId,
@@ -123,7 +124,11 @@ function responseToDetail(res: WorkoutDetailResponse): WorkoutDetail {
       workoutCardioId: c.workoutCardioId,
       activityType: c.activityType,
       durationSeconds: c.durationSeconds,
-      distanceMeters: c.distanceMeters != null ? Number(c.distanceMeters) : null,
+      // Stored as meters; expose miles (2dp) to the UI, which works in miles.
+      distanceMeters:
+        c.distanceMeters != null
+          ? metersToMiles(Number(c.distanceMeters))
+          : null,
       caloriesBurned: c.caloriesBurned,
       intensityLevel: c.intensityLevel != null ? Number(c.intensityLevel) : null,
       notes: c.notes,
