@@ -33,7 +33,10 @@ import { useOnboardingColors } from "../onboarding/components/useOnboardingColor
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { StepProps } from "../onboarding/stepProps";
 import { STEP_COMPONENTS } from "../onboarding/steps";
-import { runPostSignupSync } from "../onboarding/onboardingSync";
+import {
+  runPostSignupSync,
+  resolveDisplayName,
+} from "../onboarding/onboardingSync";
 import { TesterSkipButton } from "../onboarding/components/TesterSkipButton";
 import { TesterBackButton } from "../onboarding/components/TesterBackButton";
 import { SignInScreen } from "../onboarding/components/SignInScreen";
@@ -137,11 +140,21 @@ export function OnboardingScreen() {
     async (intent: GoogleAuthIntent) => {
       if (isSigningIn) return;
       setIsSigningIn(true);
+      // Capture the Google-provided name so a new user (the sign-in bounce
+      // below) skips NameStep and we never re-ask for it after social sign-in.
+      let googleFullName: string | null = null;
       try {
         const response = await GoogleSignin.signIn();
         if (isSuccessResponse(response)) {
           const { idToken } = response.data;
           if (!idToken) throw new Error("No ID token received from Google");
+
+          const gUser = response.data.user;
+          const gName = (
+            gUser?.name ||
+            `${gUser?.givenName ?? ""} ${gUser?.familyName ?? ""}`
+          ).trim();
+          googleFullName = gName.length > 0 ? gName : null;
 
           const result = await loginWithGoogle(idToken, intent);
 
@@ -210,11 +223,21 @@ export function OnboardingScreen() {
             // Found" dialog makes the sign-in look broken (App Review
             // flagged the Apple equivalent), so we redirect into
             // onboarding and explain it with friendly, informational copy.
+            // We never re-ask for the name after social sign-in: prefill it
+            // from the captured Google profile and skip NameStep (step 1),
+            // landing on GoalStep (step 2).
             closeAuthOverlay();
-            goTo(1); // NameStep — first onboarding question (skip Welcome)
+            if (googleFullName) {
+              updateDraft({
+                profile: { ...draft.profile, name: googleFullName },
+                step: 2,
+              });
+            } else {
+              goTo(2);
+            }
             Alert.alert(
               "Let's set up your account",
-              "You don't have an account yet — we'll walk you through a quick setup.",
+              "You don't have an account yet, so we'll walk you through a quick setup.",
               [{ text: "OK" }],
             );
             return;
@@ -243,6 +266,7 @@ export function OnboardingScreen() {
       goTo,
       completeOnboarding,
       closeAuthOverlay,
+      updateDraft,
     ],
   );
 
@@ -250,6 +274,10 @@ export function OnboardingScreen() {
     async (intent: AppleAuthIntent) => {
       if (isSigningIn) return;
       setIsSigningIn(true);
+      // Apple returns the user's name only on the very first authorization.
+      // Capture it here so a new user (the sign-in bounce below) skips
+      // NameStep and we never re-ask for it after Sign in with Apple.
+      let appleFullName: string | null = null;
       try {
         const credential = await AppleAuthentication.signInAsync({
           requestedScopes: [
@@ -260,6 +288,14 @@ export function OnboardingScreen() {
         if (!credential.identityToken) {
           throw new Error("No identity token received from Apple");
         }
+        const capturedName = [
+          credential.fullName?.givenName,
+          credential.fullName?.familyName,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .trim();
+        appleFullName = capturedName.length > 0 ? capturedName : null;
 
         const result = await loginWithApple({
           identityToken: credential.identityToken,
@@ -276,7 +312,7 @@ export function OnboardingScreen() {
             intent === "sign_up"
               ? {
                   username: draft.profile?.username ?? null,
-                  displayName: draft.profile?.name ?? null,
+                  displayName: resolveDisplayName(draft),
                 }
               : undefined,
         });
@@ -396,12 +432,22 @@ export function OnboardingScreen() {
             // sign them in here. App Review flagged the old error-styled
             // "Account Not Found" dialog as a broken Apple sign-in, so we
             // redirect into onboarding and just explain it with friendly,
-            // informational copy (no error styling).
+            // informational copy (no error styling). Apple's guideline 4
+            // forbids re-asking for the name after Sign in with Apple, so we
+            // prefill it from the captured credential and skip NameStep
+            // (step 1), landing on GoalStep (step 2).
             closeAuthOverlay();
-            goTo(1); // NameStep — first onboarding question (skip Welcome)
+            if (appleFullName) {
+              updateDraft({
+                profile: { ...draft.profile, name: appleFullName },
+                step: 2,
+              });
+            } else {
+              goTo(2);
+            }
             Alert.alert(
               "Let's set up your account",
-              "You don't have an account yet — we'll walk you through a quick setup.",
+              "You don't have an account yet, so we'll walk you through a quick setup.",
               [{ text: "OK" }],
             );
             return;
@@ -430,6 +476,7 @@ export function OnboardingScreen() {
       goTo,
       completeOnboarding,
       closeAuthOverlay,
+      updateDraft,
     ],
   );
 
