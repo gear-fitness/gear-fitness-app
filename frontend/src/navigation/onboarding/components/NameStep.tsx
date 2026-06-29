@@ -86,6 +86,14 @@ export function NameStep({
         >
           <Text style={shared.continueBtnText}>Continue</Text>
         </Pressable>
+        {/* Name is optional: signing in with Apple/Google already provides it,
+            and a returning Apple ID may not resend it, so we never require it. */}
+        <Pressable
+          onPress={onNext}
+          style={({ pressed }) => [styles.skipBtn, pressed && styles.pressed]}
+        >
+          <Text style={styles.skipText}>Skip for now</Text>
+        </Pressable>
       </View>
       <FloatingKeyboardDismiss />
     </View>
@@ -135,6 +143,16 @@ const makeStyles = (colors: ReturnType<typeof useOnboardingColors>) =>
       fontSize: 16,
       color: colors.inputText,
       textAlign: "center",
+    },
+    skipBtn: {
+      alignItems: "center",
+      paddingVertical: 14,
+      marginTop: 4,
+    },
+    skipText: {
+      fontSize: 15,
+      fontWeight: "600",
+      color: colors.secondary,
     },
     pressed: {
       opacity: 0.75,

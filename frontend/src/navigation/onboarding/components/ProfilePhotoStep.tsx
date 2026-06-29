@@ -21,7 +21,9 @@ export function ProfilePhotoStep({
 
   const [photoUri, setPhotoUri] = useState(draft.profile?.photoUri);
 
-  // Name comes from the earlier "What's your name?" step.
+  // Name comes from the earlier "What's your name?" step or, for social
+  // sign-ups, the provider credential. It may be empty (skipped / not
+  // provided), in which case initials are simply blank.
   const name = draft.profile?.name ?? "";
   const initials = name
     .trim()
