@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, type Ref } from "react";
 import {
   View,
   FlatList,
@@ -56,12 +56,20 @@ function FeedList({
   feed,
   variant,
   onScroll,
+  onMomentumScrollEnd,
   onOpenComments,
+  listRef,
+  scrollsToTop,
 }: {
   feed: Feed;
   variant: FeedKey;
   onScroll: (e: NativeSyntheticEvent<NativeScrollEvent>) => void;
+  onMomentumScrollEnd?: () => void;
   onOpenComments: (postId: string) => void;
+  listRef?: Ref<FlatList>;
+  // iOS status-bar-tap scroll-to-top. Only the visible feed may enable it: the
+  // gesture is ignored by iOS if more than one on-screen scroll view has it on.
+  scrollsToTop?: boolean;
 }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -117,6 +125,8 @@ function FeedList({
   return (
     <View style={styles.flex1}>
       <FlatList
+        ref={listRef}
+        scrollsToTop={scrollsToTop}
         data={feed.posts}
         renderItem={({ item }) => (
           <FeedPostCard post={item} onOpenComments={onOpenComments} />
@@ -155,6 +165,7 @@ function FeedList({
           />
         }
         onScroll={onScroll}
+        onMomentumScrollEnd={onMomentumScrollEnd}
         scrollEventThrottle={16}
         onEndReached={() => void feed.loadMore()}
         onEndReachedThreshold={0.5}
@@ -191,10 +202,37 @@ export function Social() {
   const discover = useSocialFeed("discover");
   const pagerRef = useRef<PagerView>(null);
 
+  // Per-feed list refs so a re-tap of the tab can scroll the *visible* feed to
+  // top. Each list keeps its own scroll, so we only ever touch the active one.
+  const followingListRef = useRef<FlatList>(null);
+  const discoverListRef = useRef<FlatList>(null);
+
+  // When a tab re-tap scrolls a feed to the top, we defer its refresh until the
+  // scroll lands (onMomentumScrollEnd) so the RefreshControl's spinner-reveal
+  // can't race the scroll. Holds the feed key awaiting that refresh, else null.
+  const pendingRefreshRef = useRef<FeedKey | null>(null);
+
   // Tab tap -> page the swiper (which fires onPageSelected -> setActiveFeed).
   const goToFeed = (key: FeedKey) => {
     pagerRef.current?.setPage(FEED_ORDER.indexOf(key));
   };
+
+  // Holds the latest re-tap handler. The tabPress listener below subscribes
+  // once (only `navigation` is stable enough to depend on) and always invokes
+  // the current handler via this ref, so the logic never reads a stale tab or
+  // search state and we don't re-subscribe on every render. The handler itself
+  // is (re)assigned further down, after search state/handlers are defined.
+  const onActiveTabReTap = useRef<() => void>(() => {});
+
+  // Instagram-style "tap the active tab again". The bottom tab fires tabPress
+  // on every tap of the Explore icon — including when this screen is already
+  // focused. That re-tap (isFocused) is our only trigger.
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("tabPress", () => {
+      if (navigation.isFocused()) onActiveTabReTap.current();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchExpanded, setSearchExpanded] = useState(false);
@@ -257,6 +295,41 @@ export function Social() {
 
   const toggleSearch = () => (searchExpanded ? closeSearch() : openSearch());
 
+  // Re-tapping the Explore tab: bail out of search first; otherwise jump the
+  // *visible* feed to top and refresh it. Reassigned every render so it always
+  // closes over the current tab + search + refreshing state (see the ref/
+  // listener wiring above). Routing by `activeFeed` keeps the other feed's
+  // scroll position and data untouched.
+  onActiveTabReTap.current = () => {
+    if (searchExpanded) {
+      closeSearch();
+      return;
+    }
+    const isDiscover = activeFeed === "discover";
+    const feed = isDiscover ? discover : following;
+    const listRef = isDiscover ? discoverListRef : followingListRef;
+    // The lists carry a top contentInset on iOS (HEADER_HEIGHT), so their
+    // resting "top" sits at -HEADER_HEIGHT; Android's top is plain 0.
+    const isIOS = Platform.OS === "ios";
+    const topOffset = isIOS ? -(SEARCH_ROW_HEIGHT + insets.top) : 0;
+    // When scrolled well away from the top on iOS, the RefreshControl's
+    // spinner-reveal animation races an animated scroll-to-top and parks the
+    // list short. So defer the refresh until the scroll actually lands
+    // (onMomentumScrollEnd fires it). Otherwise — Android (its refresh spinner
+    // is an overlay, no race) or already near the top (the scroll is a
+    // no-op/negligible, and a no-op animated scroll emits no momentum event that
+    // could carry a deferred refresh) — scroll and refresh together.
+    if (isIOS && lastYRef.current > SEARCH_ROW_HEIGHT) {
+      pendingRefreshRef.current = activeFeed;
+      listRef.current?.scrollToOffset({ offset: topOffset, animated: true });
+    } else {
+      // animated:false on iOS so the tiny near-top scroll can't race the
+      // immediate refresh; Android keeps its smooth scroll.
+      listRef.current?.scrollToOffset({ offset: topOffset, animated: !isIOS });
+      if (!feed.refreshing) void feed.refresh();
+    }
+  };
+
   const setHeaderHidden = (hidden: boolean) => {
     if (isHiddenRef.current === hidden) return;
     isHiddenRef.current = hidden;
@@ -302,6 +375,17 @@ export function Social() {
     }
     if (delta > 3) setHeaderHidden(true);
     else if (delta < -3) setHeaderHidden(false);
+  };
+
+  // A deferred tab-re-tap refresh fires here, once the scroll-to-top has landed.
+  // Only the visible feed emits scroll events, and only a pending re-tap sets
+  // the ref — user-driven scrolls leave it null and are ignored.
+  const onMomentumScrollEnd = () => {
+    const key = pendingRefreshRef.current;
+    if (!key) return;
+    pendingRefreshRef.current = null;
+    const feed = key === "discover" ? discover : following;
+    if (!feed.refreshing) void feed.refresh();
   };
 
   // Search users (debounced so a fast typist doesn't fire a request per keystroke)
@@ -501,7 +585,10 @@ export function Social() {
               feed={following}
               variant="following"
               onScroll={onScroll}
+              onMomentumScrollEnd={onMomentumScrollEnd}
               onOpenComments={handleOpenComments}
+              listRef={followingListRef}
+              scrollsToTop={activeFeed === "following" && !searchExpanded}
             />
           </View>
           <View key="discover" style={styles.flex1} collapsable={false}>
@@ -509,7 +596,10 @@ export function Social() {
               feed={discover}
               variant="discover"
               onScroll={onScroll}
+              onMomentumScrollEnd={onMomentumScrollEnd}
               onOpenComments={handleOpenComments}
+              listRef={discoverListRef}
+              scrollsToTop={activeFeed === "discover" && !searchExpanded}
             />
           </View>
         </PagerView>

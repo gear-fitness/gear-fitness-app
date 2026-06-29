@@ -7,6 +7,14 @@ import { OnboardingDraft } from "./types";
 import { calcAge } from "./calcAge";
 import { heightToInches, weightToLbs } from "./units";
 
+/** Resolve the display name to persist. Prefer the entered/provider name;
+ *  fall back to the chosen username so the profile is never left blank when a
+ *  provider (e.g. Sign in with Apple after the first authorization) returns no
+ *  name. The username is always set by this point (UsernameStep is required). */
+export function resolveDisplayName(draft: OnboardingDraft): string | null {
+  return draft.profile?.name?.trim() || draft.profile?.username?.trim() || null;
+}
+
 /** Push the collected profile fields to the backend. Best-effort:
  *  a failure here must never block the user from entering the app. */
 export async function syncOnboardingProfile(
@@ -23,7 +31,7 @@ export async function syncOnboardingProfile(
       weightToLbs(draft.weight),
       age,
       draft.profile?.username ?? null,
-      draft.profile?.name ?? null,
+      resolveDisplayName(draft),
       draft.gender ?? null,
     );
 
