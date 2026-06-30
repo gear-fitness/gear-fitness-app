@@ -158,6 +158,18 @@ export interface Routine {
   exercises: RoutineExercise[];
 }
 
+// Units of measure a food can be logged in. The backend only persists
+// SERVING/GRAM (see ServingUnit); these richer units are a client-side concept
+// resolved to grams when logging. `grams` is how much one of the unit weighs
+// for the specific food it belongs to.
+export type MeasureUnitKey = "serving" | "g" | "oz" | "cup" | "ml";
+
+export interface MeasureUnit {
+  key: MeasureUnitKey;
+  label: string;
+  grams: number;
+}
+
 export interface FoodItem {
   foodId: string;
   fdcId: number | null;
@@ -167,6 +179,8 @@ export interface FoodItem {
   servingSize: number | null;
   servingUnit: string | null;
   householdServing: string | null;
+  // Valid units of measure for this item (client-derived; see nutritionUnits).
+  units?: MeasureUnit[];
   // Nutrient values are per 100 g.
   calories: number | null;
   proteinG: number | null;
@@ -175,6 +189,17 @@ export interface FoodItem {
 }
 
 export type ServingUnit = "SERVING" | "GRAM";
+
+/**
+ * The unit a logged entry is displayed/edited in. Persisted client-side
+ * (AsyncStorage) keyed by entryId, since the backend only stores SERVING/GRAM.
+ */
+export interface EntryUnitMeta {
+  unitKey: MeasureUnitKey;
+  quantity: number;
+  servingGrams: number;
+  units?: MeasureUnit[];
+}
 
 export interface FoodLogEntry {
   entryId: string;

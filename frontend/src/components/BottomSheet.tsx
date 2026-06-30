@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { useTheme } from "@react-navigation/native";
+import { FloatingKeyboardDismiss } from "./FloatingKeyboardDismiss";
 
 const SWIPE_CLOSE_DISTANCE = 80;
 const SWIPE_CLOSE_VELOCITY = 0.5;
@@ -27,6 +28,10 @@ interface Props {
   children: ReactNode;
   /** Lift the sheet above the keyboard (for sheets containing a text input). */
   avoidKeyboard?: boolean;
+  /** Backdrop dim at rest (0–1). Defaults to 0.5; pass 0 for no dimming. */
+  backdropOpacity?: number;
+  /** Show the floating keyboard-dismiss pill while the keyboard is open. */
+  keyboardDismiss?: boolean;
   /**
    * Fires once the close animation finishes and the modal unmounts. Callers use
    * this to chain a follow-up modal or modal-presentation navigation, which iOS
@@ -46,12 +51,15 @@ export function BottomSheet({
   onClose,
   children,
   avoidKeyboard,
+  backdropOpacity,
+  keyboardDismiss,
   onClosed,
 }: Props) {
   const { colors } = useTheme();
+  const targetBackdrop = backdropOpacity ?? BACKDROP_OPACITY;
   const [rendered, setRendered] = useState(visible);
   const translateY = useRef(new Animated.Value(OFFSCREEN)).current;
-  const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const backdropAnim = useRef(new Animated.Value(0)).current;
   // Keep the latest onClosed so the close animation's completion callback never
   // fires a stale closure.
   const onClosedRef = useRef(onClosed);
@@ -62,7 +70,7 @@ export function BottomSheet({
       setRendered(true);
     } else if (rendered) {
       Animated.parallel([
-        Animated.timing(backdropOpacity, {
+        Animated.timing(backdropAnim, {
           toValue: 0,
           duration: CLOSE_DURATION,
           useNativeDriver: true,
@@ -84,8 +92,8 @@ export function BottomSheet({
     if (rendered && visible) {
       translateY.setValue(OFFSCREEN);
       Animated.parallel([
-        Animated.timing(backdropOpacity, {
-          toValue: BACKDROP_OPACITY,
+        Animated.timing(backdropAnim, {
+          toValue: targetBackdrop,
           duration: OPEN_DURATION,
           useNativeDriver: true,
         }),
@@ -173,7 +181,7 @@ export function BottomSheet({
       onRequestClose={onClose}
     >
       <Animated.View
-        style={[styles.backdrop, { opacity: backdropOpacity }]}
+        style={[styles.backdrop, { opacity: backdropAnim }]}
         pointerEvents="none"
       />
       {avoidKeyboard ? (
@@ -186,6 +194,7 @@ export function BottomSheet({
       ) : (
         body
       )}
+      {keyboardDismiss && <FloatingKeyboardDismiss />}
     </Modal>
   );
 }

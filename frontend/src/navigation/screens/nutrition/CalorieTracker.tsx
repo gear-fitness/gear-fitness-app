@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   Alert,
   ScrollView,
@@ -11,13 +11,23 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import Swipeable from "react-native-gesture-handler/ReanimatedSwipeable";
+import PagerView from "react-native-pager-view";
 import { useThemeColors } from "../../../hooks/useThemeColors";
 import { useTrackTab } from "../../../hooks/useTrackTab";
+import { useSwipeableDelete } from "../../../hooks/useSwipeableDelete";
 import { useNutrition } from "../../../context/NutritionContext";
 import { FoodLogEntry } from "../../../api/types";
+import { formatQuantity } from "../../../utils/nutritionUnits";
 import { MacroRing } from "./components/MacroRing";
 import { EditEntrySheet } from "./components/EditEntrySheet";
+import { CategoryMenuSheet } from "./components/CategoryMenuSheet";
+import { SmartJournal } from "./components/SmartJournal";
 import { progressColor } from "./components/progressColor";
+import { FloatingKeyboardDismiss } from "../../../components/FloatingKeyboardDismiss";
+
+// The two swipeable logging sections, in page order. Index <-> title.
+const SECTION_TITLES = ["Manual entry", "Smart journal"];
 
 function shiftDate(dateStr: string, days: number): string {
   const d = new Date(`${dateStr}T00:00:00`);
@@ -40,6 +50,19 @@ function dateLabel(dateStr: string): string {
 
 const round = (n: number | null | undefined) => Math.round(n ?? 0);
 
+// Subtitle for a logged row: the exact quantity + unit. Prefers the entry's
+// client-side display unit (e.g. "4 oz", "1 cup"); falls back to its stored
+// serving/gram amount.
+function entrySubtitle(
+  entry: FoodLogEntry,
+  meta: ReturnType<ReturnType<typeof useNutrition>["getEntryUnitMeta"]>,
+): string {
+  if (meta) return formatQuantity(meta.quantity, meta.unitKey);
+  const n = entry.quantity;
+  if (entry.unit === "GRAM") return `${n} g`;
+  return `${n} ${n === 1 ? "serving" : "servings"}`;
+}
+
 export function CalorieTracker() {
   useTrackTab("Nutrition");
   const t = useThemeColors();
@@ -49,14 +72,33 @@ export function CalorieTracker() {
     setSelectedDate,
     summary,
     categories,
+    isRecurring,
     refresh,
+    removeLog,
+    getEntryUnitMeta,
     addCategory,
+    renameCategory,
     removeCategory,
+    setCategoryRecurring,
   } = useNutrition();
 
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [editingEntry, setEditingEntry] = useState<FoodLogEntry | null>(null);
+  const [menuCategory, setMenuCategory] = useState<string | null>(null);
+  const [renamingCategory, setRenamingCategory] = useState<string | null>(null);
+  const [renameText, setRenameText] = useState("");
+
+  // Which logging section is showing: 0 = Manual entry, 1 = Smart journal.
+  // Driven by the pager's onPageSelected; the dots/title read from it.
+  const [activeSection, setActiveSection] = useState(0);
+  const pagerRef = useRef<PagerView>(null);
+
+  const { getSwipeableProps } = useSwipeableDelete({
+    onDelete: removeLog,
+    deleteTitle: "Remove food",
+    deleteMessage: "Remove this item from your log?",
+  });
 
   useFocusEffect(
     useCallback(() => {
@@ -123,6 +165,33 @@ export function CalorieTracker() {
     ]);
   };
 
+  const startRename = (name: string) => {
+    setMenuCategory(null);
+    setRenamingCategory(name);
+    setRenameText(name);
+  };
+
+  const submitRename = async () => {
+    const next = renameText.trim();
+    const old = renamingCategory;
+    setRenamingCategory(null);
+    setRenameText("");
+    if (!old || !next || next === old) return;
+    if (
+      categories.some(
+        (c) =>
+          c.toLowerCase() === next.toLowerCase() &&
+          c.toLowerCase() !== old.toLowerCase(),
+      )
+    ) {
+      Alert.alert("Meal exists", `"${next}" is already a meal.`);
+      return;
+    }
+    await renameCategory(old, next);
+  };
+
+  const menuRecurring = menuCategory ? isRecurring(menuCategory) : false;
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: t.appBg }]}>
       {/* Date navigation */}
@@ -151,12 +220,8 @@ export function CalorieTracker() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Summary card */}
+      {/* Summary card — fixed above the swipeable logging sections */}
+      <View style={styles.summaryWrap}>
         <View
           style={[
             styles.card,
@@ -215,7 +280,54 @@ export function CalorieTracker() {
             <Ionicons name="chevron-forward" size={14} color={t.secondary} />
           </TouchableOpacity>
         </View>
+      </View>
 
+      {/* Section switcher: 2 dots (which side) + the active section's title.
+          Sits directly under the progress card, above the swipeable pager. */}
+      <View style={styles.switcher}>
+        <View style={styles.dotsRow}>
+          {[0, 1].map((i) => {
+            const active = activeSection === i;
+            return (
+              <TouchableOpacity
+                key={i}
+                hitSlop={10}
+                onPress={() => pagerRef.current?.setPage(i)}
+                accessibilityLabel={`Show ${SECTION_TITLES[i]}`}
+              >
+                <View
+                  style={[
+                    styles.dot,
+                    {
+                      width: active ? 18 : 7,
+                      backgroundColor: active ? t.text : t.border,
+                    },
+                  ]}
+                />
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        <Text style={[styles.sectionTitle, { color: t.secondary }]}>
+          {SECTION_TITLES[activeSection]}
+        </Text>
+      </View>
+
+      {/* Swipeable logging sections: Manual entry <-> Smart journal. Both pages
+          stay mounted, each scrolling independently. */}
+      <PagerView
+        ref={pagerRef}
+        style={styles.flex1}
+        initialPage={0}
+        onPageSelected={(e) => setActiveSection(e.nativeEvent.position)}
+      >
+        {/* Manual entry: the meal-category cards */}
+        <View key="manual" style={styles.flex1} collapsable={false}>
+          <ScrollView
+            contentContainerStyle={styles.pageScroll}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
         {/* Meal category cards */}
         {displayedCategories.map((name) => {
           const catEntries = entriesForCategory(name);
@@ -232,22 +344,41 @@ export function CalorieTracker() {
               ]}
             >
               <View style={styles.mealHeader}>
-                <Text style={[styles.mealTitle, { color: t.text }]}>
-                  {name}
-                </Text>
+                {renamingCategory === name ? (
+                  <TextInput
+                    autoFocus
+                    value={renameText}
+                    onChangeText={setRenameText}
+                    onSubmitEditing={submitRename}
+                    onBlur={submitRename}
+                    returnKeyType="done"
+                    placeholder="Meal name"
+                    placeholderTextColor={t.secondary}
+                    style={[styles.renameInput, { color: t.text }]}
+                  />
+                ) : (
+                  <View style={styles.mealTitleRow}>
+                    <Text style={[styles.mealTitle, { color: t.text }]}>
+                      {name}
+                    </Text>
+                    {isRecurring(name) && (
+                      <Ionicons name="repeat" size={14} color={t.secondary} />
+                    )}
+                  </View>
+                )}
                 <View style={styles.mealHeaderRight}>
                   <Text style={[styles.mealCals, { color: t.secondary }]}>
                     {catCals} cal
                   </Text>
                   <TouchableOpacity
                     hitSlop={10}
-                    onPress={() => handleDeleteCategory(name)}
+                    onPress={() => setMenuCategory(name)}
                     style={styles.deleteBtn}
-                    accessibilityLabel={`Delete ${name}`}
+                    accessibilityLabel={`${name} options`}
                   >
                     <Ionicons
-                      name="trash-outline"
-                      size={16}
+                      name="ellipsis-horizontal"
+                      size={18}
                       color={t.secondary}
                     />
                   </TouchableOpacity>
@@ -258,7 +389,9 @@ export function CalorieTracker() {
                 <MealEntryRow
                   key={e.entryId}
                   entry={e}
+                  subtitle={entrySubtitle(e, getEntryUnitMeta(e.entryId))}
                   onPress={() => setEditingEntry(e)}
+                  swipeableProps={getSwipeableProps(e.entryId)}
                 />
               ))}
 
@@ -325,68 +458,115 @@ export function CalorieTracker() {
             </Text>
           </TouchableOpacity>
         )}
-      </ScrollView>
+          </ScrollView>
+        </View>
 
-      {/* Floating "+" — only on this screen, floats above the tab bar. */}
-      <TouchableOpacity
-        accessibilityLabel="Add food"
-        activeOpacity={0.85}
-        style={[styles.fab, { backgroundColor: t.accent }]}
-        onPress={() =>
-          navigation.navigate("AddFood", {
-            category: displayedCategories[0] ?? "Breakfast",
-          })
-        }
-      >
-        <Ionicons name="add" size={32} color={t.accentText} />
-      </TouchableOpacity>
+        {/* Smart journal: notes-app style section (future AI food entry) */}
+        <View key="journal" style={styles.flex1} collapsable={false}>
+          <SmartJournal selectedDate={selectedDate} />
+        </View>
+      </PagerView>
+
+      {/* Floating "+" — manual-entry section only; floats above the tab bar.
+          (Smart journal has its own "New note" button.) */}
+      {activeSection === 0 && (
+        <TouchableOpacity
+          accessibilityLabel="Add food"
+          activeOpacity={0.85}
+          style={[styles.fab, { backgroundColor: t.accent }]}
+          onPress={() =>
+            navigation.navigate("AddFood", {
+              category: displayedCategories[0] ?? "Breakfast",
+            })
+          }
+        >
+          <Ionicons name="add" size={32} color={t.accentText} />
+        </TouchableOpacity>
+      )}
 
       <EditEntrySheet
         entry={editingEntry}
         visible={editingEntry !== null}
         onClose={() => setEditingEntry(null)}
       />
+
+      <CategoryMenuSheet
+        categoryName={menuCategory}
+        recurring={menuRecurring}
+        visible={menuCategory !== null}
+        onClose={() => setMenuCategory(null)}
+        onToggleRecurring={() => {
+          if (menuCategory) {
+            setCategoryRecurring(menuCategory, !menuRecurring);
+          }
+          setMenuCategory(null);
+        }}
+        onRename={() => {
+          if (menuCategory) startRename(menuCategory);
+        }}
+        onDelete={() => {
+          const name = menuCategory;
+          setMenuCategory(null);
+          if (name) handleDeleteCategory(name);
+        }}
+      />
+
+      <FloatingKeyboardDismiss />
     </SafeAreaView>
   );
 }
 
 function MealEntryRow({
   entry,
+  subtitle,
   onPress,
+  swipeableProps,
 }: {
   entry: FoodLogEntry;
+  subtitle: string;
   onPress: () => void;
+  swipeableProps: object;
 }) {
   const t = useThemeColors();
-  const { removeLog } = useNutrition();
   return (
-    <TouchableOpacity
-      style={[styles.entryRow, { borderTopColor: t.separator }]}
-      onPress={onPress}
-      accessibilityLabel={`Edit ${entry.description}`}
-    >
-      <View style={styles.entryInfo}>
-        <Text style={[styles.entryName, { color: t.text }]} numberOfLines={1}>
-          {entry.description}
-        </Text>
-        <Text style={[styles.entryMeta, { color: t.secondary }]}>
-          {entry.quantity}{" "}
-          {entry.unit === "GRAM" ? "g" : "serving"}
-          {entry.quantity !== 1 && entry.unit === "SERVING" ? "s" : ""}
-        </Text>
-      </View>
-      <Text style={[styles.entryCals, { color: t.text }]}>
-        {round(entry.calories)}
-      </Text>
-      <TouchableOpacity
-        accessibilityLabel="Remove entry"
-        hitSlop={10}
-        onPress={() => removeLog(entry.entryId)}
-        style={styles.entryDelete}
-      >
-        <Ionicons name="close" size={18} color={t.secondary} />
-      </TouchableOpacity>
-    </TouchableOpacity>
+    <View style={styles.entryWrapper}>
+      <Swipeable {...swipeableProps} containerStyle={styles.entrySwipeContainer}>
+        <TouchableOpacity
+          style={[
+            styles.entryRow,
+            { backgroundColor: t.surface, borderColor: t.border },
+          ]}
+          onPress={onPress}
+          activeOpacity={0.7}
+          accessibilityLabel={`Edit ${entry.description}`}
+        >
+          <View style={styles.entryInfo}>
+            <Text
+              style={[styles.entryName, { color: t.text }]}
+              numberOfLines={1}
+            >
+              {entry.description}
+            </Text>
+            <Text style={[styles.entryMeta, { color: t.secondary }]}>
+              {subtitle}
+            </Text>
+          </View>
+          <Text style={[styles.entryCals, { color: t.text }]}>
+            {round(entry.calories)}
+            <Text style={[styles.entryCalUnit, { color: t.secondary }]}>
+              {" "}
+              cal
+            </Text>
+          </Text>
+          <Ionicons
+            name="chevron-forward"
+            size={18}
+            color={t.secondary}
+            style={styles.entryChevron}
+          />
+        </TouchableOpacity>
+      </Swipeable>
+    </View>
   );
 }
 
@@ -400,7 +580,28 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   dateLabel: { fontSize: 17, fontWeight: "600" },
-  scroll: { paddingHorizontal: 16, paddingBottom: 32 },
+  flex1: { flex: 1 },
+  summaryWrap: { paddingHorizontal: 16 },
+  pageScroll: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 120 },
+  switcher: {
+    paddingHorizontal: 16,
+    paddingTop: 2,
+    paddingBottom: 10,
+  },
+  dotsRow: {
+    flexDirection: "row",
+    alignSelf: "center",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 10,
+  },
+  dot: { height: 7, borderRadius: 3.5 },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
   card: {
     borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
@@ -443,21 +644,33 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
   },
+  mealTitleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   mealTitle: { fontSize: 16, fontWeight: "600" },
   mealCals: { fontSize: 14 },
   deleteBtn: { padding: 2 },
+  renameInput: {
+    fontSize: 16,
+    fontWeight: "600",
+    flex: 1,
+    paddingVertical: 2,
+    marginRight: 12,
+  },
+  entryWrapper: { borderRadius: 14, overflow: "hidden", marginTop: 10 },
+  entrySwipeContainer: { borderRadius: 14, overflow: "hidden" },
   entryRow: {
     flexDirection: "row",
     alignItems: "center",
-    borderTopWidth: StyleSheet.hairlineWidth,
-    paddingVertical: 10,
-    marginTop: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
   },
   entryInfo: { flex: 1, paddingRight: 8 },
-  entryName: { fontSize: 15 },
-  entryMeta: { fontSize: 12, marginTop: 2 },
-  entryCals: { fontSize: 15, fontWeight: "600", marginRight: 12 },
-  entryDelete: { padding: 2 },
+  entryName: { fontSize: 16, fontWeight: "500" },
+  entryMeta: { fontSize: 13, marginTop: 3 },
+  entryCals: { fontSize: 16, fontWeight: "700" },
+  entryCalUnit: { fontSize: 13, fontWeight: "500" },
+  entryChevron: { marginLeft: 8 },
   addRow: {
     flexDirection: "row",
     alignItems: "center",

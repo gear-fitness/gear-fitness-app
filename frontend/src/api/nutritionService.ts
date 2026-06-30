@@ -8,6 +8,7 @@
  * just carries a free-text `category` label.
  */
 import apiClient from "./apiClient";
+import { unitsForFood } from "../utils/nutritionUnits";
 import {
   DaySummary,
   FoodItem,
@@ -23,7 +24,8 @@ export async function searchFoods(
   const { data } = await apiClient.get<FoodItem[]>("/nutrition/foods/search", {
     params: { q: query, page },
   });
-  return data ?? [];
+  // Attach the client-derived set of valid units of measure for each food.
+  return (data ?? []).map((f) => ({ ...f, units: unitsForFood(f) }));
 }
 
 export async function getDay(date: string): Promise<DaySummary> {

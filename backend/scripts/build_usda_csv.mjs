@@ -9,7 +9,8 @@
  * USDA FDC data is in the public domain. Download the bulk CSV export from
  *   https://fdc.nal.usda.gov/download-datasets.html
  * and unzip so this folder contains: food.csv, food_nutrient.csv,
- * branded_food.csv (food.csv carries description + data_type for every row).
+ * branded_food.csv (food.csv carries description + data_type for every row),
+ * plus food_portion.csv + measure_unit.csv for whole-food serving sizes.
  *
  * Usage:
  *   node build_usda_csv.mjs --in /path/to/fdc_csv_dir \
@@ -23,9 +24,36 @@
 import { createReadStream, createWriteStream } from "node:fs";
 import { createInterface } from "node:readline";
 import { resolve } from "node:path";
+import { buildServingMap } from "./usda_servings.mjs";
 
-// USDA nutrient.id values (food_nutrient.nutrient_id references these).
-const NUTRIENT = { CALORIES: 1008, PROTEIN: 1003, FAT: 1004, CARBS: 1005 };
+// Macro nutrient identifiers across FDC schemes. Foundation/SR Legacy/Branded
+// use the new FDC nutrient.id values; FNDDS (survey) food_nutrient rows use the
+// legacy SR nutrient numbers. The id ranges don't collide, so we accept both.
+// Energy has several variants (direct kcal + Atwater general/specific + the SR
+// number); we keep whichever is available, by priority.
+const ENERGY_IDS = [1008, 2047, 2048, 208]; // all kcal; preference order
+const ENERGY_SET = new Set(ENERGY_IDS);
+const PROTEIN_IDS = new Set([1003, 203]);
+const FAT_IDS = new Set([1004, 204]);
+const CARB_IDS = new Set([1005, 205]);
+
+// Real consumer-food data types. The Foundation download also ships lab
+// sample/acquisition rows (sample_food, sub_sample_food, market_acquisition,
+// agricultural_acquisition) that aren't foods you'd log — exclude them.
+const KEEP_TYPES = new Set([
+  "foundation_food",
+  "sr_legacy_food",
+  "survey_fndds_food",
+  "branded_food",
+]);
+
+function resolveCalories(n) {
+  if (!n || !n.energy) return null;
+  for (const id of ENERGY_IDS) {
+    if (n.energy[id] != null) return n.energy[id];
+  }
+  return null;
+}
 
 function arg(name, fallback) {
   const i = process.argv.indexOf(`--${name}`);
@@ -104,17 +132,33 @@ async function main() {
   const nutrients = new Map();
   for await (const r of rows("food_nutrient.csv")) {
     const id = parseInt(r.nutrient_id, 10);
-    if (!Object.values(NUTRIENT).includes(id)) continue;
+    const isEnergy = ENERGY_SET.has(id);
+    if (
+      !isEnergy &&
+      !PROTEIN_IDS.has(id) &&
+      !FAT_IDS.has(id) &&
+      !CARB_IDS.has(id)
+    ) {
+      continue;
+    }
     const amount = r.amount;
     if (amount === "" || amount == null) continue;
     let n = nutrients.get(r.fdc_id);
     if (!n) { n = {}; nutrients.set(r.fdc_id, n); }
-    if (id === NUTRIENT.CALORIES) n.calories = amount;
-    else if (id === NUTRIENT.PROTEIN) n.protein = amount;
-    else if (id === NUTRIENT.FAT) n.fat = amount;
-    else if (id === NUTRIENT.CARBS) n.carbs = amount;
+    if (isEnergy) (n.energy ??= {})[id] = amount;
+    else if (PROTEIN_IDS.has(id)) n.protein = amount;
+    else if (FAT_IDS.has(id)) n.fat = amount;
+    else if (CARB_IDS.has(id)) n.carbs = amount;
   }
   console.log(`  food_nutrient.csv: ${nutrients.size} foods with macros`);
+
+  // 3b) food_portion.csv + measure_unit.csv: a sensible serving for the whole
+  // foods (SR Legacy / Foundation / FNDDS), which otherwise carry no serving.
+  // Branded foods already have a package serving from branded_food.csv.
+  const descById = new Map();
+  for (const [id, f] of foods) descById.set(id, f.description);
+  const servings = await buildServingMap([IN_DIR], descById);
+  console.log(`  food_portion.csv: ${servings.size} foods with a serving`);
 
   // 4) Emit. Keep all Foundation + SR Legacy; cap the Branded subset.
   const out = createWriteStream(OUT, "utf8");
@@ -125,21 +169,32 @@ async function main() {
   let written = 0;
   let brandedWritten = 0;
   for (const [fdcId, food] of foods) {
+    if (!KEEP_TYPES.has(food.dataType)) continue; // skip lab/sample rows
     const n = nutrients.get(fdcId);
-    if (!n || n.calories == null) continue; // need at least calories
+    const calories = resolveCalories(n);
+    if (calories == null) continue; // need at least calories
     const isBranded = food.dataType === "branded_food";
     if (isBranded && brandedWritten >= BRANDED_LIMIT) continue;
     const b = branded.get(fdcId) || {};
+    // Prefer the branded package serving; fall back to the USDA portion serving
+    // for whole foods (which have none of their own).
+    const portion = servings.get(fdcId);
+    const hasBrandedServing = b.servingSize != null && b.servingSize !== "";
+    const servingSize = hasBrandedServing ? b.servingSize : portion?.grams ?? "";
+    const servingUnit = hasBrandedServing ? b.servingUnit : portion ? "g" : "";
+    const household = hasBrandedServing
+      ? b.household
+      : portion?.label ?? "";
     out.write(
       [
         fdcId,
         csvCell(food.description),
         csvCell(b.brandOwner),
         csvCell(food.dataType),
-        b.servingSize ?? "",
-        csvCell(b.servingUnit),
-        csvCell(b.household),
-        n.calories ?? "",
+        servingSize,
+        csvCell(servingUnit),
+        csvCell(household),
+        calories ?? "",
         n.protein ?? "",
         n.carbs ?? "",
         n.fat ?? "",

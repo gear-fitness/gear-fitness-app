@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Modal,
+  Keyboard,
   Pressable,
   StyleSheet,
   Text,
@@ -10,22 +10,25 @@ import {
 } from "react-native";
 import { useThemeColors } from "../../../../hooks/useThemeColors";
 import { useNutrition } from "../../../../context/NutritionContext";
-import { FoodLogEntry } from "../../../../api/types";
+import { FoodLogEntry, MeasureUnit, MeasureUnitKey } from "../../../../api/types";
+import { buildUnits, gramsPerUnit, unitLabel } from "../../../../utils/nutritionUnits";
+import { BottomSheet } from "../../../../components/BottomSheet";
 import { MacroRing } from "./MacroRing";
 
 const round = (n: number | null | undefined) => Math.round(n ?? 0);
 const round1 = (n: number | null | undefined) =>
   Math.round((n ?? 0) * 10) / 10;
+const round2 = (n: number) => Math.round(n * 100) / 100;
 
 /**
- * Bottom sheet to edit a logged food entry: change the number of servings, move
- * it to a different meal category, and see the resulting macros as a percentage
- * of the user's daily goals. The backend has no update endpoint, so saving
- * re-logs the entry (via NutritionContext.updateLog) with the new values.
+ * Bottom sheet to edit a logged food entry: change the serving size (unit) and
+ * quantity, move it to a different meal category, and see the resulting macros
+ * as a percentage of the user's daily goals. The backend has no update endpoint
+ * and only stores SERVING/GRAM, so saving re-logs the entry (converting the
+ * chosen unit to grams) and persists the display unit as client-side metadata.
  *
- * Macros scale linearly with quantity, so we derive the per-unit amounts from
- * the entry itself rather than re-fetching the food — keeping the live preview
- * exactly in step with what the server will recompute on save.
+ * Macros scale linearly with grams, so we derive a per-gram basis from the
+ * entry itself, keeping the live preview in step with what the server stores.
  */
 export function EditEntrySheet({
   entry,
@@ -37,71 +40,121 @@ export function EditEntrySheet({
   onClose: () => void;
 }) {
   const t = useThemeColors();
-  const { categories, summary, updateLog } = useNutrition();
+  const { categories, summary, updateLog, getEntryUnitMeta } = useNutrition();
   const goal = summary?.goal;
 
+  const meta = entry ? getEntryUnitMeta(entry.entryId) : undefined;
+  const servingGrams = meta?.servingGrams ?? 100;
+
+  // Units offered when editing: serving, g, oz, plus volume units (cup, ml).
+  const unitOptions: MeasureUnit[] = useMemo(
+    () => buildUnits(servingGrams, { includeVolume: true }),
+    [servingGrams],
+  );
+
+  const gramsFor = (key: MeasureUnitKey) =>
+    gramsPerUnit(key, servingGrams, unitOptions);
+
+  const [unitKey, setUnitKey] = useState<MeasureUnitKey>("serving");
   const [quantityText, setQuantityText] = useState("1");
   const [category, setCategory] = useState("");
+  const [unitPickerOpen, setUnitPickerOpen] = useState(false);
   const [mealPickerOpen, setMealPickerOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Per-gram macros derived from the entry's stored (consumed) amounts.
+  const perGram = useMemo(() => {
+    if (!entry) return { calories: 0, proteinG: 0, carbsG: 0, fatG: 0 };
+    const grams =
+      entry.unit === "GRAM"
+        ? entry.quantity
+        : entry.quantity * servingGrams;
+    const div = grams > 0 ? grams : 1;
+    return {
+      calories: (entry.calories ?? 0) / div,
+      proteinG: (entry.proteinG ?? 0) / div,
+      carbsG: (entry.carbsG ?? 0) / div,
+      fatG: (entry.fatG ?? 0) / div,
+    };
+  }, [entry, servingGrams]);
 
   // Re-seed local state each time a different entry is opened.
   useEffect(() => {
     if (entry) {
-      setQuantityText(String(entry.quantity));
+      const startUnit: MeasureUnitKey =
+        meta?.unitKey ?? (entry.unit === "GRAM" ? "g" : "serving");
+      setUnitKey(startUnit);
+      setQuantityText(String(meta?.quantity ?? entry.quantity));
       setCategory(entry.category ?? categories[0] ?? "Breakfast");
+      setUnitPickerOpen(false);
       setMealPickerOpen(false);
       setSaving(false);
     }
   }, [entry]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const perUnit = useMemo(() => {
-    const q = entry && entry.quantity ? entry.quantity : 1;
-    return {
-      calories: (entry?.calories ?? 0) / q,
-      proteinG: (entry?.proteinG ?? 0) / q,
-      carbsG: (entry?.carbsG ?? 0) / q,
-      fatG: (entry?.fatG ?? 0) / q,
-    };
-  }, [entry]);
-
   if (!entry) return null;
 
-  const unit = entry.unit;
   const qty = parseFloat(quantityText) || 0;
+  const grams = qty * gramsFor(unitKey);
   const consumed = {
-    calories: perUnit.calories * qty,
-    proteinG: perUnit.proteinG * qty,
-    carbsG: perUnit.carbsG * qty,
-    fatG: perUnit.fatG * qty,
+    calories: perGram.calories * grams,
+    proteinG: perGram.proteinG * grams,
+    carbsG: perGram.carbsG * grams,
+    fatG: perGram.fatG * grams,
   };
 
   const pctOfGoal = (value: number, g?: number) =>
     g && g > 0 ? Math.round((value / g) * 100) : 0;
 
+  // Switching units keeps the actual amount (grams) constant.
+  const changeUnit = (nextKey: MeasureUnitKey) => {
+    const currentGrams = qty * gramsFor(unitKey);
+    const nextQty = currentGrams / gramsFor(nextKey);
+    setUnitKey(nextKey);
+    setQuantityText(String(round2(nextQty)));
+    setUnitPickerOpen(false);
+  };
+
   const handleSave = async () => {
     if (qty <= 0 || saving) return;
     setSaving(true);
+    const unitMeta = {
+      unitKey,
+      quantity: qty,
+      servingGrams,
+      units: meta?.units,
+    };
+    // The backend understands SERVING/GRAM only — log servings as-is, anything
+    // else as its gram equivalent so macros recompute correctly.
+    const backendUnit = unitKey === "serving" ? "SERVING" : "GRAM";
+    const backendQty = unitKey === "serving" ? qty : grams;
     try {
       if (entry.foodId) {
-        await updateLog(entry.entryId, {
-          foodId: entry.foodId,
-          category,
-          quantity: qty,
-          unit,
-        });
+        await updateLog(
+          entry.entryId,
+          {
+            foodId: entry.foodId,
+            category,
+            quantity: backendQty,
+            unit: backendUnit,
+          },
+          unitMeta,
+        );
       } else {
-        // Quick-add entry: re-log a scaled macro snapshot.
-        await updateLog(entry.entryId, {
-          category,
-          quantity: qty,
-          unit,
-          description: entry.description,
-          calories: consumed.calories,
-          proteinG: consumed.proteinG,
-          carbsG: consumed.carbsG,
-          fatG: consumed.fatG,
-        });
+        await updateLog(
+          entry.entryId,
+          {
+            category,
+            quantity: backendQty,
+            unit: backendUnit,
+            description: entry.description,
+            calories: consumed.calories,
+            proteinG: consumed.proteinG,
+            carbsG: consumed.carbsG,
+            fatG: consumed.fatG,
+          },
+          unitMeta,
+        );
       }
       onClose();
     } catch (err) {
@@ -110,43 +163,70 @@ export function EditEntrySheet({
     }
   };
 
+  const qtyLabel =
+    unitKey === "serving" ? "Number of Servings" : `Amount (${unitLabel(unitKey)})`;
+
   return (
-    <Modal
+    <BottomSheet
       visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
+      onClose={onClose}
+      avoidKeyboard
+      backdropOpacity={0}
+      keyboardDismiss
     >
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable
-          style={[
-            styles.sheet,
-            { backgroundColor: t.cardBg, borderColor: t.cardBorder },
-          ]}
-        >
-          <View style={[styles.handle, { backgroundColor: t.handle }]} />
+      <Pressable style={styles.content} onPress={() => Keyboard.dismiss()}>
+        <Text style={[styles.title, { color: t.text }]} numberOfLines={2}>
+          {entry.description}
+        </Text>
 
-          <Text style={[styles.title, { color: t.text }]} numberOfLines={2}>
-            {entry.description}
-          </Text>
-
-          {/* Serving size (display) */}
+          {/* Serving size — unit selector */}
           <View style={[styles.row, { borderTopColor: t.separator }]}>
             <Text style={[styles.rowLabel, { color: t.text }]}>
               Serving Size
             </Text>
-            <View style={[styles.pill, { backgroundColor: t.surface }]}>
+            <TouchableOpacity
+              style={[styles.pill, { backgroundColor: t.surface }]}
+              onPress={() => setUnitPickerOpen((o) => !o)}
+            >
               <Text style={[styles.pillText, { color: t.text }]}>
-                {unit === "GRAM" ? "Grams" : "1 serving"}
+                {unitLabel(unitKey)}
               </Text>
-            </View>
+            </TouchableOpacity>
           </View>
 
-          {/* Number of servings (editable) */}
+          {unitPickerOpen && (
+            <View style={styles.chipRow}>
+              {unitOptions.map((u) => {
+                const selected = u.key === unitKey;
+                return (
+                  <TouchableOpacity
+                    key={u.key}
+                    style={[
+                      styles.chip,
+                      {
+                        backgroundColor: selected ? t.accent : t.surface,
+                        borderColor: t.cardBorder,
+                      },
+                    ]}
+                    onPress={() => changeUnit(u.key)}
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        { color: selected ? t.accentText : t.text },
+                      ]}
+                    >
+                      {u.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+
+          {/* Quantity */}
           <View style={[styles.row, { borderTopColor: t.separator }]}>
-            <Text style={[styles.rowLabel, { color: t.text }]}>
-              {unit === "GRAM" ? "Amount (g)" : "Number of Servings"}
-            </Text>
+            <Text style={[styles.rowLabel, { color: t.text }]}>{qtyLabel}</Text>
             <TextInput
               value={quantityText}
               onChangeText={setQuantityText}
@@ -159,7 +239,7 @@ export function EditEntrySheet({
             />
           </View>
 
-          {/* Meal category (movable) */}
+          {/* Meal category */}
           <View style={[styles.row, { borderTopColor: t.separator }]}>
             <Text style={[styles.rowLabel, { color: t.text }]}>Meal</Text>
             <TouchableOpacity
@@ -244,9 +324,8 @@ export function EditEntrySheet({
               {saving ? "Saving…" : "Save changes"}
             </Text>
           </TouchableOpacity>
-        </Pressable>
       </Pressable>
-    </Modal>
+    </BottomSheet>
   );
 }
 
@@ -271,26 +350,7 @@ function MacroStat({
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "flex-end",
-  },
-  sheet: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 32,
-  },
-  handle: {
-    width: 40,
-    height: 5,
-    borderRadius: 2.5,
-    alignSelf: "center",
-    marginBottom: 14,
-  },
+  content: { paddingHorizontal: 20, paddingTop: 4 },
   title: { fontSize: 22, fontWeight: "700", marginBottom: 8 },
   row: {
     flexDirection: "row",

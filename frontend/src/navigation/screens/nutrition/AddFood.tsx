@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
   FlatList,
-  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -16,7 +16,13 @@ import { SearchBar } from "../../../components/SearchBar";
 import { useThemeColors } from "../../../hooks/useThemeColors";
 import { useNutrition } from "../../../context/NutritionContext";
 import { searchFoods } from "../../../api/nutritionService";
-import { FoodItem } from "../../../api/types";
+import { FoodItem, MeasureUnit, MeasureUnitKey } from "../../../api/types";
+import {
+  buildUnits,
+  gramsPerUnit,
+  looksVolumetric,
+  servingGramsOf,
+} from "../../../utils/nutritionUnits";
 
 const round = (n: number | null | undefined) => Math.round(n ?? 0);
 
@@ -55,9 +61,42 @@ export function AddFood() {
   const [loading, setLoading] = useState(false);
   const reqId = useRef(0);
 
+  // Measured bottom edge of the header so the category dropdown opens just
+  // below the button rather than overlapping it (the overlay starts at the
+  // very top of the screen, behind the safe-area inset).
+  const [headerBottom, setHeaderBottom] = useState(0);
+
   // Per-food add state so the row's "+" can show a spinner then a checkmark.
   const [addingId, setAddingId] = useState<string | null>(null);
   const [addedIds, setAddedIds] = useState<Record<string, boolean>>({});
+
+  // Which row's portion dropdown is open. Hoisted here (rather than per-row) so
+  // only one can be expanded at a time — opening one closes any other.
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // Transient "Logged!" confirmation toast.
+  const [toastVisible, setToastVisible] = useState(false);
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+
+  const showLoggedToast = () => {
+    toastOpacity.stopAnimation();
+    setToastVisible(true);
+    Animated.sequence([
+      Animated.timing(toastOpacity, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.delay(900),
+      Animated.timing(toastOpacity, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+    ]).start(({ finished }) => {
+      if (finished) setToastVisible(false);
+    });
+  };
 
   const isSearching = query.trim().length >= 2;
 
@@ -87,17 +126,34 @@ export function AddFood() {
     return () => clearTimeout(handle);
   }, [query]);
 
-  const handleAdd = async (food: FoodItem) => {
+  // Logs a food. Defaults to a single serving (the quick "+"); the expandable
+  // row passes an explicit unit + quantity. The backend only stores
+  // SERVING/GRAM, so non-serving units are converted to their gram equivalent
+  // (mirrors EditEntrySheet), with the chosen unit kept as client-side metadata.
+  const handleAdd = async (
+    food: FoodItem,
+    opts?: { unitKey: MeasureUnitKey; quantity: number },
+  ) => {
     if (addingId) return;
+    const unitKey = opts?.unitKey ?? "serving";
+    const quantity = opts?.quantity ?? 1;
     setAddingId(food.foodId);
     try {
-      await addLog({
-        foodId: food.foodId,
-        category,
-        quantity: 1,
-        unit: "SERVING",
-      });
+      const servingGrams = servingGramsOf(food);
+      const grams = quantity * gramsPerUnit(unitKey, servingGrams, food.units);
+      const backendUnit = unitKey === "serving" ? "SERVING" : "GRAM";
+      const backendQty = unitKey === "serving" ? quantity : grams;
+      await addLog(
+        {
+          foodId: food.foodId,
+          category,
+          quantity: backendQty,
+          unit: backendUnit,
+        },
+        { unitKey, quantity, servingGrams, units: food.units },
+      );
       setAddedIds((prev) => ({ ...prev, [food.foodId]: true }));
+      showLoggedToast();
     } catch (err) {
       console.error("Failed to add food:", err);
     } finally {
@@ -108,7 +164,12 @@ export function AddFood() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: t.appBg }]}>
       {/* Header: close + tappable category selector */}
-      <View style={styles.header}>
+      <View
+        style={styles.header}
+        onLayout={(e) =>
+          setHeaderBottom(e.nativeEvent.layout.y + e.nativeEvent.layout.height)
+        }
+      >
         <TouchableOpacity
           accessibilityLabel="Back"
           hitSlop={12}
@@ -126,7 +187,11 @@ export function AddFood() {
           <Text style={[styles.categoryText, { color: t.tint }]}>
             {category}
           </Text>
-          <Ionicons name="chevron-down" size={18} color={t.tint} />
+          <Ionicons
+            name={pickerOpen ? "chevron-up" : "chevron-down"}
+            size={18}
+            color={t.tint}
+          />
         </TouchableOpacity>
 
         {/* Spacer to keep the category centered opposite the close button. */}
@@ -162,80 +227,49 @@ export function AddFood() {
             </Text>
           ) : null
         }
-        renderItem={({ item }) => {
-          const macros = perServing(item);
-          const added = addedIds[item.foodId];
-          const busy = addingId === item.foodId;
-          return (
-            <View
-              style={[
-                styles.row,
-                { backgroundColor: t.cardBg, borderColor: t.cardBorder },
-              ]}
-            >
-              <View style={styles.rowInfo}>
-                <Text
-                  style={[styles.name, { color: t.text }]}
-                  numberOfLines={2}
-                >
-                  {item.description}
-                </Text>
-                <Text style={[styles.meta, { color: t.secondary }]}>
-                  {round(macros.calories)} cal · {servingLabel(item)}
-                </Text>
-                <Text style={[styles.macros, { color: t.secondary }]}>
-                  P {round(macros.proteinG)}g · C {round(macros.carbsG)}g · F{" "}
-                  {round(macros.fatG)}g
-                </Text>
-              </View>
-
-              <TouchableOpacity
-                accessibilityLabel={`Add ${item.description} to ${category}`}
-                hitSlop={10}
-                disabled={busy}
-                onPress={() => handleAdd(item)}
-                style={[styles.addBtn, { backgroundColor: t.surface }]}
-              >
-                {busy ? (
-                  <ActivityIndicator size="small" color={t.tint} />
-                ) : added ? (
-                  <Ionicons name="checkmark" size={22} color={t.tint} />
-                ) : (
-                  <Ionicons name="add" size={22} color={t.tint} />
-                )}
-              </TouchableOpacity>
-            </View>
-          );
-        }}
+        renderItem={({ item }) => (
+          <FoodRow
+            food={item}
+            category={category}
+            t={t}
+            added={!!addedIds[item.foodId]}
+            busy={addingId === item.foodId}
+            expanded={expandedId === item.foodId}
+            onToggleExpand={() =>
+              setExpandedId((prev) =>
+                prev === item.foodId ? null : item.foodId,
+              )
+            }
+            onCollapse={() =>
+              setExpandedId((prev) => (prev === item.foodId ? null : prev))
+            }
+            onLog={handleAdd}
+          />
+        )}
       />
 
-      {/* Category picker bottom sheet */}
-      <Modal
-        visible={pickerOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setPickerOpen(false)}
-      >
+      {/* Category dropdown — anchored under the header button */}
+      {pickerOpen && (
         <Pressable
-          style={styles.backdrop}
+          style={styles.dropdownOverlay}
           onPress={() => setPickerOpen(false)}
         >
           <Pressable
             style={[
-              styles.sheet,
-              { backgroundColor: t.cardBg, borderColor: t.cardBorder },
+              styles.dropdown,
+              {
+                marginTop: headerBottom + 4,
+                backgroundColor: t.cardBg,
+                borderColor: t.cardBorder,
+              },
             ]}
           >
-            <View style={[styles.handle, { backgroundColor: t.handle }]} />
-            <Text style={[styles.sheetTitle, { color: t.text }]}>
-              Add to meal
-            </Text>
             {categories.map((name) => {
               const selected = name === category;
               return (
                 <TouchableOpacity
                   key={name}
-                  style={styles.sheetRow}
+                  style={styles.dropdownRow}
                   onPress={() => {
                     setCategory(name);
                     setPickerOpen(false);
@@ -243,23 +277,261 @@ export function AddFood() {
                 >
                   <Text
                     style={[
-                      styles.sheetRowText,
+                      styles.dropdownText,
                       { color: t.text },
-                      selected && styles.sheetRowTextSelected,
+                      selected && styles.dropdownTextSelected,
                     ]}
                   >
                     {name}
                   </Text>
                   {selected && (
-                    <Ionicons name="checkmark" size={20} color={t.tint} />
+                    <Ionicons name="checkmark" size={18} color={t.tint} />
                   )}
                 </TouchableOpacity>
               );
             })}
           </Pressable>
         </Pressable>
-      </Modal>
+      )}
+
+      {/* "Logged!" confirmation toast */}
+      {toastVisible && (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.toast,
+            { opacity: toastOpacity, backgroundColor: t.accent },
+          ]}
+        >
+          <Ionicons
+            name="checkmark-circle"
+            size={18}
+            color={t.accentText}
+          />
+          <Text style={[styles.toastText, { color: t.accentText }]}>
+            Logged!
+          </Text>
+        </Animated.View>
+      )}
     </SafeAreaView>
+  );
+}
+
+/**
+ * A single food result. Collapsed it shows the name/macros with a quick "+"
+ * (logs one serving) and a chevron to expand. Expanded it reveals a Serving
+ * Size unit selector and a Quantity stepper, then a "Log to {category}" button
+ * that logs the chosen amount.
+ */
+function FoodRow({
+  food,
+  category,
+  t,
+  added,
+  busy,
+  expanded,
+  onToggleExpand,
+  onCollapse,
+  onLog,
+}: {
+  food: FoodItem;
+  category: string;
+  t: ReturnType<typeof useThemeColors>;
+  added: boolean;
+  busy: boolean;
+  expanded: boolean;
+  onToggleExpand: () => void;
+  onCollapse: () => void;
+  onLog: (
+    food: FoodItem,
+    opts?: { unitKey: MeasureUnitKey; quantity: number },
+  ) => Promise<void>;
+}) {
+  const [unitPickerOpen, setUnitPickerOpen] = useState(false);
+  const [unitKey, setUnitKey] = useState<MeasureUnitKey>("serving");
+  const [quantity, setQuantity] = useState(1);
+
+  // Units offered for this food. The "serving" option is labelled with the
+  // food's household serving (e.g. "4 oz", "1 cup") so it reads like the meta.
+  const unitOptions: MeasureUnit[] = useMemo(() => {
+    const base = buildUnits(servingGramsOf(food), {
+      includeVolume: looksVolumetric(food.servingUnit),
+    });
+    return base.map((u) =>
+      u.key === "serving" ? { ...u, label: servingLabel(food) } : u,
+    );
+  }, [food]);
+
+  const currentUnit =
+    unitOptions.find((u) => u.key === unitKey) ?? unitOptions[0];
+
+  const macros = perServing(food);
+
+  const handleLog = async () => {
+    await onLog(food, { unitKey, quantity });
+    onCollapse();
+  };
+
+  return (
+    <View
+      style={[
+        styles.row,
+        { backgroundColor: t.cardBg, borderColor: t.cardBorder },
+      ]}
+    >
+      <View style={styles.rowTop}>
+        <View style={styles.rowInfo}>
+          <Text style={[styles.name, { color: t.text }]} numberOfLines={2}>
+            {food.description}
+          </Text>
+          <Text style={[styles.meta, { color: t.secondary }]}>
+            {round(macros.calories)} cal · {servingLabel(food)}
+          </Text>
+          <Text style={[styles.macros, { color: t.secondary }]}>
+            P {round(macros.proteinG)}g · C {round(macros.carbsG)}g · F{" "}
+            {round(macros.fatG)}g
+          </Text>
+        </View>
+
+        <View style={styles.rowActions}>
+          <TouchableOpacity
+            accessibilityLabel={expanded ? "Hide options" : "Choose amount"}
+            hitSlop={8}
+            onPress={onToggleExpand}
+            style={[styles.circleBtn, { backgroundColor: t.surface }]}
+          >
+            <Ionicons
+              name={expanded ? "chevron-up" : "chevron-down"}
+              size={20}
+              color={t.secondary}
+            />
+          </TouchableOpacity>
+
+          {!expanded && (
+            <TouchableOpacity
+              accessibilityLabel={`Add ${food.description} to ${category}`}
+              hitSlop={8}
+              disabled={busy}
+              onPress={() => onLog(food)}
+              style={[styles.circleBtn, { backgroundColor: t.surface }]}
+            >
+              {busy ? (
+                <ActivityIndicator size="small" color={t.tint} />
+              ) : added ? (
+                <Ionicons name="checkmark" size={22} color={t.tint} />
+              ) : (
+                <Ionicons name="add" size={22} color={t.tint} />
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      {expanded && (
+        <View style={styles.expanded}>
+          <View style={styles.controlsRow}>
+            {/* Serving size — unit selector */}
+            <View style={styles.controlCol}>
+              <TouchableOpacity
+                style={[styles.selectBox, { borderColor: t.border }]}
+                onPress={() => setUnitPickerOpen((o) => !o)}
+              >
+                <Text
+                  style={[styles.selectText, { color: t.text }]}
+                  numberOfLines={1}
+                >
+                  {currentUnit?.label}
+                </Text>
+                <Ionicons name="chevron-down" size={18} color={t.secondary} />
+              </TouchableOpacity>
+              <Text style={[styles.controlLabel, { color: t.secondary }]}>
+                Serving Size
+              </Text>
+            </View>
+
+            {/* Quantity stepper */}
+            <View style={styles.controlCol}>
+              <View style={[styles.stepper, { borderColor: t.border }]}>
+                <TouchableOpacity
+                  accessibilityLabel="Decrease quantity"
+                  hitSlop={8}
+                  disabled={quantity <= 1}
+                  onPress={() => setQuantity((q) => Math.max(1, q - 1))}
+                  style={styles.stepperBtn}
+                >
+                  <Ionicons
+                    name="remove"
+                    size={22}
+                    color={quantity <= 1 ? t.border : t.text}
+                  />
+                </TouchableOpacity>
+                <Text style={[styles.stepperValue, { color: t.text }]}>
+                  {quantity}
+                </Text>
+                <TouchableOpacity
+                  accessibilityLabel="Increase quantity"
+                  hitSlop={8}
+                  onPress={() => setQuantity((q) => q + 1)}
+                  style={styles.stepperBtn}
+                >
+                  <Ionicons name="add" size={22} color={t.text} />
+                </TouchableOpacity>
+              </View>
+              <Text style={[styles.controlLabel, { color: t.secondary }]}>
+                Quantity
+              </Text>
+            </View>
+          </View>
+
+          {unitPickerOpen && (
+            <View style={styles.chipRow}>
+              {unitOptions.map((u) => {
+                const selected = u.key === unitKey;
+                return (
+                  <TouchableOpacity
+                    key={u.key}
+                    style={[
+                      styles.chip,
+                      {
+                        backgroundColor: selected ? t.accent : t.surface,
+                        borderColor: t.cardBorder,
+                      },
+                    ]}
+                    onPress={() => {
+                      setUnitKey(u.key);
+                      setUnitPickerOpen(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        { color: selected ? t.accentText : t.text },
+                      ]}
+                    >
+                      {u.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={[styles.logBtn, { backgroundColor: t.accent }]}
+            disabled={busy}
+            onPress={handleLog}
+          >
+            {busy ? (
+              <ActivityIndicator size="small" color={t.accentText} />
+            ) : (
+              <Text style={[styles.logBtnText, { color: t.accentText }]}>
+                Log to {category}
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -289,52 +561,126 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   row: {
-    flexDirection: "row",
-    alignItems: "center",
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     padding: 14,
     marginBottom: 10,
   },
+  rowTop: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   rowInfo: { flex: 1, paddingRight: 12 },
   name: { fontSize: 15, fontWeight: "600" },
   meta: { fontSize: 13, marginTop: 4 },
   macros: { fontSize: 12, marginTop: 2 },
-  addBtn: {
+  rowActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  circleBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
   },
-  empty: { textAlign: "center", marginTop: 32, fontSize: 14 },
-  backdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "flex-end",
+  expanded: { marginTop: 14 },
+  controlsRow: {
+    flexDirection: "row",
+    gap: 12,
   },
-  sheet: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 32,
-  },
-  handle: {
-    width: 40,
-    height: 5,
-    borderRadius: 2.5,
-    alignSelf: "center",
-    marginBottom: 14,
-  },
-  sheetTitle: { fontSize: 13, fontWeight: "600", textTransform: "uppercase", marginBottom: 6 },
-  sheetRow: {
+  controlCol: { flex: 1 },
+  selectBox: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    height: 48,
   },
-  sheetRowText: { fontSize: 17 },
-  sheetRowTextSelected: { fontWeight: "700" },
+  selectText: { fontSize: 16, fontWeight: "600", flex: 1 },
+  controlLabel: { fontSize: 13, marginTop: 6, marginLeft: 2 },
+  stepper: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
+    height: 48,
+    paddingHorizontal: 4,
+  },
+  stepperBtn: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stepperValue: { fontSize: 16, fontWeight: "600", minWidth: 24, textAlign: "center" },
+  chipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 12,
+  },
+  chip: {
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  chipText: { fontSize: 14, fontWeight: "500" },
+  logBtn: {
+    marginTop: 16,
+    borderRadius: 24,
+    paddingVertical: 15,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logBtnText: { fontSize: 16, fontWeight: "700" },
+  empty: { textAlign: "center", marginTop: 32, fontSize: 14 },
+  dropdownOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+  },
+  dropdown: {
+    minWidth: 200,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 6,
+    shadowColor: "#000",
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
+  },
+  dropdownRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 16,
+  },
+  dropdownText: { fontSize: 16 },
+  dropdownTextSelected: { fontWeight: "700" },
+  toast: {
+    position: "absolute",
+    bottom: 40,
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 24,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  toastText: { fontSize: 15, fontWeight: "700" },
 });
