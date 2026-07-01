@@ -63,6 +63,31 @@ export async function deleteEntry(entryId: string): Promise<void> {
   await apiClient.delete(`/nutrition/log/${entryId}`);
 }
 
+export interface AiLogPayload {
+  text: string;
+  date?: string;
+  category?: string;
+}
+
+export interface AiLogResult {
+  entries: FoodLogEntry[];
+  fromCache: boolean;
+  sourceUrls: string[];
+}
+
+/**
+ * Log food from natural-language text via AI (ULTRA tier). One request may
+ * create several entries (one per parsed food). Server-side gated: non-ULTRA
+ * users get a 403.
+ */
+export async function aiLogFood(payload: AiLogPayload): Promise<AiLogResult> {
+  const { data } = await apiClient.post<AiLogResult>(
+    "/nutrition/ai/log",
+    payload,
+  );
+  return data;
+}
+
 export async function getGoal(): Promise<NutritionGoal> {
   const { data } = await apiClient.get<NutritionGoal>("/nutrition/goal");
   return data;

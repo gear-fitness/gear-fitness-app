@@ -23,4 +23,8 @@ public class LogFoodRequest {
   private Double proteinG;
   private Double carbsG;
   private Double fatG;
+
+  // Provenance for AI-logged entries; null for manual/quick-add.
+  private String sourceType; // AI_SONAR | AI_CACHE | null
+  private String sourceUrl;
 }

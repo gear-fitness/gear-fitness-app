@@ -64,6 +64,15 @@ public class FoodLogEntry {
   @Column(name = "fat_g")
   private BigDecimal fatG;
 
+  // Where this entry's macros came from. Null for manual/quick-add entries;
+  // "AI_SONAR" (freshly parsed) or "AI_CACHE" (replayed) for AI-logged food.
+  @Column(name = "source_type", length = 32)
+  private String sourceType;
+
+  // Primary citation URL from Sonar for AI-logged entries.
+  @Column(name = "source_url")
+  private String sourceUrl;
+
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
   private LocalDateTime createdAt;

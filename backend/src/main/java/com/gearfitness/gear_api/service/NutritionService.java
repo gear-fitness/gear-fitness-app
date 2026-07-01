@@ -103,7 +103,9 @@ public class NutritionService {
       .category(req.getCategory())
       .logDate(date)
       .quantity(quantity)
-      .unit(unit);
+      .unit(unit)
+      .sourceType(req.getSourceType())
+      .sourceUrl(req.getSourceUrl());
 
     if (req.getFoodId() != null) {
       FoodItem food = foodItemRepository

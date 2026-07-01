@@ -1,5 +1,7 @@
 package com.gearfitness.gear_api.controller;
 
+import com.gearfitness.gear_api.dto.AiLogRequest;
+import com.gearfitness.gear_api.dto.AiLogResponse;
 import com.gearfitness.gear_api.dto.DaySummaryDTO;
 import com.gearfitness.gear_api.dto.FoodItemDTO;
 import com.gearfitness.gear_api.dto.LogEntryDTO;
@@ -7,6 +9,7 @@ import com.gearfitness.gear_api.dto.LogFoodRequest;
 import com.gearfitness.gear_api.dto.NutritionGoalDTO;
 import com.gearfitness.gear_api.dto.UpdateGoalRequest;
 import com.gearfitness.gear_api.security.JwtService;
+import com.gearfitness.gear_api.service.AiNutritionService;
 import com.gearfitness.gear_api.service.NutritionService;
 import java.util.List;
 import java.util.UUID;
@@ -14,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/nutrition")
@@ -21,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 public class NutritionController {
 
   private final NutritionService nutritionService;
+  private final AiNutritionService aiNutritionService;
   private final JwtService jwtService;
 
   /**
@@ -70,6 +75,31 @@ public class NutritionController {
       return ResponseEntity.status(HttpStatus.CREATED).body(
         nutritionService.logFood(userId, req)
       );
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().build();
+    } catch (Exception e) {
+      e.printStackTrace();
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+    }
+  }
+
+  /**
+   * Log food from natural-language text via AI (ULTRA tier). Parses the text
+   * with Perplexity Sonar (cached), then creates one entry per parsed food.
+   */
+  @PostMapping("/ai/log")
+  public ResponseEntity<AiLogResponse> aiLog(
+    @RequestBody AiLogRequest req,
+    @RequestHeader("Authorization") String authHeader
+  ) {
+    try {
+      UUID userId = jwtService.extractUserId(authHeader.substring(7));
+      return ResponseEntity.status(HttpStatus.CREATED).body(
+        aiNutritionService.aiLog(userId, req)
+      );
+    } catch (ResponseStatusException e) {
+      // Preserve tier (403) / spend-guard (503) / validation (400) statuses.
+      throw e;
     } catch (IllegalArgumentException e) {
       return ResponseEntity.badRequest().build();
     } catch (Exception e) {

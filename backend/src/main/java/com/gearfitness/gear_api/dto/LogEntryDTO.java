@@ -21,6 +21,8 @@ public class LogEntryDTO {
   private Double proteinG;
   private Double carbsG;
   private Double fatG;
+  private String sourceType;
+  private String sourceUrl;
 
   public static LogEntryDTO from(FoodLogEntry e) {
     return new LogEntryDTO(
@@ -33,7 +35,9 @@ public class LogEntryDTO {
       e.getCalories() == null ? null : e.getCalories().doubleValue(),
       e.getProteinG() == null ? null : e.getProteinG().doubleValue(),
       e.getCarbsG() == null ? null : e.getCarbsG().doubleValue(),
-      e.getFatG() == null ? null : e.getFatG().doubleValue()
+      e.getFatG() == null ? null : e.getFatG().doubleValue(),
+      e.getSourceType(),
+      e.getSourceUrl()
     );
   }
 }

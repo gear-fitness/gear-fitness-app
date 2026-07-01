@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Keyboard,
+  Linking,
   Pressable,
   StyleSheet,
   Text,
@@ -179,6 +180,29 @@ export function EditEntrySheet({
           {entry.description}
         </Text>
 
+          {/* AI provenance — shown for entries logged via the AI Smart Journal */}
+          {entry.sourceType?.startsWith("AI") && (
+            <View style={styles.sourceRow}>
+              <View style={[styles.aiChip, { backgroundColor: t.surface }]}>
+                <Text style={[styles.aiChipText, { color: t.secondary }]}>
+                  AI estimated
+                </Text>
+              </View>
+              {entry.sourceUrl ? (
+                <TouchableOpacity
+                  onPress={() => Linking.openURL(entry.sourceUrl!)}
+                >
+                  <Text
+                    style={[styles.sourceLink, { color: t.accent }]}
+                    numberOfLines={1}
+                  >
+                    Source
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          )}
+
           {/* Serving size — unit selector */}
           <View style={[styles.row, { borderTopColor: t.separator }]}>
             <Text style={[styles.rowLabel, { color: t.text }]}>
@@ -352,6 +376,19 @@ function MacroStat({
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 20, paddingTop: 4 },
   title: { fontSize: 22, fontWeight: "700", marginBottom: 8 },
+  sourceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 10,
+  },
+  aiChip: {
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  aiChipText: { fontSize: 12, fontWeight: "600" },
+  sourceLink: { fontSize: 13, fontWeight: "600" },
   row: {
     flexDirection: "row",
     alignItems: "center",

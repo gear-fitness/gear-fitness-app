@@ -214,6 +214,9 @@ export interface FoodLogEntry {
   proteinG: number | null;
   carbsG: number | null;
   fatG: number | null;
+  // Provenance for AI-logged entries: "AI_SONAR" | "AI_CACHE"; null for manual.
+  sourceType?: string | null;
+  sourceUrl?: string | null;
 }
 
 export interface NutritionGoal {
