@@ -11,6 +11,7 @@ import {
   Alert,
   useColorScheme,
 } from "react-native";
+import { sharedDetailStyles, detailHeroStyles } from "./detailContentStyles";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import {
   useState,
@@ -177,6 +178,7 @@ export const CardioDetailContent = forwardRef<
     seconds,
     cardioSeconds,
     cardioRunning,
+    cardioTimerId,
     startCardio,
     startCardioFrom,
     pauseCardio,
@@ -241,12 +243,15 @@ export const CardioDetailContent = forwardRef<
         stepperBorder: "rgba(0,0,0,0.1)",
       };
 
-  // The global cardio stopwatch is the source of truth for the in-progress
-  // entry. When reopening a saved entry without touching the stopwatch
-  // (cardioSeconds === 0, not running), fall back to its stored duration so an
-  // edit of distance/calories/etc. doesn't wipe the recorded time.
-  const isRunning = cardioRunning;
-  const stopwatchActive = cardioRunning || cardioSeconds > 0;
+  // The cardio stopwatch is a single clock shared across the workout's cardio
+  // entries. It only reflects THIS entry when this entry owns it; otherwise the
+  // clock belongs to a different (possibly still-running) entry and must be
+  // ignored here, or editing this entry would overwrite its duration with the
+  // other entry's time. When this entry doesn't own the clock, fall back to its
+  // own stored duration (baselineSeconds).
+  const ownsTimer = cardioTimerId === cardio.workoutCardioId;
+  const isRunning = ownsTimer && cardioRunning;
+  const stopwatchActive = ownsTimer && (cardioRunning || cardioSeconds > 0);
   const liveCardioSeconds = stopwatchActive ? cardioSeconds : baselineSeconds;
 
   // A committed manual duration overrides the live stopwatch for what gets
@@ -265,10 +270,13 @@ export const CardioDetailContent = forwardRef<
   // back from meters via the unit preference.
   const distanceAsMeters = (): string | undefined => {
     if (!chipValues.distance.selected) return undefined;
+    // Untouched field: preserve the entry's original canonical meters exactly,
+    // avoiding round-trip drift from the rounded display value.
+    if (!distanceEditedRef.current) return cardio.distance;
     const raw = chipValues.distance.value.trim();
     if (!raw) return undefined;
     const n = Number(raw);
-    if (Number.isNaN(n)) return raw;
+    if (Number.isNaN(n)) return undefined;
     return String(distanceToMeters(n, distanceUnit));
   };
 
@@ -291,20 +299,33 @@ export const CardioDetailContent = forwardRef<
   // during the navigation away can't re-add the entry we just discarded.
   const cancelledRef = useRef(false);
 
+  // True once the user actually edits the distance field. Until then, the entry
+  // keeps its original canonical meters on save; re-deriving meters from the
+  // 2dp-rounded display value would drift the stored distance every open/save
+  // cycle (worse after a unit flip).
+  const distanceEditedRef = useRef(false);
+
   const saveCardio = () => {
     if (cancelledRef.current) return;
     addCardioEntry(buildEntry());
   };
 
+  // Keep the latest saveCardio (which closes over the current field values and
+  // effectiveDurationSeconds) in a ref so the keyboardDidHide listener below can
+  // read fresh values without being re-bound. effectiveDurationSeconds ticks
+  // every second while the stopwatch runs, so listing it in the effect deps
+  // would tear down and re-add the native Keyboard listener every tick.
+  const saveCardioRef = useRef(saveCardio);
+  saveCardioRef.current = saveCardio;
+
   useImperativeHandle(ref, () => ({ save: saveCardio }));
 
   useEffect(() => {
     const listener = Keyboard.addListener("keyboardDidHide", () => {
-      saveCardio();
+      saveCardioRef.current();
     });
     return () => listener.remove();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chipValues, note, manualDurationSeconds, effectiveDurationSeconds]);
+  }, []);
 
   // Auto-revert the top-bar timer back from TOTAL after a few seconds.
   useEffect(() => {
@@ -377,12 +398,18 @@ export const CardioDetailContent = forwardRef<
     const seed = pending ?? manualDurationSeconds;
     if (seed != null) {
       // Count up FROM the manually entered duration rather than zero.
-      startCardioFrom(seed);
+      startCardioFrom(cardio.workoutCardioId, seed);
       setManualDurationSeconds(null);
       setDurationDigits("");
       setEditingDuration(false);
+    } else if (ownsTimer) {
+      // This entry already owns the (paused) clock; resume its accumulated time.
+      startCardio(cardio.workoutCardioId);
     } else {
-      startCardio();
+      // The clock currently belongs to another entry (or none). Seed it from
+      // THIS entry's own stored duration so it counts up from the right value,
+      // never another entry's running time.
+      startCardioFrom(cardio.workoutCardioId, baselineSeconds);
     }
   };
 
@@ -400,9 +427,13 @@ export const CardioDetailContent = forwardRef<
   };
 
   const setFieldValue = (key: ChipKey, value: string) => {
+    // Intensity is a whole number (matches the numeric WorkoutCardio contract);
+    // strip anything but digits so the field can't hold a decimal or sign.
+    const nextValue = key === "intensity" ? value.replace(/[^0-9]/g, "") : value;
+    if (key === "distance") distanceEditedRef.current = true;
     setChipValues({
       ...chipValues,
-      [key]: { ...chipValues[key], value },
+      [key]: { ...chipValues[key], value: nextValue },
     });
   };
 
@@ -732,7 +763,9 @@ export const CardioDetailContent = forwardRef<
                           value={chipValues[key].value}
                           onChangeText={(v) => setFieldValue(key, v)}
                           keyboardType={
-                            key === "calories" ? "number-pad" : "decimal-pad"
+                            key === "calories" || key === "intensity"
+                              ? "number-pad"
+                              : "decimal-pad"
                           }
                           placeholder="0"
                           placeholderTextColor={colors.textFaint}
@@ -816,7 +849,7 @@ export const CardioDetailContent = forwardRef<
                   size={18}
                 />
                 <Text style={[cardioStyles.hintText, { color: colors.textFaint }]}>
-                  {cardioSeconds > 0
+                  {liveCardioSeconds > 0
                     ? "Tap to resume timing your session"
                     : "Tap to start timing your session"}
                 </Text>
@@ -921,108 +954,7 @@ export const CardioDetailContent = forwardRef<
 });
 
 // ---- Styles copied from ExerciseDetailContent (source of truth) ----
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 8,
-    paddingBottom: 0,
-  },
-
-  topBar: {
-    paddingTop: 12,
-    paddingBottom: 14,
-    paddingHorizontal: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
-  },
-
-  timerTap: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-  },
-
-  timerIcon: { width: 22, height: 22 },
-  timerText: {
-    fontSize: 28,
-    fontWeight: "700",
-    letterSpacing: -0.5,
-    fontVariant: ["tabular-nums"],
-  },
-  timerCaption: {
-    fontSize: 11,
-    fontWeight: "600",
-    letterSpacing: 1.2,
-    marginLeft: 4,
-  },
-
-  topBarActions: {
-    position: "absolute",
-    right: 16,
-    top: 8,
-    flexDirection: "row",
-    gap: 8,
-  },
-  topBarButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-  },
-
-  divider: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 8,
-  },
-
-  caption: {
-    fontSize: 12,
-    fontWeight: "600",
-    letterSpacing: 1.2,
-    marginBottom: 6,
-  },
-
-  titleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-
-  title: {
-    flexShrink: 1,
-    fontSize: 32,
-    fontWeight: "700",
-    letterSpacing: -0.8,
-    lineHeight: 36,
-  },
-
-  titleSwapIcon: {
-    width: 22,
-    height: 22,
-  },
-
-  heroCard: {
-    marginHorizontal: 20,
-    marginTop: 8,
-    marginBottom: 16,
-    borderRadius: 20,
-    overflow: "hidden",
-  },
-
-  heroDivider: {
-    height: StyleSheet.hairlineWidth,
-  },
-
+const cardioLocalStyles = StyleSheet.create({
   resetButton: {
     marginHorizontal: 20,
     marginBottom: 18,
@@ -1039,148 +971,17 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     letterSpacing: -0.2,
   },
-
-  scroll: {
-    flex: 1,
-  },
-
-  scrollContent: {
-    paddingBottom: 8,
-  },
-
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 24,
-  },
-
-  modalCard: {
-    width: "100%",
-    borderRadius: 20,
-    padding: 20,
-  },
-
-  modalTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    letterSpacing: -0.2,
-    marginBottom: 12,
-  },
-
-  modalInput: {
-    minHeight: 100,
-    borderRadius: 12,
-    padding: 12,
-    fontSize: 15,
-    textAlignVertical: "top",
-  },
-
-  modalActions: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: 8,
-    marginTop: 14,
-  },
-
-  modalSecondary: {
-    height: 40,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  modalSecondaryText: {
-    fontSize: 15,
-    fontWeight: "500",
-  },
-
-  modalPrimary: {
-    height: 40,
-    paddingHorizontal: 18,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  modalPrimaryText: {
-    fontSize: 15,
-    fontWeight: "600",
-  },
-
-  footerCard: {
-    marginHorizontal: 12,
-    marginBottom: 20,
-    padding: 6,
-    borderRadius: 16,
-    flexDirection: "row",
-    gap: 4,
-  },
-
-  footerSecondary: {
-    flex: 1,
-    height: 50,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  footerSecondaryText: {
-    fontSize: 15,
-    fontWeight: "600",
-    letterSpacing: -0.2,
-  },
-
-  footerPrimary: {
-    flex: 1,
-    height: 50,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  footerPrimaryText: {
-    fontSize: 15,
-    fontWeight: "600",
-    letterSpacing: -0.2,
-  },
 });
+
+// Shared screen chrome (top bar, header, hero card, note modal, footer) lives in
+// detailContentStyles and is spread in here; resetButton is the only
+// cardio-specific key. Call sites stay styles.* and the merge keeps every key.
+const styles = { ...sharedDetailStyles, ...cardioLocalStyles };
 
 // Hero input metrics — copied verbatim from ExerciseDetailContent's heroStyles
 // so the Duration timer and expanded fields render at the exact Reps/Weight
 // scale.
-const heroStyles = StyleSheet.create({
-  row: {
-    paddingHorizontal: 20,
-    paddingVertical: 18,
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: "500",
-    marginBottom: 4,
-  },
-  valueRow: {
-    flexDirection: "row",
-    alignItems: "baseline",
-  },
-  input: {
-    flex: 1,
-    fontSize: 84,
-    fontWeight: "700",
-    letterSpacing: -3,
-    lineHeight: 90,
-    padding: 0,
-    margin: 0,
-    fontVariant: ["tabular-nums"],
-  },
-  unit: {
-    fontSize: 26,
-    fontWeight: "500",
-    marginLeft: 8,
-  },
-});
+const heroStyles = detailHeroStyles;
 
 // Cardio-only elements that have no direct equivalent in ExerciseDetailContent.
 // Values derive from the existing plate-button / segmented tokens.

@@ -45,6 +45,19 @@ public class WorkoutService {
   private final PrService prService;
   private final MentionService mentionService;
 
+  // Cardio validation bounds. activity_type stays well under its VARCHAR(255)
+  // column so oversized junk cannot render on feed cards or fail at flush.
+  private static final int MAX_ACTIVITY_TYPE_LENGTH = 100;
+  // Intensity is presented to the client on a 0-10 scale; clamping keeps it
+  // safely inside the intensity_level DECIMAL(4,1) column.
+  private static final BigDecimal MIN_INTENSITY = BigDecimal.ZERO;
+  private static final BigDecimal MAX_INTENSITY = BigDecimal.valueOf(10);
+  // distance_meters is DECIMAL(10,2), so the largest storable value is
+  // 99999999.99. Anything above overflows the column.
+  private static final BigDecimal MAX_DISTANCE_METERS = new BigDecimal(
+    "99999999.99"
+  );
+
   @Transactional(readOnly = true)
   public List<Workout> getWorkoutsByUser(UUID userId) {
     AppUser user = appUserRepository
@@ -52,9 +65,14 @@ public class WorkoutService {
       .orElseThrow(() ->
         new RuntimeException("User not found with id: " + userId)
       );
-    return workoutRepository.findByUserOrderByDatePerformedDescCreatedAtDesc(
-      user
-    );
+    List<Workout> workouts =
+      workoutRepository.findByUserOrderByDatePerformedDescCreatedAtDesc(user);
+    // workoutCardios is LAZY and the controller maps these into DTOs after this
+    // transaction closes, so initialize the collection here (a dup-free
+    // secondary select per workout, like the eager bags). Do not join-fetch it
+    // in the finder: that duplicates Workout roots for 2+ cardio entries.
+    workouts.forEach(workout -> workout.getWorkoutCardios().size());
+    return workouts;
   }
 
   @Transactional(readOnly = true)
@@ -364,9 +382,15 @@ public class WorkoutService {
     // Save workout first to get ID
     workout = workoutRepository.save(workout);
 
-    // Create workout exercises
+    // Create workout exercises. Normalize a missing exercises field to an empty
+    // list: a non-app client can omit it (Jackson leaves it null), and a
+    // cardio-only workout legitimately has none. This makes the loop a safe
+    // no-op instead of a NullPointerException, mirroring the cardio null-guard
+    // below.
     int position = 1;
-    for (WorkoutSubmissionDTO.ExerciseSubmissionDTO exerciseDto : submission.getExercises()) {
+    List<WorkoutSubmissionDTO.ExerciseSubmissionDTO> exerciseSubmissions =
+      submission.getExercises() != null ? submission.getExercises() : List.of();
+    for (WorkoutSubmissionDTO.ExerciseSubmissionDTO exerciseDto : exerciseSubmissions) {
       Exercise exercise = exerciseRepository
         .findById(exerciseDto.getExerciseId())
         .orElseThrow(() -> new IllegalArgumentException("Exercise not found"));
@@ -407,20 +431,40 @@ public class WorkoutService {
 
     // Create cardio entries. activity_type is the denormalized catalog name sent
     // by the client; positions are independent from the exercise positions.
+    // Validate defensively so malformed cardio input returns a clean 400 or is
+    // safely skipped, and never fails at flush and rolls back the entire submit.
     if (submission.getCardio() != null) {
       int cardioPosition = 1;
       for (WorkoutSubmissionDTO.CardioSubmissionDTO cardioDto : submission.getCardio()) {
-        if (cardioDto.getDurationSeconds() == null) {
+        // Skip incomplete entries: a cardio entry needs a positive duration.
+        Integer durationSeconds = cardioDto.getDurationSeconds();
+        if (durationSeconds == null || durationSeconds <= 0) {
           continue;
+        }
+
+        // activity_type is NOT NULL in the schema. Skip entries with no activity
+        // rather than letting a null/blank value fail at flush.
+        String activityType = cardioDto.getActivityType() == null
+          ? null
+          : cardioDto.getActivityType().trim();
+        if (activityType == null || activityType.isEmpty()) {
+          continue;
+        }
+        if (activityType.length() > MAX_ACTIVITY_TYPE_LENGTH) {
+          throw new IllegalArgumentException(
+            "Cardio activity type must be " +
+            MAX_ACTIVITY_TYPE_LENGTH +
+            " characters or fewer"
+          );
         }
 
         WorkoutCardio workoutCardio = WorkoutCardio.builder()
           .workout(workout)
-          .activityType(cardioDto.getActivityType())
-          .durationSeconds(cardioDto.getDurationSeconds())
-          .distanceMeters(parseDecimal(cardioDto.getDistanceMeters()))
+          .activityType(activityType)
+          .durationSeconds(durationSeconds)
+          .distanceMeters(clampDistance(parseDecimal(cardioDto.getDistanceMeters())))
           .caloriesBurned(cardioDto.getCaloriesBurned())
-          .intensityLevel(parseDecimal(cardioDto.getIntensityLevel()))
+          .intensityLevel(clampIntensity(parseDecimal(cardioDto.getIntensityLevel())))
           .notes(cardioDto.getNotes())
           .position(cardioPosition++)
           .build();
@@ -490,6 +534,38 @@ public class WorkoutService {
     } catch (NumberFormatException e) {
       return null;
     }
+  }
+
+  /**
+   * Clamp intensity into the 0-10 scale the client presents so it can never
+   * overflow the intensity_level DECIMAL(4,1) column. Null stays null.
+   */
+  private static BigDecimal clampIntensity(BigDecimal value) {
+    if (value == null) {
+      return null;
+    }
+    if (value.compareTo(MIN_INTENSITY) < 0) {
+      return MIN_INTENSITY;
+    }
+    if (value.compareTo(MAX_INTENSITY) > 0) {
+      return MAX_INTENSITY;
+    }
+    return value;
+  }
+
+  /**
+   * Clamp distance to a non-negative value within the distance_meters
+   * DECIMAL(10,2) range. Negative or absent values become null; oversized
+   * values are capped so they cannot overflow the column.
+   */
+  private static BigDecimal clampDistance(BigDecimal value) {
+    if (value == null || value.compareTo(BigDecimal.ZERO) < 0) {
+      return null;
+    }
+    if (value.compareTo(MAX_DISTANCE_METERS) > 0) {
+      return MAX_DISTANCE_METERS;
+    }
+    return value;
   }
 
   @Transactional

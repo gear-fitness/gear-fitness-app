@@ -26,6 +26,7 @@ export function MiniPlayer({ onTap, isVisible }: MiniPlayerProps) {
     cardioEntries,
     cardioSeconds,
     cardioRunning,
+    cardioTimerId,
     startCardio,
     startCardioFrom,
     pauseCardio,
@@ -75,23 +76,32 @@ export function MiniPlayer({ onTap, isVisible }: MiniPlayerProps) {
 
   // When a cardio entry is the current item, the main timer + play/pause act on
   // the cardio-scoped stopwatch (which ticks live from WorkoutContext); for a
-  // lifting exercise they act on the global workout timer, as before.
-  const liveCardioSeconds =
-    cardioRunning || cardioSeconds > 0
-      ? cardioSeconds
-      : (currentCardio?.durationSeconds ?? 0);
+  // lifting exercise they act on the global workout timer, as before. The
+  // stopwatch is shared across entries, so it only reflects this entry when this
+  // entry owns it (cardioTimerId); otherwise show/control this entry's own
+  // stored duration rather than another entry's running time.
+  const ownsTimer =
+    !!currentCardio && cardioTimerId === currentCardio.workoutCardioId;
+  const liveCardioSeconds = ownsTimer
+    ? cardioSeconds
+    : (currentCardio?.durationSeconds ?? 0);
   const displaySeconds = currentCardio ? liveCardioSeconds : seconds;
-  const displayRunning = currentCardio ? cardioRunning : running;
+  const displayRunning = currentCardio ? ownsTimer && cardioRunning : running;
 
   const handlePlayPause = () => {
     if (currentCardio) {
-      if (cardioRunning) {
+      if (ownsTimer && cardioRunning) {
         pauseCardio();
-      } else if (cardioSeconds === 0 && currentCardio.durationSeconds > 0) {
-        // Resume from the entry's stored duration rather than restarting at zero.
-        startCardioFrom(currentCardio.durationSeconds);
+      } else if (ownsTimer) {
+        // This entry already owns the (paused) clock; resume its time.
+        startCardio(currentCardio.workoutCardioId);
       } else {
-        startCardio();
+        // The clock belongs to another entry (or none). Seed from THIS entry's
+        // stored duration so it resumes this entry, not the other one's time.
+        startCardioFrom(
+          currentCardio.workoutCardioId,
+          currentCardio.durationSeconds,
+        );
       }
     } else {
       running ? pause() : start();

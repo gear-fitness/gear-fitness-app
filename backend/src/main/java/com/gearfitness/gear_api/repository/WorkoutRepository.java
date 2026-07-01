@@ -52,7 +52,14 @@ public interface WorkoutRepository extends JpaRepository<Workout, UUID> {
   );
 
   /**
-   * Find all workouts for a user ordered by date (desc), then by creation time (desc)
+   * Find all workouts for a user ordered by date (desc), then by creation time (desc).
+   * workoutCardios is LAZY, and callers (WorkoutController.toWorkoutDTO) map the
+   * results into DTOs outside the transaction. The cardio collection is
+   * initialized inside the transaction by getWorkoutsByUser (a secondary select
+   * per workout, exactly like the eager workoutExercises/bodyTags bags). We do
+   * NOT use an @EntityGraph here: join-fetching the workoutCardios bag on a
+   * List query returns duplicate Workout roots for a workout with 2+ cardio
+   * entries, which would surface as duplicate history rows.
    */
   List<Workout> findByUserOrderByDatePerformedDescCreatedAtDesc(AppUser user);
 

@@ -69,6 +69,11 @@ interface PersistedWorkoutState {
   cardioTotalElapsedSeconds: number;
   cardioStartTimestamp: number | null;
   cardioRunning: boolean;
+  // The workoutCardioId the cardio stopwatch is currently timing. The stopwatch
+  // is a single clock shared across the workout's cardio entries, so this marks
+  // which entry owns the running/paused elapsed time. null when no entry is
+  // being timed. Any other entry falls back to its own stored durationSeconds.
+  cardioTimerId: string | null;
   playerVisible: boolean;
   currentExerciseId: string | null;
   currentCardioId: string | null;
@@ -78,7 +83,11 @@ interface PersistedWorkoutState {
   activeExerciseStartedAt: number | null;
 }
 
-const WORKOUT_STATE_VERSION = 1;
+// v2 added the additive `cardioTimerId` field (which entry owns the shared
+// cardio stopwatch). It restores safely from a v1 blob with a null default, so
+// restoreWorkoutState migrates v1 in place rather than discarding an in-flight
+// workout on app update.
+const WORKOUT_STATE_VERSION = 2;
 export const WORKOUT_STATE_STORAGE_KEY = "@workout_state";
 const STORAGE_KEY = WORKOUT_STATE_STORAGE_KEY;
 const SAVE_DEBOUNCE_MS = 500;
@@ -178,10 +187,18 @@ interface WorkoutContextValue {
   // durationSeconds. Independent from the main workout timer.
   cardioSeconds: number;
   cardioRunning: boolean;
-  startCardio: () => void;
-  // Start the cardio stopwatch counting up FROM a given second value (used when
-  // the user manually typed a duration before pressing play).
-  startCardioFrom: (fromSeconds: number) => void;
+  // The cardio entry (workoutCardioId) the shared stopwatch is currently timing,
+  // or null. Consumers gate the live stopwatch value on this: an entry only
+  // reads cardioSeconds when it owns the timer, otherwise it shows its own
+  // stored durationSeconds.
+  cardioTimerId: string | null;
+  // Start (resume) the cardio stopwatch for a specific entry. Marks that entry
+  // as the timer owner.
+  startCardio: (cardioId: string) => void;
+  // Start the cardio stopwatch for a specific entry counting up FROM a given
+  // second value (used when resuming another entry, or when the user manually
+  // typed a duration before pressing play). Marks that entry as the timer owner.
+  startCardioFrom: (cardioId: string, fromSeconds: number) => void;
   pauseCardio: () => void;
   resetCardio: () => void;
 
@@ -248,6 +265,8 @@ export function WorkoutTimerProvider({
   >(null);
   const [cardioTotalElapsedSeconds, setCardioTotalElapsedSeconds] = useState(0);
   const [cardioSeconds, setCardioSeconds] = useState(0);
+  // Which cardio entry the shared stopwatch is timing (see PersistedWorkoutState).
+  const [cardioTimerId, setCardioTimerId] = useState<string | null>(null);
 
   // Player state
   const [playerVisible, setPlayerVisible] = useState(false);
@@ -304,6 +323,7 @@ export function WorkoutTimerProvider({
         cardioTotalElapsedSeconds,
         cardioStartTimestamp,
         cardioRunning,
+        cardioTimerId,
         playerVisible,
         currentExerciseId,
         currentCardioId,
@@ -378,8 +398,16 @@ export function WorkoutTimerProvider({
 
       const parsed: PersistedWorkoutState = JSON.parse(stored);
 
-      // Version check
-      if (parsed.version !== WORKOUT_STATE_VERSION) {
+      // Version check. Every shipped version (1..current) is forward-compatible:
+      // each bump only added additive, null-defaultable fields, so an older blob
+      // migrates in place instead of being discarded; a user mid-workout who
+      // updates the app keeps their session. Anything outside the known range
+      // (missing/newer/corrupt) is dropped to stay on safe defaults.
+      if (
+        parsed.version == null ||
+        parsed.version < 1 ||
+        parsed.version > WORKOUT_STATE_VERSION
+      ) {
         await AsyncStorage.removeItem(STORAGE_KEY);
         setIsRestoringState(false);
         return;
@@ -400,6 +428,13 @@ export function WorkoutTimerProvider({
       // cardio feature shipped restorable without a version bump.
       setCardioEntries(parsed.cardioEntries ?? []);
       restoreCardioTimerState(parsed);
+      // Which entry owns the restored stopwatch. Absent on v1 blobs; when the
+      // cardio clock was running at kill time, fall back to the current cardio
+      // item so the live timer still resolves to an entry after the upgrade.
+      setCardioTimerId(
+        parsed.cardioTimerId ??
+          (parsed.cardioRunning ? (parsed.currentCardioId ?? null) : null),
+      );
       setPlayerVisible(parsed.playerVisible);
       setCurrentExerciseId(parsed.currentExerciseId);
       setCurrentCardioId(parsed.currentCardioId ?? null);
@@ -489,6 +524,7 @@ export function WorkoutTimerProvider({
     cardioSeconds,
     cardioRunning,
     cardioTotalElapsedSeconds,
+    cardioTimerId,
     playerVisible,
     currentExerciseId,
     currentCardioId,
@@ -656,11 +692,22 @@ export function WorkoutTimerProvider({
     setCardioEntries((prev) =>
       prev.filter((e) => e.workoutCardioId !== workoutCardioId),
     );
+    // If the removed entry owned the shared stopwatch, stop and release it so a
+    // deleted entry can't leave an invisible timer running in the background.
+    if (cardioTimerId === workoutCardioId) {
+      pauseCardio();
+      setCardioTimerId(null);
+    }
   };
 
   // ---------------- CARDIO STOPWATCH ----------------
-  const startCardio = () => {
+  // Resume the shared stopwatch for `cardioId`. Callers only invoke this to
+  // resume the entry that already owns the (paused) clock, so the accumulated
+  // cardioTotalElapsedSeconds is this entry's time. Switching to a different
+  // entry goes through startCardioFrom, which reseeds the counters.
+  const startCardio = (cardioId: string) => {
     suppressWritesRef.current = false;
+    setCardioTimerId(cardioId);
     setCardioRunning(true);
     if (cardioStartTimestamp === null) {
       setCardioStartTimestamp(Date.now());
@@ -673,8 +720,9 @@ export function WorkoutTimerProvider({
   // cardioStartTimestamp/cardioRunning) — never the global workout timer
   // (seconds/totalElapsedSeconds/startTimestamp/running). The manual cardio
   // duration must never bleed into the global timer.
-  const startCardioFrom = (fromSeconds: number) => {
+  const startCardioFrom = (cardioId: string, fromSeconds: number) => {
     suppressWritesRef.current = false;
+    setCardioTimerId(cardioId);
     const base = Math.max(0, Math.floor(fromSeconds));
     setCardioTotalElapsedSeconds(base);
     setCardioSeconds(base);
@@ -698,6 +746,7 @@ export function WorkoutTimerProvider({
     setCardioStartTimestamp(null);
     setCardioTotalElapsedSeconds(0);
     setCardioSeconds(0);
+    setCardioTimerId(null);
   };
 
   // Replace the exercise at `workoutExerciseId` in place. Per-exercise data
@@ -888,6 +937,7 @@ export function WorkoutTimerProvider({
     setCardioStartTimestamp(null);
     setCardioTotalElapsedSeconds(0);
     setCardioSeconds(0);
+    setCardioTimerId(null);
     setLastModalScreen(null);
     setActiveExerciseId(null);
     setActiveExerciseStartedAt(null);
@@ -999,6 +1049,7 @@ export function WorkoutTimerProvider({
         removeCardioEntry,
         cardioSeconds,
         cardioRunning,
+        cardioTimerId,
         startCardio,
         startCardioFrom,
         pauseCardio,

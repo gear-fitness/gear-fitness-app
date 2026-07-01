@@ -16,6 +16,7 @@ import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { useUnitPreference } from "../../context/UnitPreferenceContext";
 import { toDisplayWeight } from "../../utils/weight";
 import { formatDistance } from "../../utils/distance";
+import { formatCardioDuration } from "../../utils/cardio";
 import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
@@ -71,12 +72,6 @@ export function WorkoutSummary() {
     deleteTitle: "Delete Cardio",
     deleteMessage: "Are you sure you want to remove this cardio activity?",
   });
-
-  const formatDuration = (s: number) =>
-    `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(
-      2,
-      "0",
-    )}`;
 
   const t: Theme = isDark
     ? {
@@ -385,7 +380,7 @@ export function WorkoutSummary() {
                             TIME
                           </Text>
                           <Text style={[styles.lastSetValue, { color: t.text }]}>
-                            {formatDuration(c.durationSeconds)}
+                            {formatCardioDuration(c.durationSeconds)}
                           </Text>
                         </View>
 

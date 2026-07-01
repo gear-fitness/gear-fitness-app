@@ -36,6 +36,7 @@ import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 import { MentionTextInput } from "../../components/MentionTextInput";
 import { formatTag } from "../../utils/formatTag";
 import { getAllBodyPartNames } from "../../utils/exerciseUtils";
+import { formatCardioDuration } from "../../utils/cardio";
 import { MUSCLE_GROUPS } from "../../constants/muscleGroups";
 
 const ACCENT = "#111";
@@ -209,12 +210,15 @@ export function WorkoutComplete() {
         // CardioEntry.distance is already canonical meters (converted from the
         // user's display unit in CardioDetailContent), so it's sent as-is.
         const meters = c.distance ? Number(c.distance) : NaN;
+        // Intensity is a whole number in the contract; coerce the string input
+        // and drop it if it isn't a finite integer.
+        const intensity = c.intensity ? parseInt(c.intensity, 10) : NaN;
         return {
           activityType: c.activityType,
           durationSeconds: c.durationSeconds,
           distanceMeters: Number.isFinite(meters) ? String(meters) : undefined,
           caloriesBurned: c.calories ? Number(c.calories) : undefined,
-          intensityLevel: c.intensity || undefined,
+          intensityLevel: Number.isFinite(intensity) ? intensity : undefined,
           notes: c.note || undefined,
         };
       }),
@@ -460,29 +464,25 @@ export function WorkoutComplete() {
         {cardioEntries.length > 0 && (
           <Section label={`Cardio (${cardioEntries.length})`} t={t}>
             <View style={styles.exerciseList}>
-              {cardioEntries.map((c) => {
-                const mins = Math.floor(c.durationSeconds / 60);
-                const secs = c.durationSeconds % 60;
-                return (
-                  <View
-                    key={c.workoutCardioId}
-                    style={[
-                      styles.exerciseCard,
-                      { backgroundColor: t.surface, borderColor: t.border },
-                    ]}
+              {cardioEntries.map((c) => (
+                <View
+                  key={c.workoutCardioId}
+                  style={[
+                    styles.exerciseCard,
+                    { backgroundColor: t.surface, borderColor: t.border },
+                  ]}
+                >
+                  <Text
+                    style={[styles.exerciseName, { color: t.text }]}
+                    numberOfLines={1}
                   >
-                    <Text
-                      style={[styles.exerciseName, { color: t.text }]}
-                      numberOfLines={1}
-                    >
-                      {c.activityType}
-                    </Text>
-                    <Text style={[styles.setsCount, { color: t.textMuted }]}>
-                      {mins}:{String(secs).padStart(2, "0")}
-                    </Text>
-                  </View>
-                );
-              })}
+                    {c.activityType}
+                  </Text>
+                  <Text style={[styles.setsCount, { color: t.textMuted }]}>
+                    {formatCardioDuration(c.durationSeconds)}
+                  </Text>
+                </View>
+              ))}
             </View>
           </Section>
         )}

@@ -56,7 +56,9 @@ export interface CardioSubmission {
   durationSeconds: number;
   distanceMeters?: string;
   caloriesBurned?: number;
-  intensityLevel?: string;
+  // Whole number (matches the numeric WorkoutCardio.intensityLevel contract);
+  // the client coerces its string input via parseInt before submit.
+  intensityLevel?: number;
   notes?: string;
 }
 
@@ -124,10 +126,17 @@ function responseToDetail(res: WorkoutDetailResponse): WorkoutDetail {
       activityType: c.activityType,
       durationSeconds: c.durationSeconds,
       // Kept canonically in meters; each display site converts to the user's
-      // distance unit via the unit preference.
-      distanceMeters: c.distanceMeters != null ? Number(c.distanceMeters) : null,
+      // distance unit via the unit preference. Guard against malformed server
+      // strings so a bad value becomes null instead of NaN.
+      distanceMeters:
+        c.distanceMeters != null && Number.isFinite(Number(c.distanceMeters))
+          ? Number(c.distanceMeters)
+          : null,
       caloriesBurned: c.caloriesBurned,
-      intensityLevel: c.intensityLevel != null ? Number(c.intensityLevel) : null,
+      intensityLevel:
+        c.intensityLevel != null && Number.isFinite(Number(c.intensityLevel))
+          ? Number(c.intensityLevel)
+          : null,
       notes: c.notes,
       position: c.position,
     })),

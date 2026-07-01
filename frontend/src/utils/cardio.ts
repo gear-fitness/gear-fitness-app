@@ -18,11 +18,3 @@ export function formatCardioDuration(totalSeconds: number): string {
   }
   return `${minutes}:${pad(seconds)}`;
 }
-
-/**
- * Pluralize the cardio count for compact summaries, e.g. "1 cardio" /
- * "3 cardio". Kept singular-noun ("cardio") since it reads naturally either way.
- */
-export function formatCardioCount(count: number): string {
-  return `${count} cardio`;
-}

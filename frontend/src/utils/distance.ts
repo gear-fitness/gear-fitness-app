@@ -10,27 +10,6 @@ export type DistanceUnit = "mi" | "km";
 
 export const METERS_PER_MILE = 1609.34;
 export const METERS_PER_KM = 1000;
-export const KM_PER_MILE = 1.60934;
-
-/** Convert miles to meters (no rounding — full precision for storage). */
-export function milesToMeters(miles: number): number {
-  return miles * METERS_PER_MILE;
-}
-
-/** Convert meters to miles, rounded to 2 decimal places for display. */
-export function metersToMiles(meters: number): number {
-  return Math.round((meters / METERS_PER_MILE) * 100) / 100;
-}
-
-/** Convert miles to kilometers, rounded to 2 decimal places for display. */
-export function milesToKm(miles: number): number {
-  return Math.round(miles * KM_PER_MILE * 100) / 100;
-}
-
-/** Convert kilometers to miles, rounded to 2 decimal places. */
-export function kmToMiles(km: number): number {
-  return Math.round((km / KM_PER_MILE) * 100) / 100;
-}
 
 // ──────────────────────────────────────────────────────────────
 // Canonical-meters helpers (mirrors utils/weight.ts).
@@ -52,11 +31,6 @@ export function distanceToMeters(value: number, unit: DistanceUnit): number {
   return unit === "km" ? value * METERS_PER_KM : value * METERS_PER_MILE;
 }
 
-/** "mi" | "km" — the short label shown next to a distance value. */
-export function distanceUnitLabel(unit: DistanceUnit): DistanceUnit {
-  return unit;
-}
-
 /**
  * Format a canonical-meters value for display in the user's unit, e.g.
  * "3.1 mi" / "5 km". Returns null for null/undefined so callers can omit the
@@ -67,7 +41,9 @@ export function formatDistance(
   unit: DistanceUnit,
   opts?: { withUnit?: boolean },
 ): string | null {
-  if (meters == null) return null;
+  // Guard null/undefined AND non-finite values so malformed server data can't
+  // render as "NaN mi".
+  if (meters == null || !Number.isFinite(meters)) return null;
   const withUnit = opts?.withUnit ?? true;
   const value = toDisplayDistance(meters, unit);
   const num = Number.isInteger(value) ? String(value) : value.toString();

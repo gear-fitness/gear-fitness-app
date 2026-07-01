@@ -12,6 +12,7 @@ import {
   Alert,
   useColorScheme,
 } from "react-native";
+import { sharedDetailStyles, detailHeroStyles } from "./detailContentStyles";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import {
   useState,
@@ -1526,108 +1527,7 @@ function PlateLoader({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 8,
-    paddingBottom: 0,
-  },
-
-  topBar: {
-    paddingTop: 12,
-    paddingBottom: 14,
-    paddingHorizontal: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
-  },
-
-  timerTap: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-  },
-
-  timerIcon: { width: 22, height: 22 },
-  timerText: {
-    fontSize: 28,
-    fontWeight: "700",
-    letterSpacing: -0.5,
-    fontVariant: ["tabular-nums"],
-  },
-  timerCaption: {
-    fontSize: 11,
-    fontWeight: "600",
-    letterSpacing: 1.2,
-    marginLeft: 4,
-  },
-
-  topBarActions: {
-    position: "absolute",
-    right: 16,
-    top: 8,
-    flexDirection: "row",
-    gap: 8,
-  },
-  topBarButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-  },
-
-  divider: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 8,
-  },
-
-  caption: {
-    fontSize: 12,
-    fontWeight: "600",
-    letterSpacing: 1.2,
-    marginBottom: 6,
-  },
-
-  titleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-
-  title: {
-    flexShrink: 1,
-    fontSize: 32,
-    fontWeight: "700",
-    letterSpacing: -0.8,
-    lineHeight: 36,
-  },
-
-  titleSwapIcon: {
-    width: 22,
-    height: 22,
-  },
-
-  heroCard: {
-    marginHorizontal: 20,
-    marginTop: 8,
-    marginBottom: 16,
-    borderRadius: 20,
-    overflow: "hidden",
-  },
-
-  heroDivider: {
-    height: StyleSheet.hairlineWidth,
-  },
-
+const exerciseLocalStyles = StyleSheet.create({
   logButton: {
     marginHorizontal: 20,
     marginBottom: 18,
@@ -1638,30 +1538,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 10,
   },
-
   logButtonText: {
     fontSize: 17,
     fontWeight: "600",
     letterSpacing: -0.2,
   },
-
   logButtonArrow: {
     fontSize: 17,
     opacity: 0.6,
   },
-
-  scroll: {
-    flex: 1,
-  },
-
-  scrollContent: {
-    paddingBottom: 8,
-  },
-
   setsSection: {
     paddingHorizontal: 20,
   },
-
   setsHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -1669,7 +1557,6 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     marginBottom: 4,
   },
-
   setsToggle: {
     flexDirection: "row",
     alignItems: "center",
@@ -1677,158 +1564,31 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     paddingHorizontal: 4,
   },
-
   setsCount: {
     fontSize: 12,
     fontWeight: "500",
   },
-
   setsChevron: {
     fontSize: 11,
   },
-
   empty: {
     textAlign: "center",
     paddingVertical: 14,
     fontSize: 13,
   },
-
   setRowWrapper: {
     borderRadius: 12,
     overflow: "hidden",
     marginBottom: 6,
   },
-
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 24,
-  },
-
-  modalCard: {
-    width: "100%",
-    borderRadius: 20,
-    padding: 20,
-  },
-
-  modalTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    letterSpacing: -0.2,
-    marginBottom: 12,
-  },
-
-  modalInput: {
-    minHeight: 100,
-    borderRadius: 12,
-    padding: 12,
-    fontSize: 15,
-    textAlignVertical: "top",
-  },
-
-  modalActions: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: 8,
-    marginTop: 14,
-  },
-
-  modalSecondary: {
-    height: 40,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  modalSecondaryText: {
-    fontSize: 15,
-    fontWeight: "500",
-  },
-
-  modalPrimary: {
-    height: 40,
-    paddingHorizontal: 18,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  modalPrimaryText: {
-    fontSize: 15,
-    fontWeight: "600",
-  },
-
-  footerCard: {
-    marginHorizontal: 12,
-    marginBottom: 20,
-    padding: 6,
-    borderRadius: 16,
-    flexDirection: "row",
-    gap: 4,
-  },
-
-  footerSecondary: {
-    flex: 1,
-    height: 50,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  footerSecondaryText: {
-    fontSize: 15,
-    fontWeight: "600",
-    letterSpacing: -0.2,
-  },
-
-  footerPrimary: {
-    flex: 1,
-    height: 50,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  footerPrimaryText: {
-    fontSize: 15,
-    fontWeight: "600",
-    letterSpacing: -0.2,
-  },
 });
 
-const heroStyles = StyleSheet.create({
-  row: {
-    paddingHorizontal: 20,
-    paddingVertical: 18,
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: "500",
-    marginBottom: 4,
-  },
-  valueRow: {
-    flexDirection: "row",
-    alignItems: "baseline",
-  },
-  input: {
-    flex: 1,
-    fontSize: 84,
-    fontWeight: "700",
-    letterSpacing: -3,
-    lineHeight: 90,
-    padding: 0,
-    margin: 0,
-    fontVariant: ["tabular-nums"],
-  },
-  unit: {
-    fontSize: 26,
-    fontWeight: "500",
-    marginLeft: 8,
-  },
-});
+// Shared screen chrome lives in detailContentStyles and is spread in here; the
+// keys above are lifting-specific (sets list, log button, empty state). Call
+// sites stay styles.* and the merge keeps every key.
+const styles = { ...sharedDetailStyles, ...exerciseLocalStyles };
+
+const heroStyles = detailHeroStyles;
 
 const setStyles = StyleSheet.create({
   row: {
