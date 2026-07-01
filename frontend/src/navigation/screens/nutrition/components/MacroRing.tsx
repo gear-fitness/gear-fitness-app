@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, TextInput, View } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 import { useThemeColors } from "../../../../hooks/useThemeColors";
 import { progressColor } from "./progressColor";
@@ -7,7 +7,8 @@ import { progressColor } from "./progressColor";
 /**
  * A circular macro gauge: a gray track with a progress arc that fills clockwise
  * from the top as `value` approaches `goal`, coloring red → green by how close
- * to the goal the user is. The current value is shown in the center.
+ * to the goal the user is. The current value is shown in the center — as an
+ * editable field when `onChangeText` is supplied.
  */
 export function MacroRing({
   label,
@@ -15,12 +16,17 @@ export function MacroRing({
   goal,
   size = 84,
   stroke = 7,
+  valueText,
+  onChangeText,
 }: {
   label: string;
   value: number;
   goal: number;
   size?: number;
   stroke?: number;
+  /** When set with `onChangeText`, the center becomes an editable number. */
+  valueText?: string;
+  onChangeText?: (v: string) => void;
 }) {
   const t = useThemeColors();
   const pct = goal > 0 ? Math.min(value / goal, 1) : 0;
@@ -62,7 +68,17 @@ export function MacroRing({
           )}
         </Svg>
         <View style={styles.center}>
-          <Text style={[styles.value, { color: t.text }]}>{value}</Text>
+          {onChangeText ? (
+            <TextInput
+              value={valueText}
+              onChangeText={onChangeText}
+              keyboardType="number-pad"
+              selectTextOnFocus
+              style={[styles.value, styles.valueInput, { color: t.text }]}
+            />
+          ) : (
+            <Text style={[styles.value, { color: t.text }]}>{value}</Text>
+          )}
         </View>
       </View>
       <Text style={[styles.label, { color: t.secondary }]}>{label}</Text>
@@ -78,5 +94,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   value: { fontSize: 19, fontWeight: "700" },
+  valueInput: {
+    padding: 0,
+    textAlign: "center",
+    minWidth: 54,
+  },
   label: { fontSize: 13, marginTop: 8 },
 });

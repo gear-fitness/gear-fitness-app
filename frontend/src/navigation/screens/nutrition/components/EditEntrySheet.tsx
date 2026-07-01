@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Keyboard,
-  Linking,
   Pressable,
   StyleSheet,
   Text,
@@ -35,10 +34,22 @@ export function EditEntrySheet({
   entry,
   visible,
   onClose,
+  onSaved,
+  onRecalculate,
+  titleText,
 }: {
   entry: FoodLogEntry | null;
   visible: boolean;
   onClose: () => void;
+  /** Fired after a successful save with the freshly re-logged entry, so a
+   *  caller (the Smart Journal) can keep its own cached copy in sync. */
+  onSaved?: (entry: FoodLogEntry | null) => void;
+  /** When provided (AI Smart Journal entries), shows a "Recalculate"
+   *  action that re-parses the food instead of hand-editing it. */
+  onRecalculate?: () => void;
+  /** Heading to show instead of the entry's parsed description — the Smart
+   *  Journal passes the exact text the user typed for that line. */
+  titleText?: string;
 }) {
   const t = useThemeColors();
   const { categories, summary, updateLog, getEntryUnitMeta } = useNutrition();
@@ -62,6 +73,20 @@ export function EditEntrySheet({
   const [unitPickerOpen, setUnitPickerOpen] = useState(false);
   const [mealPickerOpen, setMealPickerOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Editable macros + calories. Seeded from the entry, re-derived when the
+  // serving size/quantity changes, or hand-edited by the user. Editing a macro
+  // rescales calories (4/4/9); calories can also be typed directly. Once any of
+  // these is hand-edited, the entry saves as a custom quick-add so the override
+  // persists (a food-linked entry would have its macros recomputed server-side).
+  const [proteinText, setProteinText] = useState("0");
+  const [carbsText, setCarbsText] = useState("0");
+  const [fatText, setFatText] = useState("0");
+  const [caloriesText, setCaloriesText] = useState("0");
+  const [nutritionEdited, setNutritionEdited] = useState(false);
+
+  const caloriesFor = (proteinG: number, carbsG: number, fatG: number) =>
+    Math.round(proteinG * 4 + carbsG * 4 + fatG * 9);
 
   // Per-gram macros derived from the entry's stored (consumed) amounts.
   const perGram = useMemo(() => {
@@ -87,6 +112,11 @@ export function EditEntrySheet({
       setUnitKey(startUnit);
       setQuantityText(String(meta?.quantity ?? entry.quantity));
       setCategory(entry.category ?? categories[0] ?? "Breakfast");
+      setProteinText(String(round1(entry.proteinG)));
+      setCarbsText(String(round1(entry.carbsG)));
+      setFatText(String(round1(entry.fatG)));
+      setCaloriesText(String(round(entry.calories)));
+      setNutritionEdited(false);
       setUnitPickerOpen(false);
       setMealPickerOpen(false);
       setSaving(false);
@@ -97,15 +127,54 @@ export function EditEntrySheet({
 
   const qty = parseFloat(quantityText) || 0;
   const grams = qty * gramsFor(unitKey);
-  const consumed = {
-    calories: perGram.calories * grams,
-    proteinG: perGram.proteinG * grams,
-    carbsG: perGram.carbsG * grams,
-    fatG: perGram.fatG * grams,
+
+  // Current macro grams and calories from the editable fields.
+  const macros = {
+    proteinG: parseFloat(proteinText) || 0,
+    carbsG: parseFloat(carbsText) || 0,
+    fatG: parseFloat(fatText) || 0,
   };
+  const calories = parseFloat(caloriesText) || 0;
 
   const pctOfGoal = (value: number, g?: number) =>
     g && g > 0 ? Math.round((value / g) * 100) : 0;
+
+  // Re-derive the macro fields (and calories) from the entry's per-gram basis
+  // for a given amount (used when the serving size/quantity changes).
+  const reseedMacros = (nextQty: number, nextKey: MeasureUnitKey) => {
+    const g = nextQty * gramsFor(nextKey);
+    const p = round1(perGram.proteinG * g);
+    const c = round1(perGram.carbsG * g);
+    const f = round1(perGram.fatG * g);
+    setProteinText(String(p));
+    setCarbsText(String(c));
+    setFatText(String(f));
+    setCaloriesText(String(caloriesFor(p, c, f)));
+    setNutritionEdited(false);
+  };
+
+  // Edit one macro: keep the others, rescale calories to match (4/4/9).
+  const editMacro = (
+    which: "proteinG" | "carbsG" | "fatG",
+    text: string,
+  ) => {
+    const next = { ...macros, [which]: parseFloat(text) || 0 };
+    if (which === "proteinG") setProteinText(text);
+    else if (which === "carbsG") setCarbsText(text);
+    else setFatText(text);
+    setCaloriesText(String(caloriesFor(next.proteinG, next.carbsG, next.fatG)));
+    setNutritionEdited(true);
+  };
+
+  const editCalories = (text: string) => {
+    setCaloriesText(text);
+    setNutritionEdited(true);
+  };
+
+  const changeQuantity = (text: string) => {
+    setQuantityText(text);
+    reseedMacros(parseFloat(text) || 0, unitKey);
+  };
 
   // Switching units keeps the actual amount (grams) constant.
   const changeUnit = (nextKey: MeasureUnitKey) => {
@@ -113,6 +182,7 @@ export function EditEntrySheet({
     const nextQty = currentGrams / gramsFor(nextKey);
     setUnitKey(nextKey);
     setQuantityText(String(round2(nextQty)));
+    reseedMacros(nextQty, nextKey);
     setUnitPickerOpen(false);
   };
 
@@ -130,33 +200,43 @@ export function EditEntrySheet({
     const backendUnit = unitKey === "serving" ? "SERVING" : "GRAM";
     const backendQty = unitKey === "serving" ? qty : grams;
     try {
-      if (entry.foodId) {
-        await updateLog(
+      let created: FoodLogEntry | null = null;
+      // A food-linked entry recomputes its macros server-side, so it can only
+      // keep the foodId path while its nutrition is untouched. Once the user
+      // overrides a macro or the calories, re-log it as a custom quick-add with
+      // the exact values.
+      if (entry.foodId && !nutritionEdited) {
+        created = await updateLog(
           entry.entryId,
           {
             foodId: entry.foodId,
             category,
             quantity: backendQty,
             unit: backendUnit,
+            sourceType: entry.sourceType,
+            sourceUrl: entry.sourceUrl,
           },
           unitMeta,
         );
       } else {
-        await updateLog(
+        created = await updateLog(
           entry.entryId,
           {
             category,
             quantity: backendQty,
             unit: backendUnit,
             description: entry.description,
-            calories: consumed.calories,
-            proteinG: consumed.proteinG,
-            carbsG: consumed.carbsG,
-            fatG: consumed.fatG,
+            calories,
+            proteinG: macros.proteinG,
+            carbsG: macros.carbsG,
+            fatG: macros.fatG,
+            sourceType: entry.sourceType,
+            sourceUrl: entry.sourceUrl,
           },
           unitMeta,
         );
       }
+      onSaved?.(created);
       onClose();
     } catch (err) {
       console.error("Failed to update entry:", err);
@@ -177,31 +257,8 @@ export function EditEntrySheet({
     >
       <Pressable style={styles.content} onPress={() => Keyboard.dismiss()}>
         <Text style={[styles.title, { color: t.text }]} numberOfLines={2}>
-          {entry.description}
+          {titleText ?? entry.description}
         </Text>
-
-          {/* AI provenance — shown for entries logged via the AI Smart Journal */}
-          {entry.sourceType?.startsWith("AI") && (
-            <View style={styles.sourceRow}>
-              <View style={[styles.aiChip, { backgroundColor: t.surface }]}>
-                <Text style={[styles.aiChipText, { color: t.secondary }]}>
-                  AI estimated
-                </Text>
-              </View>
-              {entry.sourceUrl ? (
-                <TouchableOpacity
-                  onPress={() => Linking.openURL(entry.sourceUrl!)}
-                >
-                  <Text
-                    style={[styles.sourceLink, { color: t.accent }]}
-                    numberOfLines={1}
-                  >
-                    Source
-                  </Text>
-                </TouchableOpacity>
-              ) : null}
-            </View>
-          )}
 
           {/* Serving size — unit selector */}
           <View style={[styles.row, { borderTopColor: t.separator }]}>
@@ -253,7 +310,7 @@ export function EditEntrySheet({
             <Text style={[styles.rowLabel, { color: t.text }]}>{qtyLabel}</Text>
             <TextInput
               value={quantityText}
-              onChangeText={setQuantityText}
+              onChangeText={changeQuantity}
               keyboardType="decimal-pad"
               selectTextOnFocus
               style={[
@@ -309,31 +366,38 @@ export function EditEntrySheet({
             </View>
           )}
 
-          {/* Macro summary — percentages are share of the daily goal */}
+          {/* Macro summary — tap any number to edit it. Editing a macro
+              rescales calories (4/4/9); calories can also be set directly.
+              Percentages are the share of the daily goal. */}
           <View style={[styles.macroRow, { borderTopColor: t.separator }]}>
             <MacroRing
               label="cal"
-              value={round(consumed.calories)}
+              value={round(calories)}
+              valueText={caloriesText}
+              onChangeText={editCalories}
               goal={goal?.calorieGoal ?? 0}
               size={92}
             />
             <View style={styles.macroStats}>
               <MacroStat
                 label="Carbs"
-                grams={round1(consumed.carbsG)}
-                pct={pctOfGoal(consumed.carbsG, goal?.carbsG)}
+                value={carbsText}
+                onChangeText={(v) => editMacro("carbsG", v)}
+                pct={pctOfGoal(macros.carbsG, goal?.carbsG)}
                 t={t}
               />
               <MacroStat
                 label="Fat"
-                grams={round1(consumed.fatG)}
-                pct={pctOfGoal(consumed.fatG, goal?.fatG)}
+                value={fatText}
+                onChangeText={(v) => editMacro("fatG", v)}
+                pct={pctOfGoal(macros.fatG, goal?.fatG)}
                 t={t}
               />
               <MacroStat
                 label="Protein"
-                grams={round1(consumed.proteinG)}
-                pct={pctOfGoal(consumed.proteinG, goal?.proteinG)}
+                value={proteinText}
+                onChangeText={(v) => editMacro("proteinG", v)}
+                pct={pctOfGoal(macros.proteinG, goal?.proteinG)}
                 t={t}
               />
             </View>
@@ -348,6 +412,21 @@ export function EditEntrySheet({
               {saving ? "Saving…" : "Save changes"}
             </Text>
           </TouchableOpacity>
+
+          {onRecalculate && (
+            <TouchableOpacity
+              style={[styles.recalcBtn, { borderColor: t.border }]}
+              disabled={saving}
+              onPress={() => {
+                onRecalculate();
+                onClose();
+              }}
+            >
+              <Text style={[styles.recalcBtnText, { color: t.text }]}>
+                Recalculate
+              </Text>
+            </TouchableOpacity>
+          )}
       </Pressable>
     </BottomSheet>
   );
@@ -355,19 +434,30 @@ export function EditEntrySheet({
 
 function MacroStat({
   label,
-  grams,
+  value,
+  onChangeText,
   pct,
   t,
 }: {
   label: string;
-  grams: number;
+  value: string;
+  onChangeText: (v: string) => void;
   pct: number;
   t: ReturnType<typeof useThemeColors>;
 }) {
   return (
     <View style={styles.stat}>
       <Text style={[styles.statPct, { color: t.secondary }]}>{pct}%</Text>
-      <Text style={[styles.statGrams, { color: t.text }]}>{grams} g</Text>
+      <View style={[styles.statInputRow, { borderColor: t.border }]}>
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          keyboardType="decimal-pad"
+          selectTextOnFocus
+          style={[styles.statInput, { color: t.text }]}
+        />
+        <Text style={[styles.statUnit, { color: t.text }]}>g</Text>
+      </View>
       <Text style={[styles.statLabel, { color: t.secondary }]}>{label}</Text>
     </View>
   );
@@ -376,19 +466,6 @@ function MacroStat({
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 20, paddingTop: 4 },
   title: { fontSize: 22, fontWeight: "700", marginBottom: 8 },
-  sourceRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 10,
-  },
-  aiChip: {
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  aiChipText: { fontSize: 12, fontWeight: "600" },
-  sourceLink: { fontSize: 13, fontWeight: "600" },
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -441,7 +518,21 @@ const styles = StyleSheet.create({
   },
   stat: { alignItems: "center" },
   statPct: { fontSize: 14, fontWeight: "600" },
-  statGrams: { fontSize: 18, fontWeight: "700", marginTop: 4 },
+  statInputRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    marginTop: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingBottom: 2,
+  },
+  statInput: {
+    fontSize: 18,
+    fontWeight: "700",
+    minWidth: 30,
+    paddingVertical: 0,
+    textAlign: "center",
+  },
+  statUnit: { fontSize: 13, fontWeight: "600", marginLeft: 2, marginBottom: 1 },
   statLabel: { fontSize: 12, marginTop: 4 },
   saveBtn: {
     marginTop: 24,
@@ -450,4 +541,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   saveBtnText: { fontSize: 16, fontWeight: "600" },
+  recalcBtn: {
+    marginTop: 12,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  recalcBtnText: { fontSize: 16, fontWeight: "600" },
 });

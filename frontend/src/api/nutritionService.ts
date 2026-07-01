@@ -47,6 +47,10 @@ export interface LogFoodPayload {
   proteinG?: number;
   carbsG?: number;
   fatG?: number;
+  // Provenance, preserved when re-logging an AI-estimated entry so it stays a
+  // Smart Journal entry (kept out of the manual meal cards) after an edit.
+  sourceType?: string | null;
+  sourceUrl?: string | null;
 }
 
 export async function logFood(
@@ -73,6 +77,10 @@ export interface AiLogResult {
   entries: FoodLogEntry[];
   fromCache: boolean;
   sourceUrls: string[];
+  // Sonar's short explanation of the estimate + its 0–100 confidence. Surfaced
+  // in the nutrition-detail sheet's "Amy's thought process" panel.
+  reasoning?: string;
+  confidence?: number;
 }
 
 /**

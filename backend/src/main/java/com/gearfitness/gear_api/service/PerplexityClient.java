@@ -34,12 +34,26 @@ public class PerplexityClient {
     language. Break it into individual food items and, for each, estimate the \
     nutrition for the amount described (quantities are already factored in).
 
-    Respond with ONLY a JSON array, no prose and no markdown fences. Each element:
-    {"description": string, "calories": number, "protein_g": number, "carbs_g": number, "fat_g": number}
+    Respond with ONLY a JSON object, no prose and no markdown fences:
+    {
+      "items": [
+        {"description": string, "calories": number, "protein_g": number, "carbs_g": number, "fat_g": number}
+      ],
+      "reasoning": string,
+      "confidence": number
+    }
 
-    - calories in kcal, macros in grams, all already scaled to the amount eaten.
-    - description: a short human label, e.g. "2 scrambled eggs".
-    - If the input contains no recognizable food, return [].
+    - items: one element per distinct food. calories in kcal, macros in grams, \
+    all already scaled to the amount eaten. description is a short human label, \
+    e.g. "2 scrambled eggs". If the input contains no recognizable food, use [].
+    - reasoning: 1-2 short, friendly sentences in plain everyday language that \
+    anyone can instantly understand. Simply explain how you came up with the \
+    numbers — like the portion size you assumed or how the food was made. Do NOT \
+    use jargon, technical wording, or mention sources, brands, databases, or \
+    citations. Write it the way you'd casually explain it to a friend.
+    - confidence: an integer 0-100 for how sure you are of the estimate — high \
+    when you found official/published nutrition data, lower when you had to guess \
+    portion sizes or preparation.
     """;
 
   private final HttpClient httpClient = HttpClient.newHttpClient();
@@ -64,9 +78,14 @@ public class PerplexityClient {
     double fatG
   ) {}
 
-  /** Sonar's parsed foods plus the source URLs it cited. */
+  /**
+   * Sonar's parsed foods, its short reasoning for the estimate, a 0-100
+   * confidence score, and the source URLs it cited.
+   */
   public record PerplexityResult(
     List<ParsedFood> foods,
+    String reasoning,
+    int confidence,
     List<String> citations
   ) {}
 
@@ -115,8 +134,11 @@ public class PerplexityClient {
         .path("content")
         .asText("");
 
+      JsonNode parsed = mapper.readTree(stripFences(content));
       return new PerplexityResult(
-        parseFoods(content),
+        parseFoods(parsed),
+        parseReasoning(parsed),
+        parseConfidence(parsed),
         extractCitations(root)
       );
     } catch (IllegalStateException e) {
@@ -127,10 +149,14 @@ public class PerplexityClient {
     }
   }
 
-  private List<ParsedFood> parseFoods(String content) throws Exception {
-    String json = stripFences(content);
+  /**
+   * Pull the food items out of Sonar's reply. Preferred shape is an object with
+   * an "items" array, but older prompts (and occasional slips) return a bare
+   * array — accept either.
+   */
+  private List<ParsedFood> parseFoods(JsonNode parsed) {
     List<ParsedFood> foods = new ArrayList<>();
-    JsonNode arr = mapper.readTree(json);
+    JsonNode arr = parsed.isArray() ? parsed : parsed.path("items");
     if (!arr.isArray()) return foods;
     for (JsonNode n : arr) {
       String desc = n.path("description").asText("").trim();
@@ -146,6 +172,16 @@ public class PerplexityClient {
       );
     }
     return foods;
+  }
+
+  private String parseReasoning(JsonNode parsed) {
+    return parsed.path("reasoning").asText("").trim();
+  }
+
+  /** Confidence as an int clamped to 0-100; 0 when absent/unparseable. */
+  private int parseConfidence(JsonNode parsed) {
+    int c = parsed.path("confidence").asInt(0);
+    return Math.max(0, Math.min(100, c));
   }
 
   private List<String> extractCitations(JsonNode root) {

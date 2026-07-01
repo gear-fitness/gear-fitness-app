@@ -39,6 +39,16 @@ public class NutritionCache {
   @Builder.Default
   private String sourceUrls = "[]";
 
+  // Sonar's short explanation of where the numbers came from (may be blank).
+  @Column(name = "reasoning", columnDefinition = "text")
+  @Builder.Default
+  private String reasoning = "";
+
+  // Sonar's 0-100 confidence in the estimate (0 when it gave none).
+  @Column(name = "confidence", nullable = false)
+  @Builder.Default
+  private Integer confidence = 0;
+
   @Column(name = "hit_count", nullable = false)
   @Builder.Default
   private Integer hitCount = 0;

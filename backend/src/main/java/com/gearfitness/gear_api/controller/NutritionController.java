@@ -7,10 +7,13 @@ import com.gearfitness.gear_api.dto.FoodItemDTO;
 import com.gearfitness.gear_api.dto.LogEntryDTO;
 import com.gearfitness.gear_api.dto.LogFoodRequest;
 import com.gearfitness.gear_api.dto.NutritionGoalDTO;
+import com.gearfitness.gear_api.dto.SaveMealRequest;
+import com.gearfitness.gear_api.dto.SavedMealDTO;
 import com.gearfitness.gear_api.dto.UpdateGoalRequest;
 import com.gearfitness.gear_api.security.JwtService;
 import com.gearfitness.gear_api.service.AiNutritionService;
 import com.gearfitness.gear_api.service.NutritionService;
+import com.gearfitness.gear_api.service.SavedMealService;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +29,7 @@ public class NutritionController {
 
   private final NutritionService nutritionService;
   private final AiNutritionService aiNutritionService;
+  private final SavedMealService savedMealService;
   private final JwtService jwtService;
 
   /**
@@ -102,6 +106,39 @@ public class NutritionController {
       throw e;
     } catch (IllegalArgumentException e) {
       return ResponseEntity.badRequest().build();
+    } catch (Exception e) {
+      e.printStackTrace();
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+    }
+  }
+
+  /** Save a reusable meal (from the Smart Journal "Save as Meal" action). */
+  @PostMapping("/meals")
+  public ResponseEntity<SavedMealDTO> saveMeal(
+    @RequestBody SaveMealRequest req,
+    @RequestHeader("Authorization") String authHeader
+  ) {
+    try {
+      UUID userId = jwtService.extractUserId(authHeader.substring(7));
+      return ResponseEntity.status(HttpStatus.CREATED).body(
+        savedMealService.save(userId, req)
+      );
+    } catch (ResponseStatusException e) {
+      throw e;
+    } catch (Exception e) {
+      e.printStackTrace();
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+    }
+  }
+
+  /** List the current user's saved meals (most recent first). */
+  @GetMapping("/meals")
+  public ResponseEntity<List<SavedMealDTO>> listMeals(
+    @RequestHeader("Authorization") String authHeader
+  ) {
+    try {
+      UUID userId = jwtService.extractUserId(authHeader.substring(7));
+      return ResponseEntity.ok(savedMealService.list(userId));
     } catch (Exception e) {
       e.printStackTrace();
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();

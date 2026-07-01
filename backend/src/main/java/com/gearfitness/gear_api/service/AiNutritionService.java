@@ -80,12 +80,16 @@ public class AiNutritionService {
 
     List<ParsedFood> foods;
     List<String> sourceUrls;
+    String reasoning;
+    int confidence;
     boolean fromCache;
 
     if (cached.isPresent()) {
       NutritionCache hit = cached.get();
       foods = deserializeFoods(hit.getParsedResult());
       sourceUrls = deserializeUrls(hit.getSourceUrls());
+      reasoning = hit.getReasoning() == null ? "" : hit.getReasoning();
+      confidence = hit.getConfidence() == null ? 0 : hit.getConfidence();
       hit.setHitCount(hit.getHitCount() + 1);
       hit.setLastHitAt(LocalDateTime.now());
       cacheRepository.save(hit);
@@ -104,11 +108,15 @@ public class AiNutritionService {
       PerplexityResult result = perplexityClient.parse(text);
       foods = result.foods();
       sourceUrls = result.citations();
+      reasoning = result.reasoning();
+      confidence = result.confidence();
 
       NutritionCache row = NutritionCache.builder()
         .normalizedKey(key)
         .parsedResult(serialize(foods))
         .sourceUrls(serialize(sourceUrls))
+        .reasoning(reasoning)
+        .confidence(confidence)
         .hitCount(0)
         .createdAt(LocalDateTime.now())
         .build();
@@ -134,7 +142,7 @@ public class AiNutritionService {
       entries.add(nutritionService.logFood(userId, logReq));
     }
 
-    return new AiLogResponse(entries, fromCache, sourceUrls);
+    return new AiLogResponse(entries, fromCache, sourceUrls, reasoning, confidence);
   }
 
   /**

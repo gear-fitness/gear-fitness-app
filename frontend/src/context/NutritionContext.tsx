@@ -78,7 +78,7 @@ type NutritionContextValue = {
     entryId: string,
     payload: Omit<LogFoodPayload, "date">,
     unitMeta?: EntryUnitMeta,
-  ) => Promise<void>;
+  ) => Promise<FoodLogEntry | null>;
   removeLog: (entryId: string) => Promise<void>;
   getEntryUnitMeta: (entryId: string) => EntryUnitMeta | undefined;
   addCategory: (name: string) => Promise<void>;
@@ -301,6 +301,7 @@ export function NutritionProvider({
         return next;
       });
       await fetchFor(selectedDate);
+      return created;
     },
     [fetchFor, selectedDate, persistEntryUnits],
   );

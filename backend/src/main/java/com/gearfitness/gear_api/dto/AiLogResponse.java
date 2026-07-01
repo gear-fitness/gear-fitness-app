@@ -7,7 +7,9 @@ import lombok.NoArgsConstructor;
 
 /**
  * Result of an AI food-logging request: the entries that were created, whether
- * they came from the cache (no paid Sonar call), and the source URLs Sonar cited.
+ * they came from the cache (no paid Sonar call), the source URLs Sonar cited,
+ * plus Sonar's short reasoning and 0-100 confidence for the estimate (surfaced
+ * in the "Amy's thought process" panel of the nutrition-detail sheet).
  */
 @Data
 @NoArgsConstructor
@@ -17,4 +19,6 @@ public class AiLogResponse {
   private List<LogEntryDTO> entries;
   private boolean fromCache;
   private List<String> sourceUrls;
+  private String reasoning;
+  private int confidence;
 }

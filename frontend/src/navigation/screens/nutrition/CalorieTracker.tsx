@@ -1,6 +1,8 @@
 import React, { useCallback, useRef, useState } from "react";
 import {
   Alert,
+  Keyboard,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,17 +13,21 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import Swipeable from "react-native-gesture-handler/ReanimatedSwipeable";
+import { MenuView, MenuAction } from "@react-native-menu/menu";
+import * as Haptics from "expo-haptics";
 import PagerView from "react-native-pager-view";
 import { useThemeColors } from "../../../hooks/useThemeColors";
 import { useTrackTab } from "../../../hooks/useTrackTab";
-import { useSwipeableDelete } from "../../../hooks/useSwipeableDelete";
 import { useNutrition } from "../../../context/NutritionContext";
 import { FoodLogEntry } from "../../../api/types";
 import { formatQuantity } from "../../../utils/nutritionUnits";
+import {
+  getCurrentLocalDateString,
+  getLocalDateStringFromEpoch,
+  parseLocalDate,
+} from "../../../utils/date";
 import { MacroRing } from "./components/MacroRing";
 import { EditEntrySheet } from "./components/EditEntrySheet";
-import { CategoryMenuSheet } from "./components/CategoryMenuSheet";
 import { SmartJournal } from "./components/SmartJournal";
 import { progressColor } from "./components/progressColor";
 import { FloatingKeyboardDismiss } from "../../../components/FloatingKeyboardDismiss";
@@ -29,19 +35,21 @@ import { FloatingKeyboardDismiss } from "../../../components/FloatingKeyboardDis
 // The two swipeable logging sections, in page order. Index <-> title.
 const SECTION_TITLES = ["Manual entry", "Smart journal"];
 
+// Shift a YYYY-MM-DD date by whole days, staying in local time. Building the
+// result from local calendar fields (not toISOString, which is UTC) keeps the
+// day correct in every timezone.
 function shiftDate(dateStr: string, days: number): string {
-  const d = new Date(`${dateStr}T00:00:00`);
+  const d = parseLocalDate(dateStr);
   d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  return getLocalDateStringFromEpoch(d.getTime());
 }
 
 function dateLabel(dateStr: string): string {
-  const today = new Date();
-  const todayStr = today.toISOString().slice(0, 10);
+  const todayStr = getCurrentLocalDateString();
   const yesterday = shiftDate(todayStr, -1);
   if (dateStr === todayStr) return "Today";
   if (dateStr === yesterday) return "Yesterday";
-  return new Date(`${dateStr}T00:00:00`).toLocaleDateString(undefined, {
+  return parseLocalDate(dateStr).toLocaleDateString(undefined, {
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -85,7 +93,6 @@ export function CalorieTracker() {
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [editingEntry, setEditingEntry] = useState<FoodLogEntry | null>(null);
-  const [menuCategory, setMenuCategory] = useState<string | null>(null);
   const [renamingCategory, setRenamingCategory] = useState<string | null>(null);
   const [renameText, setRenameText] = useState("");
 
@@ -94,11 +101,10 @@ export function CalorieTracker() {
   const [activeSection, setActiveSection] = useState(0);
   const pagerRef = useRef<PagerView>(null);
 
-  const { getSwipeableProps } = useSwipeableDelete({
-    onDelete: removeLog,
-    deleteTitle: "Remove food",
-    deleteMessage: "Remove this item from your log?",
-  });
+  // Delete a logged row (chosen from its hold-to-open native menu).
+  const removeEntry = (entry: FoodLogEntry) => {
+    removeLog(entry.entryId);
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -111,9 +117,14 @@ export function CalorieTracker() {
   const consumed = round(totals?.calories);
   const calorieGoal = goal?.calorieGoal ?? 0;
   const caloriePct = calorieGoal > 0 ? Math.min(consumed / calorieGoal, 1) : 0;
-  const isToday = selectedDate === new Date().toISOString().slice(0, 10);
+  const isToday = selectedDate === getCurrentLocalDateString();
 
-  const entries = summary?.entries ?? [];
+  // AI Smart Journal foods live only in that tab — keep them out of the manual
+  // meal cards (they still count toward the day's totals, which come from
+  // summary.totals, computed server-side over every entry).
+  const entries = (summary?.entries ?? []).filter(
+    (e) => !e.sourceType?.startsWith("AI"),
+  );
 
   // An entry's visual bucket: its label, or "Uncategorized" when it has none.
   // Without this fallback, entries with a null/empty category (e.g. legacy rows
@@ -166,9 +177,39 @@ export function CalorieTracker() {
   };
 
   const startRename = (name: string) => {
-    setMenuCategory(null);
     setRenamingCategory(name);
     setRenameText(name);
+  };
+
+  // Native dropdown actions for a category's ⋯ button.
+  const categoryMenuActions = (name: string): MenuAction[] => [
+    {
+      id: "recurring",
+      title: "Make recurring",
+      state: isRecurring(name) ? "on" : "off",
+      image: Platform.select({ ios: "repeat" }),
+    },
+    {
+      id: "rename",
+      title: "Rename",
+      image: Platform.select({ ios: "pencil" }),
+    },
+    {
+      id: "delete",
+      title: "Delete",
+      attributes: { destructive: true },
+      image: Platform.select({ ios: "trash" }),
+    },
+  ];
+
+  const onCategoryMenuAction = (name: string, actionId: string) => {
+    if (actionId === "recurring") {
+      setCategoryRecurring(name, !isRecurring(name));
+    } else if (actionId === "rename") {
+      startRename(name);
+    } else if (actionId === "delete") {
+      handleDeleteCategory(name);
+    }
   };
 
   const submitRename = async () => {
@@ -189,8 +230,6 @@ export function CalorieTracker() {
     }
     await renameCategory(old, next);
   };
-
-  const menuRecurring = menuCategory ? isRecurring(menuCategory) : false;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: t.appBg }]}>
@@ -319,7 +358,10 @@ export function CalorieTracker() {
         ref={pagerRef}
         style={styles.flex1}
         initialPage={0}
-        onPageSelected={(e) => setActiveSection(e.nativeEvent.position)}
+        onPageSelected={(e) => {
+          Keyboard.dismiss();
+          setActiveSection(e.nativeEvent.position);
+        }}
       >
         {/* Manual entry: the meal-category cards */}
         <View key="manual" style={styles.flex1} collapsable={false}>
@@ -370,18 +412,24 @@ export function CalorieTracker() {
                   <Text style={[styles.mealCals, { color: t.secondary }]}>
                     {catCals} cal
                   </Text>
-                  <TouchableOpacity
-                    hitSlop={10}
-                    onPress={() => setMenuCategory(name)}
-                    style={styles.deleteBtn}
-                    accessibilityLabel={`${name} options`}
+                  <MenuView
+                    title={name}
+                    onPressAction={({ nativeEvent }) =>
+                      onCategoryMenuAction(name, nativeEvent.event)
+                    }
+                    actions={categoryMenuActions(name)}
                   >
-                    <Ionicons
-                      name="ellipsis-horizontal"
-                      size={18}
-                      color={t.secondary}
-                    />
-                  </TouchableOpacity>
+                    <View
+                      style={styles.menuTrigger}
+                      accessibilityLabel={`${name} options`}
+                    >
+                      <Ionicons
+                        name="ellipsis-horizontal"
+                        size={18}
+                        color={t.secondary}
+                      />
+                    </View>
+                  </MenuView>
                 </View>
               </View>
 
@@ -391,7 +439,7 @@ export function CalorieTracker() {
                   entry={e}
                   subtitle={entrySubtitle(e, getEntryUnitMeta(e.entryId))}
                   onPress={() => setEditingEntry(e)}
-                  swipeableProps={getSwipeableProps(e.entryId)}
+                  onDelete={() => removeEntry(e)}
                 />
               ))}
 
@@ -490,27 +538,6 @@ export function CalorieTracker() {
         onClose={() => setEditingEntry(null)}
       />
 
-      <CategoryMenuSheet
-        categoryName={menuCategory}
-        recurring={menuRecurring}
-        visible={menuCategory !== null}
-        onClose={() => setMenuCategory(null)}
-        onToggleRecurring={() => {
-          if (menuCategory) {
-            setCategoryRecurring(menuCategory, !menuRecurring);
-          }
-          setMenuCategory(null);
-        }}
-        onRename={() => {
-          if (menuCategory) startRename(menuCategory);
-        }}
-        onDelete={() => {
-          const name = menuCategory;
-          setMenuCategory(null);
-          if (name) handleDeleteCategory(name);
-        }}
-      />
-
       <FloatingKeyboardDismiss />
     </SafeAreaView>
   );
@@ -520,17 +547,37 @@ function MealEntryRow({
   entry,
   subtitle,
   onPress,
-  swipeableProps,
+  onDelete,
 }: {
   entry: FoodLogEntry;
   subtitle: string;
   onPress: () => void;
-  swipeableProps: object;
+  onDelete: () => void;
 }) {
   const t = useThemeColors();
   return (
     <View style={styles.entryWrapper}>
-      <Swipeable {...swipeableProps} containerStyle={styles.entrySwipeContainer}>
+      {/* Tap edits; hold opens a native menu to delete, buzzing as it opens. */}
+      <MenuView
+        title={entry.description}
+        shouldOpenOnLongPress
+        onOpenMenu={() =>
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(
+            () => {},
+          )
+        }
+        onPressAction={({ nativeEvent }) => {
+          if (nativeEvent.event === "delete") onDelete();
+        }}
+        actions={[
+          {
+            id: "delete",
+            title: "Delete",
+            attributes: { destructive: true },
+            image: Platform.select({ ios: "trash" }),
+          },
+        ]}
+      >
         <TouchableOpacity
           style={[
             styles.entryRow,
@@ -539,6 +586,7 @@ function MealEntryRow({
           onPress={onPress}
           activeOpacity={0.7}
           accessibilityLabel={`Edit ${entry.description}`}
+          accessibilityHint="Hold to delete"
         >
           <View style={styles.entryInfo}>
             <Text
@@ -565,7 +613,7 @@ function MealEntryRow({
             style={styles.entryChevron}
           />
         </TouchableOpacity>
-      </Swipeable>
+      </MenuView>
     </View>
   );
 }
@@ -647,7 +695,7 @@ const styles = StyleSheet.create({
   mealTitleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   mealTitle: { fontSize: 16, fontWeight: "600" },
   mealCals: { fontSize: 14 },
-  deleteBtn: { padding: 2 },
+  menuTrigger: { paddingVertical: 4, paddingHorizontal: 6 },
   renameInput: {
     fontSize: 16,
     fontWeight: "600",
@@ -656,7 +704,6 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   entryWrapper: { borderRadius: 14, overflow: "hidden", marginTop: 10 },
-  entrySwipeContainer: { borderRadius: 14, overflow: "hidden" },
   entryRow: {
     flexDirection: "row",
     alignItems: "center",

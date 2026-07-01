@@ -33,6 +33,14 @@ interface Props {
   /** Show the floating keyboard-dismiss pill while the keyboard is open. */
   keyboardDismiss?: boolean;
   /**
+   * Allow dragging the sheet body (not just the grabber) to dismiss. Defaults
+   * to true. Set false for sheets whose content scrolls or is densely tappable,
+   * so the body's pan responder never competes with a ScrollView or steals the
+   * odd slidey tap — those sheets dismiss via the grabber, backdrop, or a close
+   * control instead.
+   */
+  bodyDrag?: boolean;
+  /**
    * Fires once the close animation finishes and the modal unmounts. Callers use
    * this to chain a follow-up modal or modal-presentation navigation, which iOS
    * refuses to present while this modal is still on screen.
@@ -54,6 +62,7 @@ export function BottomSheet({
   backdropOpacity,
   keyboardDismiss,
   onClosed,
+  bodyDrag = true,
 }: Props) {
   const { colors } = useTheme();
   const targetBackdrop = backdropOpacity ?? BACKDROP_OPACITY;
@@ -153,7 +162,16 @@ export function BottomSheet({
   ).current;
 
   const body = (
-    <Pressable style={styles.container} onPress={onClose}>
+    // `box-none` lets touches fall through the empty area to the backdrop
+    // catcher below, while still hitting the sheet where it sits.
+    <View style={styles.container} pointerEvents="box-none">
+      {/*
+        Backdrop tap target. It sits BEHIND the sheet (earlier sibling), so a
+        tap only closes when it lands on the exposed area above the sheet. Taps
+        on the sheet itself hit the sheet and never reach here, so tapping the
+        title, padding, or between controls can no longer dismiss the sheet.
+      */}
+      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       <Animated.View
         style={[
           styles.sheet,
@@ -163,14 +181,14 @@ export function BottomSheet({
             transform: [{ translateY }],
           },
         ]}
-        {...bodyPan.panHandlers}
+        {...(bodyDrag ? bodyPan.panHandlers : {})}
       >
         <View style={styles.grabberZone} {...grabberPan.panHandlers}>
           <View style={[styles.grabber, { backgroundColor: colors.border }]} />
         </View>
         {children}
       </Animated.View>
-    </Pressable>
+    </View>
   );
 
   return (
