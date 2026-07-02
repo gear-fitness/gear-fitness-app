@@ -1,5 +1,5 @@
 -- Clear existing data
-TRUNCATE TABLE workout_set, workout_exercise, post_comment, post_like, post, workout, exercise_body_part, exercise, follow, app_user CASCADE;
+TRUNCATE TABLE workout_set, workout_exercise, workout_cardio, post_comment, post_like, post, workout, exercise_body_part, exercise, cardio_activity, follow, app_user CASCADE;
 
 -- Insert Users
 INSERT INTO app_user (user_id, username, email, password_hash, is_private, age, height_inches, weight_lbs, created_at)
@@ -27,6 +27,19 @@ VALUES
     ('650e8400-e29b-41d4-a716-446655440013', 'Plank', 'Isometric core stability exercise.'),
     ('650e8400-e29b-41d4-a716-446655440014', 'Incline Bench Press', 'Upper chest focused pressing movement.'),
     ('650e8400-e29b-41d4-a716-446655440015', 'Romanian Deadlift', 'Hip hinge movement targeting hamstrings and glutes.');
+
+-- Insert Cardio Activities
+INSERT INTO cardio_activity (cardio_activity_id, name, description)
+VALUES
+    ('750e8400-e29b-41d4-a716-556655440001', 'Run', 'Outdoor or track running'),
+    ('750e8400-e29b-41d4-a716-556655440002', 'Walk', 'Casual or brisk walking'),
+    ('750e8400-e29b-41d4-a716-556655440003', 'Bike', 'Outdoor cycling'),
+    ('750e8400-e29b-41d4-a716-556655440004', 'Treadmill', 'Indoor treadmill running or walking'),
+    ('750e8400-e29b-41d4-a716-556655440005', 'Elliptical', 'Low impact elliptical machine'),
+    ('750e8400-e29b-41d4-a716-556655440006', 'Rowing Machine', 'Full body rowing cardio'),
+    ('750e8400-e29b-41d4-a716-556655440007', 'Stair Master', 'Stair climbing machine'),
+    ('750e8400-e29b-41d4-a716-556655440008', 'Swim', 'Pool or open water swimming'),
+    ('750e8400-e29b-41d4-a716-556655440009', 'Jump Rope', 'Skipping rope cardio');
 
 -- Insert Exercise Body Parts (PRIMARY, SECONDARY only)
 INSERT INTO exercise_body_part (exercise_id, body_part, target_type)

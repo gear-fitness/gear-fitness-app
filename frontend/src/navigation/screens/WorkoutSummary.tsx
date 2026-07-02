@@ -15,6 +15,8 @@ import React, { useState } from "react";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { useUnitPreference } from "../../context/UnitPreferenceContext";
 import { toDisplayWeight } from "../../utils/weight";
+import { formatDistance } from "../../utils/distance";
+import { formatCardioDuration } from "../../utils/cardio";
 import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
@@ -38,7 +40,7 @@ export function WorkoutSummary() {
   useTrackTab("WorkoutSummary", { isModal: true });
 
   const isDark = useColorScheme() === "dark";
-  const { weightUnit: globalUnit } = useUnitPreference();
+  const { weightUnit: globalUnit, distanceUnit } = useUnitPreference();
   const ACCENT = isDark ? "#fff" : "#000";
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
@@ -51,6 +53,8 @@ export function WorkoutSummary() {
     exercises,
     removeExercise,
     setCurrentExercise,
+    cardioEntries,
+    removeCardioEntry,
   } = useWorkoutTimer();
 
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(
@@ -61,6 +65,12 @@ export function WorkoutSummary() {
     onDelete: (id) => removeExercise(id),
     deleteTitle: "Delete Exercise",
     deleteMessage: "Are you sure you want to remove this exercise?",
+  });
+
+  const { getSwipeableProps: getCardioSwipeableProps } = useSwipeableDelete({
+    onDelete: (id) => removeCardioEntry(id),
+    deleteTitle: "Delete Cardio",
+    deleteMessage: "Are you sure you want to remove this cardio activity?",
   });
 
   const t: Theme = isDark
@@ -288,6 +298,139 @@ export function WorkoutSummary() {
             </Svg>
             <Text style={[styles.addExerciseText, { color: t.text }]}>
               Add exercise
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Cardio */}
+        <View style={styles.exercisesSection}>
+          <Text style={[styles.sectionLabel, { color: t.textMuted }]}>
+            CARDIO
+          </Text>
+
+          <View style={styles.exerciseList}>
+            {cardioEntries.map((c) => {
+              const details = [
+                c.distance
+                  ? formatDistance(Number(c.distance), distanceUnit)
+                  : null,
+                c.calories ? `${c.calories} cal` : null,
+              ]
+                .filter(Boolean)
+                .join("  ·  ");
+
+              return (
+                <View
+                  key={c.workoutCardioId}
+                  style={styles.exerciseCardWrapper}
+                >
+                  <Swipeable {...getCardioSwipeableProps(c.workoutCardioId)}>
+                    <View
+                      onTouchStart={(e) => {
+                        setTouchStart({
+                          x: e.nativeEvent.pageX,
+                          y: e.nativeEvent.pageY,
+                        });
+                      }}
+                      onTouchEnd={(e) => {
+                        if (!touchStart) return;
+                        const dx = Math.abs(e.nativeEvent.pageX - touchStart.x);
+                        const dy = Math.abs(e.nativeEvent.pageY - touchStart.y);
+                        if (dx < 5 && dy < 5) {
+                          navigation.replace("ExerciseDetail", {
+                            kind: "cardio",
+                            cardio: c,
+                          });
+                        }
+                        setTouchStart(null);
+                      }}
+                    >
+                      <View
+                        style={[
+                          styles.exerciseCard,
+                          {
+                            backgroundColor: t.surface,
+                            borderColor: t.border,
+                          },
+                        ]}
+                      >
+                        <View style={styles.exerciseNameCol}>
+                          <Text
+                            style={[styles.exerciseName, { color: t.text }]}
+                            numberOfLines={1}
+                          >
+                            {c.activityType}
+                          </Text>
+                          {details ? (
+                            <Text
+                              style={[
+                                styles.notStarted,
+                                { color: t.textMuted, fontStyle: "normal" },
+                              ]}
+                            >
+                              {details}
+                            </Text>
+                          ) : null}
+                        </View>
+
+                        <View style={styles.lastSetCol}>
+                          <Text
+                            style={[
+                              styles.lastSetLabel,
+                              { color: t.textMuted },
+                            ]}
+                          >
+                            TIME
+                          </Text>
+                          <Text
+                            style={[styles.lastSetValue, { color: t.text }]}
+                          >
+                            {formatCardioDuration(c.durationSeconds)}
+                          </Text>
+                        </View>
+
+                        <Svg
+                          width={12}
+                          height={12}
+                          viewBox="0 0 16 16"
+                          fill="none"
+                        >
+                          <Path
+                            d="M6 3l5 5-5 5"
+                            stroke={t.textFaint}
+                            strokeWidth={1.6}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </Svg>
+                      </View>
+                    </View>
+                  </Swipeable>
+                </View>
+              );
+            })}
+          </View>
+
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() =>
+              navigation.replace("ExerciseSelect", {
+                returnTo: "WorkoutSummary",
+                mode: "cardio",
+              })
+            }
+            style={[styles.addExerciseBtn, { borderColor: t.chipBorder }]}
+          >
+            <Svg width={14} height={14} viewBox="0 0 16 16" fill="none">
+              <Path
+                d="M8 3v10M3 8h10"
+                stroke={t.text}
+                strokeWidth={1.6}
+                strokeLinecap="round"
+              />
+            </Svg>
+            <Text style={[styles.addExerciseText, { color: t.text }]}>
+              Add cardio
             </Text>
           </TouchableOpacity>
         </View>

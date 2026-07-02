@@ -107,6 +107,12 @@ export interface Workout {
   durationMin: number | null;
   exerciseCount: number;
   bodyTags: string[];
+  // Cardio summary for the list card. Optional so summaries cached before these
+  // fields existed still parse. cardioCount is 0/undefined when no cardio; the
+  // activity/duration describe the first cardio entry.
+  cardioCount?: number;
+  cardioActivityType?: string | null;
+  cardioDurationSeconds?: number | null;
 }
 
 export interface WorkoutSet {
@@ -126,6 +132,17 @@ export interface WorkoutExercise {
   sets: WorkoutSet[];
 }
 
+export interface WorkoutCardio {
+  workoutCardioId: string;
+  activityType: string;
+  durationSeconds: number;
+  distanceMeters: number | null;
+  caloriesBurned: number | null;
+  intensityLevel: number | null;
+  notes: string | null;
+  position: number;
+}
+
 export interface WorkoutDetail {
   workoutId: string;
   name: string;
@@ -133,6 +150,7 @@ export interface WorkoutDetail {
   durationMin: number | null;
   bodyTags: string[];
   exercises: WorkoutExercise[];
+  cardio?: WorkoutCardio[];
 }
 
 export interface PersonalRecord {

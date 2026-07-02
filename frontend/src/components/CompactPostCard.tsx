@@ -68,6 +68,9 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
         ? "lock-closed-outline"
         : null;
   const time = post.durationMin ? formatDurationShort(post.durationMin) : "—";
+  // Cardio sessions count toward the exercise tally, so a workout with 2 lifts
+  // and 1 cardio session reads "3".
+  const totalExerciseCount = post.exerciseCount + (post.cardioCount ?? 0);
 
   const photos =
     post.photoUrls && post.photoUrls.length > 0
@@ -169,7 +172,7 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
         </View>
         <View>
           <Text style={[styles.metricValue, { color: t.text }]}>
-            {post.exerciseCount}
+            {totalExerciseCount}
           </Text>
           <Text style={[styles.metricLabel, { color: t.textFaint }]}>EX.</Text>
         </View>

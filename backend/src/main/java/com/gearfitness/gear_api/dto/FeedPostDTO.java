@@ -32,6 +32,12 @@ public class FeedPostDTO {
   private List<String> bodyTags;
   private Long exerciseCount;
   private Long setCount;
+  // Cardio summary so the feed card can show "N cardio" / "Run · 32:00" without
+  // a per-post detail fetch. cardioCount is 0 when the workout has no cardio;
+  // the activity/duration describe the first cardio entry (by position).
+  private Long cardioCount;
+  private String cardioActivityType;
+  private Integer cardioDurationSeconds;
 
   private Long likeCount;
   private Long commentCount;

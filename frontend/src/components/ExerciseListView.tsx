@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from "react";
 import {
   Animated,
   Easing,
+  FlatList,
   SectionList,
   StyleSheet,
   TouchableOpacity,
@@ -10,6 +11,7 @@ import {
 } from "react-native";
 import { Text } from "@react-navigation/elements";
 import { Exercise } from "../api/exerciseService";
+import { CardioActivity } from "../api/cardioService";
 import { useExerciseFilter } from "../hooks/useExerciseFilter";
 import { ExerciseFilterBar } from "./ExerciseFilterBar";
 import { ExerciseCard } from "./ExerciseCard";
@@ -20,6 +22,9 @@ interface ExerciseListViewProps {
   onCreateExercise?: () => void;
   ListFooterComponent?: React.ReactElement;
   loading?: boolean;
+  mode?: "exercise" | "cardio";
+  cardioActivities?: CardioActivity[];
+  onCardioPress?: (activity: CardioActivity) => void;
 }
 
 const SKELETON_ROW_COUNT = 6;
@@ -86,6 +91,9 @@ export function ExerciseListView({
   onCreateExercise,
   ListFooterComponent,
   loading = false,
+  mode = "exercise",
+  cardioActivities = [],
+  onCardioPress,
 }: ExerciseListViewProps) {
   const isDark = useColorScheme() === "dark";
 
@@ -97,6 +105,9 @@ export function ExerciseListView({
     skeleton: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
   };
 
+  // Hooks must run unconditionally and in a stable order on every render — the
+  // cardio/exercise toggle reuses this component's fiber, so the filter hook
+  // has to be called before the cardio early-return, not after it.
   const {
     searchQuery,
     setSearchQuery,
@@ -105,6 +116,38 @@ export function ExerciseListView({
     bodyParts,
     sections,
   } = useExerciseFilter(exercises);
+
+  if (mode === "cardio") {
+    return (
+      <FlatList
+        style={styles.list}
+        data={cardioActivities}
+        keyExtractor={(item) => item.cardioActivityId}
+        keyboardShouldPersistTaps="handled"
+        renderItem={({ item }) => (
+          <ExerciseCard
+            exercise={{
+              exerciseId: item.cardioActivityId,
+              name: item.name,
+              description: item.description ?? undefined,
+              bodyParts: [],
+            }}
+            onPress={() => onCardioPress?.(item)}
+          />
+        )}
+        contentContainerStyle={styles.listContent}
+        ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyIcon}>🏃</Text>
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>
+              No cardio activities
+            </Text>
+          </View>
+        }
+      />
+    );
+  }
 
   const footer = (
     <>

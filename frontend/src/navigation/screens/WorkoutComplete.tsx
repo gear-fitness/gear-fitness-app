@@ -36,6 +36,7 @@ import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 import { MentionTextInput } from "../../components/MentionTextInput";
 import { formatTag } from "../../utils/formatTag";
 import { getAllBodyPartNames } from "../../utils/exerciseUtils";
+import { formatCardioDuration } from "../../utils/cardio";
 import { MUSCLE_GROUPS } from "../../constants/muscleGroups";
 
 const ACCENT = "#111";
@@ -61,7 +62,7 @@ export function WorkoutComplete() {
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const photoTileSize = Math.floor((screenWidth - 40 - 24) / 4);
-  const { exercises, seconds, workoutStartedAtEpoch, reset } =
+  const { exercises, cardioEntries, seconds, workoutStartedAtEpoch, reset } =
     useWorkoutTimer();
   const { invalidateAll: invalidateFeeds } = useSocialFeed();
 
@@ -179,8 +180,8 @@ export function WorkoutComplete() {
       Alert.alert("Error", "Please enter a workout name");
       return;
     }
-    if (exercises.length === 0) {
-      Alert.alert("Error", "No exercises to save");
+    if (exercises.length === 0 && cardioEntries.length === 0) {
+      Alert.alert("Error", "Add at least one exercise or cardio entry to save");
       return;
     }
 
@@ -205,6 +206,22 @@ export function WorkoutComplete() {
         })),
         note: ex.note || "",
       })),
+      cardio: cardioEntries.map((c) => {
+        // CardioEntry.distance is already canonical meters (converted from the
+        // user's display unit in CardioDetailContent), so it's sent as-is.
+        const meters = c.distance ? Number(c.distance) : NaN;
+        // Intensity is a whole number in the contract; coerce the string input
+        // and drop it if it isn't a finite integer.
+        const intensity = c.intensity ? parseInt(c.intensity, 10) : NaN;
+        return {
+          activityType: c.activityType,
+          durationSeconds: c.durationSeconds,
+          distanceMeters: Number.isFinite(meters) ? String(meters) : undefined,
+          caloriesBurned: c.calories ? Number(c.calories) : undefined,
+          intensityLevel: Number.isFinite(intensity) ? intensity : undefined,
+          notes: c.note || undefined,
+        };
+      }),
       // Privacy model: always create a post; the visibility selector controls
       // the audience (PUBLIC / FRIENDS / PRIVATE), where PRIVATE is "Only me".
       createPost: true,
@@ -356,6 +373,9 @@ export function WorkoutComplete() {
             <Metric label="Time" value={`${durationMin} min`} t={t} />
             <Metric label="Exercises" value={exercises.length} t={t} />
             <Metric label="Sets" value={totalSets} t={t} />
+            {cardioEntries.length > 0 && (
+              <Metric label="Cardio" value={cardioEntries.length} t={t} />
+            )}
           </View>
         </View>
 
@@ -439,6 +459,33 @@ export function WorkoutComplete() {
             })}
           </View>
         </Section>
+
+        {/* Cardio summary */}
+        {cardioEntries.length > 0 && (
+          <Section label={`Cardio (${cardioEntries.length})`} t={t}>
+            <View style={styles.exerciseList}>
+              {cardioEntries.map((c) => (
+                <View
+                  key={c.workoutCardioId}
+                  style={[
+                    styles.exerciseCard,
+                    { backgroundColor: t.surface, borderColor: t.border },
+                  ]}
+                >
+                  <Text
+                    style={[styles.exerciseName, { color: t.text }]}
+                    numberOfLines={1}
+                  >
+                    {c.activityType}
+                  </Text>
+                  <Text style={[styles.setsCount, { color: t.textMuted }]}>
+                    {formatCardioDuration(c.durationSeconds)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </Section>
+        )}
 
         {/* Caption */}
         <Section label="How'd it go?" t={t}>

@@ -32,6 +32,7 @@ export interface WorkoutSubmission {
   datePerformed?: string; // Optional - date in YYYY-MM-DD format
   bodyTags: string[];
   exercises: ExerciseSubmission[];
+  cardio?: CardioSubmission[];
   createPost?: boolean;
   visibility?: "PUBLIC" | "FRIENDS" | "PRIVATE";
   caption?: string;
@@ -48,6 +49,17 @@ export interface ExerciseSubmission {
 export interface SetSubmission {
   reps: string;
   weight: string;
+}
+
+export interface CardioSubmission {
+  activityType: string;
+  durationSeconds: number;
+  distanceMeters?: string;
+  caloriesBurned?: number;
+  // Whole number (matches the numeric WorkoutCardio.intensityLevel contract);
+  // the client coerces its string input via parseInt before submit.
+  intensityLevel?: number;
+  notes?: string;
 }
 
 export interface WorkoutDetailResponse {
@@ -69,6 +81,16 @@ export interface WorkoutDetailResponse {
       weightLbs: string;
       isPr: boolean;
     }>;
+  }>;
+  cardio?: Array<{
+    workoutCardioId: string;
+    activityType: string;
+    durationSeconds: number;
+    distanceMeters: string | null;
+    caloriesBurned: number | null;
+    intensityLevel: string | null;
+    notes: string | null;
+    position: number;
   }>;
   photoUrls: string[];
 }
@@ -99,6 +121,25 @@ function responseToDetail(res: WorkoutDetailResponse): WorkoutDetail {
         isPr: s.isPr,
       })),
     })),
+    cardio: (res.cardio ?? []).map((c) => ({
+      workoutCardioId: c.workoutCardioId,
+      activityType: c.activityType,
+      durationSeconds: c.durationSeconds,
+      // Kept canonically in meters; each display site converts to the user's
+      // distance unit via the unit preference. Guard against malformed server
+      // strings so a bad value becomes null instead of NaN.
+      distanceMeters:
+        c.distanceMeters != null && Number.isFinite(Number(c.distanceMeters))
+          ? Number(c.distanceMeters)
+          : null,
+      caloriesBurned: c.caloriesBurned,
+      intensityLevel:
+        c.intensityLevel != null && Number.isFinite(Number(c.intensityLevel))
+          ? Number(c.intensityLevel)
+          : null,
+      notes: c.notes,
+      position: c.position,
+    })),
   };
 }
 
@@ -121,6 +162,7 @@ async function cacheSubmittedWorkout(
     const userId = await getActiveUserId();
     if (!userId) return;
 
+    const firstCardio = res.cardio?.[0];
     const summary: Workout = {
       workoutId: res.workoutId,
       name: res.name,
@@ -129,6 +171,9 @@ async function cacheSubmittedWorkout(
       durationMin: res.durationMin,
       exerciseCount: res.exercises.length,
       bodyTags: res.bodyTags ?? [],
+      cardioCount: res.cardio?.length ?? 0,
+      cardioActivityType: firstCardio?.activityType ?? null,
+      cardioDurationSeconds: firstCardio?.durationSeconds ?? null,
     };
     // Prepend as the newest entry, de-duping any existing copy of this id so a
     // re-submit or queue-flush can't double it up. A later getUserWorkouts()
@@ -282,6 +327,8 @@ export async function getWorkoutDetails(
     const { data } = await apiClient.get<WorkoutDetail>(
       `/workouts/${workoutId}`,
     );
+    // Cardio distance stays in canonical meters; display sites convert per the
+    // user's distance unit preference.
     // Write through so a later offline view shows the full set-level detail.
     await writeCache(CACHE_KEYS.workoutDetail(workoutId), data);
     return data;
