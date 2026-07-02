@@ -44,7 +44,7 @@ const PurchasesContext = createContext<PurchasesContextType | undefined>(
 let configured = false;
 
 export function PurchasesProvider({ children }: { children: ReactNode }) {
-  const { user, refreshUser } = useAuth();
+  const { user, isLoading, refreshUser } = useAuth();
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
   const [currentOffering, setCurrentOffering] =
     useState<PurchasesOffering | null>(null);
@@ -108,14 +108,16 @@ export function PurchasesProvider({ children }: { children: ReactNode }) {
   // Keep the RevenueCat identity in sync with the authenticated user so that
   // app_user_id == AppUser.userId (what the backend webhook maps on).
   useEffect(() => {
-    if (!configured) return;
+    if (!configured || isLoading) return;
     (async () => {
       try {
         if (user?.userId) {
           const { customerInfo: ci } = await Purchases.logIn(user.userId);
           setCustomerInfo(ci);
         } else {
-          // Already anonymous → logOut throws; ignore that case.
+          // Reached only after a genuine sign-out (isLoading is false and user
+          // is null), so logOut() correctly resets to anonymous. If the SDK was
+          // already anonymous, logOut() throws and the surrounding catch swallows it.
           const ci = await Purchases.logOut();
           setCustomerInfo(ci);
         }
@@ -123,7 +125,7 @@ export function PurchasesProvider({ children }: { children: ReactNode }) {
         // Identity sync is best-effort; the update listener will catch up.
       }
     })();
-  }, [user?.userId]);
+  }, [user?.userId, isLoading]);
 
   const purchasePackage = useCallback(
     async (pkg: PurchasesPackage) => {
