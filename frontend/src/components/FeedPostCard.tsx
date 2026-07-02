@@ -10,6 +10,7 @@ import {
   LayoutChangeEvent,
   StyleProp,
   TextStyle,
+  Dimensions,
 } from "react-native";
 import { Text } from "@react-navigation/elements";
 import { Ionicons } from "@expo/vector-icons";
@@ -26,6 +27,14 @@ import { PostVisibilitySheet } from "./PostVisibilitySheet";
 import { PostActionsSheet } from "./PostActionsSheet";
 import { ReportPostSheet } from "./ReportPostSheet";
 import { PresignedImage } from "./PresignedImage";
+
+// Horizontal margins between the screen edge and the photo. Kept as named
+// constants so the seeded scrollWidth (used to size photos before onLayout
+// fires) can never drift from the actual `card` / `carouselWrap` styles.
+const CARD_MARGIN_HORIZONTAL = 16;
+const CAROUSEL_MARGIN_HORIZONTAL = 14;
+const PAGE_HORIZONTAL_INSET =
+  (CARD_MARGIN_HORIZONTAL + CAROUSEL_MARGIN_HORIZONTAL) * 2;
 
 interface Props {
   post: FeedPost;
@@ -50,7 +59,15 @@ export function FeedPostCard({ post, isPending = false }: Props) {
     toggle: handleLike,
   } = useLikeState(post.postId, post);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
-  const [scrollWidth, setScrollWidth] = useState(0);
+  // Seed with the real page width (full screen minus the card + carousel
+  // horizontal margins) so a photo never mounts into a 0-width box. Mounting an
+  // <Image> at width 0 makes iOS decode it to a ~1px bitmap that then gets
+  // stretched to fill once layout settles, rendering a flat block of the
+  // photo's average color. onLayout below still refines this for rotation /
+  // iPad / split-view. See PAGE_HORIZONTAL_INSET.
+  const [scrollWidth, setScrollWidth] = useState(
+    () => Dimensions.get("window").width - PAGE_HORIZONTAL_INSET,
+  );
   const navigation = useNavigation();
   const {
     onPress: onMenuPress,
@@ -219,7 +236,26 @@ export function FeedPostCard({ post, isPending = false }: Props) {
         </TouchableOpacity>
       </View>
 
-      {photos.length > 0 && (
+      {photos.length === 1 && (
+        // Single photo (the common case): render directly so its width comes
+        // from the flex-laid-out carouselWrap. This has a real width on the
+        // very first render, so the <Image> can never mount into a 0-width box
+        // (the cause of the flat-gray "average color" bug) regardless of
+        // whether the presigned url is resolved synchronously from cache.
+        <View style={styles.carouselWrap}>
+          <TouchableWithoutFeedback onPress={openImageViewer}>
+            <View>
+              <PresignedImage
+                imageKey={photos[0]}
+                style={[styles.image, { borderColor: colors.border }]}
+                resizeMode="cover"
+              />
+            </View>
+          </TouchableWithoutFeedback>
+        </View>
+      )}
+
+      {photos.length > 1 && (
         <View style={styles.carouselWrap}>
           <ScrollView
             horizontal
@@ -227,7 +263,6 @@ export function FeedPostCard({ post, isPending = false }: Props) {
             showsHorizontalScrollIndicator={false}
             onLayout={handleScrollLayout}
             onMomentumScrollEnd={handlePhotoScroll}
-            scrollEnabled={photos.length > 1}
           >
             {photos.map((url, i) => (
               <TouchableWithoutFeedback
@@ -244,23 +279,21 @@ export function FeedPostCard({ post, isPending = false }: Props) {
               </TouchableWithoutFeedback>
             ))}
           </ScrollView>
-          {photos.length > 1 && (
-            <View style={styles.dotsRow}>
-              {photos.map((_, i) => (
-                <View
-                  key={i}
-                  style={[
-                    styles.dot,
-                    {
-                      backgroundColor:
-                        i === activePhotoIndex ? colors.text : colors.border,
-                      opacity: i === activePhotoIndex ? 0.9 : 0.5,
-                    },
-                  ]}
-                />
-              ))}
-            </View>
-          )}
+          <View style={styles.dotsRow}>
+            {photos.map((_, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.dot,
+                  {
+                    backgroundColor:
+                      i === activePhotoIndex ? colors.text : colors.border,
+                    opacity: i === activePhotoIndex ? 0.9 : 0.5,
+                  },
+                ]}
+              />
+            ))}
+          </View>
         </View>
       )}
 
@@ -445,7 +478,7 @@ function PendingProgressBar({ color }: { color: string }) {
 
 const styles = StyleSheet.create({
   card: {
-    marginHorizontal: 16,
+    marginHorizontal: CARD_MARGIN_HORIZONTAL,
     marginBottom: 14,
     borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
@@ -490,7 +523,7 @@ const styles = StyleSheet.create({
     fontVariant: ["tabular-nums"],
   },
   carouselWrap: {
-    marginHorizontal: 14,
+    marginHorizontal: CAROUSEL_MARGIN_HORIZONTAL,
     marginBottom: 12,
   },
   image: {

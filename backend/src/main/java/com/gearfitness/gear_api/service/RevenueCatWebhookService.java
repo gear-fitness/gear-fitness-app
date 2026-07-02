@@ -79,6 +79,11 @@ public class RevenueCatWebhookService {
       return;
     }
 
+    if ("TRANSFER".equals(type)) {
+      handleTransfer(event);
+      return;
+    }
+
     String appUserId = event.path("app_user_id").asText(null);
     if (appUserId == null) {
       log.warn("RevenueCat event {} missing app_user_id", type);
@@ -125,6 +130,42 @@ public class RevenueCatWebhookService {
 
     appUserRepository.save(user);
     log.info("RevenueCat {} -> user {} tier {}", type, userId, user.getTier());
+  }
+
+  /**
+   * A TRANSFER moves a subscription from one app_user_id to another (same Apple
+   * ID reused by a second account, family sharing, etc.). The event carries no
+   * entitlement or expiry payload, so we cannot derive the recipient's new tier
+   * here; that reconciles on the recipient's next RENEWAL, and the client
+   * entitlement gates their UI immediately. What we must do is revoke access from
+   * each sender: the subscription no longer belongs to them and they will never
+   * receive an EXPIRATION for it, so without this they keep their paid tier
+   * indefinitely.
+   */
+  private void handleTransfer(JsonNode event) {
+    JsonNode from = event.path("transferred_from");
+    if (!from.isArray()) {
+      log.info("RevenueCat TRANSFER with no transferred_from; nothing to revoke");
+      return;
+    }
+    for (JsonNode node : from) {
+      UUID senderId;
+      try {
+        senderId = UUID.fromString(node.asText(""));
+      } catch (IllegalArgumentException ex) {
+        // Anonymous sender ($RCAnonymousID:...) never had a row; skip it.
+        continue;
+      }
+      appUserRepository
+        .findById(senderId)
+        .ifPresent(u -> {
+          if (u.getTier() != Tier.BASIC) {
+            u.setTier(Tier.BASIC);
+            appUserRepository.save(u);
+            log.info("RevenueCat TRANSFER: revoked tier from sender {}", senderId);
+          }
+        });
+    }
   }
 
   /**
