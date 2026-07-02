@@ -13,7 +13,6 @@ import com.gearfitness.gear_api.repository.AppUserRepository;
 import com.gearfitness.gear_api.repository.NutritionCacheRepository;
 import com.gearfitness.gear_api.service.PerplexityClient.ParsedFood;
 import com.gearfitness.gear_api.service.PerplexityClient.PerplexityResult;
-import jakarta.transaction.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -22,8 +21,11 @@ import java.util.Optional;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
@@ -44,6 +46,7 @@ public class AiNutritionService {
   private final NutritionService nutritionService;
   private final AppUserRepository appUserRepository;
   private final ObjectMapper mapper = new ObjectMapper();
+  private final TransactionTemplate txTemplate;
   private final int monthlyCap;
 
   public AiNutritionService(
@@ -51,16 +54,23 @@ public class AiNutritionService {
     NutritionCacheRepository cacheRepository,
     NutritionService nutritionService,
     AppUserRepository appUserRepository,
+    PlatformTransactionManager txManager,
     @Value("${ai.nutrition.monthly-sonar-cap:500}") int monthlyCap
   ) {
     this.perplexityClient = perplexityClient;
     this.cacheRepository = cacheRepository;
     this.nutritionService = nutritionService;
     this.appUserRepository = appUserRepository;
+    this.txTemplate = new TransactionTemplate(txManager);
     this.monthlyCap = monthlyCap;
   }
 
-  @Transactional
+  /**
+   * Orchestrates a natural-language food log. Reads (tier/cache/spend) and the
+   * Sonar call run with NO open transaction; only the DB writes (cache row +
+   * logged entries) are wrapped in short transactions via {@link #txTemplate}.
+   * This keeps a slow/hung upstream call from pinning a pooled DB connection.
+   */
   public AiLogResponse aiLog(UUID userId, AiLogRequest req) {
     AppUser user = appUserRepository
       .findById(userId)
@@ -77,56 +87,106 @@ public class AiNutritionService {
 
     String key = normalizeKey(text);
     Optional<NutritionCache> cached = cacheRepository.findByNormalizedKey(key);
-
-    List<ParsedFood> foods;
-    List<String> sourceUrls;
-    String reasoning;
-    int confidence;
-    boolean fromCache;
-
     if (cached.isPresent()) {
-      NutritionCache hit = cached.get();
-      foods = deserializeFoods(hit.getParsedResult());
-      sourceUrls = deserializeUrls(hit.getSourceUrls());
-      reasoning = hit.getReasoning() == null ? "" : hit.getReasoning();
-      confidence = hit.getConfidence() == null ? 0 : hit.getConfidence();
+      return replayCached(userId, req, cached.get());
+    }
+
+    // Cache miss. Spend guard first (only misses trigger a paid Sonar call), so
+    // gate on the number of cache rows created this calendar month.
+    LocalDateTime monthStart = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+    if (cacheRepository.countByCreatedAtAfter(monthStart) >= monthlyCap) {
+      throw new ResponseStatusException(
+        HttpStatus.SERVICE_UNAVAILABLE,
+        "AI_MONTHLY_LIMIT"
+      );
+    }
+
+    PerplexityResult result;
+    try {
+      result = perplexityClient.parse(text);
+    } catch (RuntimeException e) {
+      // Timeout / non-2xx / unparseable upstream response — retryable, not a
+      // server bug. Map to 502 so the client can offer a retry rather than
+      // surfacing an opaque 500.
+      log.error("Sonar parse failed for AI log: {}", e.getMessage());
+      throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "AI_UPSTREAM", e);
+    }
+
+    return persistFreshParse(userId, req, key, result);
+  }
+
+  /** Cache hit: bump hit stats and re-log the stored foods, in one transaction. */
+  private AiLogResponse replayCached(UUID userId, AiLogRequest req, NutritionCache hit) {
+    List<ParsedFood> foods = deserializeFoods(hit.getParsedResult());
+    List<String> sourceUrls = deserializeUrls(hit.getSourceUrls());
+    String reasoning = hit.getReasoning() == null ? "" : hit.getReasoning();
+    int confidence = hit.getConfidence() == null ? 0 : hit.getConfidence();
+
+    return txTemplate.execute(status -> {
       hit.setHitCount(hit.getHitCount() + 1);
       hit.setLastHitAt(LocalDateTime.now());
       cacheRepository.save(hit);
-      fromCache = true;
-    } else {
-      // Spend guard: only cache misses trigger a paid Sonar call, so gate on
-      // the number of cache rows created this calendar month.
-      LocalDateTime monthStart = LocalDate.now().withDayOfMonth(1).atStartOfDay();
-      if (cacheRepository.countByCreatedAtAfter(monthStart) >= monthlyCap) {
-        throw new ResponseStatusException(
-          HttpStatus.SERVICE_UNAVAILABLE,
-          "AI_MONTHLY_LIMIT"
-        );
+      List<LogEntryDTO> entries = logFoods(userId, req, foods, "AI_CACHE", sourceUrls);
+      return new AiLogResponse(
+        entries, true, sourceUrls, reasoning, confidence, foods.isEmpty()
+      );
+    });
+  }
+
+  /** Cache miss: persist the fresh parse (unless empty) then log its foods. */
+  private AiLogResponse persistFreshParse(
+    UUID userId,
+    AiLogRequest req,
+    String key,
+    PerplexityResult result
+  ) {
+    List<ParsedFood> foods = result.foods();
+    List<String> sourceUrls = result.citations();
+    String reasoning = result.reasoning();
+    int confidence = result.confidence();
+
+    // Never cache an empty parse: a transient "no food recognized" would
+    // otherwise be replayed forever for that exact phrase. The cache write is
+    // its own transaction so a concurrent-insert conflict can't poison the
+    // entry-logging transaction below.
+    if (!foods.isEmpty()) {
+      try {
+        txTemplate.executeWithoutResult(status -> {
+          NutritionCache row = NutritionCache.builder()
+            .normalizedKey(key)
+            .parsedResult(serialize(foods))
+            .sourceUrls(serialize(sourceUrls))
+            .reasoning(reasoning)
+            .confidence(confidence)
+            .hitCount(0)
+            .createdAt(LocalDateTime.now())
+            .build();
+          cacheRepository.save(row);
+        });
+      } catch (DataIntegrityViolationException dup) {
+        // A concurrent first-time request cached the same key between our
+        // lookup and this insert. Harmless — our own parse still logs the food.
+        log.debug("Concurrent cache insert for key '{}', ignoring", key);
       }
-
-      PerplexityResult result = perplexityClient.parse(text);
-      foods = result.foods();
-      sourceUrls = result.citations();
-      reasoning = result.reasoning();
-      confidence = result.confidence();
-
-      NutritionCache row = NutritionCache.builder()
-        .normalizedKey(key)
-        .parsedResult(serialize(foods))
-        .sourceUrls(serialize(sourceUrls))
-        .reasoning(reasoning)
-        .confidence(confidence)
-        .hitCount(0)
-        .createdAt(LocalDateTime.now())
-        .build();
-      cacheRepository.save(row);
-      fromCache = false;
     }
 
-    String sourceType = fromCache ? "AI_CACHE" : "AI_SONAR";
-    String primaryUrl = sourceUrls.isEmpty() ? null : sourceUrls.get(0);
+    List<LogEntryDTO> entries = txTemplate.execute(status ->
+      logFoods(userId, req, foods, "AI_SONAR", sourceUrls)
+    );
+    return new AiLogResponse(
+      entries, false, sourceUrls, reasoning, confidence, foods.isEmpty()
+    );
+  }
 
+  /** Create one log entry per parsed food. Must run inside a transaction. */
+  private List<LogEntryDTO> logFoods(
+    UUID userId,
+    AiLogRequest req,
+    List<ParsedFood> foods,
+    String sourceType,
+    List<String> sourceUrls
+  ) {
+    String primaryUrl = sourceUrls.isEmpty() ? null : sourceUrls.get(0);
     List<LogEntryDTO> entries = new ArrayList<>();
     for (ParsedFood food : foods) {
       LogFoodRequest logReq = new LogFoodRequest();
@@ -141,8 +201,7 @@ public class AiNutritionService {
       logReq.setSourceUrl(primaryUrl);
       entries.add(nutritionService.logFood(userId, logReq));
     }
-
-    return new AiLogResponse(entries, fromCache, sourceUrls, reasoning, confidence);
+    return entries;
   }
 
   /**

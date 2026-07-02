@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import {
   Animated,
+  Easing,
   Image,
   LayoutChangeEvent,
   NativeSyntheticEvent,
@@ -25,6 +26,7 @@ import { useTier } from "../../../../hooks/useTier";
 import { useNutrition } from "../../../../context/NutritionContext";
 import { aiLogFood } from "../../../../api/nutritionService";
 import { FoodLogEntry } from "../../../../api/types";
+import { isNetworkError } from "../../../../utils/network";
 import { AiLineDetail, NutritionDetailSheet } from "./NutritionDetailSheet";
 import { EditEntrySheet } from "./EditEntrySheet";
 import { faviconOf } from "./sources";
@@ -47,12 +49,19 @@ import { faviconOf } from "./sources";
  */
 const STORAGE_KEY = "nutrition.smartJournal";
 const AI_STORAGE_KEY = "nutrition.aiJournal";
+// Backend entryIds awaiting deletion, persisted so an offline/killed app still
+// tears down rows whose journal lines were removed (else they'd keep counting
+// toward daily totals while shown nowhere).
+const AI_GRAVEYARD_KEY = "nutrition.aiGraveyard";
 const BLUE = "#2F6FED";
 
 // Note-editor geometry. The measurer, the text field, and the annotation
 // overlay all share these so per-line annotations line up with their line.
-const FONT_SIZE = 20;
-const LINE_HEIGHT = 34;
+// Native Notes body sizing: a comfortable body, not oversized.
+const FONT_SIZE = 16;
+// Kept close to the font's natural leading: on iOS the multiline caret height is
+// tied to lineHeight, so a larger value here would enlarge the caret too.
+const LINE_HEIGHT = 24;
 const PAD_TOP = 8;
 const PAD_H = 20; // left inset and right edge inset
 const GUTTER = 96; // right-hand space reserved for the annotation
@@ -62,11 +71,26 @@ const GUTTER = 96; // right-hand space reserved for the annotation
 // point of on-device tuning.
 const TEXT_INSET = 5;
 
+// Vertical alignment fix for the annotation overlay. RN <Text> centers its glyph
+// within the line box (RCTTextShadowView adds a baseline offset of
+// (lineHeight - fontLineHeight)/2), but the multiline TextInput does not — TextKit
+// puts the extra leading above the glyph, so the body text sits toward the bottom
+// of the line box. Nudge the annotation down by that same half-gap so it bottom-
+// aligns with the body instead of floating high. ~1.2 is the system font's
+// lineHeight/pointSize ratio; may need a point of on-device tuning.
+const NATURAL_LINE = FONT_SIZE * 1.2;
+const ANNOT_TOP_NUDGE = Math.round((LINE_HEIGHT - NATURAL_LINE) / 2);
+
 const round = (n: number | null | undefined) => Math.round(n ?? 0);
 
 type NotesByDate = Record<string, string>;
 
 type EntryStatus = "empty" | "dirty" | "pending" | "logged" | "error";
+
+/** Why a line ended in "error", so the annotation can explain and (where it
+ *  helps) offer a retry. "nofood": parsed but no food recognized; "tier": the
+ *  server rejected it (403, ULTRA lost); "upstream": transient AI/network fault. */
+type ErrorKind = "upstream" | "tier" | "nofood";
 
 /** One line of the shared note. `id` is stable across edits so its logged
  *  result (and in-flight animation) follows the line as text around it moves. */
@@ -76,6 +100,7 @@ interface Entry {
   status: EntryStatus;
   calories?: number;
   detail?: AiLineDetail;
+  errorKind?: ErrorKind;
 }
 
 type EntriesByDate = Record<string, Entry[]>;
@@ -214,6 +239,13 @@ function AiJournal({ selectedDate }: { selectedDate: string }) {
   const summaryRef = useRef(summary);
   summaryRef.current = summary;
 
+  // The active (caret) line is per-note; reset it when the date changes so a
+  // dirty line on the new date isn't skipped by the commit effect for sitting
+  // at the previous note's caret index.
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [selectedDate]);
+
   /* --- persistence ---------------------------------------------------- */
 
   useEffect(() => {
@@ -265,6 +297,10 @@ function AiJournal({ selectedDate }: { selectedDate: string }) {
     const id = setTimeout(() => {
       if (committingRef.current.size > 0) return;
       const date = dateRef.current;
+      // Only reap for a date we actually hold a local journal for. If the date
+      // key is absent (fresh install, a second device, partial storage loss),
+      // we don't know which AI rows are legitimate — never blind-delete them.
+      if (!Object.prototype.hasOwnProperty.call(entriesRef.current, date)) return;
       const list = entriesRef.current[date] ?? [];
       if (list.some((e) => e.status === "pending" || e.status === "dirty")) {
         return;
@@ -278,9 +314,11 @@ function AiJournal({ selectedDate }: { selectedDate: string }) {
         (e) => e.sourceType?.startsWith("AI") && !referenced.has(e.entryId),
       );
       strays.forEach((e) =>
-        removeLog(e.entryId).catch((err) =>
-          console.error("Failed to delete stray AI entry:", err),
-        ),
+        removeLog(e.entryId).catch((err) => {
+          // 404: another path already deleted it, which is the goal. Ignore.
+          if (err?.response?.status === 404) return;
+          console.error("Failed to delete stray AI entry:", err);
+        }),
       );
     }, 1500);
     return () => clearTimeout(id);
@@ -331,23 +369,87 @@ function AiJournal({ selectedDate }: { selectedDate: string }) {
 
   /* --- backend sync --------------------------------------------------- */
 
+  const persistGraveyard = useCallback(() => {
+    AsyncStorage.setItem(
+      AI_GRAVEYARD_KEY,
+      JSON.stringify(graveyardRef.current),
+    ).catch(() => {});
+  }, []);
+
   const flushGraveyard = useCallback(() => {
     const ids = graveyardRef.current;
     if (!ids.length) return;
     graveyardRef.current = [];
-    ids.forEach((id) =>
-      removeLog(id).catch((err) =>
-        console.error("Failed to delete AI entry:", err),
+    // Delete each row, then persist whatever's still pending either way. Several
+    // actors can delete the same row, so failures are triaged by kind rather
+    // than blindly re-queued (an "already gone" 404 must not become a poison
+    // pill retried and logged on every flush and launch).
+    Promise.all(
+      ids.map((id) =>
+        removeLog(id).catch((err) => {
+          // 404: the row is already gone, which is exactly the goal. Success.
+          if (err?.response?.status === 404) return;
+          // Offline: re-queue for the next flush. This is the normal offline
+          // path, so no console.error.
+          if (isNetworkError(err)) {
+            if (!graveyardRef.current.includes(id)) {
+              graveyardRef.current.push(id);
+            }
+            return;
+          }
+          // Anything else (500s, auth, unexpected): log once and drop, never
+          // re-queue. The orphan reaper is the backstop and will delete the row
+          // later if it still exists, so dropping can't strand phantom calories.
+          console.error("Failed to delete AI entry:", err);
+        }),
       ),
-    );
-  }, [removeLog]);
+    ).finally(persistGraveyard);
+  }, [removeLog, persistGraveyard]);
+
+  // Resume any deletes stranded by a previous offline/killed session.
+  useEffect(() => {
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(AI_GRAVEYARD_KEY);
+        if (!raw) return;
+        const ids = JSON.parse(raw);
+        if (Array.isArray(ids) && ids.length) {
+          for (const id of ids) {
+            if (!graveyardRef.current.includes(id)) graveyardRef.current.push(id);
+          }
+          flushGraveyard();
+        }
+      } catch (err) {
+        console.error("Failed to load AI graveyard:", err);
+      }
+    })();
+  }, [flushGraveyard]);
 
   // Parse `text` and settle the entry with the result. Repeated phrases hit the
   // server-side cache (keyed by normalized text) so retyping a food is fast.
   const logIntoEntry = useCallback(
-    async (date: string, id: string, text: string) => {
+    async (date: string, id: string, committedText: string) => {
       try {
-        const res = await aiLogFood({ text, date });
+        const res = await aiLogFood({ text: committedText, date });
+        // Clobber guard: if the line was edited while this parse was in flight,
+        // its text no longer matches what we sent. Don't overwrite the user's
+        // newer text — leave it dirty so the commit effect re-parses it.
+        const live = (entriesRef.current[date] ?? []).find((e) => e.id === id);
+        // committedText is trimmed (see commitEntry/recalcEntry), so compare the
+        // live line trimmed too — otherwise surrounding whitespace looks like a
+        // mid-flight edit and the line would stay stuck "pending" forever.
+        if (!live || live.text.trim() !== committedText) return;
+
+        if (!res.entries.length || res.noFood) {
+          updateEntry(date, id, {
+            status: "error",
+            errorKind: "nofood",
+            calories: undefined,
+            detail: undefined,
+          });
+          return;
+        }
+
         const calories = res.entries.reduce(
           (sum, e) => sum + (e.calories ?? 0),
           0,
@@ -359,11 +461,23 @@ function AiJournal({ selectedDate }: { selectedDate: string }) {
           sourceUrls: res.sourceUrls ?? [],
           fromCache: res.fromCache,
         };
-        updateEntry(date, id, { status: "logged", text, calories, detail });
+        updateEntry(date, id, {
+          status: "logged",
+          calories,
+          detail,
+          errorKind: undefined,
+        });
         refresh();
-      } catch (err) {
+      } catch (err: any) {
         console.error("AI food log failed:", err);
-        updateEntry(date, id, { status: "error", text });
+        const live = (entriesRef.current[date] ?? []).find((e) => e.id === id);
+        // User moved on to different text — don't flag stale text as failed.
+        if (live && live.text.trim() !== committedText) return;
+        const httpStatus = err?.response?.status;
+        updateEntry(date, id, {
+          status: "error",
+          errorKind: httpStatus === 403 ? "tier" : "upstream",
+        });
       }
     },
     [updateEntry, refresh],
@@ -531,24 +645,32 @@ function AiJournal({ selectedDate }: { selectedDate: string }) {
 
   /* --- ⋯ menu actions ------------------------------------------------- */
 
-  // Re-run the AI parse for a line even if its text is unchanged.
+  // Re-run the AI parse for a line even if its text is unchanged. Also the
+  // retry path for a failed line (tapping its annotation). Mutually exclusive
+  // with commitEntry on the same id via committingRef.
   const recalcEntry = useCallback(
     async (id: string) => {
+      if (committingRef.current.has(id)) return;
       const date = dateRef.current;
       const entry = (entriesRef.current[date] ?? []).find((e) => e.id === id);
       if (!entry) return;
       const text = entry.text.trim();
       if (!text) return;
       const oldBackend = entry.detail?.entries ?? [];
-      updateEntry(date, id, { status: "pending" });
-      for (const x of oldBackend) {
-        try {
-          await removeLog(x.entryId);
-        } catch {
-          /* already gone */
+      committingRef.current.add(id);
+      updateEntry(date, id, { status: "pending", errorKind: undefined });
+      try {
+        for (const x of oldBackend) {
+          try {
+            await removeLog(x.entryId);
+          } catch {
+            /* already gone */
+          }
         }
+        await logIntoEntry(date, id, text);
+      } finally {
+        committingRef.current.delete(id);
       }
-      await logIntoEntry(date, id, text);
     },
     [updateEntry, removeLog, logIntoEntry],
   );
@@ -637,10 +759,14 @@ function AiJournal({ selectedDate }: { selectedDate: string }) {
               e.text.trim() ? (
                 <View
                   key={e.id}
-                  style={[styles.annotAbs, { top: tops[i] }]}
+                  style={[styles.annotAbs, { top: tops[i] + ANNOT_TOP_NUDGE }]}
                   pointerEvents="box-none"
                 >
-                  <LineAnnotation entry={e} onPress={() => openDetail(e)} />
+                  <LineAnnotation
+                    entry={e}
+                    onPress={() => openDetail(e)}
+                    onRetry={() => recalcEntry(e.id)}
+                  />
                 </View>
               ) : null,
             )}
@@ -716,9 +842,11 @@ const WORD: Partial<Record<AnimPhase, string>> = {
 function LineAnnotation({
   entry,
   onPress,
+  onRetry,
 }: {
   entry: Entry;
   onPress: () => void;
+  onRetry: () => void;
 }) {
   const t = useThemeColors();
   const prevStatus = useRef<EntryStatus>(entry.status);
@@ -726,20 +854,68 @@ function LineAnnotation({
     entry.status === "pending" ? "dots" : "done",
   );
   const [highlight, setHighlight] = useState(false);
+  // Transition (crossfade + a small upward settle) for each phase word. `slide`
+  // is a native-driver translateY; `pulse` is a separate looping opacity that
+  // makes the displayed word feel "alive" while parsing (see effect below).
   const fade = useRef(new Animated.Value(1)).current;
+  const slide = useRef(new Animated.Value(0)).current;
+  const pulse = useRef(new Animated.Value(1)).current;
 
   const animateTo = useCallback(
     (p: AnimPhase) => {
       setPhase(p);
+      // Incoming word starts ~6px low and transparent, then settles into place.
       fade.setValue(0);
-      Animated.timing(fade, {
-        toValue: 1,
-        duration: 240,
-        useNativeDriver: true,
-      }).start();
+      slide.setValue(6);
+      Animated.parallel([
+        Animated.timing(fade, {
+          toValue: 1,
+          duration: 250,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(slide, {
+          toValue: 0,
+          duration: 250,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
     },
-    [fade],
+    [fade, slide],
   );
+
+  // Gentle continuous pulse while a pending word is on screen so the state
+  // reads as "working". Runs for every phase except the settled "done" state
+  // (an error also settles phase to "done"), and is stopped + reset to full
+  // opacity on cleanup so an unmounted line never leaks a running loop.
+  useEffect(() => {
+    if (phase === "done") {
+      pulse.setValue(1);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 0.45,
+          duration: 550,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 550,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => {
+      loop.stop();
+      pulse.setValue(1);
+    };
+  }, [phase, pulse]);
 
   useEffect(() => {
     const was = prevStatus.current;
@@ -782,7 +958,23 @@ function LineAnnotation({
   }, [entry.status, animateTo, entry.detail]);
 
   if (entry.status === "error") {
-    return <Text style={[styles.annotation, { color: t.danger }]}>failed</Text>;
+    const kind = entry.errorKind ?? "upstream";
+    // "no food" and transient upstream faults are worth retrying; a tier
+    // rejection isn't (a retry won't restore ULTRA), so it just explains itself.
+    if (kind === "tier") {
+      return (
+        <Text style={[styles.annotation, { color: t.danger }]}>
+          not available
+        </Text>
+      );
+    }
+    const label = kind === "nofood" ? "no food" : "tap to retry";
+    const color = kind === "nofood" ? t.secondary : t.danger;
+    return (
+      <Pressable onPress={onRetry} hitSlop={8}>
+        <Text style={[styles.annotation, { color }]}>{label}</Text>
+      </Pressable>
+    );
   }
 
   if (entry.status === "dirty") {
@@ -797,18 +989,25 @@ function LineAnnotation({
         {phase === "sources" && entry.detail && (
           <SourceFavicons urls={entry.detail.sourceUrls} />
         )}
-        <Animated.View style={{ opacity: fade }}>
-          {phase === "dots" ? (
-            <DotsText color={t.secondary} />
-          ) : phase === "sources" ? (
-            <Text style={[styles.animWord, { color: t.secondary }]}>
-              {entry.detail?.sourceUrls.length ?? 0} sources
-            </Text>
-          ) : (
-            <Text style={[styles.animWord, { color: t.secondary }]}>
-              {WORD[phase]}
-            </Text>
-          )}
+        {/* Outer view carries the phase transition (crossfade + slide); the
+            inner view carries the continuous working pulse, so the two compose
+            without fighting over the same opacity value. */}
+        <Animated.View
+          style={{ opacity: fade, transform: [{ translateY: slide }] }}
+        >
+          <Animated.View style={{ opacity: pulse }}>
+            {phase === "dots" ? (
+              <DotsText color={t.secondary} />
+            ) : phase === "sources" ? (
+              <Text style={[styles.animWord, { color: t.secondary }]}>
+                {entry.detail?.sourceUrls.length ?? 0} sources
+              </Text>
+            ) : (
+              <Text style={[styles.animWord, { color: t.secondary }]}>
+                {WORD[phase]}
+              </Text>
+            )}
+          </Animated.View>
         </Animated.View>
       </View>
     );
@@ -870,8 +1069,8 @@ const styles = StyleSheet.create({
   pressArea: { flexGrow: 1 },
   input: {
     flexGrow: 1,
-    fontSize: 20,
-    lineHeight: 28,
+    fontSize: FONT_SIZE,
+    lineHeight: LINE_HEIGHT,
     padding: 0,
     textAlignVertical: "top",
   },
@@ -881,8 +1080,11 @@ const styles = StyleSheet.create({
     paddingBottom: 160,
   },
   editorWrap: {
+    // flexGrow lets the writing area fill the page (tap anywhere to focus, like
+    // Notes) while a modest floor keeps it comfortably tappable when empty —
+    // no forced giant fixed height.
     flexGrow: 1,
-    minHeight: 320,
+    minHeight: 120,
     position: "relative",
   },
   noteInput: {
@@ -909,16 +1111,23 @@ const styles = StyleSheet.create({
   annotAbs: {
     position: "absolute",
     right: PAD_H,
+    // Match the body's line box exactly. RN applies lineHeight as the para
+    // style's min/max line height with no baseline centering, so the glyph sits
+    // at a fixed offset inside the box — NOT its center. Sharing LINE_HEIGHT on
+    // the annotation text (below) makes it self-position identically to the
+    // body line; centering it in the box instead drifts as LINE_HEIGHT grows.
     height: LINE_HEIGHT,
-    justifyContent: "center",
     alignItems: "flex-end",
   },
   annotation: {
     fontSize: 15,
+    lineHeight: LINE_HEIGHT,
+    fontWeight: "600",
     fontVariant: ["tabular-nums"],
   },
   calAnnotation: {
-    fontSize: 18,
+    fontSize: 16,
+    lineHeight: LINE_HEIGHT,
     fontWeight: "600",
     fontVariant: ["tabular-nums"],
   },
@@ -929,7 +1138,8 @@ const styles = StyleSheet.create({
   },
   animWord: {
     fontSize: 15,
-    fontWeight: "500",
+    lineHeight: LINE_HEIGHT,
+    fontWeight: "600",
   },
   doneWrap: {
     flexDirection: "row",

@@ -1,4 +1,5 @@
 import {
+  CATEGORY_SYNC_READY,
   deleteCategoryApi,
   renameCategoryApi,
   setCategoryRecurringApi,
@@ -46,6 +47,10 @@ async function saveQueue(
 }
 
 export async function enqueueCategoryOp(op: PendingCategoryOp): Promise<void> {
+  // No server routes yet: queued ops can't survive today (they flush, 404, and
+  // get dropped), so queueing them only produces noise. Client AsyncStorage
+  // state stays the source of truth. Restores full behavior when the flag flips.
+  if (!CATEGORY_SYNC_READY) return;
   const userId = await getActiveUserId();
   if (!userId) return;
   const item: PendingCategoryAction = {
@@ -78,6 +83,9 @@ let flushing = false;
  * the run to preserve order); other errors drop it. Returns ops synced.
  */
 export async function flushNutritionCategoryQueue(): Promise<number> {
+  // Nothing to flush while the endpoints are stubs (enqueue is a no-op then);
+  // bail before touching storage so a flush produces no 404 noise.
+  if (!CATEGORY_SYNC_READY) return 0;
   if (flushing) return 0;
   flushing = true;
   let synced = 0;

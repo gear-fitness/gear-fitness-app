@@ -8,6 +8,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -56,7 +57,12 @@ public class PerplexityClient {
     portion sizes or preparation.
     """;
 
-  private final HttpClient httpClient = HttpClient.newHttpClient();
+  // Bound the connect phase. The per-request read timeout is set on each
+  // HttpRequest below (generous, to cover the one-time schema-compile latency
+  // Perplexity incurs on the first structured-outputs call for a new schema).
+  private final HttpClient httpClient = HttpClient.newBuilder()
+    .connectTimeout(Duration.ofSeconds(10))
+    .build();
   private final ObjectMapper mapper = new ObjectMapper();
   private final String apiKey;
   private final String model;
@@ -94,6 +100,9 @@ public class PerplexityClient {
       ObjectNode payload = mapper.createObjectNode();
       payload.put("model", model);
       payload.put("return_citations", true);
+      // Cap output so the schema is actually honored (Perplexity only enforces
+      // the format if the response fits under max_tokens).
+      payload.put("max_tokens", 1200);
       ArrayNode messages = payload.putArray("messages");
       ObjectNode sys = messages.addObject();
       sys.put("role", "system");
@@ -102,8 +111,15 @@ public class PerplexityClient {
       user.put("role", "user");
       user.put("content", userText);
 
+      // Structured outputs: constrain the decoder to emit schema-valid JSON.
+      // This is what makes the parse reliable — the prompt alone let Sonar wrap
+      // the object in prose, which broke JSON parsing. Citations are unaffected;
+      // they still arrive at the response top level (see extractCitations).
+      addResponseFormat(payload);
+
       HttpRequest request = HttpRequest.newBuilder()
         .uri(URI.create(ENDPOINT))
+        .timeout(Duration.ofSeconds(30))
         .header("Authorization", "Bearer " + apiKey)
         .header("Content-Type", "application/json")
         .header("Accept", "application/json")
@@ -134,7 +150,7 @@ public class PerplexityClient {
         .path("content")
         .asText("");
 
-      JsonNode parsed = mapper.readTree(stripFences(content));
+      JsonNode parsed = mapper.readTree(extractJson(content));
       return new PerplexityResult(
         parseFoods(parsed),
         parseReasoning(parsed),
@@ -196,14 +212,71 @@ public class PerplexityClient {
     return urls;
   }
 
-  /** Sonar sometimes wraps the array in ```json fences despite instructions. */
-  private String stripFences(String content) {
+  /**
+   * Attach a json_schema response_format to the payload so Perplexity returns
+   * schema-valid JSON. Mirrors the shape the SYSTEM_PROMPT documents.
+   */
+  private void addResponseFormat(ObjectNode payload) {
+    ObjectNode jsonSchema = payload
+      .putObject("response_format")
+      .put("type", "json_schema")
+      .putObject("json_schema");
+    jsonSchema.put("name", "nutrition_parse");
+
+    ObjectNode schema = jsonSchema.putObject("schema");
+    schema.put("type", "object");
+    schema.put("additionalProperties", false);
+    schema.putArray("required").add("items").add("reasoning").add("confidence");
+    ObjectNode props = schema.putObject("properties");
+
+    ObjectNode items = props.putObject("items");
+    items.put("type", "array");
+    ObjectNode item = items.putObject("items");
+    item.put("type", "object");
+    item.put("additionalProperties", false);
+    item
+      .putArray("required")
+      .add("description")
+      .add("calories")
+      .add("protein_g")
+      .add("carbs_g")
+      .add("fat_g");
+    ObjectNode itemProps = item.putObject("properties");
+    itemProps.putObject("description").put("type", "string");
+    itemProps.putObject("calories").put("type", "number");
+    itemProps.putObject("protein_g").put("type", "number");
+    itemProps.putObject("carbs_g").put("type", "number");
+    itemProps.putObject("fat_g").put("type", "number");
+
+    props.putObject("reasoning").put("type", "string");
+    props.putObject("confidence").put("type", "number");
+  }
+
+  /**
+   * Pull the JSON body out of Sonar's reply. With structured outputs on, the
+   * content is already bare JSON; this is a fallback for truncation/refusal edge
+   * cases. Strip ```` ``` ```` fences, then, if the result still isn't bare JSON,
+   * slice from the first opening bracket to the last matching one so surrounding
+   * prose is discarded before parsing.
+   */
+  private String extractJson(String content) {
     String s = content.trim();
     if (s.startsWith("```")) {
       int firstNewline = s.indexOf('\n');
       if (firstNewline >= 0) s = s.substring(firstNewline + 1);
-      if (s.endsWith("```")) s = s.substring(0, s.length() - 3);
+      int lastFence = s.lastIndexOf("```");
+      if (lastFence >= 0) s = s.substring(0, lastFence);
+      s = s.trim();
     }
-    return s.trim();
+    if (s.startsWith("{") || s.startsWith("[")) return s;
+
+    int objStart = s.indexOf('{');
+    int arrStart = s.indexOf('[');
+    int start =
+      objStart < 0 ? arrStart : arrStart < 0 ? objStart : Math.min(objStart, arrStart);
+    if (start < 0) return s;
+    char close = s.charAt(start) == '{' ? '}' : ']';
+    int end = s.lastIndexOf(close);
+    return end > start ? s.substring(start, end + 1) : s;
   }
 }

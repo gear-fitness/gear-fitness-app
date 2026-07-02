@@ -87,6 +87,8 @@ export interface AiLogPayload {
 export interface AiLogResult {
   entries: FoodLogEntry[];
   fromCache: boolean;
+  // True when the parse recognized no food in the text — nothing was logged.
+  noFood?: boolean;
   sourceUrls: string[];
   // Sonar's short explanation of the estimate + its 0–100 confidence. Surfaced
   // in the nutrition-detail sheet's "Amy's thought process" panel.

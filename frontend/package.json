@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "index.tsx",
   "scripts": {
+    "postinstall": "patch-package",
     "start": "node scripts/set-ip.js && cross-env APP_VARIANT=development expo start --dev-client",
     "web": "expo start --web",
     "android": "expo run:android",
@@ -11,6 +12,7 @@
   "dependencies": {
     "@expo-google-fonts/libre-caslon-text": "^0.4.0",
     "@expo/metro-runtime": "~55.0.6",
+    "@expo/ui": "^55.0.17",
     "@kingstinct/react-native-healthkit": "^14.0.0",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/datetimepicker": "8.6.0",
@@ -73,6 +75,7 @@
     "@types/react": "~19.2.10",
     "baseline-browser-mapping": "^2.10.0",
     "cross-env": "^10.1.0",
+    "patch-package": "^8.0.1",
     "typescript": "~5.9.2"
   },
   "private": true,

@@ -21,4 +21,8 @@ public class AiLogResponse {
   private List<String> sourceUrls;
   private String reasoning;
   private int confidence;
+  // True when the parse recognized no food in the text (entries is empty and
+  // nothing was logged). Lets the client show "no food recognized" instead of a
+  // silent success. Distinct from an upstream error, which is a non-2xx response.
+  private boolean noFood;
 }

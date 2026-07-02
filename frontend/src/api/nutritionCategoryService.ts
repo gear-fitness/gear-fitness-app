@@ -11,6 +11,14 @@ import apiClient from "./apiClient";
  * the client state in AsyncStorage is the source of truth.
  */
 
+/**
+ * Whether the meal-category routes exist on the server yet. False while the
+ * endpoints above are stubs (see the header note): the sync queue reads this to
+ * skip enqueuing/flushing ops that would only 404 and get dropped. Flip to true
+ * when the backend routes land.
+ */
+export const CATEGORY_SYNC_READY = false;
+
 export async function renameCategoryApi(
   from: string,
   to: string,

@@ -102,6 +102,13 @@ const HomeTabs = createBottomTabNavigator({
     Nutrition: {
       screen: CalorieTracker,
       options: {
+        // iOS 26+ native tab bar renders this slot as the system Search item
+        // (the distinct search affordance), matching how the AI tool was
+        // presented on older builds. `fork.knife` is the pre-26 fallback icon.
+        ...(majorVersionIOS >= 26 && { tabBarSystemItem: "search" }),
+        // A plain, static food icon. Adding food is handled by the in-screen
+        // "+" button on the calorie tracker (see CalorieTracker), so the tab no
+        // longer morphs into a "+" FAB when focused.
         tabBarIcon: { type: "sfSymbol", name: "fork.knife" },
       },
     },

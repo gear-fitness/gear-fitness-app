@@ -1,17 +1,22 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Animated,
   Dimensions,
   Image,
+  LayoutAnimation,
   Linking,
   Pressable,
   ScrollView,
+  StyleProp,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  ViewStyle,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Svg, { Circle } from "react-native-svg";
+import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { useThemeColors } from "../../../../hooks/useThemeColors";
 import { useNutrition } from "../../../../context/NutritionContext";
 import { FoodLogEntry } from "../../../../api/types";
@@ -38,6 +43,19 @@ const SHEET_MAX_HEIGHT = Dimensions.get("window").height * 0.82;
 
 const round = (n: number | null | undefined) => Math.round(n ?? 0);
 const round1 = (n: number | null | undefined) => Math.round((n ?? 0) * 10) / 10;
+
+// Smooth the per-item / references expand so it eases instead of snapping,
+// matching CalorieTracker's collapse toggles (~220ms easeInEaseOut). On Android
+// LayoutAnimation needs UIManager.setLayoutAnimationEnabledExperimental, which
+// CalorieTracker already enables app-wide, so we don't repeat it here.
+const animateExpand = () =>
+  LayoutAnimation.configureNext(
+    LayoutAnimation.create(
+      220,
+      LayoutAnimation.Types.easeInEaseOut,
+      LayoutAnimation.Properties.opacity,
+    ),
+  );
 
 /** Confidence bucket → label + color, mirroring the recording's "Very High". */
 function confidenceLabel(c: number): { label: string; color: string } {
@@ -75,18 +93,34 @@ export function NutritionDetailSheet({
   const goal = summary?.goal;
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // Resolve liquid-glass support once; every card + header circle falls back to
+  // a plain surface when it's unavailable (older iOS / Android).
+  const glassAvailable = isLiquidGlassAvailable();
+
   // Reset the ⋯ menu whenever the sheet is hidden so it never reopens stale.
   if (!visible && menuOpen) setMenuOpen(false);
 
+  // Retain the last non-null detail (and its heading) through BottomSheet's
+  // close animation: the caller nulls detail on close, so rendering from the
+  // held copy keeps the content intact while the sheet slides down instead of
+  // leaving an empty sliver.
+  const lastDetailRef = useRef<AiLineDetail | null>(null);
+  if (detail) lastDetailRef.current = detail;
+  const heldDetail = detail ?? lastDetailRef.current;
+
+  const lastFoodTextRef = useRef<string>("");
+  if (detail) lastFoodTextRef.current = foodText;
+  const heldFoodText = lastFoodTextRef.current;
+
   const totals = useMemo(() => {
-    const e = detail?.entries ?? [];
+    const e = heldDetail?.entries ?? [];
     return {
       calories: e.reduce((s, x) => s + (x.calories ?? 0), 0),
       proteinG: e.reduce((s, x) => s + (x.proteinG ?? 0), 0),
       carbsG: e.reduce((s, x) => s + (x.carbsG ?? 0), 0),
       fatG: e.reduce((s, x) => s + (x.fatG ?? 0), 0),
     };
-  }, [detail]);
+  }, [heldDetail]);
 
   return (
     <BottomSheet
@@ -96,7 +130,7 @@ export function NutritionDetailSheet({
       backdropOpacity={0.5}
       bodyDrag={false}
     >
-      {detail && (
+      {heldDetail && (
         <>
         <ScrollView
           style={styles.scroll}
@@ -109,31 +143,25 @@ export function NutritionDetailSheet({
               Nutrition Details
             </Text>
             <View style={styles.headerBtns}>
-              <TouchableOpacity
+              <CircleButton
+                icon="ellipsis-horizontal"
+                glass={glassAvailable}
+                t={t}
                 onPress={() => setMenuOpen((o) => !o)}
-                hitSlop={8}
-                style={[styles.closeBtn, { backgroundColor: t.surface }]}
-              >
-                <Ionicons
-                  name="ellipsis-horizontal"
-                  size={18}
-                  color={t.secondary}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
+              />
+              <CircleButton
+                icon="close"
+                glass={glassAvailable}
+                t={t}
                 onPress={onClose}
-                hitSlop={8}
-                style={[styles.closeBtn, { backgroundColor: t.surface }]}
-              >
-                <Ionicons name="close" size={18} color={t.secondary} />
-              </TouchableOpacity>
+              />
             </View>
           </View>
 
-          <Text style={[styles.title, { color: t.text }]}>{foodText}</Text>
+          <Text style={[styles.title, { color: t.text }]}>{heldFoodText}</Text>
 
-          {/* Total + macro summary */}
-          <View style={[styles.summaryCard, { backgroundColor: t.cardBg, borderColor: t.cardBorder }]}>
+          {/* Total + macro summary — the primary glass card. */}
+          <GlassCard glass={glassAvailable} t={t} radius={20} style={styles.summaryCard}>
             <MacroSummary
               calories={totals.calories}
               carbsG={totals.carbsG}
@@ -142,17 +170,18 @@ export function NutritionDetailSheet({
               goal={goal}
               t={t}
             />
-          </View>
+          </GlassCard>
 
           {/* Items */}
-          {detail.entries.length > 0 && (
+          {heldDetail.entries.length > 0 && (
             <>
               <Text style={[styles.section, { color: t.secondary }]}>Items</Text>
-              {detail.entries.map((entry) => (
+              {heldDetail.entries.map((entry) => (
                 <ItemCard
                   key={entry.entryId}
                   entry={entry}
                   goal={goal}
+                  glass={glassAvailable}
                   t={t}
                   onEdit={() => onEditEntry(entry)}
                 />
@@ -161,15 +190,15 @@ export function NutritionDetailSheet({
           )}
 
           {/* Gear's thought process */}
-          {(detail.reasoning?.trim() || detail.confidence > 0) && (
+          {(heldDetail.reasoning?.trim() || heldDetail.confidence > 0) && (
             <>
               <Text style={[styles.section, { color: t.secondary }]}>
                 Gear's thought process:
               </Text>
-              <View style={[styles.card, { backgroundColor: t.cardBg, borderColor: t.cardBorder }]}>
-                {detail.confidence > 0 && (
+              <GlassCard glass={glassAvailable} t={t} radius={16} style={styles.card}>
+                {heldDetail.confidence > 0 && (
                   <View style={styles.confRow}>
-                    <ConfidenceRing value={detail.confidence} />
+                    <ConfidenceRing value={heldDetail.confidence} />
                     <View style={styles.confMeta}>
                       <Text style={[styles.confCaption, { color: t.secondary }]}>
                         Confidence level
@@ -177,22 +206,22 @@ export function NutritionDetailSheet({
                       <Text
                         style={[
                           styles.confLabel,
-                          { color: confidenceLabel(detail.confidence).color },
+                          { color: confidenceLabel(heldDetail.confidence).color },
                         ]}
                       >
-                        {confidenceLabel(detail.confidence).label}
+                        {confidenceLabel(heldDetail.confidence).label}
                       </Text>
                     </View>
                   </View>
                 )}
-                {!!detail.reasoning?.trim() && (
+                {!!heldDetail.reasoning?.trim() && (
                   <Text style={[styles.reasoning, { color: t.text }]}>
-                    {detail.reasoning.trim()}
+                    {heldDetail.reasoning.trim()}
                   </Text>
                 )}
-                {detail.entries.length > 0 && (
+                {heldDetail.entries.length > 0 && (
                   <TouchableOpacity
-                    onPress={() => onEditEntry(detail.entries[0])}
+                    onPress={() => onEditEntry(heldDetail.entries[0])}
                     style={styles.editLink}
                   >
                     <Ionicons name="pencil" size={13} color="#7C6BF5" />
@@ -201,17 +230,17 @@ export function NutritionDetailSheet({
                     </Text>
                   </TouchableOpacity>
                 )}
-              </View>
+              </GlassCard>
             </>
           )}
 
           {/* References */}
-          {detail.sourceUrls.length > 0 && (
+          {heldDetail.sourceUrls.length > 0 && (
             <>
               <Text style={[styles.section, { color: t.secondary }]}>
                 References
               </Text>
-              <References urls={detail.sourceUrls} t={t} />
+              <References urls={heldDetail.sourceUrls} glass={glassAvailable} t={t} />
             </>
           )}
         </ScrollView>
@@ -223,12 +252,7 @@ export function NutritionDetailSheet({
               style={StyleSheet.absoluteFill}
               onPress={() => setMenuOpen(false)}
             />
-            <View
-              style={[
-                styles.menu,
-                { backgroundColor: t.cardBg, borderColor: t.cardBorder },
-              ]}
-            >
+            <MenuPopover t={t}>
               <MenuItem
                 icon="create-outline"
                 label="Edit Nutrition"
@@ -236,15 +260,132 @@ export function NutritionDetailSheet({
                 last
                 onPress={() => {
                   setMenuOpen(false);
-                  if (detail?.entries.length) onEditEntry(detail.entries[0]);
+                  if (heldDetail?.entries.length) onEditEntry(heldDetail.entries[0]);
                 }}
               />
-            </View>
+            </MenuPopover>
           </>
         )}
         </>
       )}
     </BottomSheet>
+  );
+}
+
+/**
+ * A rounded card matching the calorie tracker's glass cards: a translucent
+ * GlassView fill where liquid glass is available, falling back to a plain
+ * surface card otherwise. `radius` keeps the primary summary card (20) and the
+ * smaller item/reasoning/reference cards (16) reading as one family.
+ */
+function GlassCard({
+  glass,
+  t,
+  radius,
+  style,
+  children,
+}: {
+  glass: boolean;
+  t: Theme;
+  radius: number;
+  style?: StyleProp<ViewStyle>;
+  children: React.ReactNode;
+}) {
+  return (
+    <View
+      style={[
+        {
+          borderRadius: radius,
+          borderWidth: StyleSheet.hairlineWidth,
+          overflow: "hidden",
+          backgroundColor: glass ? "transparent" : t.cardBg,
+          borderColor: glass ? "transparent" : t.cardBorder,
+        },
+        style,
+      ]}
+    >
+      {glass && (
+        <GlassView
+          style={[StyleSheet.absoluteFillObject, { borderRadius: radius }]}
+          glassEffectStyle="regular"
+        />
+      )}
+      {children}
+    </View>
+  );
+}
+
+/**
+ * A round header button: a translucent glass circle where liquid glass is
+ * available (matching CalorieTracker's circleGlass), a plain surface circle
+ * otherwise. Icon centered, ~32pt.
+ */
+function CircleButton({
+  icon,
+  glass,
+  t,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  glass: boolean;
+  t: Theme;
+  onPress: () => void;
+}) {
+  if (glass) {
+    return (
+      <GlassView style={styles.circleGlass}>
+        <TouchableOpacity
+          onPress={onPress}
+          hitSlop={8}
+          style={styles.circleBtn}
+        >
+          <Ionicons name={icon} size={18} color={t.secondary} />
+        </TouchableOpacity>
+      </GlassView>
+    );
+  }
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      hitSlop={8}
+      style={[styles.closeBtn, { backgroundColor: t.surface }]}
+    >
+      <Ionicons name={icon} size={18} color={t.secondary} />
+    </TouchableOpacity>
+  );
+}
+
+/**
+ * The ⋯ dropdown, fading + scaling in (~150ms) on mount instead of popping.
+ * Keeps the shadowed surface look; glass would clip its shadow behind overflow.
+ */
+function MenuPopover({ t, children }: { t: Theme; children: React.ReactNode }) {
+  const anim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(anim, {
+      toValue: 1,
+      duration: 150,
+      useNativeDriver: true,
+    }).start();
+  }, [anim]);
+  const scale = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.92, 1],
+  });
+  return (
+    <Animated.View
+      style={[
+        styles.menu,
+        {
+          backgroundColor: t.cardBg,
+          borderColor: t.cardBorder,
+          opacity: anim,
+          transform: [{ scale }],
+        },
+      ]}
+    >
+      {children}
+    </Animated.View>
   );
 }
 
@@ -361,21 +502,26 @@ function MacroStat({
 function ItemCard({
   entry,
   goal,
+  glass,
   t,
   onEdit,
 }: {
   entry: FoodLogEntry;
   goal: Goal;
+  glass: boolean;
   t: Theme;
   onEdit: () => void;
 }) {
   const [open, setOpen] = useState(false);
   return (
-    <View style={[styles.card, { backgroundColor: t.cardBg, borderColor: t.cardBorder }]}>
+    <GlassCard glass={glass} t={t} radius={16} style={styles.card}>
       <TouchableOpacity
         style={styles.itemHeader}
         activeOpacity={0.7}
-        onPress={() => setOpen((o) => !o)}
+        onPress={() => {
+          animateExpand();
+          setOpen((o) => !o);
+        }}
       >
         <Text style={[styles.itemName, { color: t.text }]} numberOfLines={1}>
           {entry.description}
@@ -407,7 +553,7 @@ function ItemCard({
           </TouchableOpacity>
         </View>
       )}
-    </View>
+    </GlassCard>
   );
 }
 
@@ -454,14 +600,25 @@ function ConfidenceRing({ value }: { value: number }) {
 }
 
 /** Collapsible list of cited web sources; each row opens the URL. */
-function References({ urls, t }: { urls: string[]; t: Theme }) {
+function References({
+  urls,
+  glass,
+  t,
+}: {
+  urls: string[];
+  glass: boolean;
+  t: Theme;
+}) {
   const [open, setOpen] = useState(false);
   return (
-    <View style={[styles.card, { backgroundColor: t.cardBg, borderColor: t.cardBorder }]}>
+    <GlassCard glass={glass} t={t} radius={16} style={styles.card}>
       <TouchableOpacity
         style={styles.itemHeader}
         activeOpacity={0.7}
-        onPress={() => setOpen((o) => !o)}
+        onPress={() => {
+          animateExpand();
+          setOpen((o) => !o);
+        }}
       >
         <FaviconStack urls={urls} />
         <View style={styles.itemRight}>
@@ -493,7 +650,7 @@ function References({ urls, t }: { urls: string[]; t: Theme }) {
           ))}
         </View>
       )}
-    </View>
+    </GlassCard>
   );
 }
 
@@ -552,10 +709,24 @@ const styles = StyleSheet.create({
   },
   eyebrow: { fontSize: 15, fontWeight: "600" },
   headerBtns: { flexDirection: "row", gap: 10 },
+  // Glass header circle (matches CalorieTracker's circleGlass) + its icon slot.
+  circleGlass: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  circleBtn: {
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  // Fallback circle when liquid glass is unavailable.
   closeBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -581,12 +752,15 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   menuLabel: { fontSize: 16, fontWeight: "500" },
-  title: { fontSize: 26, fontWeight: "800", marginTop: 10, marginBottom: 16 },
-  summaryCard: {
-    borderRadius: 18,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: 18,
+  title: {
+    fontSize: 24,
+    fontWeight: "800",
+    letterSpacing: -0.4,
+    marginTop: 8,
+    marginBottom: 14,
   },
+  // Border/radius/overflow are owned by GlassCard; these just set the padding.
+  summaryCard: { padding: 18 },
   macroRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -607,9 +781,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     textTransform: "none",
   },
+  // Border/radius/overflow are owned by GlassCard; these set padding + rhythm.
   card: {
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
     padding: 16,
     marginBottom: 10,
   },

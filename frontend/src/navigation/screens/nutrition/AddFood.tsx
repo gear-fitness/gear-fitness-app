@@ -10,7 +10,8 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { SearchBar } from "../../../components/SearchBar";
 import { useThemeColors } from "../../../hooks/useThemeColors";
@@ -42,6 +43,47 @@ function servingLabel(food: FoodItem): string {
   if (food.householdServing) return food.householdServing;
   if (food.servingSize) return `${food.servingSize}${food.servingUnit ?? "g"}`;
   return "100 g";
+}
+
+// A circular action button in the app's liquid-glass style. When glass is
+// available the touchable is wrapped in a GlassView clipped to a circle with a
+// transparent background; otherwise it falls back to the plain surface circle.
+// All TouchableOpacity behavior (onPress, disabled, hitSlop, etc.) is forwarded.
+function GlassCircleButton({
+  glassAvailable,
+  surface,
+  size = 36,
+  children,
+  ...touchable
+}: React.ComponentProps<typeof TouchableOpacity> & {
+  glassAvailable: boolean;
+  surface: string;
+  size?: number;
+  children: React.ReactNode;
+}) {
+  const circle = { width: size, height: size, borderRadius: size / 2 };
+
+  if (glassAvailable) {
+    return (
+      <GlassView style={[styles.glassCircle, circle]} glassEffectStyle="regular">
+        <TouchableOpacity
+          {...touchable}
+          style={[styles.circleBtn, circle, { backgroundColor: "transparent" }]}
+        >
+          {children}
+        </TouchableOpacity>
+      </GlassView>
+    );
+  }
+
+  return (
+    <TouchableOpacity
+      {...touchable}
+      style={[styles.circleBtn, { backgroundColor: surface }]}
+    >
+      {children}
+    </TouchableOpacity>
+  );
 }
 
 export function AddFood() {
@@ -365,6 +407,7 @@ function FoodRow({
     opts?: { unitKey: MeasureUnitKey; quantity: number },
   ) => Promise<void>;
 }) {
+  const glassAvailable = isLiquidGlassAvailable();
   const [unitPickerOpen, setUnitPickerOpen] = useState(false);
   const [unitKey, setUnitKey] = useState<MeasureUnitKey>("serving");
   const [quantity, setQuantity] = useState(1);
@@ -412,35 +455,37 @@ function FoodRow({
         </View>
 
         <View style={styles.rowActions}>
-          <TouchableOpacity
+          <GlassCircleButton
+            glassAvailable={glassAvailable}
+            surface={t.surface}
             accessibilityLabel={expanded ? "Hide options" : "Choose amount"}
             hitSlop={8}
             onPress={onToggleExpand}
-            style={[styles.circleBtn, { backgroundColor: t.surface }]}
           >
             <Ionicons
               name={expanded ? "chevron-up" : "chevron-down"}
               size={20}
               color={t.secondary}
             />
-          </TouchableOpacity>
+          </GlassCircleButton>
 
           {!expanded && (
-            <TouchableOpacity
+            <GlassCircleButton
+              glassAvailable={glassAvailable}
+              surface={t.surface}
               accessibilityLabel={`Add ${food.description} to ${category}`}
               hitSlop={8}
               disabled={busy}
               onPress={() => onLog(food)}
-              style={[styles.circleBtn, { backgroundColor: t.surface }]}
             >
               {busy ? (
                 <ActivityIndicator size="small" color={t.tint} />
               ) : added ? (
                 <Ionicons name="checkmark" size={22} color={t.tint} />
               ) : (
-                <Ionicons name="add" size={22} color={t.tint} />
+                <MaterialCommunityIcons name="plus" size={22} color={t.tint} />
               )}
-            </TouchableOpacity>
+            </GlassCircleButton>
           )}
         </View>
       </View>
@@ -480,7 +525,7 @@ function FoodRow({
                   <Ionicons
                     name="remove"
                     size={22}
-                    color={quantity <= 1 ? t.border : t.text}
+                    color={quantity <= 1 ? t.border : t.tint}
                   />
                 </TouchableOpacity>
                 <Text style={[styles.stepperValue, { color: t.text }]}>
@@ -492,7 +537,7 @@ function FoodRow({
                   onPress={() => setQuantity((q) => q + 1)}
                   style={styles.stepperBtn}
                 >
-                  <Ionicons name="add" size={22} color={t.text} />
+                  <Ionicons name="add" size={22} color={t.tint} />
                 </TouchableOpacity>
               </View>
               <Text style={[styles.controlLabel, { color: t.secondary }]}>
@@ -604,6 +649,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  // Clips the GlassView to a circle so the liquid-glass effect stays rounded.
+  glassCircle: { overflow: "hidden" },
   expanded: { marginTop: 14 },
   controlsRow: {
     flexDirection: "row",

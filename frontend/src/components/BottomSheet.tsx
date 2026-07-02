@@ -2,6 +2,7 @@ import { ReactNode, useEffect, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
+  Easing,
   GestureResponderEvent,
   KeyboardAvoidingView,
   Modal,
@@ -21,6 +22,13 @@ const OPEN_DURATION = 220;
 const CLOSE_DURATION = 200;
 const BACKDROP_OPACITY = 0.5;
 const OFFSCREEN = Dimensions.get("window").height;
+// Drag-dismissal timing bounds. The release duration is the remaining distance
+// divided by the fling speed (px/ms), clamped so a slow release still snaps
+// shut and a hard fling never undershoots. The velocity floor keeps a near-zero
+// release from dividing out to a multi-second duration.
+const DISMISS_MIN_DURATION = 120;
+const DISMISS_MAX_DURATION = 250;
+const DISMISS_VELOCITY_FLOOR = 1.2;
 
 interface Props {
   visible: boolean;
@@ -73,11 +81,97 @@ export function BottomSheet({
   // fires a stale closure.
   const onClosedRef = useRef(onClosed);
   onClosedRef.current = onClosed;
+  // Mirror of `visible` so onShow (which fires outside React's render cycle)
+  // can check the current value without a stale closure.
+  const visibleRef = useRef(visible);
+  // True while a drag-release is running its own local dismissal animation. It
+  // stops the close effect from restarting the animation when the parent flips
+  // `visible` false in response to that release's onClose() call.
+  const closingRef = useRef(false);
+  // GPU-bound compositing fix. The slide already runs on the native driver, but
+  // the sheet hosts many live liquid-glass surfaces (expo-glass-effect GlassView
+  // / UIVisualEffectView-family views plus SwiftUI hosts), and every frame the
+  // sheet moves iOS must re-sample and re-blur the backdrop for each surface.
+  // Translating 6-10 live glass views is GPU-bound jank no animation driver can
+  // fix. Same rasterization trick as the FeedPostCard stacked thumbnails: while
+  // the sheet is MOVING, flatten it into a single GPU texture (shouldRasterizeIOS
+  // / renderToHardwareTextureAndroid) so the translation is a cheap texture move;
+  // at rest, rasterization is OFF so the glass samples live and content stays
+  // sharp. Tradeoff: while rasterized the blur is a frozen snapshot (it stops
+  // live-sampling the backdrop), but over a ~200ms slide or an active drag that
+  // is imperceptible, and the glass goes live again the instant the sheet settles
+  // and rasterization turns off.
+  const [moving, setMoving] = useState(false);
+  // Ref mirror of `moving` so high-frequency gesture callbacks can flip
+  // rasterization once per gesture without redundant setState churn.
+  const movingRef = useRef(false);
+  const setRasterizing = (value: boolean) => {
+    if (movingRef.current === value) return;
+    movingRef.current = value;
+    setMoving(value);
+  };
+
+  // Runs the parallel open animation: backdrop fades in while the sheet springs
+  // up. Started from onShow (once the native modal is settled) or, on a reopen
+  // mid-close, directly from the effect since onShow won't fire a second time.
+  const runOpen = () => {
+    Animated.parallel([
+      Animated.timing(backdropAnim, {
+        toValue: targetBackdrop,
+        duration: OPEN_DURATION,
+        useNativeDriver: true,
+      }),
+      Animated.spring(translateY, {
+        toValue: 0,
+        useNativeDriver: true,
+        damping: 22,
+        stiffness: 220,
+      }),
+    ]).start(({ finished }) => {
+      // Glass goes live again once the sheet settles at rest.
+      if (finished) setRasterizing(false);
+    });
+  };
+
+  // Single close finalization, shared by the ordinary close path and the local
+  // drag-dismissal. Runs only when its animation finished uninterrupted, so a
+  // reopen (which cancels the running animation) never unmounts the sheet.
+  const finalizeClose = ({ finished }: Animated.EndResult) => {
+    if (!finished) return;
+    closingRef.current = false;
+    // Modal unmounts now; reset rasterization so the next open starts clean.
+    setRasterizing(false);
+    setRendered(false);
+    onClosedRef.current?.();
+  };
 
   useEffect(() => {
+    visibleRef.current = visible;
     if (visible) {
-      setRendered(true);
-    } else if (rendered) {
+      // Reset the drag guard so a fresh open behaves normally.
+      closingRef.current = false;
+      if (rendered) {
+        // Reopen while a close animation is still running: the modal is already
+        // presented so onShow won't fire again. Restart the open animation from
+        // wherever the sheet currently sits (this cancels the close animation,
+        // whose completion then no-ops via the finished guard). Rasterize the
+        // moving sheet; runOpen's completion turns it back off.
+        setRasterizing(true);
+        runOpen();
+      } else {
+        // Park offscreen and mount. onShow starts the slide once the native
+        // modal is fully presented on a settled surface. Rasterize as `rendered`
+        // flips true so the texture is ready before onShow springs the sheet up.
+        translateY.setValue(OFFSCREEN);
+        backdropAnim.setValue(0);
+        setRasterizing(true);
+        setRendered(true);
+      }
+    } else if (rendered && !closingRef.current) {
+      // Ordinary close (backdrop tap, close control). A drag-dismissal has
+      // already started its own animation and set closingRef, so skip here.
+      // Rasterize the moving sheet; finalizeClose resets it as the modal unmounts.
+      setRasterizing(true);
       Animated.parallel([
         Animated.timing(backdropAnim, {
           toValue: 0,
@@ -89,32 +183,10 @@ export function BottomSheet({
           duration: CLOSE_DURATION,
           useNativeDriver: true,
         }),
-      ]).start(() => {
-        setRendered(false);
-        onClosedRef.current?.();
-      });
+      ]).start(finalizeClose);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
-
-  useEffect(() => {
-    if (rendered && visible) {
-      translateY.setValue(OFFSCREEN);
-      Animated.parallel([
-        Animated.timing(backdropAnim, {
-          toValue: targetBackdrop,
-          duration: OPEN_DURATION,
-          useNativeDriver: true,
-        }),
-        Animated.spring(translateY, {
-          toValue: 0,
-          useNativeDriver: true,
-          bounciness: 2,
-        }),
-      ]).start();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rendered]);
 
   // Shared drag handlers. Two responders use them: one on the grabber (claims
   // on touch start, so a swipe works from the top) and one on the body (claims
@@ -123,7 +195,12 @@ export function BottomSheet({
     g.dy > 4 && Math.abs(g.dy) > Math.abs(g.dx);
 
   const onMove = (_: GestureResponderEvent, g: PanResponderGestureState) => {
-    if (g.dy > 0) translateY.setValue(g.dy);
+    if (g.dy > 0) {
+      // Rasterize on the first move of the drag; setRasterizing guards via the
+      // ref so this only fires setState once per gesture.
+      setRasterizing(true);
+      translateY.setValue(g.dy);
+    }
   };
 
   const springBack = () =>
@@ -131,10 +208,45 @@ export function BottomSheet({
       toValue: 0,
       useNativeDriver: true,
       bounciness: 4,
-    }).start();
+    }).start(({ finished }) => {
+      // Below-threshold release (and terminate) settles back at rest; glass
+      // goes live again. Also covers onPanResponderTerminate, which uses this.
+      if (finished) setRasterizing(false);
+    });
 
   const onRelease = (_: GestureResponderEvent, g: PanResponderGestureState) => {
     if (g.dy > SWIPE_CLOSE_DISTANCE || g.vy > SWIPE_CLOSE_VELOCITY) {
+      // Past the dismiss threshold: animate straight down from the finger's
+      // current position in the same tick, rather than calling onClose() and
+      // waiting for the parent to flip `visible` (which freezes the sheet
+      // mid-screen for a React round trip before a fixed-duration slide).
+      // closingRef makes the resulting close effect a no-op so this local
+      // animation owns the dismissal and its completion runs finalizeClose.
+      closingRef.current = true;
+      // Velocity-aware duration: remaining distance / fling speed, clamped.
+      // Chosen over a velocity-seeded spring because a spring toward an
+      // offscreen target visibly decelerates near the edge; a clamped
+      // ease-in timing keeps the tail crisp and the distance honest.
+      const remaining = Math.max(OFFSCREEN - g.dy, 0);
+      const velocity = Math.max(g.vy, DISMISS_VELOCITY_FLOOR);
+      const duration = Math.min(
+        Math.max(remaining / velocity, DISMISS_MIN_DURATION),
+        DISMISS_MAX_DURATION,
+      );
+      Animated.parallel([
+        Animated.timing(backdropAnim, {
+          toValue: 0,
+          duration,
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateY, {
+          toValue: OFFSCREEN,
+          duration,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]).start(finalizeClose);
+      // Keep parent state in sync; the close effect no-ops via closingRef.
       onClose();
     } else {
       springBack();
@@ -173,6 +285,11 @@ export function BottomSheet({
       */}
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       <Animated.View
+        // While the sheet is moving, composite it into a single GPU texture so
+        // the translate is a cheap texture move instead of a per-frame re-blur of
+        // every live glass surface; off at rest so the glass samples live.
+        shouldRasterizeIOS={moving}
+        renderToHardwareTextureAndroid={moving}
         style={[
           styles.sheet,
           {
@@ -197,6 +314,13 @@ export function BottomSheet({
       transparent
       animationType="none"
       onRequestClose={onClose}
+      onShow={() => {
+        // Start the open slide only once the native modal is fully presented,
+        // so it plays on a settled surface instead of racing the mount of
+        // heavy sheet content (GlassView / SwiftUI hosts). Guard against a
+        // rapid open/close toggle: skip if the sheet is already closing.
+        if (visibleRef.current) runOpen();
+      }}
     >
       <Animated.View
         style={[styles.backdrop, { opacity: backdropAnim }]}
