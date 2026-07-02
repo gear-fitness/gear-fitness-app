@@ -1,0 +1,40 @@
+diff --git a/node_modules/react-native/Libraries/Text/TextInput/Multiline/RCTUITextView.mm b/node_modules/react-native/Libraries/Text/TextInput/Multiline/RCTUITextView.mm
+index 6e9c384..9c62225 100644
+--- a/node_modules/react-native/Libraries/Text/TextInput/Multiline/RCTUITextView.mm
++++ b/node_modules/react-native/Libraries/Text/TextInput/Multiline/RCTUITextView.mm
+@@ -367,7 +367,34 @@ static UIColor *defaultPlaceholderColor(void)
+     return CGRectZero;
+   }
+ 
+-  return [super caretRectForPosition:position];
++  CGRect rect = [super caretRectForPosition:position];
++
++  // By default the multiline caret is as tall as the line box, so any extra
++  // `lineHeight` (used here for line spacing) produces an oversized caret.
++  // Clamp it to the font's natural height and center it in the line box, so
++  // line spacing and caret size are decoupled (matches iOS Notes behavior).
++  UIFont *font = self.font;
++  NSInteger offset = [self offsetFromPosition:self.beginningOfDocument toPosition:position];
++  if (self.textStorage.length > 0) {
++    NSUInteger idx = offset > 0 ? (NSUInteger)offset - 1 : 0;
++    if (idx >= self.textStorage.length) {
++      idx = self.textStorage.length - 1;
++    }
++    UIFont *attrFont = [self.textStorage attribute:NSFontAttributeName atIndex:idx effectiveRange:NULL];
++    if (attrFont) {
++      font = attrFont;
++    }
++  }
++
++  if (font) {
++    CGFloat caretHeight = font.lineHeight;
++    if (caretHeight > 0 && caretHeight < rect.size.height) {
++      rect.origin.y += (rect.size.height - caretHeight) / 2.0;
++      rect.size.height = caretHeight;
++    }
++  }
++
++  return rect;
+ }
+ 
+ #pragma mark - Utility Methods

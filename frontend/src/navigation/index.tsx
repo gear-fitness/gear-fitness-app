@@ -38,6 +38,9 @@ import { DayPosts } from "./screens/DayPosts";
 import { Activity } from "./screens/Activity";
 import FollowScreen from "./screens/FollowScreen";
 import { ImageViewer } from "./screens/ImageViewer";
+import { CalorieTracker } from "./screens/nutrition/CalorieTracker";
+import { AddFood } from "./screens/nutrition/AddFood";
+import { NutritionGoals } from "./screens/nutrition/NutritionGoals";
 import { Platform } from "react-native";
 
 /* ---------------------- TABS ---------------------- */
@@ -92,6 +95,21 @@ const HomeTabs = createBottomTabNavigator({
       screen: Profile,
       options: {
         tabBarIcon: { type: "sfSymbol", name: "person.fill" },
+      },
+    },
+    // Restored 5th tab (formerly the orphaned AI-chat "AiChat" slot),
+    // repurposed to open the calorie & macro tracker.
+    Nutrition: {
+      screen: CalorieTracker,
+      options: {
+        // iOS 26+ native tab bar renders this slot as the system Search item
+        // (the distinct search affordance), matching how the AI tool was
+        // presented on older builds. `fork.knife` is the pre-26 fallback icon.
+        ...(majorVersionIOS >= 26 && { tabBarSystemItem: "search" }),
+        // A plain, static food icon. Adding food is handled by the in-screen
+        // "+" button on the calorie tracker (see CalorieTracker), so the tab no
+        // longer morphs into a "+" FAB when focused.
+        tabBarIcon: { type: "sfSymbol", name: "fork.knife" },
       },
     },
   },
@@ -293,6 +311,16 @@ const RootStack = createNativeStackNavigator({
       screen: RoutineDetail,
       options: { headerShown: false },
     },
+
+    AddFood: {
+      screen: AddFood,
+      options: { headerShown: false },
+    },
+
+    NutritionGoals: {
+      screen: NutritionGoals,
+      options: { headerShown: false },
+    },
   },
 });
 
@@ -317,7 +345,9 @@ declare global {
         dateLabel: string;
       };
       Activity: undefined;
-      ExerciseChat: undefined;
+      Nutrition: undefined;
+      AddFood: { category?: string } | undefined;
+      NutritionGoals: undefined;
 
       FollowScreen: {
         initialTab: "followers" | "following";

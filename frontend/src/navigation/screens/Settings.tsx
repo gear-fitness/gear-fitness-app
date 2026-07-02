@@ -456,6 +456,21 @@ export function Settings() {
             },
           ],
         },
+        {
+          key: "nutrition",
+          title: "Nutrition",
+          data: [
+            {
+              id: "calorie_goals",
+              type: "value",
+              label: "Calorie & Macro Goals",
+              onPress: () => navigation.navigate("NutritionGoals"),
+              showArrow: true,
+            },
+          ],
+          footer:
+            "Set your daily calorie target and protein, carb, and fat goals.",
+        },
         // ── Integrations ──────────────────────────────────────
         ...(!healthUnavailable
           ? [
