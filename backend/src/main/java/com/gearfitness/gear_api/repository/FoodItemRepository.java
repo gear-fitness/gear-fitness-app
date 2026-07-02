@@ -10,7 +10,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface FoodItemRepository extends JpaRepository<FoodItem, UUID> {
-
   /**
    * Relevance-first food search. Ranks by a text-match tier (exact 100 >
    * prefix 80 > word-start 60 > contains 40 > trigram-fuzzy 20), then trigram

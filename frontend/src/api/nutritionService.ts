@@ -64,9 +64,7 @@ export interface LogFoodPayload {
   sourceUrl?: string | null;
 }
 
-export async function logFood(
-  payload: LogFoodPayload,
-): Promise<FoodLogEntry> {
+export async function logFood(payload: LogFoodPayload): Promise<FoodLogEntry> {
   const { data } = await apiClient.post<FoodLogEntry>(
     "/nutrition/log",
     payload,

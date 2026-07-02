@@ -98,8 +98,9 @@ public class V37__backfill_food_servings extends BaseJavaMigration {
           total += inBatch;
         }
         System.out.println(
-          "[V37] Applied serving backfill for " + total +
-          " candidate rows (rows already serving-sized were left unchanged)."
+          "[V37] Applied serving backfill for " +
+            total +
+            " candidate rows (rows already serving-sized were left unchanged)."
         );
       }
     }

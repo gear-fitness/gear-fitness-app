@@ -66,7 +66,10 @@ function GlassCircleButton({
 
   if (glassAvailable) {
     return (
-      <GlassView style={[styles.glassCircle, circle]} glassEffectStyle="regular">
+      <GlassView
+        style={[styles.glassCircle, circle]}
+        glassEffectStyle="regular"
+      >
         <TouchableOpacity
           {...touchable}
           style={[styles.circleBtn, circle, { backgroundColor: "transparent" }]}
@@ -90,8 +93,9 @@ function GlassCircleButton({
 export function AddFood() {
   const t = useThemeColors();
   const navigation = useNavigation<any>();
-  const routeCategory = (useRoute<any>().params as { category?: string } | undefined)
-    ?.category;
+  const routeCategory = (
+    useRoute<any>().params as { category?: string } | undefined
+  )?.category;
 
   const { categories, addLog } = useNutrition();
   const [category, setCategory] = useState<string>(
@@ -274,11 +278,7 @@ export function AddFood() {
             </Text>
           ) : (
             <View style={styles.emptyState}>
-              <Ionicons
-                name="restaurant-outline"
-                size={64}
-                color={t.border}
-              />
+              <Ionicons name="restaurant-outline" size={64} color={t.border} />
               <Text style={[styles.emptyText, { color: t.text }]}>
                 No suggestions yet
               </Text>
@@ -364,11 +364,7 @@ export function AddFood() {
             { opacity: toastOpacity, backgroundColor: t.accent },
           ]}
         >
-          <Ionicons
-            name="checkmark-circle"
-            size={18}
-            color={t.accentText}
-          />
+          <Ionicons name="checkmark-circle" size={18} color={t.accentText} />
           <Text style={[styles.toastText, { color: t.accentText }]}>
             Logged!
           </Text>
@@ -686,7 +682,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  stepperValue: { fontSize: 16, fontWeight: "600", minWidth: 24, textAlign: "center" },
+  stepperValue: {
+    fontSize: 16,
+    fontWeight: "600",
+    minWidth: 24,
+    textAlign: "center",
+  },
   chipRow: {
     flexDirection: "row",
     flexWrap: "wrap",

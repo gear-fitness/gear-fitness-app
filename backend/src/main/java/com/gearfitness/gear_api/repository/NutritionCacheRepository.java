@@ -9,7 +9,8 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface NutritionCacheRepository
-  extends JpaRepository<NutritionCache, UUID> {
+  extends JpaRepository<NutritionCache, UUID>
+{
   Optional<NutritionCache> findByNormalizedKey(String normalizedKey);
 
   // Cache rows are only created on a Sonar cache miss, so counting rows created

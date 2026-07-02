@@ -105,12 +105,14 @@ public class NutritionService {
       ? LocalDate.parse(req.getDate())
       : LocalDate.now();
 
-    FoodLogEntry.ServingUnit unit = req.getUnit() == null
-      ? FoodLogEntry.ServingUnit.SERVING
-      : FoodLogEntry.ServingUnit.valueOf(req.getUnit().toUpperCase());
-    BigDecimal quantity = req.getQuantity() == null
-      ? BigDecimal.ONE
-      : BigDecimal.valueOf(req.getQuantity());
+    FoodLogEntry.ServingUnit unit =
+      req.getUnit() == null
+        ? FoodLogEntry.ServingUnit.SERVING
+        : FoodLogEntry.ServingUnit.valueOf(req.getUnit().toUpperCase());
+    BigDecimal quantity =
+      req.getQuantity() == null
+        ? BigDecimal.ONE
+        : BigDecimal.valueOf(req.getQuantity());
 
     FoodLogEntry.FoodLogEntryBuilder entry = FoodLogEntry.builder()
       .user(user)
@@ -129,13 +131,14 @@ public class NutritionService {
       // Nutrients are stored per 100 g. Resolve how many grams were consumed,
       // then scale. A SERVING uses the food's serving size (defaulting to 100 g
       // when the dataset has none).
-      BigDecimal grams = unit == FoodLogEntry.ServingUnit.GRAM
-        ? quantity
-        : quantity.multiply(
-          food.getServingSize() == null
-            ? BigDecimal.valueOf(100)
-            : food.getServingSize()
-        );
+      BigDecimal grams =
+        unit == FoodLogEntry.ServingUnit.GRAM
+          ? quantity
+          : quantity.multiply(
+              food.getServingSize() == null
+                ? BigDecimal.valueOf(100)
+                : food.getServingSize()
+            );
       BigDecimal factor = grams.divide(
         BigDecimal.valueOf(100),
         6,

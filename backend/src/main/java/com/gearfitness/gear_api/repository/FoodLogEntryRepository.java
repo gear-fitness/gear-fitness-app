@@ -9,7 +9,8 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface FoodLogEntryRepository
-  extends JpaRepository<FoodLogEntry, UUID> {
+  extends JpaRepository<FoodLogEntry, UUID>
+{
   List<FoodLogEntry> findByUser_UserIdAndLogDateOrderByCreatedAtAsc(
     UUID userId,
     LocalDate logDate

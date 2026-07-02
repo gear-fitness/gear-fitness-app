@@ -133,140 +133,164 @@ export function NutritionDetailSheet({
     >
       {heldDetail && (
         <>
-        <ScrollView
-          style={{ maxHeight: sheetMaxHeight }}
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Header */}
-          <View style={styles.headerRow}>
-            <Text style={[styles.eyebrow, { color: t.text }]}>
-              Nutrition Details
-            </Text>
-            <View style={styles.headerBtns}>
-              <CircleButton
-                icon="ellipsis-horizontal"
-                glass={glassAvailable}
-                t={t}
-                onPress={() => setMenuOpen((o) => !o)}
-              />
-              <CircleButton
-                icon="close"
-                glass={glassAvailable}
-                t={t}
-                onPress={onClose}
-              />
-            </View>
-          </View>
-
-          <Text style={[styles.title, { color: t.text }]}>{heldFoodText}</Text>
-
-          {/* Total + macro summary — the primary glass card. */}
-          <GlassCard glass={glassAvailable} t={t} radius={20} style={styles.summaryCard}>
-            <MacroSummary
-              calories={totals.calories}
-              carbsG={totals.carbsG}
-              fatG={totals.fatG}
-              proteinG={totals.proteinG}
-              goal={goal}
-              t={t}
-            />
-          </GlassCard>
-
-          {/* Items */}
-          {heldDetail.entries.length > 0 && (
-            <>
-              <Text style={[styles.section, { color: t.secondary }]}>Items</Text>
-              {heldDetail.entries.map((entry) => (
-                <ItemCard
-                  key={entry.entryId}
-                  entry={entry}
-                  goal={goal}
+          <ScrollView
+            style={{ maxHeight: sheetMaxHeight }}
+            contentContainerStyle={styles.content}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Header */}
+            <View style={styles.headerRow}>
+              <Text style={[styles.eyebrow, { color: t.text }]}>
+                Nutrition Details
+              </Text>
+              <View style={styles.headerBtns}>
+                <CircleButton
+                  icon="ellipsis-horizontal"
                   glass={glassAvailable}
                   t={t}
-                  onEdit={() => onEditEntry(entry)}
+                  onPress={() => setMenuOpen((o) => !o)}
                 />
-              ))}
-            </>
-          )}
+                <CircleButton
+                  icon="close"
+                  glass={glassAvailable}
+                  t={t}
+                  onPress={onClose}
+                />
+              </View>
+            </View>
 
-          {/* Gear's thought process */}
-          {(heldDetail.reasoning?.trim() || heldDetail.confidence > 0) && (
-            <>
-              <Text style={[styles.section, { color: t.secondary }]}>
-                Gear's thought process:
-              </Text>
-              <GlassCard glass={glassAvailable} t={t} radius={16} style={styles.card}>
-                {heldDetail.confidence > 0 && (
-                  <View style={styles.confRow}>
-                    <ConfidenceRing value={heldDetail.confidence} />
-                    <View style={styles.confMeta}>
-                      <Text style={[styles.confCaption, { color: t.secondary }]}>
-                        Confidence level
-                      </Text>
-                      <Text
-                        style={[
-                          styles.confLabel,
-                          { color: confidenceLabel(heldDetail.confidence).color },
-                        ]}
-                      >
-                        {confidenceLabel(heldDetail.confidence).label}
-                      </Text>
-                    </View>
-                  </View>
-                )}
-                {!!heldDetail.reasoning?.trim() && (
-                  <Text style={[styles.reasoning, { color: t.text }]}>
-                    {heldDetail.reasoning.trim()}
-                  </Text>
-                )}
-                {heldDetail.entries.length > 0 && (
-                  <TouchableOpacity
-                    onPress={() => onEditEntry(heldDetail.entries[0])}
-                    style={styles.editLink}
-                  >
-                    <Ionicons name="pencil" size={13} color="#7C6BF5" />
-                    <Text style={styles.editLinkText}>
-                      Something off? Click to edit
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </GlassCard>
-            </>
-          )}
+            <Text style={[styles.title, { color: t.text }]}>
+              {heldFoodText}
+            </Text>
 
-          {/* References */}
-          {heldDetail.sourceUrls.length > 0 && (
-            <>
-              <Text style={[styles.section, { color: t.secondary }]}>
-                References
-              </Text>
-              <References urls={heldDetail.sourceUrls} glass={glassAvailable} t={t} />
-            </>
-          )}
-        </ScrollView>
-
-        {/* ⋯ menu popover */}
-        {menuOpen && (
-          <>
-            <Pressable
-              style={StyleSheet.absoluteFill}
-              onPress={() => setMenuOpen(false)}
-            />
-            <MenuPopover t={t}>
-              <MenuItem
-                icon="create-outline"
-                label="Edit Nutrition"
+            {/* Total + macro summary — the primary glass card. */}
+            <GlassCard
+              glass={glassAvailable}
+              t={t}
+              radius={20}
+              style={styles.summaryCard}
+            >
+              <MacroSummary
+                calories={totals.calories}
+                carbsG={totals.carbsG}
+                fatG={totals.fatG}
+                proteinG={totals.proteinG}
+                goal={goal}
                 t={t}
-                last
-                onPress={() => {
-                  setMenuOpen(false);
-                  if (heldDetail?.entries.length) onEditEntry(heldDetail.entries[0]);
-                }}
               />
-            </MenuPopover>
-          </>
-        )}
+            </GlassCard>
+
+            {/* Items */}
+            {heldDetail.entries.length > 0 && (
+              <>
+                <Text style={[styles.section, { color: t.secondary }]}>
+                  Items
+                </Text>
+                {heldDetail.entries.map((entry) => (
+                  <ItemCard
+                    key={entry.entryId}
+                    entry={entry}
+                    goal={goal}
+                    glass={glassAvailable}
+                    t={t}
+                    onEdit={() => onEditEntry(entry)}
+                  />
+                ))}
+              </>
+            )}
+
+            {/* Gear's thought process */}
+            {(heldDetail.reasoning?.trim() || heldDetail.confidence > 0) && (
+              <>
+                <Text style={[styles.section, { color: t.secondary }]}>
+                  Gear's thought process:
+                </Text>
+                <GlassCard
+                  glass={glassAvailable}
+                  t={t}
+                  radius={16}
+                  style={styles.card}
+                >
+                  {heldDetail.confidence > 0 && (
+                    <View style={styles.confRow}>
+                      <ConfidenceRing value={heldDetail.confidence} />
+                      <View style={styles.confMeta}>
+                        <Text
+                          style={[styles.confCaption, { color: t.secondary }]}
+                        >
+                          Confidence level
+                        </Text>
+                        <Text
+                          style={[
+                            styles.confLabel,
+                            {
+                              color: confidenceLabel(heldDetail.confidence)
+                                .color,
+                            },
+                          ]}
+                        >
+                          {confidenceLabel(heldDetail.confidence).label}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+                  {!!heldDetail.reasoning?.trim() && (
+                    <Text style={[styles.reasoning, { color: t.text }]}>
+                      {heldDetail.reasoning.trim()}
+                    </Text>
+                  )}
+                  {heldDetail.entries.length > 0 && (
+                    <TouchableOpacity
+                      onPress={() => onEditEntry(heldDetail.entries[0])}
+                      style={styles.editLink}
+                    >
+                      <Ionicons name="pencil" size={13} color="#7C6BF5" />
+                      <Text style={styles.editLinkText}>
+                        Something off? Click to edit
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </GlassCard>
+              </>
+            )}
+
+            {/* References */}
+            {heldDetail.sourceUrls.length > 0 && (
+              <>
+                <Text style={[styles.section, { color: t.secondary }]}>
+                  References
+                </Text>
+                <References
+                  urls={heldDetail.sourceUrls}
+                  glass={glassAvailable}
+                  t={t}
+                />
+              </>
+            )}
+          </ScrollView>
+
+          {/* ⋯ menu popover */}
+          {menuOpen && (
+            <>
+              <Pressable
+                style={StyleSheet.absoluteFill}
+                onPress={() => setMenuOpen(false)}
+              />
+              <MenuPopover t={t}>
+                <MenuItem
+                  icon="create-outline"
+                  label="Edit Nutrition"
+                  t={t}
+                  last
+                  onPress={() => {
+                    setMenuOpen(false);
+                    if (heldDetail?.entries.length)
+                      onEditEntry(heldDetail.entries[0]);
+                  }}
+                />
+              </MenuPopover>
+            </>
+          )}
         </>
       )}
     </BottomSheet>
@@ -407,7 +431,10 @@ function MenuItem({
     <TouchableOpacity
       style={[
         styles.menuItem,
-        !last && { borderBottomColor: t.separator, borderBottomWidth: StyleSheet.hairlineWidth },
+        !last && {
+          borderBottomColor: t.separator,
+          borderBottomWidth: StyleSheet.hairlineWidth,
+        },
       ]}
       onPress={onPress}
     >
@@ -418,12 +445,15 @@ function MenuItem({
 }
 
 type Theme = ReturnType<typeof useThemeColors>;
-type Goal = {
-  calorieGoal?: number;
-  carbsG?: number;
-  fatG?: number;
-  proteinG?: number;
-} | null | undefined;
+type Goal =
+  | {
+      calorieGoal?: number;
+      carbsG?: number;
+      fatG?: number;
+      proteinG?: number;
+    }
+  | null
+  | undefined;
 
 const pctOfGoal = (value: number, g?: number) =>
   g && g > 0 ? Math.round((value / g) * 100) : 0;
@@ -643,10 +673,18 @@ function References({
               onPress={() => Linking.openURL(url).catch(() => {})}
             >
               <Favicon url={url} size={18} />
-              <Text style={[styles.refUrl, { color: "#2F6FED" }]} numberOfLines={1}>
+              <Text
+                style={[styles.refUrl, { color: "#2F6FED" }]}
+                numberOfLines={1}
+              >
                 {hostOf(url)}
               </Text>
-              <Ionicons name="arrow-up" size={14} color={t.secondary} style={styles.refArrow} />
+              <Ionicons
+                name="arrow-up"
+                size={14}
+                color={t.secondary}
+                style={styles.refArrow}
+              />
             </TouchableOpacity>
           ))}
         </View>
@@ -663,7 +701,10 @@ function FaviconStack({ urls }: { urls: string[] }) {
       {shown.map((url, i) => (
         <View
           key={`${url}-${i}`}
-          style={[styles.stackItem, { marginLeft: i === 0 ? 0 : -8, zIndex: shown.length - i }]}
+          style={[
+            styles.stackItem,
+            { marginLeft: i === 0 ? 0 : -8, zIndex: shown.length - i },
+          ]}
         >
           <Favicon url={url} size={22} ring />
         </View>
@@ -685,7 +726,12 @@ function Favicon({
   const t = useThemeColors();
   const [failed, setFailed] = useState(false);
   const style = [
-    { width: size, height: size, borderRadius: size / 2, backgroundColor: t.surface },
+    {
+      width: size,
+      height: size,
+      borderRadius: size / 2,
+      backgroundColor: t.surface,
+    },
     ring ? { borderWidth: 1.5, borderColor: t.cardBg } : null,
   ];
   if (failed) {
@@ -795,7 +841,12 @@ const styles = StyleSheet.create({
   itemRight: { flexDirection: "row", alignItems: "center", gap: 8 },
   itemCal: { fontSize: 15, fontVariant: ["tabular-nums"] },
   itemBody: { marginTop: 14 },
-  confRow: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 12 },
+  confRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    marginBottom: 12,
+  },
   confMeta: { justifyContent: "center" },
   confCaption: { fontSize: 13 },
   confLabel: { fontSize: 16, fontWeight: "700", marginTop: 2 },

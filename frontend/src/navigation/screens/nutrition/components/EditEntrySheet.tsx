@@ -26,16 +26,23 @@ import { Ionicons } from "@expo/vector-icons";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { useThemeColors } from "../../../../hooks/useThemeColors";
 import { useNutrition } from "../../../../context/NutritionContext";
-import { FoodLogEntry, MeasureUnit, MeasureUnitKey } from "../../../../api/types";
-import { buildUnits, gramsPerUnit, unitLabel } from "../../../../utils/nutritionUnits";
+import {
+  FoodLogEntry,
+  MeasureUnit,
+  MeasureUnitKey,
+} from "../../../../api/types";
+import {
+  buildUnits,
+  gramsPerUnit,
+  unitLabel,
+} from "../../../../utils/nutritionUnits";
 import { BottomSheet } from "../../../../components/BottomSheet";
 import { MacroRing } from "./MacroRing";
 
 type Theme = ReturnType<typeof useThemeColors>;
 
 const round = (n: number | null | undefined) => Math.round(n ?? 0);
-const round1 = (n: number | null | undefined) =>
-  Math.round((n ?? 0) * 10) / 10;
+const round1 = (n: number | null | undefined) => Math.round((n ?? 0) * 10) / 10;
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 /**
@@ -189,10 +196,7 @@ export function EditEntrySheet({
   };
 
   // Edit one macro: keep the others, rescale calories to match (4/4/9).
-  const editMacro = (
-    which: "proteinG" | "carbsG" | "fatG",
-    text: string,
-  ) => {
+  const editMacro = (which: "proteinG" | "carbsG" | "fatG", text: string) => {
     const next = { ...macros, [which]: parseFloat(text) || 0 };
     if (which === "proteinG") setProteinText(text);
     else if (which === "carbsG") setCarbsText(text);
@@ -216,7 +220,9 @@ export function EditEntrySheet({
   const qtyStep = unitKey === "serving" ? 1 : 5;
   const stepQuantity = (delta: number) => {
     Haptics.selectionAsync().catch(() => {});
-    const next = round2(Math.max(qtyStep, (parseFloat(quantityText) || 0) + delta));
+    const next = round2(
+      Math.max(qtyStep, (parseFloat(quantityText) || 0) + delta),
+    );
     changeQuantity(String(next));
   };
 
@@ -290,127 +296,129 @@ export function EditEntrySheet({
         showsVerticalScrollIndicator={false}
       >
         <Pressable style={styles.content} onPress={() => Keyboard.dismiss()}>
-        <Text style={[styles.title, { color: t.text }]} numberOfLines={2}>
-          {shownTitle ?? shownEntry.description}
-        </Text>
+          <Text style={[styles.title, { color: t.text }]} numberOfLines={2}>
+            {shownTitle ?? shownEntry.description}
+          </Text>
 
-        {/* Macros + calories — at the top. Tap any number to edit it: editing
+          {/* Macros + calories — at the top. Tap any number to edit it: editing
             a macro rescales calories (4/4/9); calories can also be set
             directly. */}
-        <GlassCard glass={glassAvailable} t={t}>
-          <View style={styles.macroRow}>
-            <MacroRing
-              label="cal"
-              value={round(calories)}
-              valueText={caloriesText}
-              onChangeText={editCalories}
-              goal={goal?.calorieGoal ?? 0}
-              size={92}
-            />
-            <View style={styles.macroStats}>
-              <MacroStat
-                label="Carbs"
-                value={carbsText}
-                onChangeText={(v) => editMacro("carbsG", v)}
-                t={t}
+          <GlassCard glass={glassAvailable} t={t}>
+            <View style={styles.macroRow}>
+              <MacroRing
+                label="cal"
+                value={round(calories)}
+                valueText={caloriesText}
+                onChangeText={editCalories}
+                goal={goal?.calorieGoal ?? 0}
+                size={92}
               />
-              <MacroStat
-                label="Fat"
-                value={fatText}
-                onChangeText={(v) => editMacro("fatG", v)}
-                t={t}
-              />
-              <MacroStat
-                label="Protein"
-                value={proteinText}
-                onChangeText={(v) => editMacro("proteinG", v)}
-                t={t}
-              />
+              <View style={styles.macroStats}>
+                <MacroStat
+                  label="Carbs"
+                  value={carbsText}
+                  onChangeText={(v) => editMacro("carbsG", v)}
+                  t={t}
+                />
+                <MacroStat
+                  label="Fat"
+                  value={fatText}
+                  onChangeText={(v) => editMacro("fatG", v)}
+                  t={t}
+                />
+                <MacroStat
+                  label="Protein"
+                  value={proteinText}
+                  onChangeText={(v) => editMacro("proteinG", v)}
+                  t={t}
+                />
+              </View>
             </View>
-          </View>
-        </GlassCard>
+          </GlassCard>
 
-        {/* Serving size, quantity, and meal — at the bottom. Serving size and
+          {/* Serving size, quantity, and meal — at the bottom. Serving size and
             meal are matching dropdown rows; quantity is a +/- stepper. */}
-        <GlassCard glass={glassAvailable} t={t}>
-          <SelectRow
-            label="Serving Size"
-            valueKey={unitKey}
-            valueLabel={unitLabel(unitKey)}
-            options={unitOptions.map((u) => ({ key: u.key, label: u.label }))}
-            onSelect={(key) => changeUnit(key as MeasureUnitKey)}
-            isFirst
-            t={t}
-          />
+          <GlassCard glass={glassAvailable} t={t}>
+            <SelectRow
+              label="Serving Size"
+              valueKey={unitKey}
+              valueLabel={unitLabel(unitKey)}
+              options={unitOptions.map((u) => ({ key: u.key, label: u.label }))}
+              onSelect={(key) => changeUnit(key as MeasureUnitKey)}
+              isFirst
+              t={t}
+            />
 
-          <View style={[styles.row, separatorStyle(t)]}>
-            <Text style={[styles.rowLabel, { color: t.text }]}>{qtyLabel}</Text>
-            <View style={styles.stepper}>
-              <StepButton
-                icon="remove"
-                onPress={() => stepQuantity(-qtyStep)}
-                disabled={qty <= qtyStep}
-                glass={glassAvailable}
-                t={t}
-              />
-              <Text style={[styles.stepValue, { color: t.text }]}>
-                {quantityText}
+            <View style={[styles.row, separatorStyle(t)]}>
+              <Text style={[styles.rowLabel, { color: t.text }]}>
+                {qtyLabel}
               </Text>
-              <StepButton
-                icon="add"
-                onPress={() => stepQuantity(qtyStep)}
-                glass={glassAvailable}
-                t={t}
-              />
+              <View style={styles.stepper}>
+                <StepButton
+                  icon="remove"
+                  onPress={() => stepQuantity(-qtyStep)}
+                  disabled={qty <= qtyStep}
+                  glass={glassAvailable}
+                  t={t}
+                />
+                <Text style={[styles.stepValue, { color: t.text }]}>
+                  {quantityText}
+                </Text>
+                <StepButton
+                  icon="add"
+                  onPress={() => stepQuantity(qtyStep)}
+                  glass={glassAvailable}
+                  t={t}
+                />
+              </View>
             </View>
-          </View>
 
-          <SelectRow
-            label="Meal"
-            valueKey={category}
-            valueLabel={category}
-            options={categories.map((name) => ({ key: name, label: name }))}
-            onSelect={setCategory}
-            t={t}
-          />
-        </GlassCard>
+            <SelectRow
+              label="Meal"
+              valueKey={category}
+              valueLabel={category}
+              options={categories.map((name) => ({ key: name, label: name }))}
+              onSelect={setCategory}
+              t={t}
+            />
+          </GlassCard>
 
-        <TouchableOpacity
-          style={[styles.saveBtn, { backgroundColor: t.accent }]}
-          disabled={qty <= 0 || saving}
-          onPress={handleSave}
-        >
-          <Text style={[styles.saveBtnText, { color: t.accentText }]}>
-            {saving ? "Saving…" : "Save changes"}
-          </Text>
-        </TouchableOpacity>
-
-        {onRecalculate && (
           <TouchableOpacity
-            style={[styles.recalcBtn, { borderColor: t.border }]}
-            disabled={saving}
-            onPress={() => {
-              onRecalculate();
-              onClose();
-            }}
+            style={[styles.saveBtn, { backgroundColor: t.accent }]}
+            disabled={qty <= 0 || saving}
+            onPress={handleSave}
           >
-            <Text style={[styles.recalcBtnText, { color: t.tint }]}>
-              Recalculate
+            <Text style={[styles.saveBtnText, { color: t.accentText }]}>
+              {saving ? "Saving…" : "Save changes"}
             </Text>
           </TouchableOpacity>
-        )}
 
-        {onDelete && (
-          <TouchableOpacity
-            style={styles.deleteBtn}
-            disabled={saving}
-            onPress={onDelete}
-          >
-            <Text style={[styles.deleteBtnText, { color: t.danger }]}>
-              Delete entry
-            </Text>
-          </TouchableOpacity>
-        )}
+          {onRecalculate && (
+            <TouchableOpacity
+              style={[styles.recalcBtn, { borderColor: t.border }]}
+              disabled={saving}
+              onPress={() => {
+                onRecalculate();
+                onClose();
+              }}
+            >
+              <Text style={[styles.recalcBtnText, { color: t.tint }]}>
+                Recalculate
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {onDelete && (
+            <TouchableOpacity
+              style={styles.deleteBtn}
+              disabled={saving}
+              onPress={onDelete}
+            >
+              <Text style={[styles.deleteBtnText, { color: t.danger }]}>
+                Delete entry
+              </Text>
+            </TouchableOpacity>
+          )}
         </Pressable>
       </ScrollView>
     </BottomSheet>

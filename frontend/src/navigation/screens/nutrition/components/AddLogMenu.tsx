@@ -59,7 +59,11 @@ export function AddLogMenu({
             />
           }
         >
-          <Button label="Add food" systemImage="fork.knife" onPress={onAddFood} />
+          <Button
+            label="Add food"
+            systemImage="fork.knife"
+            onPress={onAddFood}
+          />
           <Button
             label="Add meal category"
             systemImage="folder.badge.plus"

@@ -27,9 +27,7 @@ export async function renameCategoryApi(
 }
 
 export async function deleteCategoryApi(name: string): Promise<void> {
-  await apiClient.delete(
-    `/nutrition/categories/${encodeURIComponent(name)}`,
-  );
+  await apiClient.delete(`/nutrition/categories/${encodeURIComponent(name)}`);
 }
 
 export async function setCategoryRecurringApi(

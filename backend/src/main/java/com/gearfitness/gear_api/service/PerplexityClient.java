@@ -30,10 +30,10 @@ import org.springframework.web.server.ResponseStatusException;
 @Slf4j
 public class PerplexityClient {
 
-  private static final String ENDPOINT = "https://api.perplexity.ai/chat/completions";
+  private static final String ENDPOINT =
+    "https://api.perplexity.ai/chat/completions";
 
-  private static final String SYSTEM_PROMPT =
-    """
+  private static final String SYSTEM_PROMPT = """
     You are a nutrition parser. The user describes food they ate in natural \
     language. Break it into individual food items and, for each, estimate the \
     nutrition for the amount described (quantities are already factored in).
@@ -143,7 +143,9 @@ public class PerplexityClient {
         .header("Content-Type", "application/json")
         .header("Accept", "application/json")
         .POST(
-          HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(payload))
+          HttpRequest.BodyPublishers.ofString(
+            mapper.writeValueAsString(payload)
+          )
         )
         .build();
 
@@ -292,7 +294,11 @@ public class PerplexityClient {
     int objStart = s.indexOf('{');
     int arrStart = s.indexOf('[');
     int start =
-      objStart < 0 ? arrStart : arrStart < 0 ? objStart : Math.min(objStart, arrStart);
+      objStart < 0
+        ? arrStart
+        : arrStart < 0
+          ? objStart
+          : Math.min(objStart, arrStart);
     if (start < 0) return s;
     char close = s.charAt(start) == '{' ? '}' : ']';
     int end = s.lastIndexOf(close);

@@ -247,9 +247,7 @@ export function CalorieTracker() {
   const createCategory = async (raw: string) => {
     const name = raw.trim();
     if (!name) return;
-    if (
-      categories.some((c) => c.toLowerCase() === name.toLowerCase())
-    ) {
+    if (categories.some((c) => c.toLowerCase() === name.toLowerCase())) {
       Alert.alert("Meal exists", `"${name}" is already a meal.`);
       return;
     }
@@ -266,7 +264,10 @@ export function CalorieTracker() {
         "Name this meal (e.g. Meal Prep)",
         [
           { text: "Cancel", style: "cancel" },
-          { text: "Add", onPress: (text?: string) => createCategory(text ?? "") },
+          {
+            text: "Add",
+            onPress: (text?: string) => createCategory(text ?? ""),
+          },
         ],
         "plain-text",
       );
@@ -401,9 +402,7 @@ export function CalorieTracker() {
         <TouchableOpacity
           activeOpacity={0.9}
           onPress={toggleSummary}
-          accessibilityLabel={
-            summaryCollapsed ? "Show macros" : "Hide macros"
-          }
+          accessibilityLabel={summaryCollapsed ? "Show macros" : "Hide macros"}
           style={[
             styles.summaryCard,
             {
@@ -670,13 +669,7 @@ export function CalorieTracker() {
 // A disclosure chevron that spins between 0 (collapsed, pointing right) and 90
 // degrees (expanded, pointing down) with a small spring, matching the card's
 // collapse animation.
-function DisclosureChevron({
-  open,
-  color,
-}: {
-  open: boolean;
-  color: string;
-}) {
+function DisclosureChevron({ open, color }: { open: boolean; color: string }) {
   const anim = useRef(new Animated.Value(open ? 1 : 0)).current;
 
   useEffect(() => {
@@ -869,7 +862,9 @@ function MealCard({
               />
             ) : (
               <View style={styles.mealTitleRow}>
-                <Text style={[styles.mealTitle, { color: t.text }]}>{name}</Text>
+                <Text style={[styles.mealTitle, { color: t.text }]}>
+                  {name}
+                </Text>
                 {recurring && (
                   <Ionicons name="repeat" size={14} color={t.secondary} />
                 )}

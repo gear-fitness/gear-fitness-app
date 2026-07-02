@@ -27,7 +27,12 @@ public class NutritionCache {
   @Column(name = "cache_id")
   private UUID cacheId;
 
-  @Column(name = "normalized_key", nullable = false, unique = true, length = 512)
+  @Column(
+    name = "normalized_key",
+    nullable = false,
+    unique = true,
+    length = 512
+  )
   private String normalizedKey;
 
   // JSON array of parsed foods: [{description,calories,proteinG,carbsG,fatG}]

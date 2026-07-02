@@ -300,7 +300,8 @@ function AiJournal({ selectedDate }: { selectedDate: string }) {
       // Only reap for a date we actually hold a local journal for. If the date
       // key is absent (fresh install, a second device, partial storage loss),
       // we don't know which AI rows are legitimate — never blind-delete them.
-      if (!Object.prototype.hasOwnProperty.call(entriesRef.current, date)) return;
+      if (!Object.prototype.hasOwnProperty.call(entriesRef.current, date))
+        return;
       const list = entriesRef.current[date] ?? [];
       if (list.some((e) => e.status === "pending" || e.status === "dirty")) {
         return;
@@ -415,7 +416,8 @@ function AiJournal({ selectedDate }: { selectedDate: string }) {
         const ids = JSON.parse(raw);
         if (Array.isArray(ids) && ids.length) {
           for (const id of ids) {
-            if (!graveyardRef.current.includes(id)) graveyardRef.current.push(id);
+            if (!graveyardRef.current.includes(id))
+              graveyardRef.current.push(id);
           }
           flushGraveyard();
         }
@@ -590,13 +592,11 @@ function AiJournal({ selectedDate }: { selectedDate: string }) {
             (e.detail?.entries ?? []).map((x) => x.entryId),
           ),
         );
-        const middle: Entry[] = paras
-          .slice(p, paras.length - s)
-          .map((tx) => ({
-            id: newId(),
-            text: tx,
-            status: statusForText(tx, "dirty"),
-          }));
+        const middle: Entry[] = paras.slice(p, paras.length - s).map((tx) => ({
+          id: newId(),
+          text: tx,
+          status: statusForText(tx, "dirty"),
+        }));
         return [...old.slice(0, p), ...middle, ...old.slice(old.length - s)];
       });
     },
@@ -681,7 +681,9 @@ function AiJournal({ selectedDate }: { selectedDate: string }) {
   const applyEntryEdit = useCallback(
     (lineId: string, oldEntryId: string, newEntry: FoodLogEntry) => {
       const date = dateRef.current;
-      const line = (entriesRef.current[date] ?? []).find((e) => e.id === lineId);
+      const line = (entriesRef.current[date] ?? []).find(
+        (e) => e.id === lineId,
+      );
       if (!line?.detail) return;
       const nextEntries = line.detail.entries.map((x) =>
         x.entryId === oldEntryId ? newEntry : x,
@@ -826,7 +828,12 @@ type AnimPhase =
   | "calculating"
   | "done";
 
-const PENDING_SEQUENCE: AnimPhase[] = ["dots", "thinking", "searching", "reading"];
+const PENDING_SEQUENCE: AnimPhase[] = [
+  "dots",
+  "thinking",
+  "searching",
+  "reading",
+];
 
 const WORD: Partial<Record<AnimPhase, string>> = {
   thinking: "Thinking",
@@ -978,9 +985,7 @@ function LineAnnotation({
   }
 
   if (entry.status === "dirty") {
-    return (
-      <Text style={[styles.annotation, { color: t.secondary }]}>…</Text>
-    );
+    return <Text style={[styles.annotation, { color: t.secondary }]}>…</Text>;
   }
 
   if (phase !== "done") {

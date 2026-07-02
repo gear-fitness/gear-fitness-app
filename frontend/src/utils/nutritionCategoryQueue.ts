@@ -24,7 +24,12 @@ import {
 export type PendingCategoryOp =
   | { kind: "rename"; from: string; to: string }
   | { kind: "delete"; name: string }
-  | { kind: "setRecurring"; name: string; value: boolean; recurringFrom?: string };
+  | {
+      kind: "setRecurring";
+      name: string;
+      value: boolean;
+      recurringFrom?: string;
+    };
 
 export interface PendingCategoryAction {
   id: string;

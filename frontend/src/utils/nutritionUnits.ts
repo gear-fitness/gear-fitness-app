@@ -12,15 +12,25 @@ import { FoodItem, MeasureUnit, MeasureUnitKey } from "../api/types";
  */
 
 // Grams per one of each non-serving unit.
-export const GENERIC_GRAMS: Record<Exclude<MeasureUnitKey, "serving">, number> =
-  {
-    g: 1,
-    oz: 28.3495,
-    cup: 240,
-    ml: 1,
-  };
+export const GENERIC_GRAMS: Record<
+  Exclude<MeasureUnitKey, "serving">,
+  number
+> = {
+  g: 1,
+  oz: 28.3495,
+  cup: 240,
+  ml: 1,
+};
 
-const VOLUME_HINTS = ["ml", "milliliter", "millilitre", "liter", "litre", "fl", "cup"];
+const VOLUME_HINTS = [
+  "ml",
+  "milliliter",
+  "millilitre",
+  "liter",
+  "litre",
+  "fl",
+  "cup",
+];
 
 /** Grams in one serving of a food (its serving size, defaulting to 100 g). */
 export function servingGramsOf(food: Pick<FoodItem, "servingSize">): number {
@@ -76,7 +86,8 @@ export function formatQuantity(
   unitKey: MeasureUnitKey,
 ): string {
   const n = Math.round(quantity * 100) / 100;
-  const label = n === 1 ? unitLabel(unitKey) : PLURAL[unitKey] ?? unitLabel(unitKey);
+  const label =
+    n === 1 ? unitLabel(unitKey) : (PLURAL[unitKey] ?? unitLabel(unitKey));
   return `${n} ${label}`;
 }
 

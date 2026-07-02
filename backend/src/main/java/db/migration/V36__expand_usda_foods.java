@@ -101,7 +101,11 @@ public class V36__expand_usda_foods extends BaseJavaMigration {
           insert.executeBatch();
           total += inBatch;
         }
-        System.out.println("[V36] Applied " + total + " food rows (new rows inserted, existing skipped).");
+        System.out.println(
+          "[V36] Applied " +
+            total +
+            " food rows (new rows inserted, existing skipped)."
+        );
       }
     }
   }

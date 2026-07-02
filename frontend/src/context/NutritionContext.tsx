@@ -89,11 +89,7 @@ type NutritionContextValue = {
 
 const NutritionContext = createContext<NutritionContextValue | null>(null);
 
-export function NutritionProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function NutritionProvider({ children }: { children: React.ReactNode }) {
   const [selectedDate, setSelectedDate] = useState<string>(
     getCurrentLocalDateString(),
   );
@@ -198,10 +194,9 @@ export function NutritionProvider({
     (updater: (prev: RecurringMap) => RecurringMap) => {
       setRecurringFrom((prev) => {
         const next = updater(prev);
-        AsyncStorage.setItem(
-          RECURRING_STORAGE_KEY,
-          JSON.stringify(next),
-        ).catch((err) => console.error("Failed to save recurring meals:", err));
+        AsyncStorage.setItem(RECURRING_STORAGE_KEY, JSON.stringify(next)).catch(
+          (err) => console.error("Failed to save recurring meals:", err),
+        );
         return next;
       });
     },

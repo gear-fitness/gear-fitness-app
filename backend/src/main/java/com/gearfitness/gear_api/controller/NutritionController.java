@@ -50,7 +50,11 @@ public class NutritionController {
    */
   @GetMapping("/foods/search")
   public ResponseEntity<List<FoodItemDTO>> searchFoods(
-    @RequestParam(value = "q", required = false, defaultValue = "") String query,
+    @RequestParam(
+      value = "q",
+      required = false,
+      defaultValue = ""
+    ) String query,
     @RequestParam(defaultValue = "0") int page,
     @RequestHeader("Authorization") String authHeader
   ) {
@@ -60,7 +64,13 @@ public class NutritionController {
     try {
       return ResponseEntity.ok(nutritionService.searchFoods(query, page));
     } catch (Exception e) {
-      log.error("searchFoods failed (query='{}', page={}): {}", query, page, e.getMessage(), e);
+      log.error(
+        "searchFoods failed (query='{}', page={}): {}",
+        query,
+        page,
+        e.getMessage(),
+        e
+      );
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
   }
@@ -81,7 +91,12 @@ public class NutritionController {
     try {
       return ResponseEntity.ok(nutritionService.getUserFoods(userId));
     } catch (Exception e) {
-      log.error("recentFoods failed (userId={}): {}", userId, e.getMessage(), e);
+      log.error(
+        "recentFoods failed (userId={}): {}",
+        userId,
+        e.getMessage(),
+        e
+      );
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
   }
@@ -101,7 +116,13 @@ public class NutritionController {
     } catch (IllegalArgumentException e) {
       return ResponseEntity.badRequest().build();
     } catch (Exception e) {
-      log.error("getDay failed (userId={}, date={}): {}", userId, date, e.getMessage(), e);
+      log.error(
+        "getDay failed (userId={}, date={}): {}",
+        userId,
+        date,
+        e.getMessage(),
+        e
+      );
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
   }
@@ -171,7 +192,13 @@ public class NutritionController {
     } catch (IllegalArgumentException e) {
       return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
     } catch (Exception e) {
-      log.error("deleteEntry failed (userId={}, entryId={}): {}", userId, entryId, e.getMessage(), e);
+      log.error(
+        "deleteEntry failed (userId={}, entryId={}): {}",
+        userId,
+        entryId,
+        e.getMessage(),
+        e
+      );
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
   }
@@ -224,7 +251,12 @@ public class NutritionController {
     try {
       return ResponseEntity.ok(nutritionService.recalculateGoal(userId));
     } catch (Exception e) {
-      log.error("recalculateGoal failed (userId={}): {}", userId, e.getMessage(), e);
+      log.error(
+        "recalculateGoal failed (userId={}): {}",
+        userId,
+        e.getMessage(),
+        e
+      );
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
   }

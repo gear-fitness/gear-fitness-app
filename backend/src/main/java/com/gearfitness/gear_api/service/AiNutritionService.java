@@ -106,7 +106,10 @@ public class AiNutritionService {
 
     String text = req.getText() == null ? "" : req.getText().trim();
     if (text.isEmpty()) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "AI_EMPTY_TEXT");
+      throw new ResponseStatusException(
+        HttpStatus.BAD_REQUEST,
+        "AI_EMPTY_TEXT"
+      );
     }
 
     String key = normalizeKey(text);
@@ -141,7 +144,11 @@ public class AiNutritionService {
       // server bug. Map to 502 so the client can offer a retry rather than
       // surfacing an opaque 500.
       log.error("Sonar parse failed for AI log: {}", e.getMessage());
-      throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "AI_UPSTREAM", e);
+      throw new ResponseStatusException(
+        HttpStatus.BAD_GATEWAY,
+        "AI_UPSTREAM",
+        e
+      );
     }
 
     return persistFreshParse(userId, req, key, result);
@@ -177,7 +184,11 @@ public class AiNutritionService {
   }
 
   /** Cache hit: bump hit stats and re-log the stored foods, in one transaction. */
-  private AiLogResponse replayCached(UUID userId, AiLogRequest req, NutritionCache hit) {
+  private AiLogResponse replayCached(
+    UUID userId,
+    AiLogRequest req,
+    NutritionCache hit
+  ) {
     List<ParsedFood> foods = deserializeFoods(hit.getParsedResult());
     List<String> sourceUrls = deserializeUrls(hit.getSourceUrls());
     String reasoning = hit.getReasoning() == null ? "" : hit.getReasoning();
@@ -187,9 +198,20 @@ public class AiNutritionService {
       hit.setHitCount(hit.getHitCount() + 1);
       hit.setLastHitAt(LocalDateTime.now());
       cacheRepository.save(hit);
-      List<LogEntryDTO> entries = logFoods(userId, req, foods, "AI_CACHE", sourceUrls);
+      List<LogEntryDTO> entries = logFoods(
+        userId,
+        req,
+        foods,
+        "AI_CACHE",
+        sourceUrls
+      );
       return new AiLogResponse(
-        entries, true, sourceUrls, reasoning, confidence, foods.isEmpty()
+        entries,
+        true,
+        sourceUrls,
+        reasoning,
+        confidence,
+        foods.isEmpty()
       );
     });
   }
@@ -235,7 +257,12 @@ public class AiNutritionService {
       logFoods(userId, req, foods, "AI_SONAR", sourceUrls)
     );
     return new AiLogResponse(
-      entries, false, sourceUrls, reasoning, confidence, foods.isEmpty()
+      entries,
+      false,
+      sourceUrls,
+      reasoning,
+      confidence,
+      foods.isEmpty()
     );
   }
 

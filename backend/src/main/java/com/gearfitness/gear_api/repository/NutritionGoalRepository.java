@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface NutritionGoalRepository
-  extends JpaRepository<NutritionGoal, UUID> {
+  extends JpaRepository<NutritionGoal, UUID>
+{
   Optional<NutritionGoal> findByUser_UserId(UUID userId);
 }
