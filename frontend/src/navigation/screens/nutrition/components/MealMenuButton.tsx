@@ -14,7 +14,7 @@ import { Host, Menu, Button, Toggle, Image } from "@expo/ui/swift-ui";
 // recurring / delete). On iOS it's a real SwiftUI Menu anchored to the pencil;
 // elsewhere it falls back to a plain button + Alert. `onSelected` is called after
 // any action fires so the caller can close the swipe row.
-export function MealMenuButton({
+function MealMenuButton({
   name,
   recurring,
   size = 44,

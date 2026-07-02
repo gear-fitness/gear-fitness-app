@@ -7,16 +7,14 @@ import com.gearfitness.gear_api.dto.FoodItemDTO;
 import com.gearfitness.gear_api.dto.LogEntryDTO;
 import com.gearfitness.gear_api.dto.LogFoodRequest;
 import com.gearfitness.gear_api.dto.NutritionGoalDTO;
-import com.gearfitness.gear_api.dto.SaveMealRequest;
-import com.gearfitness.gear_api.dto.SavedMealDTO;
 import com.gearfitness.gear_api.dto.UpdateGoalRequest;
 import com.gearfitness.gear_api.security.JwtService;
 import com.gearfitness.gear_api.service.AiNutritionService;
 import com.gearfitness.gear_api.service.NutritionService;
-import com.gearfitness.gear_api.service.SavedMealService;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -25,12 +23,26 @@ import org.springframework.web.server.ResponseStatusException;
 @RestController
 @RequestMapping("/api/nutrition")
 @RequiredArgsConstructor
+@Slf4j
 public class NutritionController {
 
   private final NutritionService nutritionService;
   private final AiNutritionService aiNutritionService;
-  private final SavedMealService savedMealService;
   private final JwtService jwtService;
+
+  /**
+   * Resolve the caller's id from the bearer token, or null if extraction fails.
+   * Callers turn a null into a 401 so a bad/missing token never falls through to
+   * the generic 500 catch below.
+   */
+  private UUID resolveUserId(String authHeader) {
+    try {
+      return jwtService.extractUserId(authHeader.substring(7));
+    } catch (Exception e) {
+      log.warn("JWT extraction failed: {}", e.getMessage());
+      return null;
+    }
+  }
 
   /**
    * Search the seeded USDA food database. A blank/absent query returns the
@@ -42,11 +54,13 @@ public class NutritionController {
     @RequestParam(defaultValue = "0") int page,
     @RequestHeader("Authorization") String authHeader
   ) {
+    if (resolveUserId(authHeader) == null) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
     try {
-      jwtService.extractUserId(authHeader.substring(7));
       return ResponseEntity.ok(nutritionService.searchFoods(query, page));
     } catch (Exception e) {
-      e.printStackTrace();
+      log.error("searchFoods failed (query='{}', page={}): {}", query, page, e.getMessage(), e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
   }
@@ -60,11 +74,14 @@ public class NutritionController {
   public ResponseEntity<List<FoodItemDTO>> recentFoods(
     @RequestHeader("Authorization") String authHeader
   ) {
+    UUID userId = resolveUserId(authHeader);
+    if (userId == null) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
     try {
-      UUID userId = jwtService.extractUserId(authHeader.substring(7));
       return ResponseEntity.ok(nutritionService.getUserFoods(userId));
     } catch (Exception e) {
-      e.printStackTrace();
+      log.error("recentFoods failed (userId={}): {}", userId, e.getMessage(), e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
   }
@@ -75,13 +92,16 @@ public class NutritionController {
     @RequestParam(required = false) String date,
     @RequestHeader("Authorization") String authHeader
   ) {
+    UUID userId = resolveUserId(authHeader);
+    if (userId == null) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
     try {
-      UUID userId = jwtService.extractUserId(authHeader.substring(7));
       return ResponseEntity.ok(nutritionService.getDay(userId, date));
     } catch (IllegalArgumentException e) {
       return ResponseEntity.badRequest().build();
     } catch (Exception e) {
-      e.printStackTrace();
+      log.error("getDay failed (userId={}, date={}): {}", userId, date, e.getMessage(), e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
   }
@@ -92,21 +112,24 @@ public class NutritionController {
     @RequestBody LogFoodRequest req,
     @RequestHeader("Authorization") String authHeader
   ) {
+    UUID userId = resolveUserId(authHeader);
+    if (userId == null) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
     try {
-      UUID userId = jwtService.extractUserId(authHeader.substring(7));
       return ResponseEntity.status(HttpStatus.CREATED).body(
         nutritionService.logFood(userId, req)
       );
     } catch (IllegalArgumentException e) {
       return ResponseEntity.badRequest().build();
     } catch (Exception e) {
-      e.printStackTrace();
+      log.error("logFood failed (userId={}): {}", userId, e.getMessage(), e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
   }
 
   /**
-   * Log food from natural-language text via AI (ULTRA tier). Parses the text
+   * Log food from natural-language text via AI (PLUS tier and above). Parses the text
    * with Perplexity Sonar (cached), then creates one entry per parsed food.
    */
   @PostMapping("/ai/log")
@@ -114,8 +137,11 @@ public class NutritionController {
     @RequestBody AiLogRequest req,
     @RequestHeader("Authorization") String authHeader
   ) {
+    UUID userId = resolveUserId(authHeader);
+    if (userId == null) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
     try {
-      UUID userId = jwtService.extractUserId(authHeader.substring(7));
       return ResponseEntity.status(HttpStatus.CREATED).body(
         aiNutritionService.aiLog(userId, req)
       );
@@ -125,40 +151,7 @@ public class NutritionController {
     } catch (IllegalArgumentException e) {
       return ResponseEntity.badRequest().build();
     } catch (Exception e) {
-      e.printStackTrace();
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-    }
-  }
-
-  /** Save a reusable meal (from the Smart Journal "Save as Meal" action). */
-  @PostMapping("/meals")
-  public ResponseEntity<SavedMealDTO> saveMeal(
-    @RequestBody SaveMealRequest req,
-    @RequestHeader("Authorization") String authHeader
-  ) {
-    try {
-      UUID userId = jwtService.extractUserId(authHeader.substring(7));
-      return ResponseEntity.status(HttpStatus.CREATED).body(
-        savedMealService.save(userId, req)
-      );
-    } catch (ResponseStatusException e) {
-      throw e;
-    } catch (Exception e) {
-      e.printStackTrace();
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-    }
-  }
-
-  /** List the current user's saved meals (most recent first). */
-  @GetMapping("/meals")
-  public ResponseEntity<List<SavedMealDTO>> listMeals(
-    @RequestHeader("Authorization") String authHeader
-  ) {
-    try {
-      UUID userId = jwtService.extractUserId(authHeader.substring(7));
-      return ResponseEntity.ok(savedMealService.list(userId));
-    } catch (Exception e) {
-      e.printStackTrace();
+      log.error("aiLog failed (userId={}): {}", userId, e.getMessage(), e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
   }
@@ -168,14 +161,17 @@ public class NutritionController {
     @PathVariable UUID entryId,
     @RequestHeader("Authorization") String authHeader
   ) {
+    UUID userId = resolveUserId(authHeader);
+    if (userId == null) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
     try {
-      UUID userId = jwtService.extractUserId(authHeader.substring(7));
       nutritionService.deleteEntry(userId, entryId);
       return ResponseEntity.noContent().build();
     } catch (IllegalArgumentException e) {
       return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
     } catch (Exception e) {
-      e.printStackTrace();
+      log.error("deleteEntry failed (userId={}, entryId={}): {}", userId, entryId, e.getMessage(), e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
   }
@@ -184,11 +180,14 @@ public class NutritionController {
   public ResponseEntity<NutritionGoalDTO> getGoal(
     @RequestHeader("Authorization") String authHeader
   ) {
+    UUID userId = resolveUserId(authHeader);
+    if (userId == null) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
     try {
-      UUID userId = jwtService.extractUserId(authHeader.substring(7));
       return ResponseEntity.ok(nutritionService.getGoal(userId));
     } catch (Exception e) {
-      e.printStackTrace();
+      log.error("getGoal failed (userId={}): {}", userId, e.getMessage(), e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
   }
@@ -199,13 +198,16 @@ public class NutritionController {
     @RequestBody UpdateGoalRequest req,
     @RequestHeader("Authorization") String authHeader
   ) {
+    UUID userId = resolveUserId(authHeader);
+    if (userId == null) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
     try {
-      UUID userId = jwtService.extractUserId(authHeader.substring(7));
       return ResponseEntity.ok(nutritionService.updateGoal(userId, req));
     } catch (IllegalArgumentException e) {
       return ResponseEntity.badRequest().build();
     } catch (Exception e) {
-      e.printStackTrace();
+      log.error("updateGoal failed (userId={}): {}", userId, e.getMessage(), e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
   }
@@ -215,11 +217,14 @@ public class NutritionController {
   public ResponseEntity<NutritionGoalDTO> recalculateGoal(
     @RequestHeader("Authorization") String authHeader
   ) {
+    UUID userId = resolveUserId(authHeader);
+    if (userId == null) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
     try {
-      UUID userId = jwtService.extractUserId(authHeader.substring(7));
       return ResponseEntity.ok(nutritionService.recalculateGoal(userId));
     } catch (Exception e) {
-      e.printStackTrace();
+      log.error("recalculateGoal failed (userId={}): {}", userId, e.getMessage(), e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
   }

@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
-  Dimensions,
   Image,
   LayoutAnimation,
   Linking,
@@ -11,6 +10,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
   ViewStyle,
 } from "react-native";
@@ -36,10 +36,6 @@ export interface AiLineDetail {
   sourceUrls: string[];
   fromCache: boolean;
 }
-
-// The sheet is content-sized, so cap the scroll area to a slice of the screen
-// (a percentage would resolve against the auto height and never scroll).
-const SHEET_MAX_HEIGHT = Dimensions.get("window").height * 0.82;
 
 const round = (n: number | null | undefined) => Math.round(n ?? 0);
 const round1 = (n: number | null | undefined) => Math.round((n ?? 0) * 10) / 10;
@@ -92,6 +88,11 @@ export function NutritionDetailSheet({
   const { summary } = useNutrition();
   const goal = summary?.goal;
   const [menuOpen, setMenuOpen] = useState(false);
+  // The sheet is content-sized, so cap the scroll area to a slice of the screen
+  // (a percentage would resolve against the auto height and never scroll).
+  // Read live so it stays correct across iPad rotation / split view.
+  const { height: windowHeight } = useWindowDimensions();
+  const sheetMaxHeight = windowHeight * 0.82;
 
   // Resolve liquid-glass support once; every card + header circle falls back to
   // a plain surface when it's unavailable (older iOS / Android).
@@ -133,7 +134,7 @@ export function NutritionDetailSheet({
       {heldDetail && (
         <>
         <ScrollView
-          style={styles.scroll}
+          style={{ maxHeight: sheetMaxHeight }}
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
@@ -700,7 +701,6 @@ function Favicon({
 }
 
 const styles = StyleSheet.create({
-  scroll: { maxHeight: SHEET_MAX_HEIGHT },
   content: { paddingHorizontal: 20, paddingBottom: 16 },
   headerRow: {
     flexDirection: "row",

@@ -91,14 +91,14 @@ export interface AiLogResult {
   noFood?: boolean;
   sourceUrls: string[];
   // Sonar's short explanation of the estimate + its 0–100 confidence. Surfaced
-  // in the nutrition-detail sheet's "Amy's thought process" panel.
+  // in the nutrition-detail sheet's "Gear's thought process" panel.
   reasoning?: string;
   confidence?: number;
 }
 
 /**
- * Log food from natural-language text via AI (ULTRA tier). One request may
- * create several entries (one per parsed food). Server-side gated: non-ULTRA
+ * Log food from natural-language text via AI (PLUS tier). One request may
+ * create several entries (one per parsed food). Server-side gated: non-PLUS
  * users get a 403.
  */
 export async function aiLogFood(payload: AiLogPayload): Promise<AiLogResult> {

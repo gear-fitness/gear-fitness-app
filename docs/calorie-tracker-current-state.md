@@ -6,6 +6,21 @@ This is a MyFitnessPal-style calorie & macro tracker: a seeded USDA food databas
 
 ---
 
+## Update (2026-07-02)
+
+The snapshot below predates the AI work. What has changed since:
+
+- **AI Smart Journal is real.** `SmartJournal.tsx` now has an AI mode: free text is parsed by Perplexity Sonar via `POST /api/nutrition/ai/log` (`AiNutritionService` + `PerplexityClient`), producing logged entries with reasoning, confidence, and source URLs (surfaced in `NutritionDetailSheet`). Results are cached in `nutrition_cache` (V38/V39). Spend is bounded by a global monthly cap plus a per-user daily cap. If `PERPLEXITY_API_KEY` is unset the app still boots; only the AI endpoint degrades. The plain AsyncStorage notepad remains the fallback for users below the gate.
+- **Tier gating exists now.** The AI journal is gated to **PLUS** on both frontend (`SmartJournal.tsx`) and backend (`AiNutritionService`). This is temporary: the long-term intent is to move it to ULTRA when that tier launches (~July 2026). The manual tracker remains ungated.
+- **New endpoints:** `POST /api/nutrition/ai/log` and `GET /api/nutrition/foods/recent` (suggested foods before typing in `AddFood`).
+- **Saved meals were built and then cut.** The `SavedMeal` entity/service/endpoints and `V40__saved_meal.sql` were removed before any deploy; no schema trace remains.
+- **Category UI moved to native menus.** `CategoryDropdown.tsx` and `CategoryMenuSheet.tsx` are gone, replaced by SwiftUI-backed menus via `@expo/ui`: `AddLogMenu` (add food/category), `MealSwipeLeftAction`/`MealMenuButton` (per-category actions), and an inline dropdown in `AddFood`.
+- **CameraLogMenu is a visible stub.** Scan barcode / take photo / choose from library render on the tracker but are intentionally no-ops for the TestFlight build.
+- **A `react-native` patch** (`frontend/patches/react-native+0.83.2.patch`, applied by patch-package) clamps the multiline caret height for the journal editor's custom line height.
+- **Deploy notes:** prod requires `PERPLEXITY_API_KEY` in the environment (boot survives without it, but the AI feature 503s), and first boot runs the 57k-row USDA seed (V33/V36/V37), which extends startup by tens of seconds.
+
+---
+
 ## 1. Schema
 
 All tables live in the main Postgres DB. Migrations are split: schema/data changes that are pure SQL are `*.sql` under `src/main/resources/db/migration/`; CSV-loading migrations are Java under `src/main/java/db/migration/`.

@@ -2,7 +2,6 @@ package com.gearfitness.gear_api.repository;
 
 import com.gearfitness.gear_api.entity.FoodItem;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -11,7 +10,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface FoodItemRepository extends JpaRepository<FoodItem, UUID> {
-  Optional<FoodItem> findByFdcId(Long fdcId);
 
   /**
    * Relevance-first food search. Ranks by a text-match tier (exact 100 >

@@ -4,10 +4,12 @@ import {
   Keyboard,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import {
@@ -74,6 +76,12 @@ export function EditEntrySheet({
   const t = useThemeColors();
   const { categories, summary, updateLog, getEntryUnitMeta } = useNutrition();
   const goal = summary?.goal;
+
+  // The content (~520-560pt) is taller than a small screen once the keyboard is
+  // up, so cap it to a slice of the window and let it scroll. Read live so it
+  // stays correct across rotation / split view.
+  const { height: windowHeight } = useWindowDimensions();
+  const sheetMaxHeight = windowHeight * 0.82;
 
   // Retain the last non-null entry (and heading) through BottomSheet's close
   // animation: callers close the sheet by nulling the entry, so without this
@@ -276,7 +284,12 @@ export function EditEntrySheet({
 
   return (
     <BottomSheet visible={visible} onClose={onClose} keyboardDismiss>
-      <Pressable style={styles.content} onPress={() => Keyboard.dismiss()}>
+      <ScrollView
+        style={{ maxHeight: sheetMaxHeight }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <Pressable style={styles.content} onPress={() => Keyboard.dismiss()}>
         <Text style={[styles.title, { color: t.text }]} numberOfLines={2}>
           {shownTitle ?? shownEntry.description}
         </Text>
@@ -398,7 +411,8 @@ export function EditEntrySheet({
             </Text>
           </TouchableOpacity>
         )}
-      </Pressable>
+        </Pressable>
+      </ScrollView>
     </BottomSheet>
   );
 }

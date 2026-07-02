@@ -34,10 +34,10 @@ import { faviconOf } from "./sources";
 /**
  * The "Smart journal" page of the calorie tracker.
  *
- * For non-ULTRA users it's a plain per-day notepad (iOS Notes style): one open
+ * For non-PLUS users it's a plain per-day notepad (iOS Notes style): one open
  * freeform text area, stored client-side in AsyncStorage as a date -> text map.
  *
- * For ULTRA users the whole page is a single shared note (again, iOS Notes
+ * For PLUS users the whole page is a single shared note (again, iOS Notes
  * style): entries are separated by newlines in one continuous text field, and
  * each non-empty line carries a floating calorie annotation on its right.
  * Editing a line marks it "…"; leaving it (newline, tap elsewhere, keyboard
@@ -89,7 +89,7 @@ type EntryStatus = "empty" | "dirty" | "pending" | "logged" | "error";
 
 /** Why a line ended in "error", so the annotation can explain and (where it
  *  helps) offer a retry. "nofood": parsed but no food recognized; "tier": the
- *  server rejected it (403, ULTRA lost); "upstream": transient AI/network fault. */
+ *  server rejected it (403, PLUS lost); "upstream": transient AI/network fault. */
 type ErrorKind = "upstream" | "tier" | "nofood";
 
 /** One line of the shared note. `id` is stable across edits so its logged
@@ -113,7 +113,7 @@ const statusForText = (text: string, nonEmpty: EntryStatus): EntryStatus =>
 
 export function SmartJournal({ selectedDate }: { selectedDate: string }) {
   const { atLeast } = useTier();
-  if (atLeast("ULTRA")) {
+  if (atLeast("PLUS")) {
     return <AiJournal selectedDate={selectedDate} />;
   }
   return <PlainJournal selectedDate={selectedDate} />;
@@ -960,7 +960,7 @@ function LineAnnotation({
   if (entry.status === "error") {
     const kind = entry.errorKind ?? "upstream";
     // "no food" and transient upstream faults are worth retrying; a tier
-    // rejection isn't (a retry won't restore ULTRA), so it just explains itself.
+    // rejection isn't (a retry won't restore PLUS), so it just explains itself.
     if (kind === "tier") {
       return (
         <Text style={[styles.annotation, { color: t.danger }]}>

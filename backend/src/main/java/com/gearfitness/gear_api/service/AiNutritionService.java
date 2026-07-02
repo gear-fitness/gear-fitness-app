@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -29,7 +30,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * AI natural-language food logging (ULTRA tier). Pipeline per request:
+ * AI natural-language food logging (PLUS tier and above). Pipeline per request:
  *   tier check -> spend guard -> cache check -> (miss) Sonar -> cache write ->
  *   log entries via {@link NutritionService#logFood}.
  *
@@ -48,6 +49,27 @@ public class AiNutritionService {
   private final ObjectMapper mapper = new ObjectMapper();
   private final TransactionTemplate txTemplate;
   private final int monthlyCap;
+  private final int userDailyCap;
+
+  // Per-user daily paid-call limiter. NOTE: this is in-memory, so the count
+  // resets on restart and is per-instance only (not shared across replicas). It
+  // is a cheap backstop so one user cannot drain the global monthly cap; a
+  // durable per-user quota would need a DB column (nutrition_cache has no
+  // user attribution today). Keyed by userId; each entry holds the day it
+  // counts for and the number of paid calls made that day.
+  private final ConcurrentHashMap<UUID, DailyCount> dailyCounts =
+    new ConcurrentHashMap<>();
+
+  private static final class DailyCount {
+
+    private final LocalDate day;
+    private int count;
+
+    private DailyCount(LocalDate day, int count) {
+      this.day = day;
+      this.count = count;
+    }
+  }
 
   public AiNutritionService(
     PerplexityClient perplexityClient,
@@ -55,7 +77,8 @@ public class AiNutritionService {
     NutritionService nutritionService,
     AppUserRepository appUserRepository,
     PlatformTransactionManager txManager,
-    @Value("${ai.nutrition.monthly-sonar-cap:500}") int monthlyCap
+    @Value("${ai.nutrition.monthly-sonar-cap:500}") int monthlyCap,
+    @Value("${perplexity.user.daily.cap:20}") int userDailyCap
   ) {
     this.perplexityClient = perplexityClient;
     this.cacheRepository = cacheRepository;
@@ -63,6 +86,7 @@ public class AiNutritionService {
     this.appUserRepository = appUserRepository;
     this.txTemplate = new TransactionTemplate(txManager);
     this.monthlyCap = monthlyCap;
+    this.userDailyCap = userDailyCap;
   }
 
   /**
@@ -76,7 +100,7 @@ public class AiNutritionService {
       .findById(userId)
       .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-    if (!user.getTier().atLeast(Tier.ULTRA)) {
+    if (!user.getTier().atLeast(Tier.PLUS)) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "AI_TIER");
     }
 
@@ -101,9 +125,17 @@ public class AiNutritionService {
       );
     }
 
+    // Per-user daily guard: only misses reach a paid Sonar call, so count and
+    // cap paid calls per user per day here. Cache hits above never get this far.
+    enforceDailyCap(userId);
+
     PerplexityResult result;
     try {
       result = perplexityClient.parse(text);
+    } catch (ResponseStatusException e) {
+      // Explicit client-visible status from the client layer (e.g. 503
+      // AI_UNAVAILABLE when the API key is unset). Propagate unchanged.
+      throw e;
     } catch (RuntimeException e) {
       // Timeout / non-2xx / unparseable upstream response — retryable, not a
       // server bug. Map to 502 so the client can offer a retry rather than
@@ -113,6 +145,35 @@ public class AiNutritionService {
     }
 
     return persistFreshParse(userId, req, key, result);
+  }
+
+  /**
+   * Per-user daily cap on paid Sonar calls, checked and incremented atomically
+   * only when a paid call is about to be made (cache hits never reach here).
+   * Stale-day entries are reset on access. When the cap is hit, mirror the
+   * global spend guard's 503 with a distinguishable AI_DAILY_LIMIT code.
+   */
+  private void enforceDailyCap(UUID userId) {
+    LocalDate today = LocalDate.now();
+    boolean[] exceeded = { false };
+    dailyCounts.compute(userId, (id, existing) -> {
+      if (existing == null || !existing.day.equals(today)) {
+        // First call of a new day (or first ever) resets the stale entry.
+        return new DailyCount(today, 1);
+      }
+      if (existing.count >= userDailyCap) {
+        exceeded[0] = true;
+        return existing;
+      }
+      existing.count++;
+      return existing;
+    });
+    if (exceeded[0]) {
+      throw new ResponseStatusException(
+        HttpStatus.SERVICE_UNAVAILABLE,
+        "AI_DAILY_LIMIT"
+      );
+    }
   }
 
   /** Cache hit: bump hit stats and re-log the stored foods, in one transaction. */

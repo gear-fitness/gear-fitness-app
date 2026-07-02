@@ -134,10 +134,14 @@ export function MacroRing({
               onChangeText={onChangeText}
               keyboardType="number-pad"
               selectTextOnFocus
+              maxFontSizeMultiplier={1.2}
               style={[styles.value, styles.valueInput, { color: t.text }]}
             />
           ) : (
-            <Text style={[styles.value, { color: t.text, fontSize: valueFontSize }]}>
+            <Text
+              style={[styles.value, { color: t.text, fontSize: valueFontSize }]}
+              maxFontSizeMultiplier={1.2}
+            >
               {value}
             </Text>
           )}

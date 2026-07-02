@@ -14,6 +14,7 @@ import {
   View,
 } from "react-native";
 import { useTheme } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FloatingKeyboardDismiss } from "./FloatingKeyboardDismiss";
 
 const SWIPE_CLOSE_DISTANCE = 80;
@@ -73,6 +74,10 @@ export function BottomSheet({
   bodyDrag = true,
 }: Props) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  // Inset-aware bottom padding: keeps notched devices close to the old 40pt
+  // while freeing vertical space on the iPhone SE (no home-indicator inset).
+  const sheetPaddingBottom = Math.max(insets.bottom + 8, 16);
   const targetBackdrop = backdropOpacity ?? BACKDROP_OPACITY;
   const [rendered, setRendered] = useState(visible);
   const translateY = useRef(new Animated.Value(OFFSCREEN)).current;
@@ -295,6 +300,7 @@ export function BottomSheet({
           {
             backgroundColor: colors.card,
             borderColor: colors.border,
+            paddingBottom: sheetPaddingBottom,
             transform: [{ translateY }],
           },
         ]}

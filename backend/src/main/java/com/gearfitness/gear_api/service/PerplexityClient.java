@@ -11,9 +11,12 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Thin HTTP client for Perplexity's OpenAI-compatible chat completions endpoint.
@@ -66,6 +69,8 @@ public class PerplexityClient {
   private final ObjectMapper mapper = new ObjectMapper();
   private final String apiKey;
   private final String model;
+  // Guards the missing-key WARN so it is logged once per process, not per call.
+  private final AtomicBoolean warnedMissingKey = new AtomicBoolean(false);
 
   public PerplexityClient(
     @Value("${perplexity.api.key}") String apiKey,
@@ -96,6 +101,20 @@ public class PerplexityClient {
   ) {}
 
   public PerplexityResult parse(String userText) {
+    // The API key is injected with an empty default so an unset PERPLEXITY_API_KEY
+    // does not kill startup. If it is blank we cannot make the paid call, so fail
+    // with the same client-visible 503 style the service uses for spend limits.
+    if (apiKey == null || apiKey.isBlank()) {
+      if (warnedMissingKey.compareAndSet(false, true)) {
+        log.warn(
+          "PERPLEXITY_API_KEY is not set; AI nutrition logging is disabled and will return 503 AI_UNAVAILABLE."
+        );
+      }
+      throw new ResponseStatusException(
+        HttpStatus.SERVICE_UNAVAILABLE,
+        "AI_UNAVAILABLE"
+      );
+    }
     try {
       ObjectNode payload = mapper.createObjectNode();
       payload.put("model", model);

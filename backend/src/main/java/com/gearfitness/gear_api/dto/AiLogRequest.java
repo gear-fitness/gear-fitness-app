@@ -3,7 +3,7 @@ package com.gearfitness.gear_api.dto;
 import lombok.Data;
 
 /**
- * Request to log food from natural-language text via AI (ULTRA tier). The text
+ * Request to log food from natural-language text via AI (PLUS tier and above). The text
  * is a single line the user typed in the Smart Journal, e.g. "2 eggs and toast".
  */
 @Data

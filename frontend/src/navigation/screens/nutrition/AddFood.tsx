@@ -14,6 +14,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { SearchBar } from "../../../components/SearchBar";
+import { FloatingKeyboardDismiss } from "../../../components/FloatingKeyboardDismiss";
 import { useThemeColors } from "../../../hooks/useThemeColors";
 import { useNutrition } from "../../../context/NutritionContext";
 import { getUserFoods, searchFoods } from "../../../api/nutritionService";
@@ -373,6 +374,8 @@ export function AddFood() {
           </Text>
         </Animated.View>
       )}
+
+      <FloatingKeyboardDismiss />
     </SafeAreaView>
   );
 }

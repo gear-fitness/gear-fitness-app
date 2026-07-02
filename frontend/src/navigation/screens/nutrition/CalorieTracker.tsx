@@ -427,7 +427,12 @@ export function CalorieTracker() {
                   Calories
                 </Text>
               )}
-              <Text style={[styles.calCount, { color: t.text }]}>
+              <Text
+                style={[styles.calCount, { color: t.text }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+              >
                 {consumed}
                 <Text style={[styles.calGoal, { color: t.secondary }]}>
                   {" / "}
@@ -998,7 +1003,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  calHeaderLeft: { flexDirection: "row", alignItems: "baseline", gap: 8 },
+  calHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 8,
+    flexShrink: 1,
+  },
   calLabel: { fontSize: 13, fontWeight: "600" },
   calCount: { fontSize: 20, fontWeight: "700" },
   calGoal: { fontSize: 20, fontWeight: "700" },
