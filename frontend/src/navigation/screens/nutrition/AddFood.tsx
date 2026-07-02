@@ -15,7 +15,7 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import { SearchBar } from "../../../components/SearchBar";
 import { useThemeColors } from "../../../hooks/useThemeColors";
 import { useNutrition } from "../../../context/NutritionContext";
-import { searchFoods } from "../../../api/nutritionService";
+import { getUserFoods, searchFoods } from "../../../api/nutritionService";
 import { FoodItem, MeasureUnit, MeasureUnitKey } from "../../../api/types";
 import {
   buildUnits,
@@ -100,18 +100,18 @@ export function AddFood() {
 
   const isSearching = query.trim().length >= 2;
 
-  // Both the pre-search browse list and search results come from the same
-  // /nutrition/foods/search endpoint (a blank query returns the browse list),
-  // so there is a single food source — the seeded food_item table.
+  // Search results come from /nutrition/foods/search. Before the user types,
+  // show their own foods (recent + frequent) from /nutrition/foods/recent
+  // instead of a generic list — both return the same FoodItem shape.
   useEffect(() => {
     const q = query.trim();
-    const apiQuery = q.length >= 2 ? q : "";
+    const searching = q.length >= 2;
     setLoading(true);
     const id = ++reqId.current;
     const handle = setTimeout(
       async () => {
         try {
-          const data = await searchFoods(apiQuery);
+          const data = searching ? await searchFoods(q) : await getUserFoods();
           if (reqId.current === id) setResults(data);
         } catch (err) {
           console.error("Food search failed:", err);
@@ -120,8 +120,8 @@ export function AddFood() {
           if (reqId.current === id) setLoading(false);
         }
       },
-      // Debounce real searches; load the browse list immediately on mount.
-      q.length >= 2 ? 300 : 0,
+      // Debounce real searches; load the user's foods immediately on mount.
+      searching ? 300 : 0,
     );
     return () => clearTimeout(handle);
   }, [query]);
@@ -214,9 +214,13 @@ export function AddFood() {
         keyboardDismissMode="on-drag"
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
-          <Text style={[styles.sectionLabel, { color: t.secondary }]}>
-            {isSearching ? "Results" : "Popular foods"}
-          </Text>
+          // Hide the section label when there are no suggestions yet, so the
+          // "start logging" prompt stands on its own.
+          results.length === 0 && !isSearching && !loading ? null : (
+            <Text style={[styles.sectionLabel, { color: t.secondary }]}>
+              {isSearching ? "Results" : "Suggested"}
+            </Text>
+          )
         }
         ListEmptyComponent={
           loading ? (
@@ -225,7 +229,21 @@ export function AddFood() {
             <Text style={[styles.empty, { color: t.secondary }]}>
               No foods found
             </Text>
-          ) : null
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons
+                name="restaurant-outline"
+                size={64}
+                color={t.border}
+              />
+              <Text style={[styles.emptyText, { color: t.text }]}>
+                No suggestions yet
+              </Text>
+              <Text style={[styles.emptySubtext, { color: t.secondary }]}>
+                Start logging to get suggestions!
+              </Text>
+            </View>
+          )
         }
         renderItem={({ item }) => (
           <FoodRow
@@ -552,7 +570,7 @@ const styles = StyleSheet.create({
   categoryText: { fontSize: 17, fontWeight: "700" },
   headerSpacer: { width: 26 },
   searchWrap: { paddingHorizontal: 16, paddingBottom: 8 },
-  listContent: { paddingHorizontal: 16, paddingBottom: 32 },
+  listContent: { flexGrow: 1, paddingHorizontal: 16, paddingBottom: 32 },
   sectionLabel: {
     fontSize: 13,
     fontWeight: "600",
@@ -641,6 +659,14 @@ const styles = StyleSheet.create({
   },
   logBtnText: { fontSize: 16, fontWeight: "700" },
   empty: { textAlign: "center", marginTop: 32, fontSize: 14 },
+  emptyState: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 32,
+  },
+  emptyText: { fontSize: 20, fontWeight: "600", marginTop: 16 },
+  emptySubtext: { fontSize: 14, marginTop: 8, textAlign: "center" },
   dropdownOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: "center",

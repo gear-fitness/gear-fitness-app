@@ -52,7 +52,7 @@ const BLUE = "#2F6FED";
 // Note-editor geometry. The measurer, the text field, and the annotation
 // overlay all share these so per-line annotations line up with their line.
 const FONT_SIZE = 20;
-const LINE_HEIGHT = 30;
+const LINE_HEIGHT = 34;
 const PAD_TOP = 8;
 const PAD_H = 20; // left inset and right edge inset
 const GUTTER = 96; // right-hand space reserved for the annotation
@@ -170,6 +170,11 @@ function AiJournal({ selectedDate }: { selectedDate: string }) {
   const [entriesByDate, setEntriesByDate] = useState<EntriesByDate>({});
   const [heights, setHeights] = useState<number[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
+
+  // Whether the note is actively being edited. The editor is only focusable
+  // through an explicit tap (a transparent Pressable), so a horizontal pager
+  // swipe between Manual entry ↔ Smart journal never opens the keyboard.
+  const [editing, setEditing] = useState(false);
 
   const [detailEntry, setDetailEntry] = useState<Entry | null>(null);
   // The food entry being edited in the shared EditEntrySheet, plus the journal
@@ -588,7 +593,11 @@ function AiJournal({ selectedDate }: { selectedDate: string }) {
             value={value}
             onChangeText={onChangeText}
             onSelectionChange={onSelectionChange}
-            onBlur={onBlur}
+            onFocus={() => setEditing(true)}
+            onBlur={() => {
+              onBlur();
+              setEditing(false);
+            }}
             multiline
             scrollEnabled={false}
             placeholder="e.g. 2 eggs and oatmeal"
@@ -610,6 +619,17 @@ function AiJournal({ selectedDate }: { selectedDate: string }) {
               </Text>
             ))}
           </View>
+
+          {/* Tap-to-focus catcher. While not editing it sits above the text and
+              only fires on a true tap — a pager swipe drags right past it, so
+              switching sections never opens the keyboard. Removed once editing
+              so taps reach the field (to reposition the cursor). */}
+          {!editing && (
+            <Pressable
+              style={StyleSheet.absoluteFill}
+              onPress={() => inputRef.current?.focus()}
+            />
+          )}
 
           {/* Annotation overlay: one floating status per non-empty line. */}
           <View style={StyleSheet.absoluteFill} pointerEvents="box-none">

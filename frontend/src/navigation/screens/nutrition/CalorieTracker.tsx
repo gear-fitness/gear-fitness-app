@@ -1,8 +1,8 @@
 import React, { useCallback, useRef, useState } from "react";
 import {
   Alert,
+  Dimensions,
   Keyboard,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,7 +13,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import { MenuView, MenuAction } from "@react-native-menu/menu";
 import * as Haptics from "expo-haptics";
 import PagerView from "react-native-pager-view";
 import { useThemeColors } from "../../../hooks/useThemeColors";
@@ -28,6 +27,10 @@ import {
 } from "../../../utils/date";
 import { MacroRing } from "./components/MacroRing";
 import { EditEntrySheet } from "./components/EditEntrySheet";
+import {
+  CategoryDropdown,
+  CategoryMenuAnchor,
+} from "./components/CategoryDropdown";
 import { SmartJournal } from "./components/SmartJournal";
 import { progressColor } from "./components/progressColor";
 import { FloatingKeyboardDismiss } from "../../../components/FloatingKeyboardDismiss";
@@ -95,16 +98,12 @@ export function CalorieTracker() {
   const [editingEntry, setEditingEntry] = useState<FoodLogEntry | null>(null);
   const [renamingCategory, setRenamingCategory] = useState<string | null>(null);
   const [renameText, setRenameText] = useState("");
+  const [menuAnchor, setMenuAnchor] = useState<CategoryMenuAnchor | null>(null);
 
   // Which logging section is showing: 0 = Manual entry, 1 = Smart journal.
   // Driven by the pager's onPageSelected; the dots/title read from it.
   const [activeSection, setActiveSection] = useState(0);
   const pagerRef = useRef<PagerView>(null);
-
-  // Delete a logged row (chosen from its hold-to-open native menu).
-  const removeEntry = (entry: FoodLogEntry) => {
-    removeLog(entry.entryId);
-  };
 
   useFocusEffect(
     useCallback(() => {
@@ -181,36 +180,7 @@ export function CalorieTracker() {
     setRenameText(name);
   };
 
-  // Native dropdown actions for a category's ⋯ button.
-  const categoryMenuActions = (name: string): MenuAction[] => [
-    {
-      id: "recurring",
-      title: "Make recurring",
-      state: isRecurring(name) ? "on" : "off",
-      image: Platform.select({ ios: "repeat" }),
-    },
-    {
-      id: "rename",
-      title: "Rename",
-      image: Platform.select({ ios: "pencil" }),
-    },
-    {
-      id: "delete",
-      title: "Delete",
-      attributes: { destructive: true },
-      image: Platform.select({ ios: "trash" }),
-    },
-  ];
-
-  const onCategoryMenuAction = (name: string, actionId: string) => {
-    if (actionId === "recurring") {
-      setCategoryRecurring(name, !isRecurring(name));
-    } else if (actionId === "rename") {
-      startRename(name);
-    } else if (actionId === "delete") {
-      handleDeleteCategory(name);
-    }
-  };
+  const menuName = menuAnchor?.name ?? null;
 
   const submitRename = async () => {
     const next = renameText.trim();
@@ -360,6 +330,7 @@ export function CalorieTracker() {
         initialPage={0}
         onPageSelected={(e) => {
           Keyboard.dismiss();
+          Haptics.selectionAsync().catch(() => {});
           setActiveSection(e.nativeEvent.position);
         }}
       >
@@ -412,24 +383,11 @@ export function CalorieTracker() {
                   <Text style={[styles.mealCals, { color: t.secondary }]}>
                     {catCals} cal
                   </Text>
-                  <MenuView
-                    title={name}
-                    onPressAction={({ nativeEvent }) =>
-                      onCategoryMenuAction(name, nativeEvent.event)
-                    }
-                    actions={categoryMenuActions(name)}
-                  >
-                    <View
-                      style={styles.menuTrigger}
-                      accessibilityLabel={`${name} options`}
-                    >
-                      <Ionicons
-                        name="ellipsis-horizontal"
-                        size={18}
-                        color={t.secondary}
-                      />
-                    </View>
-                  </MenuView>
+                  <CategoryMenuButton
+                    name={name}
+                    color={t.secondary}
+                    onOpen={setMenuAnchor}
+                  />
                 </View>
               </View>
 
@@ -439,7 +397,6 @@ export function CalorieTracker() {
                   entry={e}
                   subtitle={entrySubtitle(e, getEntryUnitMeta(e.entryId))}
                   onPress={() => setEditingEntry(e)}
-                  onDelete={() => removeEntry(e)}
                 />
               ))}
 
@@ -536,6 +493,30 @@ export function CalorieTracker() {
         entry={editingEntry}
         visible={editingEntry !== null}
         onClose={() => setEditingEntry(null)}
+        onDelete={() => {
+          if (editingEntry) removeLog(editingEntry.entryId);
+          setEditingEntry(null);
+        }}
+      />
+
+      <CategoryDropdown
+        anchor={menuAnchor}
+        recurring={menuName ? isRecurring(menuName) : false}
+        onClose={() => setMenuAnchor(null)}
+        onToggleRecurring={() => {
+          if (menuName) setCategoryRecurring(menuName, !isRecurring(menuName));
+          setMenuAnchor(null);
+        }}
+        onRename={() => {
+          const name = menuName;
+          setMenuAnchor(null);
+          if (name) startRename(name);
+        }}
+        onDelete={() => {
+          const name = menuName;
+          setMenuAnchor(null);
+          if (name) handleDeleteCategory(name);
+        }}
       />
 
       <FloatingKeyboardDismiss />
@@ -543,77 +524,89 @@ export function CalorieTracker() {
   );
 }
 
+// The ⋯ button for a meal category. Measures itself on press so the dropdown
+// can anchor just under its right edge.
+function CategoryMenuButton({
+  name,
+  color,
+  onOpen,
+}: {
+  name: string;
+  color: string;
+  onOpen: (anchor: CategoryMenuAnchor) => void;
+}) {
+  const ref = useRef<React.ElementRef<typeof TouchableOpacity>>(null);
+  const open = () => {
+    ref.current?.measureInWindow((x, y, w, h) => {
+      const screenWidth = Dimensions.get("window").width;
+      onOpen({
+        name,
+        top: y + h + 4,
+        right: Math.max(screenWidth - (x + w), 8),
+      });
+    });
+  };
+  return (
+    <TouchableOpacity
+      ref={ref}
+      hitSlop={10}
+      onPress={open}
+      style={styles.menuTrigger}
+      accessibilityLabel={`${name} options`}
+    >
+      <Ionicons name="ellipsis-horizontal" size={18} color={color} />
+    </TouchableOpacity>
+  );
+}
+
 function MealEntryRow({
   entry,
   subtitle,
   onPress,
-  onDelete,
 }: {
   entry: FoodLogEntry;
   subtitle: string;
   onPress: () => void;
-  onDelete: () => void;
 }) {
   const t = useThemeColors();
+
   return (
     <View style={styles.entryWrapper}>
-      {/* Tap edits; hold opens a native menu to delete, buzzing as it opens. */}
-      <MenuView
-        title={entry.description}
-        shouldOpenOnLongPress
-        onOpenMenu={() =>
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(
-            () => {},
-          )
-        }
-        onPressAction={({ nativeEvent }) => {
-          if (nativeEvent.event === "delete") onDelete();
-        }}
-        actions={[
-          {
-            id: "delete",
-            title: "Delete",
-            attributes: { destructive: true },
-            image: Platform.select({ ios: "trash" }),
-          },
+      {/* Tap opens the edit sheet (which is also where a food is deleted). */}
+      <TouchableOpacity
+        style={[
+          styles.entryRow,
+          { backgroundColor: t.surface, borderColor: t.border },
         ]}
+        onPress={onPress}
+        activeOpacity={0.7}
+        accessibilityLabel={`Edit ${entry.description}`}
       >
-        <TouchableOpacity
-          style={[
-            styles.entryRow,
-            { backgroundColor: t.surface, borderColor: t.border },
-          ]}
-          onPress={onPress}
-          activeOpacity={0.7}
-          accessibilityLabel={`Edit ${entry.description}`}
-          accessibilityHint="Hold to delete"
-        >
-          <View style={styles.entryInfo}>
-            <Text
-              style={[styles.entryName, { color: t.text }]}
-              numberOfLines={1}
-            >
-              {entry.description}
-            </Text>
-            <Text style={[styles.entryMeta, { color: t.secondary }]}>
-              {subtitle}
-            </Text>
-          </View>
-          <Text style={[styles.entryCals, { color: t.text }]}>
-            {round(entry.calories)}
-            <Text style={[styles.entryCalUnit, { color: t.secondary }]}>
-              {" "}
-              cal
-            </Text>
+        <View style={styles.entryInfo}>
+          <Text
+            style={[styles.entryName, { color: t.text }]}
+            numberOfLines={1}
+          >
+            {entry.description}
           </Text>
-          <Ionicons
-            name="chevron-forward"
-            size={18}
-            color={t.secondary}
-            style={styles.entryChevron}
-          />
-        </TouchableOpacity>
-      </MenuView>
+          <Text style={[styles.entryMeta, { color: t.secondary }]}>
+            {subtitle}
+          </Text>
+        </View>
+        <Text style={[styles.entryCals, { color: t.text }]}>
+          {round(entry.calories)}
+          <Text style={[styles.entryCalUnit, { color: t.secondary }]}>
+            {" "}
+            cal
+          </Text>
+        </Text>
+        <Ionicons
+          name="chevron-forward"
+          size={18}
+          color={t.secondary}
+          style={styles.entryChevron}
+        />
+      </TouchableOpacity>
     </View>
   );
 }

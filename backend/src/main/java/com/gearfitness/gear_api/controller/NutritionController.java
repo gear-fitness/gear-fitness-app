@@ -51,6 +51,24 @@ public class NutritionController {
     }
   }
 
+  /**
+   * The user's own foods (recent + frequent), shown by the Add Food screen
+   * before the user types. Falls back to the popular browse list for users
+   * with no logging history.
+   */
+  @GetMapping("/foods/recent")
+  public ResponseEntity<List<FoodItemDTO>> recentFoods(
+    @RequestHeader("Authorization") String authHeader
+  ) {
+    try {
+      UUID userId = jwtService.extractUserId(authHeader.substring(7));
+      return ResponseEntity.ok(nutritionService.getUserFoods(userId));
+    } catch (Exception e) {
+      e.printStackTrace();
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+    }
+  }
+
   /** Goal, consumed totals, and logged entries for a given day. */
   @GetMapping("/day")
   public ResponseEntity<DaySummaryDTO> getDay(

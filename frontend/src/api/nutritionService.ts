@@ -28,6 +28,17 @@ export async function searchFoods(
   return (data ?? []).map((f) => ({ ...f, units: unitsForFood(f) }));
 }
 
+/**
+ * The user's own foods (recent + frequent), shown by the Add Food screen before
+ * the user types. Same shape as searchFoods so it renders through FoodRow
+ * unchanged; falls back server-side to the popular list for new users.
+ */
+export async function getUserFoods(): Promise<FoodItem[]> {
+  const { data } = await apiClient.get<FoodItem[]>("/nutrition/foods/recent");
+  // Attach the client-derived set of valid units of measure for each food.
+  return (data ?? []).map((f) => ({ ...f, units: unitsForFood(f) }));
+}
+
 export async function getDay(date: string): Promise<DaySummary> {
   const { data } = await apiClient.get<DaySummary>("/nutrition/day", {
     params: { date },

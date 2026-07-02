@@ -36,6 +36,7 @@ export function EditEntrySheet({
   onClose,
   onSaved,
   onRecalculate,
+  onDelete,
   titleText,
 }: {
   entry: FoodLogEntry | null;
@@ -47,6 +48,9 @@ export function EditEntrySheet({
   /** When provided (AI Smart Journal entries), shows a "Recalculate"
    *  action that re-parses the food instead of hand-editing it. */
   onRecalculate?: () => void;
+  /** When provided (manual entries), shows a "Delete" action that removes the
+   *  logged food. The caller performs the delete and closes the sheet. */
+  onDelete?: () => void;
   /** Heading to show instead of the entry's parsed description — the Smart
    *  Journal passes the exact text the user typed for that line. */
   titleText?: string;
@@ -427,6 +431,18 @@ export function EditEntrySheet({
               </Text>
             </TouchableOpacity>
           )}
+
+          {onDelete && (
+            <TouchableOpacity
+              style={styles.deleteBtn}
+              disabled={saving}
+              onPress={onDelete}
+            >
+              <Text style={[styles.deleteBtnText, { color: t.danger }]}>
+                Delete entry
+              </Text>
+            </TouchableOpacity>
+          )}
       </Pressable>
     </BottomSheet>
   );
@@ -552,4 +568,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   recalcBtnText: { fontSize: 16, fontWeight: "600" },
+  deleteBtn: {
+    marginTop: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  deleteBtnText: { fontSize: 16, fontWeight: "600" },
 });

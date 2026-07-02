@@ -63,4 +63,37 @@ public interface FoodItemRepository extends JpaRepository<FoodItem, UUID> {
     nativeQuery = true
   )
   List<FoodItem> browse(@Param("limit") int limit, @Param("offset") int offset);
+
+  /**
+   * The user's own foods, ranked by a recency + frequency hybrid so their
+   * staples and recently-eaten foods lead the Add Food screen's pre-search
+   * list. Frequency (log count) is the base score; recently-logged foods get a
+   * bonus so they surface first. Only entries linked to a real food are
+   * considered (quick-add / AI entries have a null food_id). Native so it can
+   * aggregate over food_log_entry and reuse the food_item mapping.
+   */
+  @Query(
+    value = """
+        SELECT f.* FROM food_item f
+        JOIN (
+          SELECT food_id, COUNT(*) AS cnt, MAX(created_at) AS last_at
+          FROM food_log_entry
+          WHERE user_id = :userId AND food_id IS NOT NULL
+          GROUP BY food_id
+        ) agg ON f.food_id = agg.food_id
+        ORDER BY
+          (agg.cnt + CASE
+             WHEN agg.last_at > NOW() - INTERVAL '2 days'  THEN 4
+             WHEN agg.last_at > NOW() - INTERVAL '7 days'  THEN 2
+             WHEN agg.last_at > NOW() - INTERVAL '30 days' THEN 1
+             ELSE 0 END) DESC,
+          agg.last_at DESC
+        LIMIT :limit
+    """,
+    nativeQuery = true
+  )
+  List<FoodItem> findUserFoods(
+    @Param("userId") UUID userId,
+    @Param("limit") int limit
+  );
 }

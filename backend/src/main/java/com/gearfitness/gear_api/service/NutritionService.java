@@ -49,6 +49,20 @@ public class NutritionService {
     return items.stream().map(FoodItemDTO::from).collect(Collectors.toList());
   }
 
+  /**
+   * The user's own foods (recent + frequent) suggested by the Add Food screen
+   * before the user types. Returns an empty list for users with no logging
+   * history — the client then prompts them to start logging rather than showing
+   * a generic list, so these stay genuine suggestions.
+   */
+  public List<FoodItemDTO> getUserFoods(UUID userId) {
+    return foodItemRepository
+      .findUserFoods(userId, DEFAULT_PAGE_SIZE)
+      .stream()
+      .map(FoodItemDTO::from)
+      .collect(Collectors.toList());
+  }
+
   // ------------------------------------------------------------------- day
 
   @Transactional
