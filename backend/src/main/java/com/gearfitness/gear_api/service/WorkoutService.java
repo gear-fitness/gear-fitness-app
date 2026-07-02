@@ -444,17 +444,18 @@ public class WorkoutService {
 
         // activity_type is NOT NULL in the schema. Skip entries with no activity
         // rather than letting a null/blank value fail at flush.
-        String activityType = cardioDto.getActivityType() == null
-          ? null
-          : cardioDto.getActivityType().trim();
+        String activityType =
+          cardioDto.getActivityType() == null
+            ? null
+            : cardioDto.getActivityType().trim();
         if (activityType == null || activityType.isEmpty()) {
           continue;
         }
         if (activityType.length() > MAX_ACTIVITY_TYPE_LENGTH) {
           throw new IllegalArgumentException(
             "Cardio activity type must be " +
-            MAX_ACTIVITY_TYPE_LENGTH +
-            " characters or fewer"
+              MAX_ACTIVITY_TYPE_LENGTH +
+              " characters or fewer"
           );
         }
 
@@ -462,9 +463,13 @@ public class WorkoutService {
           .workout(workout)
           .activityType(activityType)
           .durationSeconds(durationSeconds)
-          .distanceMeters(clampDistance(parseDecimal(cardioDto.getDistanceMeters())))
+          .distanceMeters(
+            clampDistance(parseDecimal(cardioDto.getDistanceMeters()))
+          )
           .caloriesBurned(cardioDto.getCaloriesBurned())
-          .intensityLevel(clampIntensity(parseDecimal(cardioDto.getIntensityLevel())))
+          .intensityLevel(
+            clampIntensity(parseDecimal(cardioDto.getIntensityLevel()))
+          )
           .notes(cardioDto.getNotes())
           .position(cardioPosition++)
           .build();

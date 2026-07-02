@@ -679,9 +679,7 @@ export function WorkoutTimerProvider({
     setImmediateSaveCounter((c) => c + 1);
     setCardioEntries((prev) =>
       prev.map((e) =>
-        e.workoutCardioId === workoutCardioId
-          ? { ...e, ...updatedFields }
-          : e,
+        e.workoutCardioId === workoutCardioId ? { ...e, ...updatedFields } : e,
       ),
     );
   };

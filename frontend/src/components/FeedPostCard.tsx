@@ -14,12 +14,9 @@ import {
 } from "react-native";
 import { Text } from "@react-navigation/elements";
 import { Ionicons } from "@expo/vector-icons";
-import { SymbolView } from "expo-symbols";
 import { useNavigation, useTheme } from "@react-navigation/native";
 import { FeedPost } from "../api/socialFeedApi";
 import { parseLocalDate, formatTimeAgo } from "../utils/date";
-import { formatTag } from "../utils/formatTag";
-import { formatCardioDuration } from "../utils/cardio";
 import { useAuth } from "../context/AuthContext";
 import { useLikeState } from "../context/LikesContext";
 import { usePostMenu } from "../hooks/usePostMenu";
@@ -189,24 +186,9 @@ export function FeedPostCard({ post, isPending = false }: Props) {
   const contentPaddingHorizontal = 16;
 
   const cardioCount = post.cardioCount ?? 0;
-  const hasCardio = cardioCount > 0;
-  // Compact cardio line: "🏃 Run · 32:00" when the activity is known, else a
-  // plain count. "+N more" hints at additional cardio entries.
-  let cardioLabel: string | null = null;
-  if (hasCardio) {
-    if (post.cardioActivityType) {
-      const parts = [post.cardioActivityType];
-      if (post.cardioDurationSeconds != null) {
-        parts.push(formatCardioDuration(post.cardioDurationSeconds));
-      }
-      cardioLabel = parts.join(" · ");
-      if (cardioCount > 1) cardioLabel += ` · +${cardioCount - 1} more`;
-    } else {
-      cardioLabel = `${cardioCount} cardio ${
-        cardioCount === 1 ? "activity" : "activities"
-      }`;
-    }
-  }
+  // Fold cardio sessions into the exercise count so a workout with 2 lifts
+  // and 1 cardio session reads "3" total.
+  const totalExerciseCount = post.exerciseCount + cardioCount;
 
   return (
     <View
@@ -366,66 +348,25 @@ export function FeedPostCard({ post, isPending = false }: Props) {
               </Text>
             </View>
           )}
-          {/* Hide the Exercises metric for cardio-only posts so it never reads
-              "0"; show a Cardio count metric instead. */}
-          {post.exerciseCount > 0 && (
+          {/* Exercise count folds in cardio sessions, so a cardio-only post
+              still shows a non-zero total. */}
+          {totalExerciseCount > 0 && (
             <View style={styles.metric}>
               <Text style={[styles.metricLabel, textMuted]}>Exercises</Text>
               <Text style={[styles.metricValue, { color: colors.text }]}>
-                {post.exerciseCount}
+                {totalExerciseCount}
               </Text>
             </View>
           )}
-          {hasCardio && (
-            <View style={styles.metric}>
-              <Text style={[styles.metricLabel, textMuted]}>Cardio</Text>
-              <Text style={[styles.metricValue, { color: colors.text }]}>
-                {cardioCount}
-              </Text>
-            </View>
-          )}
-          {!hasPhotos && hasMuscles && (
+          {hasMuscles && (
             <View style={styles.metric}>
               <Text style={[styles.metricLabel, textMuted]}>Muscles</Text>
-              <Text style={[styles.musclesText, { color: colors.text }]}>
-                {post.bodyTags.map(formatTag).join(", ")}
+              <Text style={[styles.metricValue, { color: colors.text }]}>
+                {post.bodyTags.length}
               </Text>
             </View>
           )}
         </View>
-
-        {hasPhotos && hasMuscles && (
-          <View
-            style={[
-              styles.musclesRow,
-              { paddingHorizontal: contentPaddingHorizontal },
-            ]}
-          >
-            <Text style={[styles.metricLabel, textMuted]}>Muscles</Text>
-            <Text style={[styles.musclesText, { color: colors.text }]}>
-              {post.bodyTags.map(formatTag).join(", ")}
-            </Text>
-          </View>
-        )}
-
-        {cardioLabel && (
-          <View
-            style={[
-              styles.cardioTagRow,
-              hasPhotos && { paddingHorizontal: contentPaddingHorizontal },
-            ]}
-          >
-            <SymbolView
-              name="figure.run"
-              tintColor={colors.text}
-              size={15}
-              style={{ opacity: 0.5 }}
-            />
-            <Text style={[styles.cardioTag, textMuted]} numberOfLines={1}>
-              {cardioLabel}
-            </Text>
-          </View>
-        )}
 
         {post.caption && (
           <MentionableText
@@ -632,35 +573,11 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontVariant: ["tabular-nums"],
   },
-  musclesRow: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  musclesText: {
-    fontSize: 18,
-    fontWeight: "600",
-    letterSpacing: -0.3,
-    lineHeight: 24,
-    marginTop: 2,
-  },
   caption: {
     paddingHorizontal: 16,
     paddingBottom: 14,
     fontSize: 14,
     lineHeight: 20,
-  },
-  cardioTagRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  cardioTag: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: "500",
-    letterSpacing: -0.1,
   },
   engagement: {
     marginHorizontal: 12,

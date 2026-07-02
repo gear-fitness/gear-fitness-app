@@ -319,11 +319,7 @@ export function History() {
 
           {cardioLabel && (
             <View style={styles.cardioTagRow}>
-              <SymbolView
-                name="figure.run"
-                tintColor={t.textMuted}
-                size={15}
-              />
+              <SymbolView name="figure.run" tintColor={t.textMuted} size={15} />
               <Text
                 style={[styles.cardioTag, { color: t.textMuted }]}
                 numberOfLines={1}

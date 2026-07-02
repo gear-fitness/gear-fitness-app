@@ -375,11 +375,16 @@ export function WorkoutSummary() {
 
                         <View style={styles.lastSetCol}>
                           <Text
-                            style={[styles.lastSetLabel, { color: t.textMuted }]}
+                            style={[
+                              styles.lastSetLabel,
+                              { color: t.textMuted },
+                            ]}
                           >
                             TIME
                           </Text>
-                          <Text style={[styles.lastSetValue, { color: t.text }]}>
+                          <Text
+                            style={[styles.lastSetValue, { color: t.text }]}
+                          >
                             {formatCardioDuration(c.durationSeconds)}
                           </Text>
                         </View>

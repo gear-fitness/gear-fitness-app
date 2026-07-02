@@ -635,10 +635,7 @@ function CardioBlock({
             {/* Mirror the exercise set row: faint label on the left, big
                 tabular value centered in the row (the equal-flex spacer on the
                 right keeps the value optically centered). */}
-            <Text
-              style={[styles.cardioStatLabel, textMuted]}
-              numberOfLines={1}
-            >
+            <Text style={[styles.cardioStatLabel, textMuted]} numberOfLines={1}>
               {stat.label}
             </Text>
             <Text style={[styles.setNumber, { color: textColor }]}>

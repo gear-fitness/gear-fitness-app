@@ -429,7 +429,8 @@ export const CardioDetailContent = forwardRef<
   const setFieldValue = (key: ChipKey, value: string) => {
     // Intensity is a whole number (matches the numeric WorkoutCardio contract);
     // strip anything but digits so the field can't hold a decimal or sign.
-    const nextValue = key === "intensity" ? value.replace(/[^0-9]/g, "") : value;
+    const nextValue =
+      key === "intensity" ? value.replace(/[^0-9]/g, "") : value;
     if (key === "distance") distanceEditedRef.current = true;
     setChipValues({
       ...chipValues,
@@ -468,32 +469,6 @@ export const CardioDetailContent = forwardRef<
     );
   };
 
-  const handleCancel = () => {
-    Alert.alert(
-      "Cancel Cardio",
-      "Are you sure you want to cancel? Your cardio data will not be saved.",
-      [
-        { text: "Keep Going", style: "cancel" },
-        { text: "Cancel Entry", style: "destructive", onPress: doCancel },
-      ],
-    );
-  };
-
-  const doCancel = () => {
-    // Block the beforeRemove save first, then clear local fields and hand off to
-    // the wrapper to remove the entry + reset the timer + navigate.
-    cancelledRef.current = true;
-    setChipValues({
-      distance: { selected: false, value: "" },
-      calories: { selected: false, value: "" },
-      intensity: { selected: false, value: "" },
-    });
-    setManualDurationSeconds(null);
-    setDurationDigits("");
-    setEditingDuration(false);
-    onCancelCardio();
-  };
-
   const topBarButtonStyle = [
     styles.topBarButton,
     {
@@ -528,7 +503,9 @@ export const CardioDetailContent = forwardRef<
                 {formatTime(timerValue)}
               </Text>
               {showingTotal && (
-                <Text style={[styles.timerCaption, { color: colors.textMuted }]}>
+                <Text
+                  style={[styles.timerCaption, { color: colors.textMuted }]}
+                >
                   TOTAL
                 </Text>
               )}
@@ -541,7 +518,10 @@ export const CardioDetailContent = forwardRef<
               >
                 {glassAvailable && (
                   <GlassView
-                    style={[StyleSheet.absoluteFillObject, { borderRadius: 20 }]}
+                    style={[
+                      StyleSheet.absoluteFillObject,
+                      { borderRadius: 20 },
+                    ]}
                     glassEffectStyle="regular"
                     isInteractive
                   />
@@ -552,24 +532,11 @@ export const CardioDetailContent = forwardRef<
                   size={20}
                 />
               </TouchableOpacity>
-              {/* graph icon — disabled for cardio (no CardioHistory screen yet) */}
-              <View style={topBarButtonStyle}>
-                {glassAvailable && (
-                  <GlassView
-                    style={[StyleSheet.absoluteFillObject, { borderRadius: 20 }]}
-                    glassEffectStyle="regular"
-                    isInteractive
-                  />
-                )}
-                <SymbolView
-                  name="chart.xyaxis.line"
-                  tintColor={colors.textFaint}
-                  size={20}
-                />
-              </View>
             </View>
           </View>
-          <View style={[styles.divider, { borderBottomColor: colors.border }]} />
+          <View
+            style={[styles.divider, { borderBottomColor: colors.border }]}
+          />
 
           <ScrollView
             style={styles.scroll}
@@ -582,13 +549,7 @@ export const CardioDetailContent = forwardRef<
               <Text style={[styles.caption, { color: colors.textMuted }]}>
                 CARDIO
               </Text>
-              <TouchableOpacity
-                onPress={handleSwapPress}
-                activeOpacity={0.6}
-                disabled={!onSwapCardio}
-                style={styles.titleRow}
-                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-              >
+              <View style={styles.titleRow}>
                 <Text
                   style={[styles.title, { color: colors.text }]}
                   numberOfLines={2}
@@ -596,14 +557,20 @@ export const CardioDetailContent = forwardRef<
                   {cardio.activityType}
                 </Text>
                 {onSwapCardio && (
-                  <SymbolView
-                    name="arrow.left.arrow.right"
-                    tintColor={colors.textMuted}
-                    size={22}
-                    style={styles.titleSwapIcon}
-                  />
+                  <TouchableOpacity
+                    onPress={handleSwapPress}
+                    activeOpacity={0.6}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <SymbolView
+                      name="arrow.left.arrow.right"
+                      tintColor={colors.textMuted}
+                      size={22}
+                      style={styles.titleSwapIcon}
+                    />
+                  </TouchableOpacity>
                 )}
-              </TouchableOpacity>
+              </View>
             </View>
 
             <View
@@ -631,7 +598,10 @@ export const CardioDetailContent = forwardRef<
                       onBlur={commitDuration}
                       keyboardType="number-pad"
                       autoFocus
-                      style={[cardioStyles.durationText, { color: colors.text }]}
+                      style={[
+                        cardioStyles.durationText,
+                        { color: colors.text },
+                      ]}
                     />
                   ) : (
                     <TouchableOpacity
@@ -837,7 +807,9 @@ export const CardioDetailContent = forwardRef<
                     { backgroundColor: RECORDING_GREEN },
                   ]}
                 />
-                <Text style={[cardioStyles.hintText, { color: colors.textMuted }]}>
+                <Text
+                  style={[cardioStyles.hintText, { color: colors.textMuted }]}
+                >
                   Recording session
                 </Text>
               </View>
@@ -848,7 +820,9 @@ export const CardioDetailContent = forwardRef<
                   tintColor={colors.textFaint}
                   size={18}
                 />
-                <Text style={[cardioStyles.hintText, { color: colors.textFaint }]}>
+                <Text
+                  style={[cardioStyles.hintText, { color: colors.textFaint }]}
+                >
                   {liveCardioSeconds > 0
                     ? "Tap to resume timing your session"
                     : "Tap to start timing your session"}
@@ -867,14 +841,6 @@ export const CardioDetailContent = forwardRef<
               },
             ]}
           >
-            <TouchableOpacity
-              style={styles.footerSecondary}
-              onPress={handleCancel}
-            >
-              <Text style={[styles.footerSecondaryText, { color: colors.text }]}>
-                Cancel
-              </Text>
-            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.footerPrimary, { backgroundColor: colors.accent }]}
               onPress={() => handleSave(onSummary)}
@@ -922,7 +888,10 @@ export const CardioDetailContent = forwardRef<
                     style={styles.modalSecondary}
                   >
                     <Text
-                      style={[styles.modalSecondaryText, { color: colors.text }]}
+                      style={[
+                        styles.modalSecondaryText,
+                        { color: colors.text },
+                      ]}
                     >
                       Cancel
                     </Text>

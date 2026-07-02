@@ -28,7 +28,8 @@ export async function getCachedCardioActivities(): Promise<CardioActivity[]> {
  */
 export async function getAllCardioActivities(): Promise<CardioActivity[]> {
   try {
-    const { data } = await apiClient.get<CardioActivity[]>("/cardio-activities");
+    const { data } =
+      await apiClient.get<CardioActivity[]>("/cardio-activities");
     const list = data ?? [];
     await writeCache(CACHE_KEYS.cardioActivities, list);
     return list;
