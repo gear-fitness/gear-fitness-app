@@ -34,9 +34,29 @@ public class PerplexityClient {
     "https://api.perplexity.ai/chat/completions";
 
   private static final String SYSTEM_PROMPT = """
-    You are a nutrition parser. The user describes food they ate in natural \
-    language. Break it into individual food items and, for each, estimate the \
-    nutrition for the amount described (quantities are already factored in).
+    You are a nutrition parser for a food journal app. Every input is text the \
+    user typed into their food diary, so treat it as food or drink they consumed \
+    unless it clearly cannot be. Break it into individual food items and, for \
+    each, estimate the nutrition for the amount described.
+
+    How to interpret the entry:
+    - Users type shorthand: bare brand names, partial names, misspellings, \
+    slang. Resolve each to the most popular food or drink it plausibly refers \
+    to. Examples: "alani" means an Alani Nu energy drink, "celsius" a Celsius \
+    energy drink, "pb&j" a peanut butter and jelly sandwich, "chipotle bowl" a \
+    typical Chipotle burrito bowl.
+    - If no quantity is given, assume one standard serving (one can, one \
+    sandwich, one cup) and say so in the description, e.g. "Alani Nu energy \
+    drink (12 oz can)".
+    - If preparation is unspecified, assume the most common preparation.
+    - For branded or restaurant items, look up the official published nutrition \
+    facts and use per-serving label values; for generic foods use standard \
+    nutrition-database values.
+    - Return an empty items list ONLY when the input clearly is not food or \
+    drink even under a generous reading (gibberish, a question, a note like \
+    "meeting at 3pm"). Never return empty because the input is vague, a brand \
+    name alone, or missing a quantity — give your best estimate and express the \
+    uncertainty through a lower confidence instead.
 
     Respond with ONLY a JSON object, no prose and no markdown fences:
     {
@@ -48,8 +68,8 @@ public class PerplexityClient {
     }
 
     - items: one element per distinct food. calories in kcal, macros in grams, \
-    all already scaled to the amount eaten. description is a short human label, \
-    e.g. "2 scrambled eggs". If the input contains no recognizable food, use [].
+    all scaled to the amount eaten. description is a short human label, \
+    e.g. "2 scrambled eggs".
     - reasoning: 1-2 short, friendly sentences in plain everyday language that \
     anyone can instantly understand. Simply explain how you came up with the \
     numbers — like the portion size you assumed or how the food was made. Do NOT \
@@ -57,7 +77,7 @@ public class PerplexityClient {
     citations. Write it the way you'd casually explain it to a friend.
     - confidence: an integer 0-100 for how sure you are of the estimate — high \
     when you found official/published nutrition data, lower when you had to guess \
-    portion sizes or preparation.
+    what the user meant, the portion size, or the preparation.
     """;
 
   // Bound the connect phase. The per-request read timeout is set on each
@@ -119,6 +139,9 @@ public class PerplexityClient {
       ObjectNode payload = mapper.createObjectNode();
       payload.put("model", model);
       payload.put("return_citations", true);
+      // Low temperature: estimates for the same text should not swing between
+      // calls (the cache also assumes one text -> one stable parse).
+      payload.put("temperature", 0.1);
       // Cap output so the schema is actually honored (Perplexity only enforces
       // the format if the response fits under max_tokens).
       payload.put("max_tokens", 1200);
@@ -128,7 +151,10 @@ public class PerplexityClient {
       sys.put("content", SYSTEM_PROMPT);
       ObjectNode user = messages.addObject();
       user.put("role", "user");
-      user.put("content", userText);
+      // Frame the raw text as a diary entry: Sonar builds its web search from
+      // the user message, and a bare brand word like "alani" only resolves to
+      // the food product when the food-journal context travels with it.
+      user.put("content", "Food journal entry: \"" + userText + "\"");
 
       // Structured outputs: constrain the decoder to emit schema-valid JSON.
       // This is what makes the parse reliable — the prompt alone let Sonar wrap
