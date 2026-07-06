@@ -6,6 +6,7 @@ import stopwatch from "../assets/stopwatch.png";
 import { useWorkoutTimer } from "../context/WorkoutContext";
 import { useUnitPreference } from "../context/UnitPreferenceContext";
 import { toDisplayWeight } from "../utils/weight";
+import { formatDistance } from "../utils/distance";
 import { GlassView } from "expo-glass-effect";
 
 interface MiniPlayerProps {
@@ -14,9 +15,23 @@ interface MiniPlayerProps {
 }
 
 export function MiniPlayer({ onTap, isVisible }: MiniPlayerProps) {
-  const { seconds, running, start, pause, exercises, currentExerciseId } =
-    useWorkoutTimer();
-  const { weightUnit: globalUnit } = useUnitPreference();
+  const {
+    seconds,
+    running,
+    start,
+    pause,
+    exercises,
+    currentExerciseId,
+    currentCardioId,
+    cardioEntries,
+    cardioSeconds,
+    cardioRunning,
+    cardioTimerId,
+    startCardio,
+    startCardioFrom,
+    pauseCardio,
+  } = useWorkoutTimer();
+  const { weightUnit: globalUnit, distanceUnit } = useUnitPreference();
   const isDark = useColorScheme() === "dark";
 
   const colors = {
@@ -28,6 +43,10 @@ export function MiniPlayer({ onTap, isVisible }: MiniPlayerProps) {
   // Find current exercise
   const currentExercise = exercises.find(
     (ex) => ex.workoutExerciseId === currentExerciseId,
+  );
+  // A cardio entry takes priority when it's the current player item.
+  const currentCardio = cardioEntries.find(
+    (c) => c.workoutCardioId === currentCardioId,
   );
   const weightUnit = currentExercise?.weightUnit ?? globalUnit;
 
@@ -41,6 +60,53 @@ export function MiniPlayer({ onTap, isVisible }: MiniPlayerProps) {
   const validSets =
     currentExercise?.sets.filter((s) => s.reps && s.weight) || [];
   const lastSet = validSets[validSets.length - 1];
+
+  // Cardio subtitle: any logged distance/calories (the live duration is shown in
+  // the main timer position on the right, ticking).
+  const cardioSubtitle = currentCardio
+    ? [
+        currentCardio.distance
+          ? formatDistance(Number(currentCardio.distance), distanceUnit)
+          : null,
+        currentCardio.calories ? `${currentCardio.calories} cal` : null,
+      ]
+        .filter(Boolean)
+        .join(" · ") || "Cardio in progress"
+    : "";
+
+  // When a cardio entry is the current item, the main timer + play/pause act on
+  // the cardio-scoped stopwatch (which ticks live from WorkoutContext); for a
+  // lifting exercise they act on the global workout timer, as before. The
+  // stopwatch is shared across entries, so it only reflects this entry when this
+  // entry owns it (cardioTimerId); otherwise show/control this entry's own
+  // stored duration rather than another entry's running time.
+  const ownsTimer =
+    !!currentCardio && cardioTimerId === currentCardio.workoutCardioId;
+  const liveCardioSeconds = ownsTimer
+    ? cardioSeconds
+    : (currentCardio?.durationSeconds ?? 0);
+  const displaySeconds = currentCardio ? liveCardioSeconds : seconds;
+  const displayRunning = currentCardio ? ownsTimer && cardioRunning : running;
+
+  const handlePlayPause = () => {
+    if (currentCardio) {
+      if (ownsTimer && cardioRunning) {
+        pauseCardio();
+      } else if (ownsTimer) {
+        // This entry already owns the (paused) clock; resume its time.
+        startCardio(currentCardio.workoutCardioId);
+      } else {
+        // The clock belongs to another entry (or none). Seed from THIS entry's
+        // stored duration so it resumes this entry, not the other one's time.
+        startCardioFrom(
+          currentCardio.workoutCardioId,
+          currentCardio.durationSeconds,
+        );
+      }
+    } else {
+      running ? pause() : start();
+    }
+  };
 
   const styles = StyleSheet.create({
     container: {
@@ -123,7 +189,22 @@ export function MiniPlayer({ onTap, isVisible }: MiniPlayerProps) {
         ]}
       >
         <View style={styles.leftContent}>
-          {currentExercise ? (
+          {currentCardio ? (
+            <>
+              <Text
+                style={[styles.exerciseName, { color: colors.text }]}
+                numberOfLines={1}
+              >
+                {currentCardio.activityType}
+              </Text>
+              <Text
+                style={[styles.setInfo, { color: colors.subtle }]}
+                numberOfLines={1}
+              >
+                {cardioSubtitle}
+              </Text>
+            </>
+          ) : currentExercise ? (
             <>
               <Text
                 style={[styles.exerciseName, { color: colors.text }]}
@@ -158,19 +239,19 @@ export function MiniPlayer({ onTap, isVisible }: MiniPlayerProps) {
             style={[styles.timerIcon, { tintColor: colors.text }]}
           />
           <Text style={[styles.timerText, { color: colors.text }]}>
-            {formatTime(seconds)}
+            {formatTime(displaySeconds)}
           </Text>
 
           {isVisible && (
             <TouchableOpacity
               onPress={(e) => {
                 e.stopPropagation();
-                running ? pause() : start();
+                handlePlayPause();
               }}
               style={styles.playPauseButton}
             >
               <SymbolView
-                name={running ? "pause.fill" : "play.fill"}
+                name={displayRunning ? "pause.fill" : "play.fill"}
                 tintColor={isDark ? "#fff" : "#000"}
                 size={14}
               />

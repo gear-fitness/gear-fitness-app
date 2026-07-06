@@ -6,6 +6,7 @@ import com.gearfitness.gear_api.dto.WorkoutDTO;
 import com.gearfitness.gear_api.dto.WorkoutDetailDTO;
 import com.gearfitness.gear_api.dto.WorkoutSubmissionDTO;
 import com.gearfitness.gear_api.entity.Workout;
+import com.gearfitness.gear_api.entity.WorkoutCardio;
 import com.gearfitness.gear_api.security.JwtService;
 import com.gearfitness.gear_api.service.S3StorageService;
 import com.gearfitness.gear_api.service.WorkoutService;
@@ -31,6 +32,33 @@ public class WorkoutController {
   private final JwtService jwtService;
   private final S3StorageService s3StorageService;
 
+  /**
+   * Map a Workout entity to the list-card DTO, including a lightweight cardio
+   * summary (count + first activity/duration) so History cards can show a
+   * cardio indicator without fetching full workout details. workoutCardios is
+   * @OrderBy position ASC, so element 0 is the representative entry.
+   */
+  private static WorkoutDTO toWorkoutDTO(Workout w) {
+    List<WorkoutCardio> cardios = w.getWorkoutCardios();
+    int cardioCount = cardios == null ? 0 : cardios.size();
+    WorkoutCardio firstCardio =
+      cardios == null || cardios.isEmpty() ? null : cardios.get(0);
+    return new WorkoutDTO(
+      w.getWorkoutId(),
+      w.getName(),
+      w.getDatePerformed(),
+      w.getCreatedAt(),
+      w.getDurationMin(),
+      w.getWorkoutExercises() == null ? 0 : w.getWorkoutExercises().size(),
+      w.getBodyTags() == null
+        ? List.of()
+        : w.getBodyTags().stream().map(Enum::name).toList(),
+      cardioCount,
+      firstCardio == null ? null : firstCardio.getActivityType(),
+      firstCardio == null ? null : firstCardio.getDurationSeconds()
+    );
+  }
+
   @GetMapping("/user/{userId}")
   public ResponseEntity<List<WorkoutDTO>> getWorkoutsByUser(
     @PathVariable UUID userId
@@ -39,21 +67,7 @@ public class WorkoutController {
       List<WorkoutDTO> workouts = workoutService
         .getWorkoutsByUser(userId)
         .stream()
-        .map(w ->
-          new WorkoutDTO(
-            w.getWorkoutId(),
-            w.getName(),
-            w.getDatePerformed(),
-            w.getCreatedAt(),
-            w.getDurationMin(),
-            w.getWorkoutExercises() == null
-              ? 0
-              : w.getWorkoutExercises().size(),
-            w.getBodyTags() == null
-              ? List.of()
-              : w.getBodyTags().stream().map(Enum::name).toList()
-          )
-        )
+        .map(WorkoutController::toWorkoutDTO)
         .collect(Collectors.toList());
       return ResponseEntity.ok(workouts);
     } catch (Exception e) {
@@ -94,21 +108,7 @@ public class WorkoutController {
   public ResponseEntity<WorkoutDTO> addWorkout(@RequestBody Workout workout) {
     try {
       Workout saved = workoutService.addWorkout(workout);
-      return ResponseEntity.ok(
-        new WorkoutDTO(
-          saved.getWorkoutId(),
-          saved.getName(),
-          saved.getDatePerformed(),
-          saved.getCreatedAt(),
-          saved.getDurationMin(),
-          saved.getWorkoutExercises() == null
-            ? 0
-            : saved.getWorkoutExercises().size(),
-          saved.getBodyTags() == null
-            ? List.of()
-            : saved.getBodyTags().stream().map(Enum::name).toList()
-        )
-      );
+      return ResponseEntity.ok(toWorkoutDTO(saved));
     } catch (Exception e) {
       e.printStackTrace();
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();

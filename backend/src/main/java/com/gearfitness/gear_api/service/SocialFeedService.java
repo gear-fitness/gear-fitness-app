@@ -2,6 +2,7 @@ package com.gearfitness.gear_api.service;
 
 import com.gearfitness.gear_api.dto.FeedPostDTO;
 import com.gearfitness.gear_api.entity.Post;
+import com.gearfitness.gear_api.entity.WorkoutCardio;
 import com.gearfitness.gear_api.repository.AppUserRepository;
 import com.gearfitness.gear_api.repository.FollowRepository;
 import com.gearfitness.gear_api.repository.PostCommentRepository;
@@ -173,6 +174,9 @@ public class SocialFeedService {
     Set<UUID> likedPostIds,
     Set<UUID> followedAuthorIds
   ) {
+    List<WorkoutCardio> cardios = post.getWorkout().getWorkoutCardios();
+    WorkoutCardio firstCardio =
+      cardios == null || cardios.isEmpty() ? null : cardios.get(0);
     return FeedPostDTO.builder()
       .postId(post.getPostId())
       .workoutId(post.getWorkout().getWorkoutId())
@@ -204,6 +208,13 @@ public class SocialFeedService {
           .stream()
           .mapToLong(exercise -> exercise.getWorkoutSets().size())
           .sum()
+      )
+      .cardioCount(cardios == null ? 0L : (long) cardios.size())
+      .cardioActivityType(
+        firstCardio == null ? null : firstCardio.getActivityType()
+      )
+      .cardioDurationSeconds(
+        firstCardio == null ? null : firstCardio.getDurationSeconds()
       )
       .likeCount(likeCounts.getOrDefault(post.getPostId(), 0L))
       .commentCount(commentCounts.getOrDefault(post.getPostId(), 0L))

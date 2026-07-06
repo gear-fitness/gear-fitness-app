@@ -114,7 +114,8 @@ export function Settings() {
   const insets = useSafeAreaInsets();
   const { pickAndUpload, uploading } = useProfilePhoto();
   const online = useOnlineStatus();
-  const { weightUnit, setWeightUnit } = useUnitPreference();
+  const { weightUnit, setWeightUnit, distanceUnit, setDistanceUnit } =
+    useUnitPreference();
   const { restore } = usePurchases();
   const { tier } = useTier();
 
@@ -604,9 +605,25 @@ export function Settings() {
               showArrow: false,
               onPress: () => setWeightUnit("kg"),
             },
+            {
+              id: "unit_mi",
+              type: "value" as const,
+              label: "Miles (mi)",
+              value: distanceUnit === "mi" ? "✓" : "",
+              showArrow: false,
+              onPress: () => setDistanceUnit("mi"),
+            },
+            {
+              id: "unit_km",
+              type: "value" as const,
+              label: "Kilometers (km)",
+              value: distanceUnit === "km" ? "✓" : "",
+              showArrow: false,
+              onPress: () => setDistanceUnit("km"),
+            },
           ],
           footer:
-            "Weights across the app are shown and entered in your chosen unit.",
+            "Weights and distances across the app are shown and entered in your chosen units.",
         },
         {
           key: "support",

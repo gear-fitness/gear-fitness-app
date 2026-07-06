@@ -67,17 +67,23 @@ export async function getPendingWorkouts(): Promise<PendingWorkout[]> {
  */
 export async function getPendingWorkoutsAsWorkouts(): Promise<Workout[]> {
   const pending = await getPendingWorkouts();
-  return pending.map((p) => ({
-    workoutId: `${PENDING_WORKOUT_PREFIX}${p.id}`,
-    name: p.submission.name,
-    datePerformed:
-      p.submission.datePerformed ??
-      new Date(p.createdAt).toISOString().slice(0, 10),
-    createdAt: new Date(p.createdAt).toISOString(),
-    durationMin: p.submission.durationMin,
-    exerciseCount: p.submission.exercises.length,
-    bodyTags: p.submission.bodyTags,
-  }));
+  return pending.map((p) => {
+    const firstCardio = p.submission.cardio?.[0];
+    return {
+      workoutId: `${PENDING_WORKOUT_PREFIX}${p.id}`,
+      name: p.submission.name,
+      datePerformed:
+        p.submission.datePerformed ??
+        new Date(p.createdAt).toISOString().slice(0, 10),
+      createdAt: new Date(p.createdAt).toISOString(),
+      durationMin: p.submission.durationMin,
+      exerciseCount: p.submission.exercises.length,
+      bodyTags: p.submission.bodyTags,
+      cardioCount: p.submission.cardio?.length ?? 0,
+      cardioActivityType: firstCardio?.activityType ?? null,
+      cardioDurationSeconds: firstCardio?.durationSeconds ?? null,
+    };
+  });
 }
 
 export async function enqueueWorkout(

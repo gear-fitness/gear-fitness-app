@@ -24,9 +24,11 @@ import { subscribeOnlineStatus } from "../../utils/network";
 import { getPendingWorkoutsAsWorkouts } from "../../utils/workoutQueue";
 import { parseLocalDate, getCurrentLocalDateString } from "../../utils/date";
 import { useTrackTab } from "../../hooks/useTrackTab";
+import { formatCardioDuration } from "../../utils/cardio";
 import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
 import { SearchBar } from "../../components/SearchBar";
 import { Ionicons } from "@expo/vector-icons";
+import { SymbolView } from "expo-symbols";
 
 type RootStackParamList = {
   HomeTabs: undefined;
@@ -215,7 +217,28 @@ export function History() {
 
     const hasDuration = item.durationMin != null && item.durationMin > 0;
     const hasMuscles = Array.isArray(item.bodyTags) && item.bodyTags.length > 0;
+    const cardioCount = item.cardioCount ?? 0;
+    const hasCardio = cardioCount > 0;
     const hasMetrics = hasDuration || item.exerciseCount > 0 || hasMuscles;
+
+    // Minimal cardio indicator: prefer "🏃 Run · 32:00" when we know the
+    // activity, otherwise a plain count. A "+N more" suffix hints at extra
+    // cardio entries without listing them.
+    let cardioLabel: string | null = null;
+    if (hasCardio) {
+      if (item.cardioActivityType) {
+        const parts = [item.cardioActivityType];
+        if (item.cardioDurationSeconds != null) {
+          parts.push(formatCardioDuration(item.cardioDurationSeconds));
+        }
+        cardioLabel = parts.join(" · ");
+        if (cardioCount > 1) cardioLabel += ` · +${cardioCount - 1} more`;
+      } else {
+        cardioLabel = `${cardioCount} cardio ${
+          cardioCount === 1 ? "activity" : "activities"
+        }`;
+      }
+    }
 
     return (
       <View style={styles.rowWrapper}>
@@ -269,14 +292,18 @@ export function History() {
                   </Text>
                 </View>
               )}
-              <View style={styles.metricCell}>
-                <Text style={[styles.metricLabel, { color: t.textMuted }]}>
-                  Exercises
-                </Text>
-                <Text style={[styles.metricValue, { color: t.text }]}>
-                  {item.exerciseCount}
-                </Text>
-              </View>
+              {/* Hide the Exercises cell for cardio-only sessions so the card
+                  never shows a bare "0". */}
+              {item.exerciseCount > 0 && (
+                <View style={styles.metricCell}>
+                  <Text style={[styles.metricLabel, { color: t.textMuted }]}>
+                    Exercises
+                  </Text>
+                  <Text style={[styles.metricValue, { color: t.text }]}>
+                    {item.exerciseCount}
+                  </Text>
+                </View>
+              )}
               {hasMuscles && (
                 <View style={styles.metricCell}>
                   <Text style={[styles.metricLabel, { color: t.textMuted }]}>
@@ -287,6 +314,18 @@ export function History() {
                   </Text>
                 </View>
               )}
+            </View>
+          )}
+
+          {cardioLabel && (
+            <View style={styles.cardioTagRow}>
+              <SymbolView name="figure.run" tintColor={t.textMuted} size={15} />
+              <Text
+                style={[styles.cardioTag, { color: t.textMuted }]}
+                numberOfLines={1}
+              >
+                {cardioLabel}
+              </Text>
             </View>
           )}
         </TouchableOpacity>
@@ -486,5 +525,17 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
     lineHeight: 24,
     marginTop: 2,
+  },
+  cardioTagRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 14,
+  },
+  cardioTag: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "500",
+    letterSpacing: -0.1,
   },
 });

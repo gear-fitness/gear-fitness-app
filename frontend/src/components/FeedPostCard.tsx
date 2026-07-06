@@ -17,7 +17,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useTheme } from "@react-navigation/native";
 import { FeedPost } from "../api/socialFeedApi";
 import { parseLocalDate, formatTimeAgo } from "../utils/date";
-import { formatTag } from "../utils/formatTag";
 import { useAuth } from "../context/AuthContext";
 import { useLikeState } from "../context/LikesContext";
 import { usePostMenu } from "../hooks/usePostMenu";
@@ -186,6 +185,11 @@ export function FeedPostCard({ post, isPending = false }: Props) {
   const hasPhotos = photos.length > 0;
   const contentPaddingHorizontal = 16;
 
+  const cardioCount = post.cardioCount ?? 0;
+  // Fold cardio sessions into the exercise count so a workout with 2 lifts
+  // and 1 cardio session reads "3" total.
+  const totalExerciseCount = post.exerciseCount + cardioCount;
+
   return (
     <View
       style={[
@@ -344,35 +348,25 @@ export function FeedPostCard({ post, isPending = false }: Props) {
               </Text>
             </View>
           )}
-          <View style={styles.metric}>
-            <Text style={[styles.metricLabel, textMuted]}>Exercises</Text>
-            <Text style={[styles.metricValue, { color: colors.text }]}>
-              {post.exerciseCount}
-            </Text>
-          </View>
-          {!hasPhotos && hasMuscles && (
+          {/* Exercise count folds in cardio sessions, so a cardio-only post
+              still shows a non-zero total. */}
+          {totalExerciseCount > 0 && (
+            <View style={styles.metric}>
+              <Text style={[styles.metricLabel, textMuted]}>Exercises</Text>
+              <Text style={[styles.metricValue, { color: colors.text }]}>
+                {totalExerciseCount}
+              </Text>
+            </View>
+          )}
+          {hasMuscles && (
             <View style={styles.metric}>
               <Text style={[styles.metricLabel, textMuted]}>Muscles</Text>
-              <Text style={[styles.musclesText, { color: colors.text }]}>
-                {post.bodyTags.map(formatTag).join(", ")}
+              <Text style={[styles.metricValue, { color: colors.text }]}>
+                {post.bodyTags.length}
               </Text>
             </View>
           )}
         </View>
-
-        {hasPhotos && hasMuscles && (
-          <View
-            style={[
-              styles.musclesRow,
-              { paddingHorizontal: contentPaddingHorizontal },
-            ]}
-          >
-            <Text style={[styles.metricLabel, textMuted]}>Muscles</Text>
-            <Text style={[styles.musclesText, { color: colors.text }]}>
-              {post.bodyTags.map(formatTag).join(", ")}
-            </Text>
-          </View>
-        )}
 
         {post.caption && (
           <MentionableText
@@ -578,17 +572,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     marginTop: 2,
     fontVariant: ["tabular-nums"],
-  },
-  musclesRow: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  musclesText: {
-    fontSize: 18,
-    fontWeight: "600",
-    letterSpacing: -0.3,
-    lineHeight: 24,
-    marginTop: 2,
   },
   caption: {
     paddingHorizontal: 16,

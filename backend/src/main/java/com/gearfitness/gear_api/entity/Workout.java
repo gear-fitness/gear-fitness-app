@@ -81,6 +81,23 @@ public class Workout {
   @EqualsAndHashCode.Exclude
   private List<WorkoutExercise> workoutExercises = new ArrayList<>();
 
+  // LAZY: Workout already has eager bag collections; an extra eager bag adds an
+  // N+1 select per workout on every list/feed load and risks a
+  // MultipleBagFetchException if a query ever join-fetches two bags. Cardio is
+  // loaded on demand inside @Transactional service methods, or via an
+  // @EntityGraph on the list finder that maps outside the transaction.
+  @OneToMany(
+    mappedBy = "workout",
+    cascade = CascadeType.ALL,
+    orphanRemoval = true,
+    fetch = FetchType.LAZY
+  )
+  @OrderBy("position ASC")
+  @Builder.Default
+  @ToString.Exclude
+  @EqualsAndHashCode.Exclude
+  private List<WorkoutCardio> workoutCardios = new ArrayList<>();
+
   @OneToOne(
     mappedBy = "workout",
     cascade = CascadeType.ALL,

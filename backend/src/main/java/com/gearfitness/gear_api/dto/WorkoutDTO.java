@@ -18,4 +18,10 @@ public class WorkoutDTO {
   private Integer durationMin;
   private Integer exerciseCount;
   private List<String> bodyTags;
+  // Cardio summary for the workout card. cardioCount is 0 when the workout has
+  // no cardio; the activity/duration describe the first cardio entry (by
+  // position) so the card can show e.g. "Run · 32:00" without a detail fetch.
+  private Integer cardioCount;
+  private String cardioActivityType;
+  private Integer cardioDurationSeconds;
 }

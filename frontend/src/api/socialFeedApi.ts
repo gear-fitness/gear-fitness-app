@@ -27,6 +27,11 @@ export interface FeedPost {
   bodyTags: string[];
   exerciseCount: number;
   setCount: number;
+  // Cardio summary so the feed card can show a cardio indicator without a
+  // detail fetch. Optional for backward compatibility with cached payloads.
+  cardioCount?: number;
+  cardioActivityType?: string | null;
+  cardioDurationSeconds?: number | null;
   likeCount: number;
   commentCount: number;
   likedByCurrentUser: boolean;

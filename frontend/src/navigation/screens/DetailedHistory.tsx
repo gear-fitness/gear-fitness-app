@@ -14,9 +14,16 @@ import Svg, { Path } from "react-native-svg";
 import React, { useState, useEffect } from "react";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { getWorkoutDetails } from "../../api/workoutService";
-import { WorkoutDetail, WorkoutExercise, WorkoutSet } from "../../api/types";
+import {
+  WorkoutDetail,
+  WorkoutExercise,
+  WorkoutSet,
+  WorkoutCardio,
+} from "../../api/types";
 import { isNetworkError } from "../../utils/network";
 import { parseLocalDate } from "../../utils/date";
+import { formatCardioDuration } from "../../utils/cardio";
+import { toDisplayDistance } from "../../utils/distance";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { formatTag } from "../../utils/formatTag";
 import { formatMuscleGroups, renderBodyParts } from "../../utils/exerciseUtils";
@@ -317,6 +324,8 @@ export function DetailedHistory({ route }: Props) {
     .toUpperCase();
 
   const hasDuration = workout.durationMin != null && workout.durationMin > 0;
+  const hasCardio = !!workout.cardio && workout.cardio.length > 0;
+  const hasExercises = workout.exercises && workout.exercises.length > 0;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -362,12 +371,24 @@ export function DetailedHistory({ route }: Props) {
                 </Text>
               </View>
             )}
-            <View style={styles.metric}>
-              <Text style={[styles.metricLabel, textMuted]}>Exercises</Text>
-              <Text style={[styles.metricValue, { color: colors.text }]}>
-                {workout.exercises.length}
-              </Text>
-            </View>
+            {/* Hide the Exercises metric for cardio-only sessions; show a
+                Cardio metric instead so the count isn't a bare "0". */}
+            {hasExercises && (
+              <View style={styles.metric}>
+                <Text style={[styles.metricLabel, textMuted]}>Exercises</Text>
+                <Text style={[styles.metricValue, { color: colors.text }]}>
+                  {workout.exercises.length}
+                </Text>
+              </View>
+            )}
+            {hasCardio && (
+              <View style={styles.metric}>
+                <Text style={[styles.metricLabel, textMuted]}>Cardio</Text>
+                <Text style={[styles.metricValue, { color: colors.text }]}>
+                  {workout.cardio!.length}
+                </Text>
+              </View>
+            )}
             {workout.bodyTags && workout.bodyTags.length > 0 && (
               <View style={[styles.metric, styles.metricWide]}>
                 <Text style={[styles.metricLabel, textMuted]}>Muscles</Text>
@@ -415,8 +436,9 @@ export function DetailedHistory({ route }: Props) {
           </TouchableOpacity>
         </View>
 
-        {/* Exercises */}
-        {workout.exercises && workout.exercises.length > 0 ? (
+        {/* Exercises. A cardio-only workout omits this section entirely rather
+            than showing the "no exercises" empty state. */}
+        {hasExercises ? (
           <View style={styles.exercisesList}>
             {workout.exercises.map((exercise, i) => (
               <ExerciseBlock
@@ -432,15 +454,27 @@ export function DetailedHistory({ route }: Props) {
               />
             ))}
           </View>
-        ) : (
+        ) : !hasCardio ? (
           <View style={styles.centerContent}>
             <Text style={[styles.noExercisesText, textMuted]}>
               No exercises recorded for this workout
             </Text>
           </View>
+        ) : null}
+
+        {/* Cardio */}
+        {hasCardio && (
+          <CardioSection
+            cardio={workout.cardio!}
+            textColor={colors.text}
+            surfaceBg={colors.card}
+            borderColor={colors.border}
+            textMuted={textMuted}
+            textFaint={textFaint}
+          />
         )}
 
-        {workout.exercises && workout.exercises.length > 0 && (
+        {hasExercises && (
           <MusclesSection
             exercises={workout.exercises}
             isDark={isDark}
@@ -482,6 +516,138 @@ function MusclesSection({
         captionStyle={textMuted}
         {...palette}
       />
+    </View>
+  );
+}
+
+type CardioSectionProps = {
+  cardio: WorkoutCardio[];
+  textColor: ColorValue;
+  surfaceBg: ColorValue;
+  borderColor: ColorValue;
+  textMuted: StyleProp<TextStyle>;
+  textFaint: StyleProp<TextStyle>;
+};
+
+function CardioSection({
+  cardio,
+  textColor,
+  surfaceBg,
+  borderColor,
+  textMuted,
+  textFaint,
+}: CardioSectionProps) {
+  return (
+    <View style={styles.cardioSection}>
+      <Text style={[styles.cardioOverline, textMuted]}>CARDIO</Text>
+      <View style={styles.cardioList}>
+        {cardio.map((c, i) => (
+          <CardioBlock
+            key={c.workoutCardioId}
+            cardio={c}
+            index={i + 1}
+            total={cardio.length}
+            textColor={textColor}
+            surfaceBg={surfaceBg}
+            borderColor={borderColor}
+            textMuted={textMuted}
+            textFaint={textFaint}
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+type CardioBlockProps = {
+  cardio: WorkoutCardio;
+  index: number;
+  total: number;
+  textColor: ColorValue;
+  surfaceBg: ColorValue;
+  borderColor: ColorValue;
+  textMuted: StyleProp<TextStyle>;
+  textFaint: StyleProp<TextStyle>;
+};
+
+function CardioBlock({
+  cardio,
+  index,
+  total,
+  textColor,
+  surfaceBg,
+  borderColor,
+  textMuted,
+  textFaint,
+}: CardioBlockProps) {
+  const { distanceUnit } = useUnitPreference();
+  // Only surface fields that were actually logged — no empty Distance/Calories/
+  // Intensity rows. distanceMeters is canonical meters; convert to the user's
+  // distance unit (mi / km) for display.
+  const stats: { label: string; value: string; unit?: string }[] = [
+    { label: "Duration", value: formatCardioDuration(cardio.durationSeconds) },
+  ];
+  if (cardio.distanceMeters != null) {
+    stats.push({
+      label: "Distance",
+      value: `${toDisplayDistance(cardio.distanceMeters, distanceUnit)}`,
+      unit: distanceUnit,
+    });
+  }
+  if (cardio.caloriesBurned != null) {
+    stats.push({
+      label: "Calories",
+      value: `${cardio.caloriesBurned}`,
+      unit: "cal",
+    });
+  }
+  if (cardio.intensityLevel != null) {
+    stats.push({ label: "Intensity", value: `${cardio.intensityLevel}` });
+  }
+
+  return (
+    <View style={styles.exerciseBlock}>
+      <View style={styles.exerciseHeader}>
+        <Text style={[styles.exerciseOverline, textMuted]}>
+          ACTIVITY {index} / {total}
+        </Text>
+        <Text style={[styles.exerciseName, { color: textColor }]}>
+          {cardio.activityType}
+        </Text>
+        {cardio.notes && (
+          <Text style={[styles.exerciseNote, textMuted]}>{cardio.notes}</Text>
+        )}
+      </View>
+
+      <View style={styles.setsList}>
+        {stats.map((stat) => (
+          <View
+            key={stat.label}
+            style={[
+              styles.setRow,
+              {
+                backgroundColor: surfaceBg,
+                borderColor,
+                borderWidth: StyleSheet.hairlineWidth,
+              },
+            ]}
+          >
+            {/* Mirror the exercise set row: faint label on the left, big
+                tabular value centered in the row (the equal-flex spacer on the
+                right keeps the value optically centered). */}
+            <Text style={[styles.cardioStatLabel, textMuted]} numberOfLines={1}>
+              {stat.label}
+            </Text>
+            <Text style={[styles.setNumber, { color: textColor }]}>
+              {stat.value}
+              {stat.unit ? (
+                <Text style={[styles.setUnit, textFaint]}> {stat.unit}</Text>
+              ) : null}
+            </Text>
+            <View style={styles.cardioStatSide} />
+          </View>
+        ))}
+      </View>
     </View>
   );
 }
@@ -821,5 +987,26 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     letterSpacing: 1.2,
     marginBottom: 16,
+  },
+  cardioSection: {
+    paddingHorizontal: 20,
+    paddingTop: 36,
+  },
+  cardioOverline: {
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 1.2,
+    marginBottom: 16,
+  },
+  cardioList: {
+    gap: 28,
+  },
+  cardioStatLabel: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  cardioStatSide: {
+    flex: 1,
   },
 });
