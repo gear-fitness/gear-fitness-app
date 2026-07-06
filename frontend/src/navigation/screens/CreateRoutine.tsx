@@ -45,7 +45,7 @@ export function CreateRoutine({
 }: {
   route: { params?: { prefilledWorkoutId?: string } };
 }) {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const prefilledWorkoutId = route.params?.prefilledWorkoutId;
   const { user } = useAuth();
   const colors = useThemeColors();
@@ -152,7 +152,13 @@ export function CreateRoutine({
       const days = selectedDays.map((d) => DAY_FULL[d]);
       await createRoutine(name.trim(), days, selectedExerciseIds);
       navigation.goBack();
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.response?.status === 403) {
+        navigation.navigate("PlusUpsell", {
+          feature: "Create unlimited routines with Plus",
+        });
+        return;
+      }
       Alert.alert("Error", "Failed to create routine. Please try again.");
     } finally {
       setSubmitting(false);
@@ -165,7 +171,13 @@ export function CreateRoutine({
       const days = selectedDays.map((d) => DAY_FULL[d]);
       await createRoutineFromWorkout(workoutId, name.trim(), days);
       navigation.goBack();
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.response?.status === 403) {
+        navigation.navigate("PlusUpsell", {
+          feature: "Create unlimited routines with Plus",
+        });
+        return;
+      }
       Alert.alert("Error", "Failed to create routine. Please try again.");
     } finally {
       setSubmitting(false);

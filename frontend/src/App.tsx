@@ -13,6 +13,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { useEffect } from "react";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { PurchasesProvider } from "./context/PurchasesContext";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import {
   WorkoutTimerProvider,
@@ -23,6 +24,7 @@ import { LikesProvider } from "./context/LikesContext";
 import { SocialFeedProvider } from "./context/SocialFeedContext";
 import { FollowStatusProvider } from "./context/FollowStatusContext";
 import { UnitPreferenceProvider } from "./context/UnitPreferenceContext";
+import { NutritionProvider } from "./context/NutritionContext";
 import { WorkoutPlayer } from "./components/WorkoutPlayer";
 import * as Notifications from "expo-notifications";
 import {
@@ -90,7 +92,9 @@ export function App() {
 
   return (
     <AuthProvider>
-      <AppContent theme={theme} />
+      <PurchasesProvider>
+        <AppContent theme={theme} />
+      </PurchasesProvider>
     </AuthProvider>
   );
 }
@@ -143,6 +147,17 @@ function AppContent({
           navigationRef.current.navigate("PostDetail", {
             postId: data.params.postId,
             openCommentsOnMount: true,
+          });
+        }
+        break;
+      case "REPLY":
+      case "MENTION":
+        if (data.params?.postId) {
+          navigationRef.current.navigate("PostDetail", {
+            postId: data.params.postId,
+            // Caption mentions omit these → just open the post.
+            openCommentsOnMount: data.params?.openCommentsOnMount === true,
+            focusCommentId: data.params?.focusCommentId,
           });
         }
         break;
@@ -201,16 +216,18 @@ function AppContent({
             <SocialFeedProvider>
               <FollowStatusProvider>
                 <UnitPreferenceProvider>
-                  <Navigation
-                    ref={navigationRef}
-                    theme={theme}
-                    linking={{
-                      enabled: "auto",
-                      prefixes: [prefix],
-                    }}
-                    onReady={() => setIsNavigationReady(true)}
-                  />
-                  <WorkoutPlayer />
+                  <NutritionProvider>
+                    <Navigation
+                      ref={navigationRef}
+                      theme={theme}
+                      linking={{
+                        enabled: "auto",
+                        prefixes: [prefix],
+                      }}
+                      onReady={() => setIsNavigationReady(true)}
+                    />
+                    <WorkoutPlayer />
+                  </NutritionProvider>
                 </UnitPreferenceProvider>
               </FollowStatusProvider>
             </SocialFeedProvider>

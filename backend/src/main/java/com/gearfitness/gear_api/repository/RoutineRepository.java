@@ -14,6 +14,8 @@ import org.springframework.stereotype.Repository;
 public interface RoutineRepository extends JpaRepository<Routine, UUID> {
   List<Routine> findByUser_UserIdOrderByCreatedAtDesc(UUID userId);
 
+  long countByUser_UserId(UUID userId);
+
   @EntityGraph(
     attributePaths = { "routineExercises", "routineExercises.exercise" }
   )

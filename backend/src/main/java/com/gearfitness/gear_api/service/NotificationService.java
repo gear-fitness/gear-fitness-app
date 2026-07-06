@@ -41,6 +41,13 @@ public class NotificationService {
           )
           .postImageUrl(resolvePostThumbnail(n.getPost()))
           .commentBody(n.getComment() != null ? n.getComment().getBody() : null)
+          .focusCommentId(
+            n.getComment() != null
+              ? (n.getComment().getParentComment() != null
+                  ? n.getComment().getParentComment().getCommentId()
+                  : n.getComment().getCommentId())
+              : null
+          )
           .createdAt(n.getCreatedAt())
           .isRead(n.isRead())
           .build()

@@ -148,7 +148,7 @@ function roundToPlateWeight(
 
 function formatWeight(n: number): string {
   if (!isFinite(n)) return "0";
-  return n % 1 === 0 ? String(n) : Number(n.toFixed(1)).toString();
+  return n % 1 === 0 ? String(n) : Number(n.toFixed(2)).toString();
 }
 
 function plateMath(bar: number, sideTotal: number, mode: PlateMode): string {

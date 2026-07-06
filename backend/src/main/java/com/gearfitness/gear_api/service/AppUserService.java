@@ -217,6 +217,7 @@ public class AppUserService {
       .isPrivate(user.getIsPrivate())
       .profilePictureUrl(user.getProfilePictureUrl())
       .createdAt(user.getCreatedAt())
+      .tier(user.getTier().name())
       .workoutStats(workoutStats)
       .followersCount(followersCount)
       .followingCount(followingCount)

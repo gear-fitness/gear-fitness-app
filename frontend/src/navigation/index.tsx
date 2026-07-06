@@ -11,6 +11,8 @@ import { View, Text } from "react-native";
 
 /* SCREENS */
 import { Profile } from "./screens/Profile";
+import { PaywallScreen } from "./screens/PaywallScreen";
+import { PlusUpsellSheet } from "./screens/PlusUpsellSheet";
 import { SettingsNavigator } from "./SettingsNavigator";
 import { Social } from "./screens/Social";
 import { Workout } from "./screens/Workout";
@@ -22,7 +24,6 @@ import { ShareWorkout } from "./screens/ShareWorkout";
 import { PostDetail } from "./screens/PostDetail";
 import { WorkoutFlowNavigator } from "./WorkoutFlowNavigator";
 import { OnboardingScreen } from "./screens/Onboarding";
-import { WorkoutChat } from "./screens/WorkoutChat";
 import { AuthLoadingScreen } from "./screens/AuthLoading";
 import { CommentsScreen } from "../components/CommentsScreen";
 import { ExerciseList } from "./screens/ExerciseList";
@@ -37,6 +38,9 @@ import { DayPosts } from "./screens/DayPosts";
 import { Activity } from "./screens/Activity";
 import FollowScreen from "./screens/FollowScreen";
 import { ImageViewer } from "./screens/ImageViewer";
+import { CalorieTracker } from "./screens/nutrition/CalorieTracker";
+import { AddFood } from "./screens/nutrition/AddFood";
+import { NutritionGoals } from "./screens/nutrition/NutritionGoals";
 import { Platform } from "react-native";
 
 /* ---------------------- TABS ---------------------- */
@@ -93,11 +97,19 @@ const HomeTabs = createBottomTabNavigator({
         tabBarIcon: { type: "sfSymbol", name: "person.fill" },
       },
     },
-    AiChat: {
-      screen: WorkoutChat,
+    // Restored 5th tab (formerly the orphaned AI-chat "AiChat" slot),
+    // repurposed to open the calorie & macro tracker.
+    Nutrition: {
+      screen: CalorieTracker,
       options: {
+        // iOS 26+ native tab bar renders this slot as the system Search item
+        // (the distinct search affordance), matching how the AI tool was
+        // presented on older builds. `fork.knife` is the pre-26 fallback icon.
         ...(majorVersionIOS >= 26 && { tabBarSystemItem: "search" }),
-        tabBarIcon: { type: "sfSymbol", name: "sparkle" },
+        // A plain, static food icon. Adding food is handled by the in-screen
+        // "+" button on the calorie tracker (see CalorieTracker), so the tab no
+        // longer morphs into a "+" FAB when focused.
+        tabBarIcon: { type: "sfSymbol", name: "fork.knife" },
       },
     },
   },
@@ -265,6 +277,26 @@ const RootStack = createNativeStackNavigator({
       options: { headerShown: false },
     },
 
+    Paywall: {
+      screen: PaywallScreen,
+      options: {
+        presentation: "fullScreenModal",
+        headerShown: false,
+        gestureEnabled: true,
+        gestureDirection: "vertical",
+      },
+    },
+
+    PlusUpsell: {
+      screen: PlusUpsellSheet,
+      options: {
+        presentation: "transparentModal",
+        headerShown: false,
+        animation: "none",
+        gestureEnabled: false,
+      },
+    },
+
     EditRoutine: {
       screen: EditRoutine,
       options: { headerShown: false },
@@ -277,6 +309,16 @@ const RootStack = createNativeStackNavigator({
 
     RoutineDetail: {
       screen: RoutineDetail,
+      options: { headerShown: false },
+    },
+
+    AddFood: {
+      screen: AddFood,
+      options: { headerShown: false },
+    },
+
+    NutritionGoals: {
+      screen: NutritionGoals,
       options: { headerShown: false },
     },
   },
@@ -303,7 +345,9 @@ declare global {
         dateLabel: string;
       };
       Activity: undefined;
-      ExerciseChat: undefined;
+      Nutrition: undefined;
+      AddFood: { category?: string } | undefined;
+      NutritionGoals: undefined;
 
       FollowScreen: {
         initialTab: "followers" | "following";
@@ -336,6 +380,8 @@ declare global {
 
       Comments: {
         postId: string;
+        postOwnerId?: string;
+        focusCommentId?: string;
       };
 
       ImageViewer: {

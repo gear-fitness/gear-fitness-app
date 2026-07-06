@@ -56,6 +56,16 @@ export async function getCachedExercises(): Promise<Exercise[]> {
 }
 
 /**
+ * Get the global exercise catalog without authentication. Used during
+ * onboarding (before the user has an account) so the routine builder can
+ * reference real exercises. Returns global exercises only — never custom ones.
+ */
+export async function getPublicExerciseCatalog(): Promise<Exercise[]> {
+  const { data } = await apiClient.get<Exercise[]>("/public/exercises");
+  return data ?? [];
+}
+
+/**
  * Get all exercises. Tries the network first and refreshes the offline
  * catalog on success; falls back to the cached catalog when the request
  * fails because the device is offline. Auth or server errors are rethrown.

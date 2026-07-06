@@ -39,6 +39,9 @@ export interface UserProfile {
   followingCount: number;
   isFollowing: boolean | null;
   followStatus?: "ACCEPTED" | "PENDING" | "BLOCKED" | "NONE" | null;
+  // Subscription tier (authoritative, from the RevenueCat webhook). Optional so
+  // profiles cached before this field existed still parse.
+  tier?: "BASIC" | "PLUS" | "ULTRA";
 }
 
 export interface UsernameAvailabilityResponse {
@@ -153,4 +156,87 @@ export interface Routine {
   name: string;
   scheduledDays: string[];
   exercises: RoutineExercise[];
+}
+
+// Units of measure a food can be logged in. The backend only persists
+// SERVING/GRAM (see ServingUnit); these richer units are a client-side concept
+// resolved to grams when logging. `grams` is how much one of the unit weighs
+// for the specific food it belongs to.
+export type MeasureUnitKey = "serving" | "g" | "oz" | "cup" | "ml";
+
+export interface MeasureUnit {
+  key: MeasureUnitKey;
+  label: string;
+  grams: number;
+}
+
+export interface FoodItem {
+  foodId: string;
+  fdcId: number | null;
+  description: string;
+  brandOwner: string | null;
+  dataType: string | null;
+  servingSize: number | null;
+  servingUnit: string | null;
+  householdServing: string | null;
+  // Valid units of measure for this item (client-derived; see nutritionUnits).
+  units?: MeasureUnit[];
+  // Nutrient values are per 100 g.
+  calories: number | null;
+  proteinG: number | null;
+  carbsG: number | null;
+  fatG: number | null;
+}
+
+export type ServingUnit = "SERVING" | "GRAM";
+
+/**
+ * The unit a logged entry is displayed/edited in. Persisted client-side
+ * (AsyncStorage) keyed by entryId, since the backend only stores SERVING/GRAM.
+ */
+export interface EntryUnitMeta {
+  unitKey: MeasureUnitKey;
+  quantity: number;
+  servingGrams: number;
+  units?: MeasureUnit[];
+}
+
+export interface FoodLogEntry {
+  entryId: string;
+  foodId: string | null;
+  // Free-text label for the client-side visual card this entry belongs to.
+  category: string | null;
+  description: string;
+  quantity: number;
+  unit: ServingUnit;
+  // Consumed amounts (already scaled by quantity).
+  calories: number | null;
+  proteinG: number | null;
+  carbsG: number | null;
+  fatG: number | null;
+  // Provenance for AI-logged entries: "AI_SONAR" | "AI_CACHE"; null for manual.
+  sourceType?: string | null;
+  sourceUrl?: string | null;
+}
+
+export interface NutritionGoal {
+  calorieGoal: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+  isCustom: boolean;
+}
+
+export interface MacroTotals {
+  calories: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+}
+
+export interface DaySummary {
+  date: string;
+  goal: NutritionGoal;
+  totals: MacroTotals;
+  entries: FoodLogEntry[];
 }

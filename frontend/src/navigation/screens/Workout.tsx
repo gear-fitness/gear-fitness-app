@@ -11,28 +11,14 @@ import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { useAuth } from "../../context/AuthContext";
+import { useTier } from "../../hooks/useTier";
 import { TodaysRoutines } from "../../components/TodaysRoutines";
 import { StreakDropdown } from "../../components/StreakDropdown";
+import { StreakIcon } from "../../components/StreakIcon";
 import { streakService, type StreakInfo } from "../../api/streakService";
+import { QUOTES } from "../../constants/quotes";
 
 const SERIF = "LibreCaslonText_400Regular";
-
-const QUOTES = [
-  "The only bad workout is the one that didn’t happen.",
-  "Discipline is choosing between what you want now and what you want most.",
-  "Strength doesn’t come from what you can do. It comes from overcoming what you couldn’t.",
-  "Small steps every day.",
-  "You don’t have to be extreme, just consistent.",
-  "Sweat now, shine later.",
-  "The body achieves what the mind believes.",
-  "Don’t count the days. Make the days count.",
-  "Train insane or remain the same.",
-  "Progress, not perfection.",
-  "Your only limit is you.",
-  "One more rep. One more set. One more day.",
-  "Rest, but never quit.",
-  "Be stronger than your excuses.",
-];
 
 function dailyQuote(): string {
   const d = new Date();
@@ -63,6 +49,7 @@ export function Workout() {
   const isDark = scheme === "dark";
 
   const { user, refreshUser } = useAuth();
+  const { atLeast } = useTier();
   const { playerVisible, seconds, running, exercises, reset } =
     useWorkoutTimer();
 
@@ -156,15 +143,7 @@ export function Workout() {
           activeOpacity={0.7}
         >
           <View style={styles.streakRow}>
-            <Svg width={42} height={46} viewBox="0 0 16 18" fill="none">
-              <Path
-                d="M8 1.5c.8 2.6 3 3.8 3 6.8 0 1.4-.7 2.6-1.8 3.3.4-.6.5-1.4.2-2.3-.3-1-1.1-1.6-1.4-2.6C7.2 9 6 10 6 11.7c0 .6.2 1.2.4 1.7C5.3 12.7 4.5 11.4 4.5 10c0-2.5 1.6-3.8 2.6-5.8.4-.8.7-1.8.9-2.7Z"
-                stroke="#FF6A1F"
-                strokeWidth={1.3}
-                strokeLinejoin="round"
-                fill="none"
-              />
-            </Svg>
+            <StreakIcon streak={streak} size={46} isDark={isDark} />
             <Text style={[styles.streakNumber, { color: t.text }]}>
               {streak}
             </Text>
@@ -283,6 +262,13 @@ export function Workout() {
         onRestore={handleRestore}
         loading={streakLoading}
         isDark={isDark}
+        isPlus={atLeast("PLUS")}
+        onUpsell={() => {
+          setStreakDropdownVisible(false);
+          navigation.navigate("PlusUpsell", {
+            feature: "Restore your streak with Plus",
+          });
+        }}
       />
     </SafeAreaView>
   );
@@ -308,7 +294,9 @@ const styles = StyleSheet.create({
 
   streakRow: {
     flexDirection: "row",
-    alignItems: "center",
+    // Bottom-align so the number's baseline sits on the flame's base, rather
+    // than floating at the geometric center of the taller full-size flame.
+    alignItems: "flex-end",
     gap: 2,
   },
 
@@ -318,6 +306,10 @@ const styles = StyleSheet.create({
     letterSpacing: -0.6,
     lineHeight: 34,
     fontVariant: ["tabular-nums"],
+    // The flame fills its box edge-to-edge, but digits sit on the baseline with
+    // empty descent space below them. Drop the number so its baseline lands on
+    // the flame's base (paired with the row's flex-end alignment).
+    transform: [{ translateY: 6 }],
   },
 
   streakLabel: {
