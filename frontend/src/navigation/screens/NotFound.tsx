@@ -1,14 +1,15 @@
 import { Button } from "@react-navigation/elements";
 import { Text } from "../../components/Text";
 import { StyleSheet, View } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useTheme } from "@react-navigation/native";
 
 export function NotFound() {
   const navigation = useNavigation();
+  const { colors } = useTheme();
 
   return (
     <View style={styles.container}>
-      <Text>404</Text>
+      <Text style={{ color: colors.text }}>404</Text>
 
       <Button onPress={() => navigation.navigate("HomeTabs")}>
         Go to Home
