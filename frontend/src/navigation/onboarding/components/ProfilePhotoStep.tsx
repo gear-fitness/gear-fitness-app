@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { View, Text, StyleSheet, Pressable, Image, Alert } from "react-native";
+import { View, StyleSheet, Pressable, Image, Alert } from "react-native";
+import { Text } from "../../../components/Text";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { StepProps } from "../stepProps";

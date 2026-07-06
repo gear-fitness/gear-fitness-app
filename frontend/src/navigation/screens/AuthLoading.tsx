@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { View, Image, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Image, TouchableOpacity, StyleSheet } from "react-native";
+import { Text } from "../../components/Text";
 import { useNavigation, useTheme } from "@react-navigation/native";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useAuth } from "../../context/AuthContext";

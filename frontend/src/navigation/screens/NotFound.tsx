@@ -1,4 +1,5 @@
-import { Text, Button } from "@react-navigation/elements";
+import { Button } from "@react-navigation/elements";
+import { Text } from "../../components/Text";
 import { StyleSheet, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 

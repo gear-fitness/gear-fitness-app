@@ -1,11 +1,6 @@
 import React, { useMemo } from "react";
-import {
-  View,
-  Text,
-  Pressable,
-  ActivityIndicator,
-  StyleSheet,
-} from "react-native";
+import { View, Pressable, ActivityIndicator, StyleSheet } from "react-native";
+import { Text } from "../../../components/Text";
 import { OnboardingTopBar } from "./OnboardingTopBar";
 import { useOnboardingColors } from "./useOnboardingColors";
 import { makeOnboardingStyles } from "./makeOnboardingStyles";

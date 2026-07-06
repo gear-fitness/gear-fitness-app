@@ -3,13 +3,12 @@ import {
   View,
   Modal,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
   Keyboard,
 } from "react-native";
-import { Text } from "@react-navigation/elements";
+import { Text, TextInput } from "./Text";
 import { Ionicons } from "@expo/vector-icons";
 import { followUserByUsername } from "../api/userService";
 import { useTheme } from "@react-navigation/native";

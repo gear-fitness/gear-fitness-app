@@ -1,12 +1,12 @@
 import React from "react";
 import {
   StyleSheet,
-  Text,
   View,
   type StyleProp,
   type TextStyle,
   type ViewStyle,
 } from "react-native";
+import { Text } from "../Text";
 
 import { MuscleDiagram, type MuscleActivation } from "./MuscleDiagram";
 import type { BodyVariant } from "./bodyData";

@@ -1,8 +1,6 @@
 import React, { useState } from "react";
 import {
   View,
-  Text,
-  TextInput,
   TouchableOpacity,
   ScrollView,
   StyleSheet,
@@ -12,6 +10,7 @@ import {
   Platform,
   Alert,
 } from "react-native";
+import { Text, TextInput } from "../../components/Text";
 import { Ionicons } from "@expo/vector-icons";
 import {
   SafeAreaView,

@@ -4,10 +4,10 @@ import {
   Animated,
   Modal,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text } from "./Text";
 import { Ionicons } from "@expo/vector-icons";
 import type { StreakInfo } from "../api/streakService";
 import { StreakIcon } from "./StreakIcon";
@@ -125,7 +125,10 @@ export function StreakDropdown({
             {/* Streak hero */}
             <View style={styles.streakHeader}>
               <StreakIcon streak={currentStreak} size={64} isDark={isDark} />
-              <Text style={[styles.streakNumber, { color: t.text }]}>
+              <Text
+                style={[styles.streakNumber, { color: t.text }]}
+                maxFontSizeMultiplier={1}
+              >
                 {currentStreak}
               </Text>
             </View>
@@ -152,7 +155,10 @@ export function StreakDropdown({
                     : "Plus members get 4 / month"}
                 </Text>
               </View>
-              <Text style={[styles.tokenCount, { color: t.text }]}>
+              <Text
+                style={[styles.tokenCount, { color: t.text }]}
+                maxFontSizeMultiplier={1}
+              >
                 {tokens}
               </Text>
             </View>

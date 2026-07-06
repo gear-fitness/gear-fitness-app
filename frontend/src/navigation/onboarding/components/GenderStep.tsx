@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, StyleSheet } from "react-native";
+import { Text } from "../../../components/Text";
 import { StepProps } from "../stepProps";
 import { StepScaffold } from "./StepScaffold";
 import { OptionCardList } from "./OptionCardList";

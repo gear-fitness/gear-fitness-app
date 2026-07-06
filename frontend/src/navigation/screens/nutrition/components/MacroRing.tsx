@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
-import { StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text, TextInput } from "../../../../components/Text";
 import Svg, { Circle } from "react-native-svg";
 import Animated, {
   Easing,

@@ -8,12 +8,12 @@ import {
   ScrollView,
   StyleProp,
   StyleSheet,
-  Text,
   TouchableOpacity,
   useWindowDimensions,
   View,
   ViewStyle,
 } from "react-native";
+import { Text } from "../../../../components/Text";
 import { Ionicons } from "@expo/vector-icons";
 import Svg, { Circle } from "react-native-svg";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";

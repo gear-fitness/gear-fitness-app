@@ -1,5 +1,6 @@
 import React from "react";
-import { StyleSheet, Text, View, useColorScheme } from "react-native";
+import { StyleSheet, View, useColorScheme } from "react-native";
+import { Text } from "./Text";
 import { Ionicons } from "@expo/vector-icons";
 
 interface Props {

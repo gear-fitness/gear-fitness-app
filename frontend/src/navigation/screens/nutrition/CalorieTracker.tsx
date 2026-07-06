@@ -7,12 +7,11 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   UIManager,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../../components/Text";
 import Reanimated, {
   Easing,
   useAnimatedStyle,

@@ -1,12 +1,12 @@
 import React from "react";
 import {
   View,
-  Text,
   StyleSheet,
   Pressable,
   StyleProp,
   ViewStyle,
 } from "react-native";
+import { Text } from "./Text";
 import { Ionicons } from "@expo/vector-icons";
 import { useThemeColors } from "../hooks/useThemeColors";
 

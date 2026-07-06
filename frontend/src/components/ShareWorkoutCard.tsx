@@ -1,5 +1,6 @@
 import React, { forwardRef, useMemo } from "react";
-import { Image, StyleSheet, Text, View, type ColorValue } from "react-native";
+import { Image, StyleSheet, View, type ColorValue } from "react-native";
+import { FontScaleProvider, Text } from "./Text";
 import { MuscleDiagram, type BodyVariant } from "./MuscleDiagram";
 import {
   computeActivations,
@@ -113,100 +114,105 @@ export const ShareWorkoutCard = forwardRef<View, ShareWorkoutCardProps>(
     const gLogoSize = Math.round(40 * scale);
 
     return (
-      <View
-        ref={ref}
-        collapsable={false}
-        style={[
-          styles.card,
-          {
-            width,
-            height,
-            backgroundColor: palette.bg,
-            paddingVertical: 32 * scale,
-            paddingHorizontal: 20 * scale,
-            borderTopLeftRadius: 16 * scale,
-            borderTopRightRadius: 16 * scale,
-            borderBottomLeftRadius: 16 * scale,
-            borderBottomRightRadius: 16 * scale,
-          },
-        ]}
-      >
+      <FontScaleProvider max={1}>
         <View
-          style={[styles.metricsRow, { marginTop: 8 * scale, gap: 14 * scale }]}
-        >
-          <Metric
-            label="TIME"
-            value={formatDuration(durationMin)}
-            palette={palette}
-            scale={scale}
-          />
-          <Metric
-            label="EXERCISES"
-            value={`${exerciseCount} ex.`}
-            palette={palette}
-            scale={scale}
-          />
-          <Metric
-            label="MUSCLES"
-            value={`${muscleCount} groups`}
-            palette={palette}
-            scale={scale}
-          />
-        </View>
-
-        <View style={[styles.diagramRow, { gap: 6 * scale }]}>
-          <MuscleDiagram
-            side="front"
-            variant={bodyVariant}
-            activations={activations}
-            baseColor={palette.diagramBase}
-            outlineColor={palette.diagramOutline}
-            intensityToColor={intensityToColor}
-            width={diagramWidth}
-          />
-          <MuscleDiagram
-            side="back"
-            variant={bodyVariant}
-            activations={activations}
-            baseColor={palette.diagramBase}
-            outlineColor={palette.diagramOutline}
-            intensityToColor={intensityToColor}
-            width={diagramWidth}
-          />
-        </View>
-
-        <View
+          ref={ref}
+          collapsable={false}
           style={[
-            styles.brandBlock,
-            { gap: 6 * scale, transform: [{ translateY: -22 * scale }] },
+            styles.card,
+            {
+              width,
+              height,
+              backgroundColor: palette.bg,
+              paddingVertical: 32 * scale,
+              paddingHorizontal: 20 * scale,
+              borderTopLeftRadius: 16 * scale,
+              borderTopRightRadius: 16 * scale,
+              borderBottomLeftRadius: 16 * scale,
+              borderBottomRightRadius: 16 * scale,
+            },
           ]}
         >
-          <Image
-            source={G_LOGO}
+          <View
             style={[
-              {
-                width: gLogoSize,
-                height: gLogoSize,
-                transform: [{ translateX: -1 * scale }],
-              },
-              theme === "light" && styles.gLogoInverted,
-            ]}
-            resizeMode="contain"
-          />
-          <Text
-            style={[
-              styles.wordmark,
-              {
-                color: palette.text,
-                fontSize: 18 * scale,
-                letterSpacing: 1 * scale,
-              },
+              styles.metricsRow,
+              { marginTop: 8 * scale, gap: 14 * scale },
             ]}
           >
-            GEAR
-          </Text>
+            <Metric
+              label="TIME"
+              value={formatDuration(durationMin)}
+              palette={palette}
+              scale={scale}
+            />
+            <Metric
+              label="EXERCISES"
+              value={`${exerciseCount} ex.`}
+              palette={palette}
+              scale={scale}
+            />
+            <Metric
+              label="MUSCLES"
+              value={`${muscleCount} groups`}
+              palette={palette}
+              scale={scale}
+            />
+          </View>
+
+          <View style={[styles.diagramRow, { gap: 6 * scale }]}>
+            <MuscleDiagram
+              side="front"
+              variant={bodyVariant}
+              activations={activations}
+              baseColor={palette.diagramBase}
+              outlineColor={palette.diagramOutline}
+              intensityToColor={intensityToColor}
+              width={diagramWidth}
+            />
+            <MuscleDiagram
+              side="back"
+              variant={bodyVariant}
+              activations={activations}
+              baseColor={palette.diagramBase}
+              outlineColor={palette.diagramOutline}
+              intensityToColor={intensityToColor}
+              width={diagramWidth}
+            />
+          </View>
+
+          <View
+            style={[
+              styles.brandBlock,
+              { gap: 6 * scale, transform: [{ translateY: -22 * scale }] },
+            ]}
+          >
+            <Image
+              source={G_LOGO}
+              style={[
+                {
+                  width: gLogoSize,
+                  height: gLogoSize,
+                  transform: [{ translateX: -1 * scale }],
+                },
+                theme === "light" && styles.gLogoInverted,
+              ]}
+              resizeMode="contain"
+            />
+            <Text
+              style={[
+                styles.wordmark,
+                {
+                  color: palette.text,
+                  fontSize: 18 * scale,
+                  letterSpacing: 1 * scale,
+                },
+              ]}
+            >
+              GEAR
+            </Text>
+          </View>
         </View>
-      </View>
+      </FontScaleProvider>
     );
   },
 );

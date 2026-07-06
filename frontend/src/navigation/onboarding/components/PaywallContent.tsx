@@ -1,13 +1,13 @@
 import React, { useMemo, useState, ReactNode } from "react";
 import {
   View,
-  Text,
   StyleSheet,
   Pressable,
   ScrollView,
   Alert,
   ActivityIndicator,
 } from "react-native";
+import { Text } from "../../../components/Text";
 import { SymbolView } from "expo-symbols";
 import { PurchasesPackage } from "react-native-purchases";
 import { useOnboardingColors } from "./useOnboardingColors";
