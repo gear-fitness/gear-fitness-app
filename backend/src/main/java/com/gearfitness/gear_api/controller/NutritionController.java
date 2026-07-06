@@ -127,6 +127,39 @@ public class NutritionController {
     }
   }
 
+  /**
+   * ISO dates in [start, end] with at least one logged food — the calendar
+   * sheet uses these to mark days that have entries.
+   */
+  @GetMapping("/logged-dates")
+  public ResponseEntity<List<String>> loggedDates(
+    @RequestParam String start,
+    @RequestParam String end,
+    @RequestHeader("Authorization") String authHeader
+  ) {
+    UUID userId = resolveUserId(authHeader);
+    if (userId == null) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+    try {
+      return ResponseEntity.ok(
+        nutritionService.getLoggedDates(userId, start, end)
+      );
+    } catch (IllegalArgumentException | java.time.format.DateTimeParseException e) {
+      return ResponseEntity.badRequest().build();
+    } catch (Exception e) {
+      log.error(
+        "loggedDates failed (userId={}, start={}, end={}): {}",
+        userId,
+        start,
+        end,
+        e.getMessage(),
+        e
+      );
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+    }
+  }
+
   /** Log a food (seeded reference or quick-add). */
   @PostMapping("/log")
   public ResponseEntity<LogEntryDTO> logFood(

@@ -51,7 +51,10 @@ public class PerplexityClient {
     - If preparation is unspecified, assume the most common preparation.
     - For branded or restaurant items, look up the official published nutrition \
     facts and use per-serving label values; for generic foods use standard \
-    nutrition-database values.
+    nutrition-database values. Trust, in order: the manufacturer or \
+    restaurant's own website, government databases like USDA FoodData Central, \
+    then established nutrition databases (Nutritionix, CalorieKing, FatSecret). \
+    Never base numbers on social media posts, forums, blogs, or news articles.
     - Return an empty items list ONLY when the input clearly is not food or \
     drink even under a generous reading (gibberish, a question, a note like \
     "meeting at 3pm"). Never return empty because the input is vague, a brand \
@@ -79,6 +82,24 @@ public class PerplexityClient {
     when you found official/published nutrition data, lower when you had to guess \
     what the user meant, the portion size, or the preparation.
     """;
+
+  // Domains Sonar must never search or cite ("-" prefix = blocklist). Social /
+  // user-generated content gave wildly unreliable macros (e.g. "alani" citing
+  // five Instagram posts). A blocklist beats an allowlist here because branded
+  // foods need the brand's own site, which can't be enumerated up front.
+  // Perplexity caps search_domain_filter at 10 entries.
+  private static final List<String> BLOCKED_DOMAINS = List.of(
+    "-instagram.com",
+    "-facebook.com",
+    "-tiktok.com",
+    "-pinterest.com",
+    "-reddit.com",
+    "-twitter.com",
+    "-x.com",
+    "-youtube.com",
+    "-quora.com",
+    "-threads.net"
+  );
 
   // Bound the connect phase. The per-request read timeout is set on each
   // HttpRequest below (generous, to cover the one-time schema-compile latency
@@ -142,6 +163,8 @@ public class PerplexityClient {
       // Low temperature: estimates for the same text should not swing between
       // calls (the cache also assumes one text -> one stable parse).
       payload.put("temperature", 0.1);
+      ArrayNode domainFilter = payload.putArray("search_domain_filter");
+      BLOCKED_DOMAINS.forEach(domainFilter::add);
       // Cap output so the schema is actually honored (Perplexity only enforces
       // the format if the response fits under max_tokens).
       payload.put("max_tokens", 1200);

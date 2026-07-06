@@ -39,6 +39,7 @@ import {
   parseLocalDate,
 } from "../../../utils/date";
 import { MacroRing } from "./components/MacroRing";
+import { CalendarSheet } from "./components/CalendarSheet";
 import { EditEntrySheet } from "./components/EditEntrySheet";
 import { MealSwipeLeftAction } from "./components/MealMenuButton";
 import { SmartJournal } from "./components/SmartJournal";
@@ -131,6 +132,10 @@ export function CalorieTracker() {
   // collapsed so the screen opens compact.
   const [summaryCollapsed, setSummaryCollapsed] = useState(true);
 
+  // Calendar bottom sheet opened from the date label, for jumping straight to
+  // a day instead of stepping the chevrons one day at a time.
+  const [calendarOpen, setCalendarOpen] = useState(false);
+
   const changeSection = (index: number) => {
     if (index === activeSection) return;
     Keyboard.dismiss();
@@ -180,7 +185,8 @@ export function CalorieTracker() {
   const consumed = round(totals?.calories);
   const calorieGoal = goal?.calorieGoal ?? 0;
   const caloriePct = calorieGoal > 0 ? Math.min(consumed / calorieGoal, 1) : 0;
-  const isToday = selectedDate === getCurrentLocalDateString();
+  const todayStr = getCurrentLocalDateString();
+  const isToday = selectedDate === todayStr;
 
   // Fraction of the calorie bar filled, animated on the UI thread. The width
   // eases from 0 to caloriePct so the bar draws itself on entry.
@@ -374,9 +380,22 @@ export function CalorieTracker() {
         >
           <Ionicons name="chevron-back" size={24} color={t.text} />
         </TouchableOpacity>
-        <Text style={[styles.dateLabel, { color: t.text }]}>
-          {dateLabel(selectedDate)}
-        </Text>
+        {/* Tap the label to open a calendar dropdown and jump straight to a
+            day (the chevrons still step one day at a time). */}
+        <TouchableOpacity
+          style={styles.dateLabelBtn}
+          accessibilityLabel="Choose date"
+          hitSlop={8}
+          onPress={() => {
+            Haptics.selectionAsync().catch(() => {});
+            setCalendarOpen(true);
+          }}
+        >
+          <Text style={[styles.dateLabel, { color: t.text }]}>
+            {dateLabel(selectedDate)}
+          </Text>
+          <Ionicons name="chevron-down" size={14} color={t.secondary} />
+        </TouchableOpacity>
         <TouchableOpacity
           accessibilityLabel="Next day"
           hitSlop={12}
@@ -394,6 +413,16 @@ export function CalorieTracker() {
           />
         </TouchableOpacity>
       </View>
+
+      {/* Calendar bottom sheet — days with entries marked, future days
+          selectable for logging ahead. Day taps update the screen live;
+          Done dismisses. */}
+      <CalendarSheet
+        visible={calendarOpen}
+        onClose={() => setCalendarOpen(false)}
+        selectedDate={selectedDate}
+        onSelectDate={setSelectedDate}
+      />
 
       {/* Summary chip — a compact glass card above the logging sections. Tap to
           collapse it down to just the calorie header + progress bar, or expand
@@ -955,6 +984,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   dateLabel: { fontSize: 17, fontWeight: "600" },
+  dateLabelBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
   flex1: { flex: 1 },
   summaryWrap: { paddingHorizontal: 16 },
   pageScroll: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 120 },

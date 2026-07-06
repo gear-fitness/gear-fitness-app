@@ -93,6 +93,31 @@ public class NutritionService {
     );
   }
 
+  /**
+   * ISO dates in [start, end] on which the user logged at least one food —
+   * backs the calendar sheet's "days with entries" markers. The range is
+   * required and capped by the caller-supplied bounds, so a client can't ask
+   * for an unbounded scan.
+   */
+  @Transactional
+  public List<String> getLoggedDates(
+    UUID userId,
+    String startStr,
+    String endStr
+  ) {
+    LocalDate start = LocalDate.parse(startStr);
+    LocalDate end = LocalDate.parse(endStr);
+    if (end.isBefore(start)) {
+      throw new IllegalArgumentException("end before start");
+    }
+    return foodLogEntryRepository
+      .findDistinctLogDates(userId, start, end)
+      .stream()
+      .map(LocalDate::toString)
+      .sorted()
+      .collect(Collectors.toList());
+  }
+
   // ----------------------------------------------------------------- logging
 
   @Transactional

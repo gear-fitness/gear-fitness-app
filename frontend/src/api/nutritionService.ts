@@ -46,6 +46,17 @@ export async function getDay(date: string): Promise<DaySummary> {
   return data;
 }
 
+/** ISO dates in [start, end] on which the user logged at least one food. */
+export async function getLoggedDates(
+  start: string,
+  end: string,
+): Promise<string[]> {
+  const { data } = await apiClient.get<string[]>("/nutrition/logged-dates", {
+    params: { start, end },
+  });
+  return data ?? [];
+}
+
 export interface LogFoodPayload {
   foodId?: string | null;
   category: string;
