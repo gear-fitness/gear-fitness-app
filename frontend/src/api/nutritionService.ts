@@ -39,6 +39,68 @@ export async function getUserFoods(): Promise<FoodItem[]> {
   return (data ?? []).map((f) => ({ ...f, units: unitsForFood(f) }));
 }
 
+/** Create/update payload for a custom food. Nutrition is per serving. */
+export interface CustomFoodPayload {
+  description: string;
+  nickname?: string | null;
+  calories: number;
+  proteinG?: number;
+  carbsG?: number;
+  fatG?: number;
+}
+
+/** The user's custom foods ("saved meals"), newest first. */
+export async function getCustomFoods(): Promise<FoodItem[]> {
+  const { data } = await apiClient.get<FoodItem[]>("/nutrition/foods/custom");
+  return (data ?? []).map((f) => ({ ...f, units: unitsForFood(f) }));
+}
+
+export async function createCustomFood(
+  payload: CustomFoodPayload,
+): Promise<FoodItem> {
+  const { data } = await apiClient.post<FoodItem>(
+    "/nutrition/foods/custom",
+    payload,
+  );
+  return { ...data, units: unitsForFood(data) };
+}
+
+export async function updateCustomFood(
+  foodId: string,
+  payload: CustomFoodPayload,
+): Promise<FoodItem> {
+  const { data } = await apiClient.put<FoodItem>(
+    `/nutrition/foods/custom/${foodId}`,
+    payload,
+  );
+  return { ...data, units: unitsForFood(data) };
+}
+
+export async function deleteCustomFood(foodId: string): Promise<void> {
+  await apiClient.delete(`/nutrition/foods/custom/${foodId}`);
+}
+
+/** AI nutrition estimate: summed macros for a described meal, nothing logged. */
+export interface AiEstimate {
+  calories: number | null;
+  proteinG: number | null;
+  carbsG: number | null;
+  fatG: number | null;
+  confidence: number;
+  noFood: boolean;
+}
+
+/**
+ * Estimate nutrition from natural-language text via AI (PLUS tier) without
+ * logging anything — backs the custom-food form's "calculate calories for me".
+ */
+export async function aiEstimateFood(text: string): Promise<AiEstimate> {
+  const { data } = await apiClient.post<AiEstimate>("/nutrition/ai/estimate", {
+    text,
+  });
+  return data;
+}
+
 export async function getDay(date: string): Promise<DaySummary> {
   const { data } = await apiClient.get<DaySummary>("/nutrition/day", {
     params: { date },

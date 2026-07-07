@@ -175,10 +175,13 @@ export interface FoodItem {
   fdcId: number | null;
   description: string;
   brandOwner: string | null;
+  // "CUSTOM" for user-created saved meals; USDA type strings otherwise.
   dataType: string | null;
   servingSize: number | null;
   servingUnit: string | null;
   householdServing: string | null;
+  // Optional display nickname (custom foods only).
+  nickname?: string | null;
   // Valid units of measure for this item (client-derived; see nutritionUnits).
   units?: MeasureUnit[];
   // Nutrient values are per 100 g.

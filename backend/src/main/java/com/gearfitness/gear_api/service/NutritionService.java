@@ -1,5 +1,6 @@
 package com.gearfitness.gear_api.service;
 
+import com.gearfitness.gear_api.dto.CustomFoodRequest;
 import com.gearfitness.gear_api.dto.DaySummaryDTO;
 import com.gearfitness.gear_api.dto.FoodItemDTO;
 import com.gearfitness.gear_api.dto.LogEntryDTO;
@@ -38,14 +39,20 @@ public class NutritionService {
 
   // ---------------------------------------------------------------- search
 
-  public List<FoodItemDTO> searchFoods(String query, int page) {
+  public List<FoodItemDTO> searchFoods(UUID userId, String query, int page) {
     int offset = Math.max(page, 0) * DEFAULT_PAGE_SIZE;
     // A blank query returns the default browse list rather than nothing, so the
     // Add Food screen's pre-search list comes from this same table — there is no
-    // second food source.
+    // second food source. A real query also matches the caller's own custom
+    // foods (scoped by owner in the query itself).
     List<FoodItem> items = (query == null || query.isBlank())
       ? foodItemRepository.browse(DEFAULT_PAGE_SIZE, offset)
-      : foodItemRepository.search(query.trim(), DEFAULT_PAGE_SIZE, offset);
+      : foodItemRepository.search(
+          query.trim(),
+          userId,
+          DEFAULT_PAGE_SIZE,
+          offset
+        );
     return items.stream().map(FoodItemDTO::from).collect(Collectors.toList());
   }
 
@@ -61,6 +68,86 @@ public class NutritionService {
       .stream()
       .map(FoodItemDTO::from)
       .collect(Collectors.toList());
+  }
+
+  // ---------------------------------------------------------- custom foods
+
+  /** The user's custom foods ("saved meals"), newest first. */
+  public List<FoodItemDTO> getCustomFoods(UUID userId) {
+    return foodItemRepository
+      .findByOwnerUserIdOrderByCreatedAtDesc(userId)
+      .stream()
+      .map(FoodItemDTO::from)
+      .collect(Collectors.toList());
+  }
+
+  /**
+   * Create a custom food. Nutrition arrives per serving; it's stored as
+   * per-100g with servingSize = 100 so one SERVING resolves to exactly the
+   * entered values through the standard scaling in {@link #logFood}.
+   */
+  @Transactional
+  public FoodItemDTO createCustomFood(UUID userId, CustomFoodRequest req) {
+    FoodItem food = FoodItem.builder().build();
+    applyCustomFields(food, req);
+    food.setOwnerUserId(userId);
+    food.setDataType("CUSTOM");
+    food.setServingSize(BigDecimal.valueOf(100));
+    food.setServingUnit("g");
+    food.setHouseholdServing("1 serving");
+    food.setCreatedAt(LocalDateTime.now());
+    return FoodItemDTO.from(foodItemRepository.save(food));
+  }
+
+  @Transactional
+  public FoodItemDTO updateCustomFood(
+    UUID userId,
+    UUID foodId,
+    CustomFoodRequest req
+  ) {
+    FoodItem food = requireOwnedCustomFood(userId, foodId);
+    applyCustomFields(food, req);
+    return FoodItemDTO.from(foodItemRepository.save(food));
+  }
+
+  /**
+   * Delete a custom food. Logged entries keep their macro snapshot and their
+   * food_id FK is ON DELETE SET NULL, so history is unaffected.
+   */
+  @Transactional
+  public void deleteCustomFood(UUID userId, UUID foodId) {
+    foodItemRepository.delete(requireOwnedCustomFood(userId, foodId));
+  }
+
+  private FoodItem requireOwnedCustomFood(UUID userId, UUID foodId) {
+    FoodItem food = foodItemRepository
+      .findById(foodId)
+      .orElseThrow(() -> new IllegalArgumentException("Food not found"));
+    if (!userId.equals(food.getOwnerUserId())) {
+      throw new IllegalArgumentException("Food not found");
+    }
+    return food;
+  }
+
+  private void applyCustomFields(FoodItem food, CustomFoodRequest req) {
+    String description = req.getDescription() == null
+      ? ""
+      : req.getDescription().trim();
+    if (description.isEmpty()) {
+      throw new IllegalArgumentException("Description required");
+    }
+    if (req.getCalories() == null || req.getCalories() < 0) {
+      throw new IllegalArgumentException("Calories required");
+    }
+    String nickname = req.getNickname() == null
+      ? null
+      : req.getNickname().trim();
+    food.setDescription(description);
+    food.setNickname(nickname == null || nickname.isEmpty() ? null : nickname);
+    food.setCalories(BigDecimal.valueOf(req.getCalories()));
+    food.setProteinG(nullableBd(req.getProteinG()));
+    food.setCarbsG(nullableBd(req.getCarbsG()));
+    food.setFatG(nullableBd(req.getFatG()));
   }
 
   // ------------------------------------------------------------------- day

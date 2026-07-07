@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Alert,
   Animated,
   Easing,
   Image,
@@ -16,9 +17,11 @@ import {
   ViewStyle,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { useThemeColors } from "../../../../hooks/useThemeColors";
 import { useNutrition } from "../../../../context/NutritionContext";
+import { createCustomFood } from "../../../../api/nutritionService";
 import { FoodLogEntry } from "../../../../api/types";
 import { BottomSheet } from "../../../../components/BottomSheet";
 import { MacroRing } from "./MacroRing";
@@ -130,6 +133,38 @@ export function NutritionDetailSheet({
       fatG: e.reduce((s, x) => s + (x.fatG ?? 0), 0),
     };
   }, [heldDetail]);
+
+  // "Save as Meal": snapshot this line (its typed text + summed nutrition) as
+  // a reusable custom food. Once saved, the menu item reads as a receipt for
+  // the rest of this viewing; a fresh open can save again (e.g. after edits).
+  const [savingMeal, setSavingMeal] = useState(false);
+  const [mealSaved, setMealSaved] = useState(false);
+  useEffect(() => {
+    if (visible) setMealSaved(false);
+  }, [visible]);
+
+  const saveAsMeal = async () => {
+    if (!heldDetail || savingMeal || mealSaved) return;
+    setSavingMeal(true);
+    try {
+      await createCustomFood({
+        description: heldFoodText.trim() || "Saved meal",
+        calories: totals.calories,
+        proteinG: totals.proteinG,
+        carbsG: totals.carbsG,
+        fatG: totals.fatG,
+      });
+      setMealSaved(true);
+      Haptics.notificationAsync(
+        Haptics.NotificationFeedbackType.Success,
+      ).catch(() => {});
+    } catch (err) {
+      console.error("Failed to save meal:", err);
+      Alert.alert("Couldn't save meal", "Something went wrong — try again.");
+    } finally {
+      setSavingMeal(false);
+    }
+  };
 
   return (
     <BottomSheet
@@ -288,6 +323,18 @@ export function NutritionDetailSheet({
                 onPress={() => setMenuOpen(false)}
               />
               <MenuPopover t={t}>
+                <MenuItem
+                  icon={mealSaved ? "checkmark" : "bookmark-outline"}
+                  label={
+                    savingMeal
+                      ? "Saving…"
+                      : mealSaved
+                        ? "Saved to Meals"
+                        : "Save as Meal"
+                  }
+                  t={t}
+                  onPress={saveAsMeal}
+                />
                 <MenuItem
                   icon="create-outline"
                   label="Edit Nutrition"

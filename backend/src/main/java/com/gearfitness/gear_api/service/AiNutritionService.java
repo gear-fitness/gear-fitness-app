@@ -2,6 +2,7 @@ package com.gearfitness.gear_api.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gearfitness.gear_api.dto.AiEstimateResponse;
 import com.gearfitness.gear_api.dto.AiLogRequest;
 import com.gearfitness.gear_api.dto.AiLogResponse;
 import com.gearfitness.gear_api.dto.LogEntryDTO;
@@ -155,6 +156,96 @@ public class AiNutritionService {
   }
 
   /**
+   * Estimate the nutrition of a described meal WITHOUT logging anything —
+   * backs the custom-food form's "calculate calories for me". Same pipeline
+   * as {@link #aiLog} (tier check, cache, spend guards, Sonar, cache write),
+   * minus the food_log_entry writes; returns the parsed foods summed.
+   */
+  public AiEstimateResponse aiEstimate(UUID userId, String rawText) {
+    AppUser user = appUserRepository
+      .findById(userId)
+      .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+    if (!user.getTier().atLeast(Tier.PLUS)) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "AI_TIER");
+    }
+
+    String text = rawText == null ? "" : rawText.trim();
+    if (text.isEmpty()) {
+      throw new ResponseStatusException(
+        HttpStatus.BAD_REQUEST,
+        "AI_EMPTY_TEXT"
+      );
+    }
+
+    String key = normalizeKey(text);
+    Optional<NutritionCache> cached = cacheRepository.findByNormalizedKey(key);
+    if (cached.isPresent()) {
+      NutritionCache hit = cached.get();
+      txTemplate.executeWithoutResult(status -> {
+        hit.setHitCount(hit.getHitCount() + 1);
+        hit.setLastHitAt(LocalDateTime.now());
+        cacheRepository.save(hit);
+      });
+      return sumFoods(
+        deserializeFoods(hit.getParsedResult()),
+        hit.getConfidence() == null ? 0 : hit.getConfidence()
+      );
+    }
+
+    // Cache miss: same spend guards as aiLog — only misses trigger a paid call.
+    LocalDateTime monthStart = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+    if (cacheRepository.countByCreatedAtAfter(monthStart) >= monthlyCap) {
+      throw new ResponseStatusException(
+        HttpStatus.SERVICE_UNAVAILABLE,
+        "AI_MONTHLY_LIMIT"
+      );
+    }
+    enforceDailyCap(userId);
+
+    PerplexityResult result;
+    try {
+      result = perplexityClient.parse(text);
+    } catch (ResponseStatusException e) {
+      throw e;
+    } catch (RuntimeException e) {
+      log.error("Sonar parse failed for AI estimate: {}", e.getMessage());
+      throw new ResponseStatusException(
+        HttpStatus.BAD_GATEWAY,
+        "AI_UPSTREAM",
+        e
+      );
+    }
+
+    writeCacheRow(key, result);
+    return sumFoods(result.foods(), result.confidence());
+  }
+
+  private AiEstimateResponse sumFoods(List<ParsedFood> foods, int confidence) {
+    if (foods.isEmpty()) {
+      return new AiEstimateResponse(null, null, null, null, confidence, true);
+    }
+    double calories = 0;
+    double proteinG = 0;
+    double carbsG = 0;
+    double fatG = 0;
+    for (ParsedFood f : foods) {
+      calories += f.calories();
+      proteinG += f.proteinG();
+      carbsG += f.carbsG();
+      fatG += f.fatG();
+    }
+    return new AiEstimateResponse(
+      calories,
+      proteinG,
+      carbsG,
+      fatG,
+      confidence,
+      false
+    );
+  }
+
+  /**
    * Per-user daily cap on paid Sonar calls, checked and incremented atomically
    * only when a paid call is about to be made (cache hits never reach here).
    * Stale-day entries are reset on access. When the cap is hit, mirror the
@@ -228,30 +319,7 @@ public class AiNutritionService {
     String reasoning = result.reasoning();
     int confidence = result.confidence();
 
-    // Never cache an empty parse: a transient "no food recognized" would
-    // otherwise be replayed forever for that exact phrase. The cache write is
-    // its own transaction so a concurrent-insert conflict can't poison the
-    // entry-logging transaction below.
-    if (!foods.isEmpty()) {
-      try {
-        txTemplate.executeWithoutResult(status -> {
-          NutritionCache row = NutritionCache.builder()
-            .normalizedKey(key)
-            .parsedResult(serialize(foods))
-            .sourceUrls(serialize(sourceUrls))
-            .reasoning(reasoning)
-            .confidence(confidence)
-            .hitCount(0)
-            .createdAt(LocalDateTime.now())
-            .build();
-          cacheRepository.save(row);
-        });
-      } catch (DataIntegrityViolationException dup) {
-        // A concurrent first-time request cached the same key between our
-        // lookup and this insert. Harmless — our own parse still logs the food.
-        log.debug("Concurrent cache insert for key '{}', ignoring", key);
-      }
-    }
+    writeCacheRow(key, result);
 
     List<LogEntryDTO> entries = txTemplate.execute(status ->
       logFoods(userId, req, foods, "AI_SONAR", sourceUrls)
@@ -264,6 +332,34 @@ public class AiNutritionService {
       confidence,
       foods.isEmpty()
     );
+  }
+
+  /**
+   * Persist a fresh parse to the cache. Never caches an empty parse: a
+   * transient "no food recognized" would otherwise be replayed forever for
+   * that exact phrase. Runs in its own transaction so a concurrent-insert
+   * conflict can't poison the caller's follow-up work.
+   */
+  private void writeCacheRow(String key, PerplexityResult result) {
+    if (result.foods().isEmpty()) return;
+    try {
+      txTemplate.executeWithoutResult(status -> {
+        NutritionCache row = NutritionCache.builder()
+          .normalizedKey(key)
+          .parsedResult(serialize(result.foods()))
+          .sourceUrls(serialize(result.citations()))
+          .reasoning(result.reasoning())
+          .confidence(result.confidence())
+          .hitCount(0)
+          .createdAt(LocalDateTime.now())
+          .build();
+        cacheRepository.save(row);
+      });
+    } catch (DataIntegrityViolationException dup) {
+      // A concurrent first-time request cached the same key between our
+      // lookup and this insert. Harmless — our own parse still stands.
+      log.debug("Concurrent cache insert for key '{}', ignoring", key);
+    }
   }
 
   /** Create one log entry per parsed food. Must run inside a transaction. */

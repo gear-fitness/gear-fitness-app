@@ -32,6 +32,7 @@ import { MacroRing } from "./components/MacroRing";
 import { CalendarSheet } from "./components/CalendarSheet";
 import { FoodJournal } from "./components/FoodJournal";
 import { CameraLogMenu } from "./components/CameraLogMenu";
+import { SavedFoodsSheet } from "./components/SavedFoodsSheet";
 import { progressColor } from "./components/progressColor";
 import { FloatingKeyboardDismiss } from "../../../components/FloatingKeyboardDismiss";
 import { PlusLockOverlay } from "../../../components/PlusLockOverlay";
@@ -92,6 +93,10 @@ export function CalorieTracker() {
   // Calendar bottom sheet opened from the date label, for jumping straight to
   // a day instead of stepping the chevrons one day at a time.
   const [calendarOpen, setCalendarOpen] = useState(false);
+
+  // Saved Meals sheet (the user's reusable custom foods), opened from the
+  // ribbon button in the controls row.
+  const [savedOpen, setSavedOpen] = useState(false);
 
   const toggleSummary = () => {
     Haptics.selectionAsync().catch(() => {});
@@ -381,10 +386,23 @@ export function CalorieTracker() {
         </TouchableOpacity>
       </View>
 
-      {/* Controls row, centered between the summary card and the journal: a
-          camera menu (scan / photo / library) and a "+" that opens the Add
-          food database search. */}
+      {/* Controls row, centered between the summary card and the journal:
+          saved meals (reusable custom foods), a camera menu (scan / photo /
+          library), and a "+" that opens the Add food database search. */}
       <View style={styles.controlsRow}>
+        <GlassView style={styles.circleGlass}>
+          <TouchableOpacity
+            style={styles.circleBtn}
+            onPress={() => {
+              Haptics.selectionAsync().catch(() => {});
+              setSavedOpen(true);
+            }}
+            accessibilityLabel="Saved meals"
+          >
+            <Ionicons name="bookmark-outline" size={19} color={t.tint} />
+          </TouchableOpacity>
+        </GlassView>
+
         <CameraLogMenu size={38} color={t.tint} />
 
         <GlassView style={styles.circleGlass}>
@@ -397,6 +415,11 @@ export function CalorieTracker() {
           </TouchableOpacity>
         </GlassView>
       </View>
+
+      <SavedFoodsSheet
+        visible={savedOpen}
+        onClose={() => setSavedOpen(false)}
+      />
 
       {/* The journal itself: typed lines AI-parse into logged foods; database
           picks from Add food appear as their own lines. */}

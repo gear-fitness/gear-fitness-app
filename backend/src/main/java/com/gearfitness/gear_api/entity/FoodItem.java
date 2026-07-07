@@ -2,6 +2,7 @@ package com.gearfitness.gear_api.entity;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,9 +10,12 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * A seeded food from the USDA FoodData Central dataset. Nutrient values are
- * stored per 100 g (the USDA standard); per-serving amounts are derived at
- * read time from {@link #servingSize}.
+ * A seeded food from the USDA FoodData Central dataset, or a user-created
+ * custom food ("saved meal", {@link #ownerUserId} set, dataType "CUSTOM").
+ * Nutrient values are stored per 100 g (the USDA standard); per-serving
+ * amounts are derived at read time from {@link #servingSize}. Custom foods
+ * are entered per serving and stored with servingSize = 100 so one serving
+ * maps exactly onto the per-100g math.
  */
 @Entity
 @Table(name = "food_item")
@@ -59,4 +63,16 @@ public class FoodItem {
 
   @Column(name = "fat_g")
   private BigDecimal fatG;
+
+  /** Owner of a custom food; NULL for seeded USDA rows. */
+  @Column(name = "owner_user_id")
+  private UUID ownerUserId;
+
+  /** Optional display nickname for a custom food (e.g. "Post-workout meal"). */
+  @Column
+  private String nickname;
+
+  /** Set for custom foods only (seeded rows predate the column). */
+  @Column(name = "created_at")
+  private LocalDateTime createdAt;
 }

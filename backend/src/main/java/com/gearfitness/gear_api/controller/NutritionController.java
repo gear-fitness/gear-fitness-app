@@ -1,7 +1,9 @@
 package com.gearfitness.gear_api.controller;
 
+import com.gearfitness.gear_api.dto.AiEstimateResponse;
 import com.gearfitness.gear_api.dto.AiLogRequest;
 import com.gearfitness.gear_api.dto.AiLogResponse;
+import com.gearfitness.gear_api.dto.CustomFoodRequest;
 import com.gearfitness.gear_api.dto.DaySummaryDTO;
 import com.gearfitness.gear_api.dto.FoodItemDTO;
 import com.gearfitness.gear_api.dto.LogEntryDTO;
@@ -58,11 +60,14 @@ public class NutritionController {
     @RequestParam(defaultValue = "0") int page,
     @RequestHeader("Authorization") String authHeader
   ) {
-    if (resolveUserId(authHeader) == null) {
+    UUID userId = resolveUserId(authHeader);
+    if (userId == null) {
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
     try {
-      return ResponseEntity.ok(nutritionService.searchFoods(query, page));
+      return ResponseEntity.ok(
+        nutritionService.searchFoods(userId, query, page)
+      );
     } catch (Exception e) {
       log.error(
         "searchFoods failed (query='{}', page={}): {}",
@@ -94,6 +99,111 @@ public class NutritionController {
       log.error(
         "recentFoods failed (userId={}): {}",
         userId,
+        e.getMessage(),
+        e
+      );
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+    }
+  }
+
+  /** The user's custom foods ("saved meals"), newest first. */
+  @GetMapping("/foods/custom")
+  public ResponseEntity<List<FoodItemDTO>> customFoods(
+    @RequestHeader("Authorization") String authHeader
+  ) {
+    UUID userId = resolveUserId(authHeader);
+    if (userId == null) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+    try {
+      return ResponseEntity.ok(nutritionService.getCustomFoods(userId));
+    } catch (Exception e) {
+      log.error(
+        "customFoods failed (userId={}): {}",
+        userId,
+        e.getMessage(),
+        e
+      );
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+    }
+  }
+
+  /** Create a custom food (per-serving nutrition). */
+  @PostMapping("/foods/custom")
+  public ResponseEntity<FoodItemDTO> createCustomFood(
+    @RequestBody CustomFoodRequest req,
+    @RequestHeader("Authorization") String authHeader
+  ) {
+    UUID userId = resolveUserId(authHeader);
+    if (userId == null) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+    try {
+      return ResponseEntity.status(HttpStatus.CREATED).body(
+        nutritionService.createCustomFood(userId, req)
+      );
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().build();
+    } catch (Exception e) {
+      log.error(
+        "createCustomFood failed (userId={}): {}",
+        userId,
+        e.getMessage(),
+        e
+      );
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+    }
+  }
+
+  /** Update one of the caller's custom foods. */
+  @PutMapping("/foods/custom/{foodId}")
+  public ResponseEntity<FoodItemDTO> updateCustomFood(
+    @PathVariable UUID foodId,
+    @RequestBody CustomFoodRequest req,
+    @RequestHeader("Authorization") String authHeader
+  ) {
+    UUID userId = resolveUserId(authHeader);
+    if (userId == null) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+    try {
+      return ResponseEntity.ok(
+        nutritionService.updateCustomFood(userId, foodId, req)
+      );
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().build();
+    } catch (Exception e) {
+      log.error(
+        "updateCustomFood failed (userId={}, foodId={}): {}",
+        userId,
+        foodId,
+        e.getMessage(),
+        e
+      );
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+    }
+  }
+
+  /** Delete one of the caller's custom foods (logged history keeps its snapshot). */
+  @DeleteMapping("/foods/custom/{foodId}")
+  public ResponseEntity<Void> deleteCustomFood(
+    @PathVariable UUID foodId,
+    @RequestHeader("Authorization") String authHeader
+  ) {
+    UUID userId = resolveUserId(authHeader);
+    if (userId == null) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+    try {
+      nutritionService.deleteCustomFood(userId, foodId);
+      return ResponseEntity.noContent().build();
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+    } catch (Exception e) {
+      log.error(
+        "deleteCustomFood failed (userId={}, foodId={}): {}",
+        userId,
+        foodId,
         e.getMessage(),
         e
       );
@@ -206,6 +316,34 @@ public class NutritionController {
       return ResponseEntity.badRequest().build();
     } catch (Exception e) {
       log.error("aiLog failed (userId={}): {}", userId, e.getMessage(), e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+    }
+  }
+
+  /**
+   * Estimate nutrition from natural-language text WITHOUT logging (PLUS tier).
+   * Backs the custom-food form's "calculate calories for me".
+   */
+  @PostMapping("/ai/estimate")
+  public ResponseEntity<AiEstimateResponse> aiEstimate(
+    @RequestBody AiLogRequest req,
+    @RequestHeader("Authorization") String authHeader
+  ) {
+    UUID userId = resolveUserId(authHeader);
+    if (userId == null) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+    try {
+      return ResponseEntity.ok(
+        aiNutritionService.aiEstimate(userId, req.getText())
+      );
+    } catch (ResponseStatusException e) {
+      // Preserve tier (403) / spend-guard (503) / validation (400) statuses.
+      throw e;
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().build();
+    } catch (Exception e) {
+      log.error("aiEstimate failed (userId={}): {}", userId, e.getMessage(), e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
   }
