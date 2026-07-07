@@ -25,7 +25,7 @@ import { MacroRing } from "./MacroRing";
 import { faviconOf, hostOf } from "./sources";
 
 /**
- * Everything the AI Smart Journal knows about one logged line: the created
+ * Everything the food journal knows about one logged line: the created
  * entries (one per parsed food), Sonar's reasoning + confidence, the sources it
  * cited, and whether the parse was replayed from cache.
  */

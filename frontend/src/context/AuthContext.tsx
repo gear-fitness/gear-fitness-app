@@ -39,7 +39,6 @@ import {
 } from "../utils/offlineCache";
 import { flushWorkoutQueue } from "../utils/workoutQueue";
 import { flushRoutineQueue } from "../utils/routineQueue";
-import { flushNutritionCategoryQueue } from "../utils/nutritionCategoryQueue";
 import {
   cacheProfilePicture,
   loadProfilePictureCache,
@@ -115,11 +114,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         await flushRoutineQueue();
       } catch (err) {
         console.error("Failed to flush offline routine queue:", err);
-      }
-      try {
-        await flushNutritionCategoryQueue();
-      } catch (err) {
-        console.error("Failed to flush offline category queue:", err);
       }
     };
     tryFlush();

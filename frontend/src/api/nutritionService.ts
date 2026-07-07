@@ -3,9 +3,9 @@
  * FoodData Central; daily logs and goals are per-user (scoped server-side by the
  * JWT attached in apiClient).
  *
- * Note: meal categories (Breakfast/Lunch/etc.) are purely client-side visual
- * cards managed in NutritionContext — there is no category API. Each log entry
- * just carries a free-text `category` label.
+ * Note: each log entry carries an optional free-text `category` label — a
+ * leftover from the retired meal-card UI, kept nullable for old clients. New
+ * entries are logged without one.
  */
 import apiClient from "./apiClient";
 import { unitsForFood } from "../utils/nutritionUnits";
@@ -59,7 +59,7 @@ export async function getLoggedDates(
 
 export interface LogFoodPayload {
   foodId?: string | null;
-  category: string;
+  category?: string;
   date: string;
   quantity: number;
   unit: ServingUnit;
@@ -69,8 +69,9 @@ export interface LogFoodPayload {
   proteinG?: number;
   carbsG?: number;
   fatG?: number;
-  // Provenance, preserved when re-logging an AI-estimated entry so it stays a
-  // Smart Journal entry (kept out of the manual meal cards) after an edit.
+  // Provenance: "AI_SONAR"/"AI_CACHE" for AI-parsed journal lines, "DB" for
+  // database picks added from the journal, null for legacy manual entries.
+  // Preserved when re-logging an entry through an edit.
   sourceType?: string | null;
   sourceUrl?: string | null;
 }

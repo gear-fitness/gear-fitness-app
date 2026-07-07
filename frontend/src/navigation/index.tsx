@@ -346,7 +346,7 @@ declare global {
       };
       Activity: undefined;
       Nutrition: undefined;
-      AddFood: { category?: string } | undefined;
+      AddFood: undefined;
       NutritionGoals: undefined;
 
       FollowScreen: {

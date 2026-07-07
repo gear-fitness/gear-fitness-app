@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Animated,
   FlatList,
-  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -12,10 +11,11 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useNavigation } from "@react-navigation/native";
 import { SearchBar } from "../../../components/SearchBar";
 import { FloatingKeyboardDismiss } from "../../../components/FloatingKeyboardDismiss";
 import { useThemeColors } from "../../../hooks/useThemeColors";
+import { useTier } from "../../../hooks/useTier";
 import { useNutrition } from "../../../context/NutritionContext";
 import { getUserFoods, searchFoods } from "../../../api/nutritionService";
 import { FoodItem, MeasureUnit, MeasureUnitKey } from "../../../api/types";
@@ -92,26 +92,28 @@ function GlassCircleButton({
 
 export function AddFood() {
   const t = useThemeColors();
-  const navigation = useNavigation<any>();
-  const routeCategory = (
-    useRoute<any>().params as { category?: string } | undefined
-  )?.category;
+  const navigation = useNavigation() as any;
+  const { atLeast } = useTier();
 
-  const { categories, addLog } = useNutrition();
-  const [category, setCategory] = useState<string>(
-    routeCategory ?? categories[0] ?? "Breakfast",
-  );
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const { addLog } = useNutrition();
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<FoodItem[]>([]);
   const [loading, setLoading] = useState(false);
   const reqId = useRef(0);
 
-  // Measured bottom edge of the header so the category dropdown opens just
-  // below the button rather than overlapping it (the overlay starts at the
-  // very top of the screen, behind the safe-area inset).
-  const [headerBottom, setHeaderBottom] = useState(0);
+  // The whole tracker is Plus-gated, but this screen is reachable directly
+  // (deep links, stale entry points) — bounce non-Plus users to the upsell
+  // rather than letting them search foods they can't log.
+  useEffect(() => {
+    if (!atLeast("PLUS")) {
+      navigation.goBack();
+      navigation.navigate("PlusUpsell", {
+        feature: "Track calories and macros with the food journal",
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Per-food add state so the row's "+" can show a spinner then a checkmark.
   const [addingId, setAddingId] = useState<string | null>(null);
@@ -193,9 +195,11 @@ export function AddFood() {
       await addLog(
         {
           foodId: food.foodId,
-          category,
           quantity: backendQty,
           unit: backendUnit,
+          // Journal provenance: a database pick, so the journal materializes a
+          // "db" line for it (and the AI orphan reaper never touches it).
+          sourceType: "DB",
         },
         { unitKey, quantity, servingGrams, units: food.units },
       );
@@ -210,13 +214,8 @@ export function AddFood() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: t.appBg }]}>
-      {/* Header: close + tappable category selector */}
-      <View
-        style={styles.header}
-        onLayout={(e) =>
-          setHeaderBottom(e.nativeEvent.layout.y + e.nativeEvent.layout.height)
-        }
-      >
+      {/* Header: close + title */}
+      <View style={styles.header}>
         <TouchableOpacity
           accessibilityLabel="Back"
           hitSlop={12}
@@ -225,23 +224,9 @@ export function AddFood() {
           <Ionicons name="chevron-back" size={26} color={t.text} />
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.categoryBtn}
-          accessibilityLabel="Change meal"
-          hitSlop={8}
-          onPress={() => setPickerOpen(true)}
-        >
-          <Text style={[styles.categoryText, { color: t.tint }]}>
-            {category}
-          </Text>
-          <Ionicons
-            name={pickerOpen ? "chevron-up" : "chevron-down"}
-            size={18}
-            color={t.tint}
-          />
-        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: t.text }]}>Add food</Text>
 
-        {/* Spacer to keep the category centered opposite the close button. */}
+        {/* Spacer to keep the title centered opposite the close button. */}
         <View style={styles.headerSpacer} />
       </View>
 
@@ -291,7 +276,6 @@ export function AddFood() {
         renderItem={({ item }) => (
           <FoodRow
             food={item}
-            category={category}
             t={t}
             added={!!addedIds[item.foodId]}
             busy={addingId === item.foodId}
@@ -308,52 +292,6 @@ export function AddFood() {
           />
         )}
       />
-
-      {/* Category dropdown — anchored under the header button */}
-      {pickerOpen && (
-        <Pressable
-          style={styles.dropdownOverlay}
-          onPress={() => setPickerOpen(false)}
-        >
-          <Pressable
-            style={[
-              styles.dropdown,
-              {
-                marginTop: headerBottom + 4,
-                backgroundColor: t.cardBg,
-                borderColor: t.cardBorder,
-              },
-            ]}
-          >
-            {categories.map((name) => {
-              const selected = name === category;
-              return (
-                <TouchableOpacity
-                  key={name}
-                  style={styles.dropdownRow}
-                  onPress={() => {
-                    setCategory(name);
-                    setPickerOpen(false);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.dropdownText,
-                      { color: t.text },
-                      selected && styles.dropdownTextSelected,
-                    ]}
-                  >
-                    {name}
-                  </Text>
-                  {selected && (
-                    <Ionicons name="checkmark" size={18} color={t.tint} />
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </Pressable>
-        </Pressable>
-      )}
 
       {/* "Logged!" confirmation toast */}
       {toastVisible && (
@@ -379,12 +317,11 @@ export function AddFood() {
 /**
  * A single food result. Collapsed it shows the name/macros with a quick "+"
  * (logs one serving) and a chevron to expand. Expanded it reveals a Serving
- * Size unit selector and a Quantity stepper, then a "Log to {category}" button
- * that logs the chosen amount.
+ * Size unit selector and a Quantity stepper, then a "Log" button that logs the
+ * chosen amount.
  */
 function FoodRow({
   food,
-  category,
   t,
   added,
   busy,
@@ -394,7 +331,6 @@ function FoodRow({
   onLog,
 }: {
   food: FoodItem;
-  category: string;
   t: ReturnType<typeof useThemeColors>;
   added: boolean;
   busy: boolean;
@@ -472,7 +408,7 @@ function FoodRow({
             <GlassCircleButton
               glassAvailable={glassAvailable}
               surface={t.surface}
-              accessibilityLabel={`Add ${food.description} to ${category}`}
+              accessibilityLabel={`Add ${food.description}`}
               hitSlop={8}
               disabled={busy}
               onPress={() => onLog(food)}
@@ -587,7 +523,7 @@ function FoodRow({
               <ActivityIndicator size="small" color={t.accentText} />
             ) : (
               <Text style={[styles.logBtnText, { color: t.accentText }]}>
-                Log to {category}
+                Log
               </Text>
             )}
           </TouchableOpacity>
@@ -606,12 +542,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
-  categoryBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  categoryText: { fontSize: 17, fontWeight: "700" },
+  headerTitle: { fontSize: 17, fontWeight: "700" },
   headerSpacer: { width: 26 },
   searchWrap: { paddingHorizontal: 16, paddingBottom: 8 },
   listContent: { flexGrow: 1, paddingHorizontal: 16, paddingBottom: 32 },
@@ -718,31 +649,6 @@ const styles = StyleSheet.create({
   },
   emptyText: { fontSize: 20, fontWeight: "600", marginTop: 16 },
   emptySubtext: { fontSize: 14, marginTop: 8, textAlign: "center" },
-  dropdownOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: "center",
-  },
-  dropdown: {
-    minWidth: 200,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingVertical: 6,
-    shadowColor: "#000",
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
-  },
-  dropdownRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 16,
-  },
-  dropdownText: { fontSize: 16 },
-  dropdownTextSelected: { fontWeight: "700" },
   toast: {
     position: "absolute",
     bottom: 40,

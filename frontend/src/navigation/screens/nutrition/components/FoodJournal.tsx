@@ -22,7 +22,6 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useThemeColors } from "../../../../hooks/useThemeColors";
-import { useTier } from "../../../../hooks/useTier";
 import { useNutrition } from "../../../../context/NutritionContext";
 import { aiLogFood } from "../../../../api/nutritionService";
 import { FoodLogEntry } from "../../../../api/types";
@@ -32,22 +31,25 @@ import { EditEntrySheet } from "./EditEntrySheet";
 import { faviconOf } from "./sources";
 
 /**
- * The "Smart journal" page of the calorie tracker.
- *
- * For non-PLUS users it's a plain per-day notepad (iOS Notes style): one open
- * freeform text area, stored client-side in AsyncStorage as a date -> text map.
- *
- * For PLUS users the whole page is a single shared note (again, iOS Notes
- * style): entries are separated by newlines in one continuous text field, and
+ * The calorie tracker's food journal: one shared per-day note (iOS Notes
+ * style) — entries are separated by newlines in one continuous text field, and
  * each non-empty line carries a floating calorie annotation on its right.
- * Editing a line marks it "…"; leaving it (newline, tap elsewhere, keyboard
- * dismiss) commits it — parsing the text via Perplexity Sonar, logging real
- * food_log_entry rows, and animating the annotation through the assistant's
- * "thinking" stages before settling on the total. Tapping a settled total opens
- * a detail sheet with the macro breakdown, reasoning + confidence, sources, and
- * a ⋯ menu to edit the nutrition manually.
+ *
+ * Lines come in two kinds:
+ *  - "ai": typed by the user. Editing a line marks it "…"; leaving it (newline,
+ *    tap elsewhere, keyboard dismiss) commits it — parsing the text via
+ *    Perplexity Sonar, logging real food_log_entry rows, and animating the
+ *    annotation through the assistant's "thinking" stages before settling on
+ *    the total. Tapping a settled total opens a detail sheet with the macro
+ *    breakdown, reasoning + confidence, sources, and a ⋯ menu to edit the
+ *    nutrition manually.
+ *  - "db": a food picked from the Add food database search — the journal
+ *    notices the logged row in the day summary and materializes a line for it
+ *    (see the synthesis effect). Born "logged" with the food's name as the
+ *    line text; never AI-parsed. Tapping its total opens the edit sheet
+ *    directly. Editing the line's TEXT converts it to an "ai" line: the db row
+ *    is deleted and the new text is parsed like any typed line.
  */
-const STORAGE_KEY = "nutrition.smartJournal";
 const AI_STORAGE_KEY = "nutrition.aiJournal";
 // Backend entryIds awaiting deletion, persisted so an offline/killed app still
 // tears down rows whose journal lines were removed (else they'd keep counting
@@ -83,8 +85,6 @@ const ANNOT_TOP_NUDGE = Math.round((LINE_HEIGHT - NATURAL_LINE) / 2);
 
 const round = (n: number | null | undefined) => Math.round(n ?? 0);
 
-type NotesByDate = Record<string, string>;
-
 type EntryStatus = "empty" | "dirty" | "pending" | "logged" | "error";
 
 /** Why a line ended in "error", so the annotation can explain and (where it
@@ -93,11 +93,14 @@ type EntryStatus = "empty" | "dirty" | "pending" | "logged" | "error";
 type ErrorKind = "upstream" | "tier" | "nofood";
 
 /** One line of the shared note. `id` is stable across edits so its logged
- *  result (and in-flight animation) follows the line as text around it moves. */
+ *  result (and in-flight animation) follows the line as text around it moves.
+ *  `kind` "ai" = typed and AI-parsed; "db" = a database pick materialized from
+ *  the day summary, never AI-committed (any text edit flips it to "ai"). */
 interface Entry {
   id: string;
   text: string;
   status: EntryStatus;
+  kind: "ai" | "db";
   calories?: number;
   detail?: AiLineDetail;
   errorKind?: ErrorKind;
@@ -111,84 +114,7 @@ const newId = () => `e${Date.now().toString(36)}${(idSeq++).toString(36)}`;
 const statusForText = (text: string, nonEmpty: EntryStatus): EntryStatus =>
   text.trim() ? nonEmpty : "empty";
 
-export function SmartJournal({ selectedDate }: { selectedDate: string }) {
-  const { atLeast } = useTier();
-  if (atLeast("PLUS")) {
-    return <AiJournal selectedDate={selectedDate} />;
-  }
-  return <PlainJournal selectedDate={selectedDate} />;
-}
-
-/* ------------------------------------------------------------------ plain */
-
-function PlainJournal({ selectedDate }: { selectedDate: string }) {
-  const t = useThemeColors();
-  const [notesByDate, setNotesByDate] = useState<NotesByDate>({});
-  const [editing, setEditing] = useState(false);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const raw = await AsyncStorage.getItem(STORAGE_KEY);
-        if (!raw) return;
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === "object") setNotesByDate(parsed);
-      } catch (err) {
-        console.error("Failed to load smart journal:", err);
-      }
-    })();
-  }, []);
-
-  useEffect(() => {
-    setEditing(false);
-  }, [selectedDate]);
-
-  const setText = useCallback(
-    (text: string) => {
-      setNotesByDate((prev) => {
-        const next = { ...prev, [selectedDate]: text };
-        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next)).catch((err) =>
-          console.error("Failed to save smart journal:", err),
-        );
-        return next;
-      });
-    },
-    [selectedDate],
-  );
-
-  const text = notesByDate[selectedDate] ?? "";
-
-  return (
-    <ScrollView
-      contentContainerStyle={styles.scroll}
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
-    >
-      {editing ? (
-        <TextInput
-          value={text}
-          onChangeText={setText}
-          onBlur={() => setEditing(false)}
-          autoFocus
-          placeholder="Start writing…"
-          placeholderTextColor={t.secondary}
-          multiline
-          style={[styles.input, { color: t.text }]}
-        />
-      ) : (
-        <Pressable style={styles.pressArea} onPress={() => setEditing(true)}>
-          <Text style={[styles.input, { color: text ? t.text : t.secondary }]}>
-            {text || "Start writing…"}
-          </Text>
-        </Pressable>
-      )}
-    </ScrollView>
-  );
-}
-
-/* --------------------------------------------------------------------- ai */
-
-function AiJournal({ selectedDate }: { selectedDate: string }) {
+export function FoodJournal({ selectedDate }: { selectedDate: string }) {
   const t = useThemeColors();
   const { refresh, removeLog, summary } = useNutrition();
 
@@ -197,24 +123,27 @@ function AiJournal({ selectedDate }: { selectedDate: string }) {
   const [activeIndex, setActiveIndex] = useState(0);
 
   // Whether the note is actively being edited. The editor is only focusable
-  // through an explicit tap (a transparent Pressable), so a horizontal pager
-  // swipe between Manual entry ↔ Smart journal never opens the keyboard.
+  // through an explicit tap (a transparent Pressable), so a scroll drag over
+  // the journal never opens the keyboard.
   const [editing, setEditing] = useState(false);
 
   const [detailEntry, setDetailEntry] = useState<Entry | null>(null);
   // The food entry being edited in the shared EditEntrySheet, plus the journal
-  // line it belongs to (so recalculate/save-back target the right line). The
-  // edit is queued while the detail sheet closes, since iOS won't present a
-  // second sheet over one still animating away.
+  // line it belongs to (so recalculate/save-back/delete target the right
+  // line). `kind` mirrors the line's kind: "ai" edits offer Recalculate, "db"
+  // edits offer Delete. The edit is queued while the detail sheet closes,
+  // since iOS won't present a second sheet over one still animating away.
   const [editCtx, setEditCtx] = useState<{
     lineId: string;
     entry: FoodLogEntry;
     text: string;
+    kind: "ai" | "db";
   } | null>(null);
   const [pendingEdit, setPendingEdit] = useState<{
     lineId: string;
     entry: FoodLogEntry;
     text: string;
+    kind: "ai" | "db";
   } | null>(null);
 
   const inputRef = useRef<TextInput>(null);
@@ -222,6 +151,11 @@ function AiJournal({ selectedDate }: { selectedDate: string }) {
   const committingRef = useRef<Set<string>>(new Set());
   const graveyardRef = useRef<string[]>([]); // backend entryIds pending delete
   const journalLoadedRef = useRef(false); // AsyncStorage journal finished loading
+  // Load finished, even when storage was empty (fresh install). Distinct from
+  // journalLoadedRef, which stays false without stored data so the orphan
+  // reaper never runs on a journal it can't vouch for. State (not a ref) so
+  // the synthesis effect re-fires once loading settles.
+  const [storageSettled, setStorageSettled] = useState(false);
 
   const entries = useMemo(
     () => entriesByDate[selectedDate] ?? [],
@@ -252,7 +186,10 @@ function AiJournal({ selectedDate }: { selectedDate: string }) {
     (async () => {
       try {
         const raw = await AsyncStorage.getItem(AI_STORAGE_KEY);
-        if (!raw) return;
+        if (!raw) {
+          setStorageSettled(true);
+          return;
+        }
         const parsed = JSON.parse(raw);
         if (parsed && typeof parsed === "object") {
           // Retire backend rows stranded on now-empty lines. Clearing a line's
@@ -262,6 +199,9 @@ function AiJournal({ selectedDate }: { selectedDate: string }) {
           for (const list of Object.values(parsed) as Entry[][]) {
             if (!Array.isArray(list)) continue;
             for (const e of list) {
+              // Journals persisted before line kinds existed are all typed
+              // lines.
+              e.kind = e.kind ?? "ai";
               if (!e.text?.trim() && (e.detail?.entries?.length ?? 0) > 0) {
                 graveyardRef.current.push(
                   ...(e.detail?.entries ?? []).map((x) => x.entryId),
@@ -277,6 +217,7 @@ function AiJournal({ selectedDate }: { selectedDate: string }) {
           // journal. If storage is empty/absent we have no idea which AI rows
           // are legitimate, so we never blind-delete them.
           journalLoadedRef.current = true;
+          setStorageSettled(true);
         }
       } catch (err) {
         console.error("Failed to load AI journal:", err);
@@ -306,6 +247,11 @@ function AiJournal({ selectedDate }: { selectedDate: string }) {
       if (list.some((e) => e.status === "pending" || e.status === "dirty")) {
         return;
       }
+      // Only reap when this device actually owns typed lines for the date. The
+      // synthesis effect below creates the date key on a fresh install (db
+      // lines materialized from the day summary), which would otherwise arm
+      // this sweep against AI rows whose journal lines live on another device.
+      if (!list.some((e) => e.kind === "ai" && e.text.trim())) return;
       const referenced = new Set(
         list
           .filter((e) => e.text.trim())
@@ -367,6 +313,64 @@ function AiJournal({ selectedDate }: { selectedDate: string }) {
     },
     [setEntries],
   );
+
+  // Materialize "db" journal lines for backend rows no local line references:
+  // foods logged from the Add food search (the journal learns about them via
+  // the day-summary refresh), manual entries from before the meal cards were
+  // merged into the journal, and entries created on another device. AI rows
+  // are the reaper's business — they belong to a line that will re-commit.
+  // Gated on the journal being idle (not editing, nothing in flight) so a
+  // programmatic text change never lands under the user's caret, and debounced
+  // under the reaper's 1500ms so a fresh reference lands before its sweep.
+  // Idempotent: once a line is appended its entryId is referenced.
+  useEffect(() => {
+    if (!storageSettled) return;
+    if (editing) return;
+    const id = setTimeout(() => {
+      if (committingRef.current.size > 0) return;
+      const date = dateRef.current;
+      // Clobber guard: only synthesize from a summary for the shown date.
+      if (summaryRef.current?.date !== date) return;
+      const list = entriesRef.current[date] ?? [];
+      if (list.some((e) => e.status === "pending" || e.status === "dirty")) {
+        return;
+      }
+      const referenced = new Set(
+        list.flatMap((e) => (e.detail?.entries ?? []).map((x) => x.entryId)),
+      );
+      const buried = new Set(graveyardRef.current);
+      const strays = (summaryRef.current?.entries ?? []).filter(
+        (e) =>
+          !e.sourceType?.startsWith("AI") &&
+          !referenced.has(e.entryId) &&
+          !buried.has(e.entryId),
+      );
+      if (!strays.length) return;
+      const lines: Entry[] = strays.map((e) => ({
+        id: newId(),
+        // The line must stay a single line of the shared note.
+        text: (e.description ?? "").replace(/\s+/g, " ").trim() || "Logged food",
+        status: "logged",
+        kind: "db",
+        calories: e.calories ?? 0,
+        detail: {
+          entries: [e],
+          reasoning: "",
+          confidence: 0,
+          sourceUrls: e.sourceUrl ? [e.sourceUrl] : [],
+          fromCache: false,
+        },
+      }));
+      setEntries(date, (old) => {
+        // Fill one trailing blank line (a stray newline at the end of the
+        // note) instead of stranding it above the appended foods.
+        const next = [...old];
+        if (next.length && !next[next.length - 1].text.trim()) next.pop();
+        return [...next, ...lines];
+      });
+    }, 800);
+    return () => clearTimeout(id);
+  }, [summary, entriesByDate, selectedDate, editing, storageSettled, setEntries]);
 
   /* --- backend sync --------------------------------------------------- */
 
@@ -492,6 +496,9 @@ function AiJournal({ selectedDate }: { selectedDate: string }) {
       if (committingRef.current.has(id)) return;
       const entry = (entriesRef.current[date] ?? []).find((e) => e.id === id);
       if (!entry || entry.status !== "dirty") return;
+      // Database lines are never AI-parsed. They can't be dirty either (any
+      // text edit flips them to "ai" first) — this is belt and braces.
+      if (entry.kind === "db") return;
 
       const text = entry.text.trim();
       const oldBackend = entry.detail?.entries ?? [];
@@ -548,7 +555,10 @@ function AiJournal({ selectedDate }: { selectedDate: string }) {
       setEntries(date, (old) => {
         const paras = text.split("\n");
 
-        // Same line count: positional edit — keep ids, mark changed lines dirty.
+        // Same line count: positional edit — keep ids, mark changed lines
+        // dirty. Any text change makes the line a typed one: a "db" line loses
+        // its database identity and re-parses like any other typed text (its
+        // old row is torn down by the commit via the retained detail).
         if (paras.length === old.length) {
           return old.map((e, i) => {
             if (e.text === paras[i]) return e;
@@ -564,11 +574,12 @@ function AiJournal({ selectedDate }: { selectedDate: string }) {
                 ...e,
                 text: paras[i],
                 status,
+                kind: "ai" as const,
                 calories: undefined,
                 detail: undefined,
               };
             }
-            return { ...e, text: paras[i], status };
+            return { ...e, text: paras[i], status, kind: "ai" as const };
           });
         }
 
@@ -596,6 +607,7 @@ function AiJournal({ selectedDate }: { selectedDate: string }) {
           id: newId(),
           text: tx,
           status: statusForText(tx, "dirty"),
+          kind: "ai" as const,
         }));
         return [...old.slice(0, p), ...middle, ...old.slice(old.length - s)];
       });
@@ -698,8 +710,35 @@ function AiJournal({ selectedDate }: { selectedDate: string }) {
   );
 
   const openDetail = useCallback((entry: Entry) => {
-    if (entry.status === "logged" && entry.detail) setDetailEntry(entry);
+    if (entry.status !== "logged" || !entry.detail) return;
+    // A database line has no AI breakdown (reasoning/confidence/sources) to
+    // show — its single backend row goes straight into the edit sheet.
+    if (entry.kind === "db") {
+      const backend = entry.detail.entries[0];
+      if (backend) {
+        setEditCtx({
+          lineId: entry.id,
+          entry: backend,
+          text: entry.text,
+          kind: "db",
+        });
+      }
+      return;
+    }
+    setDetailEntry(entry);
   }, []);
+
+  // Delete a database line: the line disappears and its backend row goes to
+  // the graveyard (flushed immediately; retried offline), so the day's totals
+  // drop and the synthesis effect can't resurrect it.
+  const deleteDbLine = useCallback(() => {
+    if (!editCtx) return;
+    const { lineId, entry } = editCtx;
+    graveyardRef.current.push(entry.entryId);
+    setEntries(dateRef.current, (list) => list.filter((e) => e.id !== lineId));
+    setEditCtx(null);
+    flushGraveyard();
+  }, [editCtx, setEntries, flushGraveyard]);
 
   return (
     <>
@@ -745,9 +784,9 @@ function AiJournal({ selectedDate }: { selectedDate: string }) {
           </View>
 
           {/* Tap-to-focus catcher. While not editing it sits above the text and
-              only fires on a true tap — a pager swipe drags right past it, so
-              switching sections never opens the keyboard. Removed once editing
-              so taps reach the field (to reposition the cursor). */}
+              only fires on a true tap — a scroll drag slides right past it, so
+              browsing the journal never opens the keyboard. Removed once
+              editing so taps reach the field (to reposition the cursor). */}
           {!editing && (
             <Pressable
               style={StyleSheet.absoluteFill}
@@ -793,6 +832,7 @@ function AiJournal({ selectedDate }: { selectedDate: string }) {
               lineId: detailEntry.id,
               entry,
               text: detailEntry.text,
+              kind: "ai",
             });
           }
           setDetailEntry(null);
@@ -809,9 +849,14 @@ function AiJournal({ selectedDate }: { selectedDate: string }) {
             applyEntryEdit(editCtx.lineId, editCtx.entry.entryId, newEntry);
           }
         }}
-        onRecalculate={() => {
-          if (editCtx) recalcEntry(editCtx.lineId);
-        }}
+        onRecalculate={
+          editCtx?.kind === "ai"
+            ? () => {
+                if (editCtx) recalcEntry(editCtx.lineId);
+              }
+            : undefined
+        }
+        onDelete={editCtx?.kind === "db" ? deleteDbLine : undefined}
       />
     </>
   );
@@ -1065,20 +1110,6 @@ function SourceFavicons({ urls }: { urls: string[] }) {
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 4,
-    paddingBottom: 120,
-  },
-  pressArea: { flexGrow: 1 },
-  input: {
-    flexGrow: 1,
-    fontSize: FONT_SIZE,
-    lineHeight: LINE_HEIGHT,
-    padding: 0,
-    textAlignVertical: "top",
-  },
   // Shared-note editor
   noteScroll: {
     flexGrow: 1,
