@@ -377,8 +377,7 @@ export function Settings() {
     Alert.alert("Contact Support", "Email us at support@gearfitness.app");
   };
 
-  const tierLabel =
-    tier === "ULTRA" ? "Gear Ultra" : tier === "PLUS" ? "Gear Plus" : "Basic";
+  const tierLabel = tier === "PLUS" ? "Gear Plus" : "Basic";
 
   const formatHeight = (h: number | null | undefined) => {
     if (!h) return "Not set";

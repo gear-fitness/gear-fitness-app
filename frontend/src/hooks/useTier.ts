@@ -2,12 +2,10 @@ import { useMemo } from "react";
 import { usePurchases, PLUS_ENTITLEMENT } from "../context/PurchasesContext";
 import { useAuth } from "../context/AuthContext";
 
-export type Tier = "BASIC" | "PLUS" | "ULTRA";
+export type Tier = "BASIC" | "PLUS";
 
-const RANK: Record<Tier, number> = { BASIC: 0, PLUS: 1, ULTRA: 2 };
+const RANK: Record<Tier, number> = { BASIC: 0, PLUS: 1 };
 
-// Entitlement id -> tier. Future Ultra adds `ultra: "ULTRA"` here (and Ultra
-// products grant both `plus` and `ultra`, so PLUS gates still pass).
 const ENTITLEMENT_TO_TIER: Record<string, Tier> = {
   [PLUS_ENTITLEMENT]: "PLUS",
 };

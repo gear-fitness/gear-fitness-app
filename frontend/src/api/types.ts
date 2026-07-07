@@ -41,7 +41,7 @@ export interface UserProfile {
   followStatus?: "ACCEPTED" | "PENDING" | "BLOCKED" | "NONE" | null;
   // Subscription tier (authoritative, from the RevenueCat webhook). Optional so
   // profiles cached before this field existed still parse.
-  tier?: "BASIC" | "PLUS" | "ULTRA";
+  tier?: "BASIC" | "PLUS";
 }
 
 export interface UsernameAvailabilityResponse {
