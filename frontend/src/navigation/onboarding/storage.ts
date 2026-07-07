@@ -2,7 +2,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { OnboardingDraft } from "./types";
 
 const SEEN_KEY = "@onboarding_seen_v1";
-const DRAFT_KEY = "@onboarding_draft_v1";
+// v2: flow switched to the short step list (steps.ts), which renumbered
+// draft.step. Bumping the key discards in-flight v1 drafts so nobody resumes
+// at the wrong screen; completed-onboarding state (SEEN_KEY) is unaffected.
+const DRAFT_KEY = "@onboarding_draft_v2";
 
 export async function hasSeenOnboarding(): Promise<boolean> {
   try {

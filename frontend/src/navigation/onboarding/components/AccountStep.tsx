@@ -69,7 +69,12 @@ export function AccountStep({
           Create your free account so your plan doesn't get lost.
         </Text>
 
-        <PlanSummary draft={draft} showProjection={false} />
+        {/* Only show routines the user actually drafted. The short flow skips
+            the routine-building steps, and the recommended-routine fallback
+            inside PlanSummary would advertise routines that never get saved. */}
+        {(draft.routines?.length ?? 0) > 0 && (
+          <PlanSummary draft={draft} showProjection={false} />
+        )}
 
         <View style={styles.benefits}>
           {BENEFITS.map((b) => (

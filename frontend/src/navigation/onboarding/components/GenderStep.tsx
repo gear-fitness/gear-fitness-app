@@ -16,6 +16,11 @@ const GENDER_OPTIONS: {
   { value: "male", label: "Male", emoji: "♂" },
   { value: "female", label: "Female", emoji: "♀" },
   { value: "other", label: "Other", icon: "square.grid.2x2.fill" },
+  {
+    value: "prefer_not_to_say",
+    label: "Prefer not to say",
+    icon: "hand.raised.fill",
+  },
 ];
 
 export function GenderStep({
