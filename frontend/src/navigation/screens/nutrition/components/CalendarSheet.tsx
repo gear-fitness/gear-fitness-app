@@ -1,11 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import {
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { CalendarList } from "react-native-calendars";
 import * as Haptics from "expo-haptics";
 import { useThemeColors } from "../../../../hooks/useThemeColors";
@@ -34,11 +28,6 @@ const FUTURE_MONTHS = 12;
 // room below the last row.
 const CALENDAR_HEIGHT = 384;
 
-// Inner horizontal padding per page (library default is 5). Pages must stay
-// full-window width for the horizontal paging to align, so side breathing
-// room goes inside each page via the calendar container style.
-const CALENDAR_SIDE_PADDING = 24;
-
 function shiftDays(dateStr: string, days: number): string {
   const d = parseLocalDate(dateStr);
   d.setDate(d.getDate() + days);
@@ -66,8 +55,16 @@ export function CalendarSheet({
   const t = useThemeColors();
   const todayStr = getCurrentLocalDateString();
   const loggedGreen = t.isDark ? "#30D158" : "#34C759";
-  const { width: windowWidth } = useWindowDimensions();
   const listRef = useRef<any>(null);
+
+  // Measured width of the pager's viewport. Native paging snaps to multiples
+  // of the *viewport* width while getItemLayout spaces pages by calendarWidth,
+  // so the two must match exactly. The sheet's hairline side borders make the
+  // viewport ~0.7pt narrower than the window; that error compounds across the
+  // 24 months between list start and today, so the first swipe used to settle
+  // ~16pt off-center. Measuring instead of assuming windowWidth keeps them
+  // identical (and covers any future sheet padding too).
+  const [pagerWidth, setPagerWidth] = useState(0);
 
   // Days that have at least one logged entry, refetched on each open so a
   // just-logged meal shows its green marker immediately.
@@ -165,86 +162,81 @@ export function CalendarSheet({
       </View>
 
       {/* Horizontal pager: real native paging (momentum + animated settle)
-          instead of enableSwipeMonths' instant on-release month swap. */}
-      <CalendarList
-        ref={listRef}
-        key={`${t.isDark ? "dark" : "light"}-${windowWidth}-${mountKey}`}
-        horizontal
-        pagingEnabled
-        calendarWidth={windowWidth}
-        calendarHeight={CALENDAR_HEIGHT}
+          instead of enableSwipeMonths' instant on-release month swap. The
+          wrapper measures the true viewport width before the list mounts. */}
+      <View
         style={styles.pager}
-        pastScrollRange={PAST_MONTHS}
-        futureScrollRange={FUTURE_MONTHS}
-        showScrollIndicator={false}
-        current={monthAnchor}
-        hideArrows
-        renderHeader={() => null}
-        hideExtraDays
-        markedDates={marked}
-        onVisibleMonthsChange={(months: { dateString: string }[]) => {
-          if (months[0]) setVisibleMonth(months[0].dateString);
-        }}
-        dayComponent={({ date, marking }: any) => {
-          if (!date) return <View style={styles.dayCell} />;
-          const isLogged = !!marking?.marked;
-          const isSelected = !!marking?.selected;
-          const isFuture = date.dateString > todayStr;
-          const isToday = date.dateString === todayStr;
-          return (
-            <TouchableOpacity
-              style={styles.dayCell}
-              onPress={() => selectDay(date.dateString)}
-              accessibilityLabel={`Select ${date.dateString}`}
-            >
-              <View
-                style={[
-                  styles.dayCircle,
-                  isLogged && { backgroundColor: loggedGreen },
-                  isSelected && { borderWidth: 2, borderColor: t.tint },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.dayText,
-                    {
-                      color: isLogged
-                        ? "#fff"
-                        : isFuture
-                          ? t.handle
-                          : isToday
-                            ? t.tint
-                            : t.text,
-                    },
-                    isToday && !isLogged && styles.todayText,
-                  ]}
+        onLayout={(e) => setPagerWidth(e.nativeEvent.layout.width)}
+      >
+        {pagerWidth > 0 && (
+          <CalendarList
+            ref={listRef}
+            key={`${t.isDark ? "dark" : "light"}-${pagerWidth}-${mountKey}`}
+            horizontal
+            pagingEnabled
+            calendarWidth={pagerWidth}
+            calendarHeight={CALENDAR_HEIGHT}
+            futureScrollRange={FUTURE_MONTHS}
+            showScrollIndicator={false}
+            current={monthAnchor}
+            hideArrows
+            renderHeader={() => null}
+            hideExtraDays
+            markedDates={marked}
+            onVisibleMonthsChange={(months: { dateString: string }[]) => {
+              if (months[0]) setVisibleMonth(months[0].dateString);
+            }}
+            dayComponent={({ date, marking }: any) => {
+              if (!date) return <View style={styles.dayCell} />;
+              const isLogged = !!marking?.marked;
+              const isSelected = !!marking?.selected;
+              const isFuture = date.dateString > todayStr;
+              const isToday = date.dateString === todayStr;
+              return (
+                <TouchableOpacity
+                  style={styles.dayCell}
+                  onPress={() => selectDay(date.dateString)}
+                  accessibilityLabel={`Select ${date.dateString}`}
                 >
-                  {date.day}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          );
-        }}
-        theme={
-          {
-            backgroundColor: "transparent",
-            calendarBackground: "transparent",
-            textSectionTitleColor: t.secondary,
-            textDayHeaderFontFamily: "System",
-            textDayHeaderFontWeight: "600",
-            textDayHeaderFontSize: 11,
-            // Flat stylesheet keys are the library's override mechanism but
-            // aren't in its Theme type, hence the cast.
-            "stylesheet.calendar.main": {
-              container: {
-                paddingLeft: CALENDAR_SIDE_PADDING,
-                paddingRight: CALENDAR_SIDE_PADDING,
-                backgroundColor: "transparent",
-              },
-            },
-          } as any
-        }
-      />
+                  <View
+                    style={[
+                      styles.dayCircle,
+                      isLogged && { backgroundColor: loggedGreen },
+                      isSelected && { borderWidth: 2, borderColor: t.tint },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.dayText,
+                        {
+                          color: isLogged
+                            ? "#fff"
+                            : isFuture
+                              ? t.handle
+                              : isToday
+                                ? t.tint
+                                : t.text,
+                        },
+                        isToday && !isLogged && styles.todayText,
+                      ]}
+                    >
+                      {date.day}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            }}
+            theme={{
+              backgroundColor: "transparent",
+              calendarBackground: "transparent",
+              textSectionTitleColor: t.secondary,
+              textDayHeaderFontFamily: "System",
+              textDayHeaderFontWeight: "600",
+              textDayHeaderFontSize: 11,
+            }}
+          />
+        )}
+      </View>
     </BottomSheet>
   );
 }
