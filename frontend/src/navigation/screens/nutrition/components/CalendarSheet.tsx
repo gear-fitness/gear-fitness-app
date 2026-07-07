@@ -27,10 +27,17 @@ const LOOKAHEAD_DAYS = 365;
 const PAST_MONTHS = 24;
 const FUTURE_MONTHS = 12;
 
-// Fixed pager height: weekday header plus six 40pt week rows. Sized for the
-// tallest month so the sheet doesn't change height (or clip a sixth row) as
-// pages of different week counts scroll past.
-const CALENDAR_HEIGHT = 288;
+// Fixed pager height, sized for the tallest (six-week) month so the sheet
+// doesn't change height as pages of different week counts scroll past. The
+// library renders ~35pt of weekday header plus six 54pt week rows (40pt cell
+// + 7pt margin above/below each row) ≈ 359pt; the remainder is breathing
+// room below the last row.
+const CALENDAR_HEIGHT = 384;
+
+// Inner horizontal padding per page (library default is 5). Pages must stay
+// full-window width for the horizontal paging to align, so side breathing
+// room goes inside each page via the calendar container style.
+const CALENDAR_SIDE_PADDING = 24;
 
 function shiftDays(dateStr: string, days: number): string {
   const d = parseLocalDate(dateStr);
@@ -218,14 +225,25 @@ export function CalendarSheet({
             </TouchableOpacity>
           );
         }}
-        theme={{
-          backgroundColor: "transparent",
-          calendarBackground: "transparent",
-          textSectionTitleColor: t.secondary,
-          textDayHeaderFontFamily: "System",
-          textDayHeaderFontWeight: "600",
-          textDayHeaderFontSize: 11,
-        }}
+        theme={
+          {
+            backgroundColor: "transparent",
+            calendarBackground: "transparent",
+            textSectionTitleColor: t.secondary,
+            textDayHeaderFontFamily: "System",
+            textDayHeaderFontWeight: "600",
+            textDayHeaderFontSize: 11,
+            // Flat stylesheet keys are the library's override mechanism but
+            // aren't in its Theme type, hence the cast.
+            "stylesheet.calendar.main": {
+              container: {
+                paddingLeft: CALENDAR_SIDE_PADDING,
+                paddingRight: CALENDAR_SIDE_PADDING,
+                backgroundColor: "transparent",
+              },
+            },
+          } as any
+        }
       />
     </BottomSheet>
   );
