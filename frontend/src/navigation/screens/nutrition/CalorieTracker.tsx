@@ -446,8 +446,9 @@ export function CalorieTracker() {
               glassEffectStyle="regular"
             />
           )}
-          {/* Calories: label + count. Goals are edited from Settings. When the
-              card is collapsed, compact macro rings sit on the right. */}
+          {/* Calories: label + count. Goals are edited via the Edit affordance
+              on the expanded card, or from Settings. When the card is
+              collapsed, compact macro rings sit on the right. */}
           <View style={styles.calHeader}>
             <View style={styles.calHeaderLeft}>
               {!summaryCollapsed && (
@@ -513,35 +514,51 @@ export function CalorieTracker() {
 
           {/* Compact macro rings — hidden while the card is collapsed. */}
           {!summaryCollapsed && (
-            <View style={styles.ringsRow}>
-              <MacroRing
-                label="Carbs"
-                value={round(totals?.carbsG)}
-                goal={goal?.carbsG ?? 0}
-                size={54}
-                stroke={6}
-                valueFontSize={15}
-                animateKey={selectedDate}
-              />
-              <MacroRing
-                label="Protein"
-                value={round(totals?.proteinG)}
-                goal={goal?.proteinG ?? 0}
-                size={54}
-                stroke={6}
-                valueFontSize={15}
-                animateKey={selectedDate}
-              />
-              <MacroRing
-                label="Fat"
-                value={round(totals?.fatG)}
-                goal={goal?.fatG ?? 0}
-                size={54}
-                stroke={6}
-                valueFontSize={15}
-                animateKey={selectedDate}
-              />
-            </View>
+            <>
+              <View style={styles.ringsRow}>
+                <MacroRing
+                  label="Carbs"
+                  value={round(totals?.carbsG)}
+                  goal={goal?.carbsG ?? 0}
+                  size={54}
+                  stroke={6}
+                  valueFontSize={15}
+                  animateKey={selectedDate}
+                />
+                <MacroRing
+                  label="Protein"
+                  value={round(totals?.proteinG)}
+                  goal={goal?.proteinG ?? 0}
+                  size={54}
+                  stroke={6}
+                  valueFontSize={15}
+                  animateKey={selectedDate}
+                />
+                <MacroRing
+                  label="Fat"
+                  value={round(totals?.fatG)}
+                  goal={goal?.fatG ?? 0}
+                  size={54}
+                  stroke={6}
+                  valueFontSize={15}
+                  animateKey={selectedDate}
+                />
+              </View>
+              <TouchableOpacity
+                style={styles.editGoals}
+                hitSlop={10}
+                accessibilityLabel="Edit goals"
+                onPress={() => {
+                  Haptics.selectionAsync().catch(() => {});
+                  navigation.navigate("NutritionGoals");
+                }}
+              >
+                <Ionicons name="pencil" size={12} color={t.tint} />
+                <Text style={[styles.editGoalsText, { color: t.tint }]}>
+                  Edit
+                </Text>
+              </TouchableOpacity>
+            </>
           )}
         </TouchableOpacity>
       </View>
@@ -1053,6 +1070,16 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
     marginTop: 14,
   },
+  // Last element in the card, right-aligned: reads as the bottom-right corner
+  // without overlapping the ring labels the way absolute positioning can.
+  editGoals: {
+    alignSelf: "flex-end",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 10,
+  },
+  editGoalsText: { fontSize: 13, fontWeight: "600" },
   miniRingsRow: {
     flexDirection: "row",
     alignItems: "center",
