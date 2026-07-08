@@ -1,5 +1,4 @@
 import {
-  Text,
   Image,
   StyleSheet,
   View,
@@ -7,6 +6,7 @@ import {
   useColorScheme,
   ActivityIndicator,
 } from "react-native";
+import { Text } from "../../components/Text";
 import React, { useState, useEffect } from "react";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";

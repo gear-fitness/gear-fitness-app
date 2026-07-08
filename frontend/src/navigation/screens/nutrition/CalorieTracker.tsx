@@ -3,12 +3,12 @@ import {
   LayoutAnimation,
   Platform,
   StyleSheet,
-  Text,
   TouchableOpacity,
   UIManager,
   View,
 } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { Text } from "../../../components/Text";
 import Reanimated, {
   Easing,
   runOnJS,

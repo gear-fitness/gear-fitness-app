@@ -1,4 +1,4 @@
-import { Text } from "@react-navigation/elements";
+import { Text } from "../../components/Text";
 import {
   StyleSheet,
   View,
@@ -451,6 +451,7 @@ export function ExerciseHistory() {
                 styles.setNumCol,
                 { color: colors.subtle },
               ]}
+              maxFontSizeMultiplier={1}
             >
               SET
             </Text>
@@ -460,6 +461,7 @@ export function ExerciseHistory() {
                 styles.weightCol,
                 { color: colors.subtle },
               ]}
+              maxFontSizeMultiplier={1}
             >
               WEIGHT
             </Text>
@@ -469,6 +471,7 @@ export function ExerciseHistory() {
                 styles.xCol,
                 { color: colors.subtle },
               ]}
+              maxFontSizeMultiplier={1}
             >
               X
             </Text>
@@ -478,6 +481,7 @@ export function ExerciseHistory() {
                 styles.repsCol,
                 { color: colors.subtle },
               ]}
+              maxFontSizeMultiplier={1}
             >
               REPS
             </Text>
@@ -491,6 +495,7 @@ export function ExerciseHistory() {
                   styles.setNumCol,
                   { color: colors.subtle },
                 ]}
+                maxFontSizeMultiplier={1}
               >
                 {set.setNumber}
               </Text>
@@ -500,6 +505,7 @@ export function ExerciseHistory() {
                   styles.weightCol,
                   { color: colors.text },
                 ]}
+                maxFontSizeMultiplier={1}
               >
                 {set.weightLbs != null
                   ? formatWeight(set.weightLbs, weightUnit, { allowZero: true })
@@ -507,11 +513,15 @@ export function ExerciseHistory() {
               </Text>
               <Text
                 style={[styles.setCell, styles.xCol, { color: colors.text }]}
+                maxFontSizeMultiplier={1}
               >
                 x
               </Text>
               <View style={[styles.repsContainer, styles.repsCol]}>
-                <Text style={[styles.setCell, { color: colors.text }]}>
+                <Text
+                  style={[styles.setCell, { color: colors.text }]}
+                  maxFontSizeMultiplier={1}
+                >
                   {set.reps}
                 </Text>
                 {set.isPr && <Text style={styles.prDot}>🏆</Text>}
@@ -600,7 +610,10 @@ export function ExerciseHistory() {
       >
         {/* Exercise Title */}
         <View style={styles.titleSection}>
-          <Text style={[styles.exerciseName, { color: colors.text }]}>
+          <Text
+            style={[styles.exerciseName, { color: colors.text }]}
+            maxFontSizeMultiplier={1}
+          >
             {history?.exerciseName || exercise.name}
           </Text>
           <Text style={[styles.bodyPart, { color: colors.accent }]}>
@@ -628,7 +641,10 @@ export function ExerciseHistory() {
         {/* Stats Row */}
         <View style={styles.statsRow}>
           <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-            <Text style={[styles.statValue, { color: colors.text }]}>
+            <Text
+              style={[styles.statValue, { color: colors.text }]}
+              maxFontSizeMultiplier={1}
+            >
               {history?.totalSessions || 0}
             </Text>
             <Text style={[styles.statLabel, { color: colors.subtle }]}>
@@ -637,7 +653,10 @@ export function ExerciseHistory() {
           </View>
 
           <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-            <Text style={[styles.statValue, { color: colors.text }]}>
+            <Text
+              style={[styles.statValue, { color: colors.text }]}
+              maxFontSizeMultiplier={1}
+            >
               {history?.personalRecordLbs
                 ? `${toDisplayWeight(history.personalRecordLbs, weightUnit)}`
                 : "—"}
@@ -648,7 +667,10 @@ export function ExerciseHistory() {
           </View>
 
           <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-            <Text style={[styles.statValue, { color: colors.text }]}>
+            <Text
+              style={[styles.statValue, { color: colors.text }]}
+              maxFontSizeMultiplier={1}
+            >
               {bestVolume
                 ? Math.round(
                     toDisplayWeight(bestVolume, weightUnit),
@@ -848,6 +870,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "700",
     marginBottom: 4,
+    fontVariant: ["tabular-nums"],
   },
 
   statLabel: {
@@ -1009,6 +1032,7 @@ const styles = StyleSheet.create({
 
   setCell: {
     fontSize: 16,
+    fontVariant: ["tabular-nums"],
   },
 
   setNumCol: {

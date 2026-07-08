@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
-import { View, Text, StyleSheet, Pressable, Modal } from "react-native";
+import { View, StyleSheet, Pressable, Modal } from "react-native";
+import { Text } from "../../../components/Text";
 import { useOnboardingColors } from "./useOnboardingColors";
 import { makeOnboardingStyles } from "./makeOnboardingStyles";
 

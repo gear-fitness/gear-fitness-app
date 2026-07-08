@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
-  Text,
   StyleSheet,
   Pressable,
   Image,
@@ -9,6 +8,7 @@ import {
   Platform,
   useColorScheme,
 } from "react-native";
+import { Text } from "../../../components/Text";
 import { StepProps } from "../stepProps";
 import { OnboardingTopBar } from "./OnboardingTopBar";
 import { useOnboardingColors } from "./useOnboardingColors";

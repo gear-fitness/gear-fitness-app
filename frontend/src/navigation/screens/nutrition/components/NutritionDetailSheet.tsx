@@ -10,12 +10,12 @@ import {
   ScrollView,
   StyleProp,
   StyleSheet,
-  Text,
   TouchableOpacity,
   useWindowDimensions,
   View,
   ViewStyle,
 } from "react-native";
+import { Text } from "../../../../components/Text";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";

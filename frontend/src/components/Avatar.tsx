@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   ViewStyle,
 } from "react-native";
-import { Text } from "@react-navigation/elements";
+import { Text } from "./Text";
 import { useTheme } from "@react-navigation/native";
 import { useCachedAvatarUri } from "../hooks/useCachedAvatarUri";
 
@@ -69,6 +69,7 @@ export function Avatar({
         ]}
       >
         <Text
+          maxFontSizeMultiplier={1}
           style={{
             color: colors.background,
             fontSize: size * 0.43,

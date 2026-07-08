@@ -14,11 +14,10 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TextInputSelectionChangeEventData,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../../../components/Text";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useThemeColors } from "../../../../hooks/useThemeColors";

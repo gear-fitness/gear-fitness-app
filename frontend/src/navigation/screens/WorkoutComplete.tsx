@@ -1,9 +1,7 @@
 import {
-  Text,
   StyleSheet,
   useColorScheme,
   View,
-  TextInput,
   TouchableOpacity,
   ScrollView,
   Alert,
@@ -14,6 +12,7 @@ import {
   Image,
   useWindowDimensions,
 } from "react-native";
+import { Text, TextInput } from "../../components/Text";
 import Svg, { Path } from "react-native-svg";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState, useRef, useMemo } from "react";
@@ -350,7 +349,12 @@ export function WorkoutComplete() {
           <Text style={[styles.overline, { color: t.textMuted }]}>
             WORKOUT COMPLETE
           </Text>
-          <Text style={[styles.heroTitle, { color: t.text }]}>Nice work.</Text>
+          <Text
+            style={[styles.heroTitle, { color: t.text }]}
+            maxFontSizeMultiplier={1}
+          >
+            Nice work.
+          </Text>
 
           <View style={styles.metricsRow}>
             <Metric label="Time" value={`${durationMin} min`} t={t} />
@@ -368,6 +372,7 @@ export function WorkoutComplete() {
             placeholderTextColor={t.textMuted}
             returnKeyType="done"
             onSubmitEditing={() => Keyboard.dismiss()}
+            maxFontSizeMultiplier={1}
             style={[
               styles.nameInput,
               { color: t.text, borderBottomColor: t.border },
@@ -678,7 +683,12 @@ function Metric({
   return (
     <View>
       <Text style={[styles.metricLabel, { color: t.textMuted }]}>{label}</Text>
-      <Text style={[styles.metricValue, { color: t.text }]}>{value}</Text>
+      <Text
+        style={[styles.metricValue, { color: t.text }]}
+        maxFontSizeMultiplier={1}
+      >
+        {value}
+      </Text>
     </View>
   );
 }

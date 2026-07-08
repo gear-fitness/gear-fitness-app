@@ -7,7 +7,8 @@ import {
   StaticParamList,
 } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { View, Text } from "react-native";
+import { View } from "react-native";
+import { Text } from "../components/Text";
 
 /* SCREENS */
 import { Profile } from "./screens/Profile";

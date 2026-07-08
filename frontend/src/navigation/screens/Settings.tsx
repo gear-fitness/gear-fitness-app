@@ -3,7 +3,6 @@ import {
   Appearance,
   ColorValue,
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
   Alert,
@@ -11,6 +10,7 @@ import {
   Linking,
   Platform,
 } from "react-native";
+import { Text } from "../../components/Text";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
