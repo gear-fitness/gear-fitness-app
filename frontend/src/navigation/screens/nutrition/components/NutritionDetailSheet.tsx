@@ -25,6 +25,7 @@ import { createCustomFood } from "../../../../api/nutritionService";
 import { FoodLogEntry } from "../../../../api/types";
 import { BottomSheet } from "../../../../components/BottomSheet";
 import { MacroRing } from "./MacroRing";
+import { macroColor } from "./macroColors";
 import { faviconOf, hostOf } from "./sources";
 
 /**
@@ -551,21 +552,21 @@ function MacroSummary({
       <View style={styles.macroStats}>
         <MacroStat
           label="Carbs"
-          labelColor={t.isDark ? "#FACC15" : "#EAB308"}
+          labelColor={macroColor("carbs", t.isDark)}
           grams={round1(carbsG)}
           pct={pctOfGoal(carbsG, goal?.carbsG)}
           t={t}
         />
         <MacroStat
           label="Fat"
-          labelColor={t.isDark ? "#BF5AF2" : "#AF52DE"}
+          labelColor={macroColor("fat", t.isDark)}
           grams={round1(fatG)}
           pct={pctOfGoal(fatG, goal?.fatG)}
           t={t}
         />
         <MacroStat
           label="Protein"
-          labelColor={t.isDark ? "#FF375F" : "#F43F5E"}
+          labelColor={macroColor("protein", t.isDark)}
           grams={round1(proteinG)}
           pct={pctOfGoal(proteinG, goal?.proteinG)}
           t={t}

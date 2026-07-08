@@ -29,6 +29,7 @@ import {
   parseLocalDate,
 } from "../../../utils/date";
 import { MacroRing } from "./components/MacroRing";
+import { macroColor } from "./components/macroColors";
 import { CalendarSheet } from "./components/CalendarSheet";
 import { FoodJournal } from "./components/FoodJournal";
 import { CameraLogMenu } from "./components/CameraLogMenu";
@@ -274,11 +275,6 @@ export function CalorieTracker() {
               collapsed, compact macro rings sit on the right. */}
           <View style={styles.calHeader}>
             <View style={styles.calHeaderLeft}>
-              {!summaryCollapsed && (
-                <Text style={[styles.calLabel, { color: t.secondary }]}>
-                  Calories
-                </Text>
-              )}
               <Text
                 style={[styles.calCount, { color: t.text }]}
                 numberOfLines={1}
@@ -291,8 +287,13 @@ export function CalorieTracker() {
                   {calorieGoal}
                 </Text>
               </Text>
+              {!summaryCollapsed && (
+                <Text style={[styles.calLabel, { color: t.secondary }]}>
+                  Calories
+                </Text>
+              )}
             </View>
-            {summaryCollapsed && (
+            {summaryCollapsed ? (
               <View style={styles.miniRingsRow}>
                 <MacroRing
                   label=""
@@ -322,51 +323,7 @@ export function CalorieTracker() {
                   animateKey={selectedDate}
                 />
               </View>
-            )}
-          </View>
-
-          <View style={[styles.calTrack, { backgroundColor: t.trackBg }]}>
-            <Reanimated.View
-              style={[
-                styles.calFill,
-                barFillStyle,
-                { backgroundColor: progressColor(caloriePct) },
-              ]}
-            />
-          </View>
-
-          {/* Compact macro rings — hidden while the card is collapsed. */}
-          {!summaryCollapsed && (
-            <>
-              <View style={styles.ringsRow}>
-                <MacroRing
-                  label="Carbs"
-                  value={round(totals?.carbsG)}
-                  goal={goal?.carbsG ?? 0}
-                  size={54}
-                  stroke={6}
-                  valueFontSize={15}
-                  animateKey={selectedDate}
-                />
-                <MacroRing
-                  label="Protein"
-                  value={round(totals?.proteinG)}
-                  goal={goal?.proteinG ?? 0}
-                  size={54}
-                  stroke={6}
-                  valueFontSize={15}
-                  animateKey={selectedDate}
-                />
-                <MacroRing
-                  label="Fat"
-                  value={round(totals?.fatG)}
-                  goal={goal?.fatG ?? 0}
-                  size={54}
-                  stroke={6}
-                  valueFontSize={15}
-                  animateKey={selectedDate}
-                />
-              </View>
+            ) : (
               <TouchableOpacity
                 style={styles.editGoals}
                 hitSlop={10}
@@ -381,7 +338,60 @@ export function CalorieTracker() {
                   Edit
                 </Text>
               </TouchableOpacity>
-            </>
+            )}
+          </View>
+
+          <View style={[styles.calTrack, { backgroundColor: t.trackBg }]}>
+            <Reanimated.View
+              style={[
+                styles.calFill,
+                barFillStyle,
+                { backgroundColor: progressColor(caloriePct) },
+              ]}
+            />
+          </View>
+
+          {/* Macro rings — hidden while the card is collapsed. Centers show
+              consumed/goal; labels wear each macro's identity color. */}
+          {!summaryCollapsed && (
+            <View style={styles.ringsRow}>
+              <MacroRing
+                label="Carbs"
+                labelColor={macroColor("carbs", t.isDark)}
+                labelBold
+                value={round(totals?.carbsG)}
+                goal={goal?.carbsG ?? 0}
+                size={60}
+                stroke={6}
+                valueFontSize={11}
+                showGoal
+                animateKey={selectedDate}
+              />
+              <MacroRing
+                label="Protein"
+                labelColor={macroColor("protein", t.isDark)}
+                labelBold
+                value={round(totals?.proteinG)}
+                goal={goal?.proteinG ?? 0}
+                size={60}
+                stroke={6}
+                valueFontSize={11}
+                showGoal
+                animateKey={selectedDate}
+              />
+              <MacroRing
+                label="Fat"
+                labelColor={macroColor("fat", t.isDark)}
+                labelBold
+                value={round(totals?.fatG)}
+                goal={goal?.fatG ?? 0}
+                size={60}
+                stroke={6}
+                valueFontSize={11}
+                showGoal
+                animateKey={selectedDate}
+              />
+            </View>
           )}
         </TouchableOpacity>
       </View>
@@ -399,7 +409,7 @@ export function CalorieTracker() {
             }}
             accessibilityLabel="Favorites"
           >
-            <Ionicons name="bookmark-outline" size={19} color={t.tint} />
+            <Ionicons name="bookmark" size={19} color={t.tint} />
           </TouchableOpacity>
         </GlassView>
 
@@ -484,12 +494,16 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   calHeaderLeft: {
+    // Bottom-aligned (not baseline): the "Calories" word should sit flush with
+    // the bottom of the larger number. The small marginBottom on the label
+    // compensates for its shallower descender box so the glyph bottoms line up
+    // optically; may need a point of on-device tuning.
     flexDirection: "row",
-    alignItems: "baseline",
-    gap: 8,
+    alignItems: "flex-end",
+    gap: 6,
     flexShrink: 1,
   },
-  calLabel: { fontSize: 13, fontWeight: "600" },
+  calLabel: { fontSize: 13, fontWeight: "700", marginBottom: 2 },
   calCount: { fontSize: 20, fontWeight: "700" },
   calGoal: { fontSize: 20, fontWeight: "700" },
   calTrack: {
@@ -504,14 +518,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
     marginTop: 14,
   },
-  // Last element in the card, right-aligned: reads as the bottom-right corner
-  // without overlapping the ring labels the way absolute positioning can.
+  // Sits in the header's top-right corner while the card is expanded (the
+  // collapsed card shows the mini rings there instead).
   editGoals: {
-    alignSelf: "flex-end",
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    marginTop: 10,
   },
   editGoalsText: { fontSize: 13, fontWeight: "600" },
   miniRingsRow: {

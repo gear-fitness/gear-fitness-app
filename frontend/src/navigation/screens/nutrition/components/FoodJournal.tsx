@@ -23,6 +23,7 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useThemeColors } from "../../../../hooks/useThemeColors";
 import { useNutrition } from "../../../../context/NutritionContext";
+import { formatQuantity } from "../../../../utils/nutritionUnits";
 import { aiLogFood } from "../../../../api/nutritionService";
 import { FoodLogEntry } from "../../../../api/types";
 import { isNetworkError } from "../../../../utils/network";
@@ -116,7 +117,7 @@ const statusForText = (text: string, nonEmpty: EntryStatus): EntryStatus =>
 
 export function FoodJournal({ selectedDate }: { selectedDate: string }) {
   const t = useThemeColors();
-  const { refresh, removeLog, summary } = useNutrition();
+  const { refresh, removeLog, summary, getEntryUnitMeta } = useNutrition();
 
   const [entriesByDate, setEntriesByDate] = useState<EntriesByDate>({});
   const [heights, setHeights] = useState<number[]>([]);
@@ -314,6 +315,26 @@ export function FoodJournal({ selectedDate }: { selectedDate: string }) {
     [setEntries],
   );
 
+  // A db line's text: "Name (amount)", one line of the shared note. The amount
+  // is the display unit it was logged in when we have it (client-side
+  // metadata: "4 oz", "2 servings"), else the entry's stored serving/gram
+  // amount — parenthesized after the name, matching how AI-parsed descriptions
+  // carry their portions.
+  const dbLineText = useCallback(
+    (e: FoodLogEntry) => {
+      const name =
+        (e.description ?? "").replace(/\s+/g, " ").trim() || "Logged food";
+      const meta = getEntryUnitMeta(e.entryId);
+      const amount = meta
+        ? formatQuantity(meta.quantity, meta.unitKey)
+        : e.unit === "GRAM"
+          ? `${e.quantity} g`
+          : `${e.quantity} ${e.quantity === 1 ? "serving" : "servings"}`;
+      return `${name} (${amount})`;
+    },
+    [getEntryUnitMeta],
+  );
+
   // Materialize "db" journal lines for backend rows no local line references:
   // foods logged from the Add food search (the journal learns about them via
   // the day-summary refresh), manual entries from before the meal cards were
@@ -348,10 +369,9 @@ export function FoodJournal({ selectedDate }: { selectedDate: string }) {
       if (!strays.length) return;
       const lines: Entry[] = strays.map((e) => ({
         id: newId(),
-        // The line must stay a single line of the shared note.
-        text: (e.description ?? "").replace(/\s+/g, " ").trim() || "Logged food",
-        status: "logged",
-        kind: "db",
+        text: dbLineText(e),
+        status: "logged" as const,
+        kind: "db" as const,
         calories: e.calories ?? 0,
         detail: {
           entries: [e],
@@ -370,7 +390,15 @@ export function FoodJournal({ selectedDate }: { selectedDate: string }) {
       });
     }, 800);
     return () => clearTimeout(id);
-  }, [summary, entriesByDate, selectedDate, editing, storageSettled, setEntries]);
+  }, [
+    summary,
+    entriesByDate,
+    selectedDate,
+    editing,
+    storageSettled,
+    setEntries,
+    dbLineText,
+  ]);
 
   /* --- backend sync --------------------------------------------------- */
 
@@ -704,9 +732,13 @@ export function FoodJournal({ selectedDate }: { selectedDate: string }) {
       updateEntry(date, lineId, {
         calories,
         detail: { ...line.detail, entries: nextEntries },
+        // A db line displays "Name (amount)" — rebuild it so an edited
+        // quantity doesn't leave a stale amount in the note. AI lines keep
+        // the user's typed text untouched.
+        ...(line.kind === "db" ? { text: dbLineText(newEntry) } : {}),
       });
     },
-    [updateEntry],
+    [updateEntry, dbLineText],
   );
 
   const openDetail = useCallback((entry: Entry) => {

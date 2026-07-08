@@ -5,6 +5,7 @@ import {
   FlatList,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -389,7 +390,16 @@ function FoodRow({
   const glassAvailable = isLiquidGlassAvailable();
   const [unitPickerOpen, setUnitPickerOpen] = useState(false);
   const [unitKey, setUnitKey] = useState<MeasureUnitKey>("serving");
-  const [quantity, setQuantity] = useState(1);
+  // Held as text so the number is directly editable (decimal-pad, like the
+  // exercise inputs); the steppers read/write through it.
+  const [quantityText, setQuantityText] = useState("1");
+  const quantity = parseFloat(quantityText) || 0;
+
+  const stepQuantity = (delta: number) => {
+    const next =
+      Math.round(Math.max(1, quantity + delta) * 100) / 100;
+    setQuantityText(String(next));
+  };
 
   // Units offered for this food. The "serving" option is labelled with the
   // food's household serving (e.g. "4 oz", "1 cup") so it reads like the meta.
@@ -408,6 +418,7 @@ function FoodRow({
   const macros = perServing(food);
 
   const handleLog = async () => {
+    if (quantity <= 0) return;
     await onLog(food, { unitKey, quantity });
     onCollapse();
   };
@@ -521,7 +532,7 @@ function FoodRow({
                   accessibilityLabel="Decrease quantity"
                   hitSlop={8}
                   disabled={quantity <= 1}
-                  onPress={() => setQuantity((q) => Math.max(1, q - 1))}
+                  onPress={() => stepQuantity(-1)}
                   style={styles.stepperBtn}
                 >
                   <Ionicons
@@ -530,13 +541,21 @@ function FoodRow({
                     color={quantity <= 1 ? t.border : t.tint}
                   />
                 </TouchableOpacity>
-                <Text style={[styles.stepperValue, { color: t.text }]}>
-                  {quantity}
-                </Text>
+                <TextInput
+                  value={quantityText}
+                  onChangeText={setQuantityText}
+                  keyboardType="decimal-pad"
+                  placeholder="0"
+                  placeholderTextColor={t.secondary}
+                  maxLength={6}
+                  selectTextOnFocus
+                  accessibilityLabel="Quantity"
+                  style={[styles.stepperValue, { color: t.text }]}
+                />
                 <TouchableOpacity
                   accessibilityLabel="Increase quantity"
                   hitSlop={8}
-                  onPress={() => setQuantity((q) => q + 1)}
+                  onPress={() => stepQuantity(1)}
                   style={styles.stepperBtn}
                 >
                   <Ionicons name="add" size={22} color={t.tint} />
@@ -583,7 +602,7 @@ function FoodRow({
 
           <TouchableOpacity
             style={[styles.logBtn, { backgroundColor: t.accent }]}
-            disabled={busy}
+            disabled={busy || quantity <= 0}
             onPress={handleLog}
           >
             {busy ? (
@@ -683,8 +702,9 @@ const styles = StyleSheet.create({
   stepperValue: {
     fontSize: 16,
     fontWeight: "600",
-    minWidth: 24,
+    minWidth: 40,
     textAlign: "center",
+    paddingVertical: 0,
   },
   chipRow: {
     flexDirection: "row",

@@ -35,6 +35,9 @@ export function MacroRing({
   onChangeText,
   valueFontSize = 19,
   labelFontSize = 13,
+  labelColor,
+  labelBold,
+  showGoal,
   animateKey,
 }: {
   label: string;
@@ -49,6 +52,13 @@ export function MacroRing({
   valueFontSize?: number;
   /** Bottom-label font size — shrink for compact inline rings. */
   labelFontSize?: number;
+  /** Bottom-label color (e.g. the macro's identity color); secondary otherwise. */
+  labelColor?: string;
+  /** Bold the bottom label (the tracker's expanded card). */
+  labelBold?: boolean;
+  /** Render the center as a `value/goal` fraction instead of the bare value.
+   *  The "/goal" tail is greyed, matching the tracker's calorie readout. */
+  showGoal?: boolean;
   /**
    * Changing this resets the arc to empty and refills it (used to replay the
    * entry animation when the tracker switches days). When it stays the same but
@@ -143,6 +153,9 @@ export function MacroRing({
               maxFontSizeMultiplier={1.2}
             >
               {value}
+              {showGoal && (
+                <Text style={{ color: t.secondary }}>/{goal}</Text>
+              )}
             </Text>
           )}
         </View>
@@ -151,7 +164,8 @@ export function MacroRing({
         <Text
           style={[
             styles.label,
-            { color: t.secondary, fontSize: labelFontSize },
+            { color: labelColor ?? t.secondary, fontSize: labelFontSize },
+            labelBold && styles.labelBold,
           ]}
         >
           {label}
@@ -175,4 +189,5 @@ const styles = StyleSheet.create({
     minWidth: 54,
   },
   label: { fontSize: 13, fontWeight: "600", marginTop: 8 },
+  labelBold: { fontWeight: "700" },
 });
