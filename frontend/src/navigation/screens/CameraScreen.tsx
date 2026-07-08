@@ -5,10 +5,10 @@ import {
   Linking,
   Platform,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text } from "../../components/Text";
 import {
   Camera,
   useCameraDevice,

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { Text } from "../../../../components/Text";
 import { CalendarList } from "react-native-calendars";
 import * as Haptics from "expo-haptics";
 import { useThemeColors } from "../../../../hooks/useThemeColors";

@@ -4,12 +4,11 @@ import {
   Alert,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   useWindowDimensions,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../../../components/Text";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useThemeColors } from "../../../../hooks/useThemeColors";
