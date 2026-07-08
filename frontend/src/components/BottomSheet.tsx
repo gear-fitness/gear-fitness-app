@@ -306,6 +306,20 @@ export function BottomSheet({
         ]}
         {...(bodyDrag ? bodyPan.panHandlers : {})}
       >
+        {/* Skirt: continues the sheet's surface below its bottom edge. When
+            the keyboard lifts the sheet (avoidKeyboard), the sheet's bottom
+            sits at the keyboard's top — and the translucent iOS keyboard
+            would show the dimmed backdrop through/around it. The skirt keeps
+            everything beneath the sheet sheet-colored instead. It rides the
+            sheet's transform (always attached, no keyboard-event plumbing)
+            and hangs harmlessly offscreen while the keyboard is closed. */}
+        <View
+          pointerEvents="none"
+          style={[
+            styles.skirt,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
+        />
         <View style={styles.grabberZone} {...grabberPan.panHandlers}>
           <View style={[styles.grabber, { backgroundColor: colors.border }]} />
         </View>
@@ -371,6 +385,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingTop: 8,
     paddingBottom: 14,
+  },
+  // Hangs off the sheet's bottom, spanning the full screen height so any
+  // keyboard (with accessory views) is covered behind. Nudged out by the
+  // hairline so its side borders continue the sheet's own.
+  skirt: {
+    position: "absolute",
+    top: "100%",
+    left: -StyleSheet.hairlineWidth,
+    right: -StyleSheet.hairlineWidth,
+    height: OFFSCREEN,
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderRightWidth: StyleSheet.hairlineWidth,
   },
   grabber: {
     width: 40,

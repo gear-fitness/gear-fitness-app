@@ -558,17 +558,17 @@ function MacroSummary({
           t={t}
         />
         <MacroStat
-          label="Fat"
-          labelColor={macroColor("fat", t.isDark)}
-          grams={round1(fatG)}
-          pct={pctOfGoal(fatG, goal?.fatG)}
-          t={t}
-        />
-        <MacroStat
           label="Protein"
           labelColor={macroColor("protein", t.isDark)}
           grams={round1(proteinG)}
           pct={pctOfGoal(proteinG, goal?.proteinG)}
+          t={t}
+        />
+        <MacroStat
+          label="Fat"
+          labelColor={macroColor("fat", t.isDark)}
+          grams={round1(fatG)}
+          pct={pctOfGoal(fatG, goal?.fatG)}
           t={t}
         />
       </View>

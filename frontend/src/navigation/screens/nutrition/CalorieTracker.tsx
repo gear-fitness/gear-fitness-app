@@ -125,9 +125,6 @@ export function CalorieTracker() {
   const consumed = round(totals?.calories);
   const calorieGoal = goal?.calorieGoal ?? 0;
   const caloriePct = calorieGoal > 0 ? Math.min(consumed / calorieGoal, 1) : 0;
-  const todayStr = getCurrentLocalDateString();
-  const isToday = selectedDate === todayStr;
-
   // Fraction of the calorie bar filled, animated on the UI thread. The width
   // eases from 0 to caloriePct so the bar draws itself on entry.
   const barProgress = useSharedValue(0);
@@ -223,18 +220,14 @@ export function CalorieTracker() {
         <TouchableOpacity
           accessibilityLabel="Next day"
           hitSlop={12}
-          disabled={isToday}
           onPress={() => {
-            // Disabled on today, so this only fires when the day actually moves.
+            // Future days are steppable too (logging ahead), matching the
+            // calendar sheet, which has always allowed selecting them.
             Haptics.selectionAsync().catch(() => {});
             setSelectedDate(shiftDate(selectedDate, 1));
           }}
         >
-          <Ionicons
-            name="chevron-forward"
-            size={24}
-            color={isToday ? t.border : t.text}
-          />
+          <Ionicons name="chevron-forward" size={24} color={t.text} />
         </TouchableOpacity>
       </View>
 

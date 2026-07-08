@@ -38,6 +38,7 @@ import {
 } from "../../../../utils/nutritionUnits";
 import { BottomSheet } from "../../../../components/BottomSheet";
 import { MacroRing } from "./MacroRing";
+import { macroColor } from "./macroColors";
 
 type Theme = ReturnType<typeof useThemeColors>;
 
@@ -287,7 +288,15 @@ export function EditEntrySheet({
   const glassAvailable = isLiquidGlassAvailable();
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} keyboardDismiss>
+    // avoidKeyboard lifts the whole sheet in sync with the keyboard, so the
+    // quantity field (low in the sheet) isn't covered while editing; the
+    // ScrollView cap keeps the top reachable on small screens.
+    <BottomSheet
+      visible={visible}
+      onClose={onClose}
+      avoidKeyboard
+      keyboardDismiss
+    >
       <ScrollView
         style={{ maxHeight: sheetMaxHeight }}
         keyboardShouldPersistTaps="handled"
@@ -314,20 +323,23 @@ export function EditEntrySheet({
               <View style={styles.macroStats}>
                 <MacroStat
                   label="Carbs"
+                  labelColor={macroColor("carbs", t.isDark)}
                   value={carbsText}
                   onChangeText={(v) => editMacro("carbsG", v)}
                   t={t}
                 />
                 <MacroStat
-                  label="Fat"
-                  value={fatText}
-                  onChangeText={(v) => editMacro("fatG", v)}
+                  label="Protein"
+                  labelColor={macroColor("protein", t.isDark)}
+                  value={proteinText}
+                  onChangeText={(v) => editMacro("proteinG", v)}
                   t={t}
                 />
                 <MacroStat
-                  label="Protein"
-                  value={proteinText}
-                  onChangeText={(v) => editMacro("proteinG", v)}
+                  label="Fat"
+                  labelColor={macroColor("fat", t.isDark)}
+                  value={fatText}
+                  onChangeText={(v) => editMacro("fatG", v)}
                   t={t}
                 />
               </View>
@@ -359,9 +371,17 @@ export function EditEntrySheet({
                   glass={glassAvailable}
                   t={t}
                 />
-                <Text style={[styles.stepValue, { color: t.text }]}>
-                  {quantityText}
-                </Text>
+                <TextInput
+                  value={quantityText}
+                  onChangeText={changeQuantity}
+                  keyboardType="decimal-pad"
+                  placeholder="0"
+                  placeholderTextColor={t.secondary}
+                  maxLength={6}
+                  selectTextOnFocus
+                  accessibilityLabel="Quantity"
+                  style={[styles.stepValue, { color: t.text }]}
+                />
                 <StepButton
                   icon="add"
                   onPress={() => stepQuantity(qtyStep)}
@@ -416,11 +436,14 @@ export function EditEntrySheet({
 
 function MacroStat({
   label,
+  labelColor,
   value,
   onChangeText,
   t,
 }: {
   label: string;
+  /** Macro identity color for the label word (shared macroColors). */
+  labelColor: string;
   value: string;
   onChangeText: (v: string) => void;
   t: Theme;
@@ -437,7 +460,7 @@ function MacroStat({
         />
         <Text style={[styles.statUnit, { color: t.text }]}>g</Text>
       </View>
-      <Text style={[styles.statLabel, { color: t.secondary }]}>{label}</Text>
+      <Text style={[styles.statLabel, { color: labelColor }]}>{label}</Text>
     </View>
   );
 }
@@ -669,6 +692,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 17,
     fontWeight: "600",
+    paddingVertical: 0,
   },
   macroRow: {
     flexDirection: "row",
