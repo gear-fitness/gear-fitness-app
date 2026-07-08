@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   LayoutAnimation,
   Platform,
@@ -8,10 +8,13 @@ import {
   UIManager,
   View,
 } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Reanimated, {
   Easing,
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
+  withSequence,
   withTiming,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -70,6 +73,18 @@ function dateLabel(dateStr: string): string {
 }
 
 const round = (n: number | null | undefined) => Math.round(n ?? 0);
+
+// Day-swipe tuning. Activation is deliberately horizontal (a vertical drift
+// fails the gesture so the journal keeps scrolling), the content follows the
+// finger heavily damped, and a swipe only commits on release — one day per
+// gesture, no matter how far the finger travels.
+const DAY_SWIPE_ACTIVATE = 24; // horizontal px before the pan claims the touch
+const DAY_SWIPE_FAIL_Y = 16; // vertical px that hands the touch to scrolling
+const DAY_SWIPE_TRIGGER = 72; // slow drag must travel this far to commit
+const DAY_SWIPE_FLICK_DISTANCE = 36; // a flick may commit from here...
+const DAY_SWIPE_FLICK_VELOCITY = 650; // ...if it's at least this fast (px/s)
+const DAY_SWIPE_DAMPING = 0.35; // finger-follow resistance
+const DAY_SWIPE_SLIDE = 56; // slide-out/in distance when a swipe commits
 
 /**
  * The Nutrition tab: a per-day food journal (Plus-only). The summary card
@@ -158,6 +173,69 @@ export function CalorieTracker() {
     navigation.navigate("AddFood");
   }, [navigation]);
 
+  // Horizontal swipe steps one day: left → next, right → previous. The
+  // content follows the finger (damped, slightly fading), and on a decisive
+  // release slides out toward the swipe and the new day slides in from the
+  // other side. Committing only on release caps it at one day per gesture.
+  const dayShift = useSharedValue(0);
+  const selectedDateRef = useRef(selectedDate);
+  selectedDateRef.current = selectedDate;
+
+  const swipeToDay = useCallback(
+    (dir: 1 | -1) => {
+      Haptics.selectionAsync().catch(() => {});
+      setSelectedDate(shiftDate(selectedDateRef.current, dir));
+    },
+    [setSelectedDate],
+  );
+
+  const daySwipe = useMemo(
+    () =>
+      Gesture.Pan()
+        .activeOffsetX([-DAY_SWIPE_ACTIVATE, DAY_SWIPE_ACTIVATE])
+        .failOffsetY([-DAY_SWIPE_FAIL_Y, DAY_SWIPE_FAIL_Y])
+        .onUpdate((e) => {
+          dayShift.value = e.translationX * DAY_SWIPE_DAMPING;
+        })
+        .onEnd((e) => {
+          const tx = e.translationX;
+          const decisive =
+            Math.abs(tx) >= DAY_SWIPE_TRIGGER ||
+            (Math.abs(tx) >= DAY_SWIPE_FLICK_DISTANCE &&
+              Math.abs(e.velocityX) >= DAY_SWIPE_FLICK_VELOCITY);
+          if (!decisive) {
+            // Not a real swipe: settle back without changing the day.
+            dayShift.value = withTiming(0, {
+              duration: 180,
+              easing: Easing.out(Easing.cubic),
+            });
+            return;
+          }
+          const dir = tx < 0 ? 1 : -1;
+          runOnJS(swipeToDay)(dir);
+          // Slide out with the swipe, teleport to the far side, ease back in —
+          // reads as the new day sliding into place.
+          dayShift.value = withSequence(
+            withTiming(-dir * DAY_SWIPE_SLIDE, {
+              duration: 110,
+              easing: Easing.in(Easing.quad),
+            }),
+            withTiming(dir * DAY_SWIPE_SLIDE, { duration: 0 }),
+            withTiming(0, {
+              duration: 220,
+              easing: Easing.out(Easing.cubic),
+            }),
+          );
+        }),
+    [dayShift, swipeToDay],
+  );
+
+  const dayShiftStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: dayShift.value }],
+    // Subtle fade with displacement so the drag reads as "leaving the page".
+    opacity: 1 - Math.min(Math.abs(dayShift.value) / (DAY_SWIPE_SLIDE * 3), 0.35),
+  }));
+
   // The whole tracker is Plus-gated: a locked placeholder with a feature blurb
   // dimmed behind the lock overlay, tapping through to the upsell sheet.
   if (!isPlus) {
@@ -188,8 +266,12 @@ export function CalorieTracker() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: t.appBg }]}>
-      {/* Date navigation */}
-      <View style={styles.dateRow}>
+      {/* Everything that belongs to the shown day swipes as one piece; the
+          sheets/modals below live outside so they never translate. */}
+      <GestureDetector gesture={daySwipe}>
+        <Reanimated.View style={[styles.flex1, dayShiftStyle]}>
+          {/* Date navigation */}
+          <View style={styles.dateRow}>
         <TouchableOpacity
           accessibilityLabel="Previous day"
           hitSlop={12}
@@ -230,16 +312,6 @@ export function CalorieTracker() {
           <Ionicons name="chevron-forward" size={24} color={t.text} />
         </TouchableOpacity>
       </View>
-
-      {/* Calendar bottom sheet — days with entries marked, future days
-          selectable for logging ahead. Day taps update the screen live;
-          Done dismisses. */}
-      <CalendarSheet
-        visible={calendarOpen}
-        onClose={() => setCalendarOpen(false)}
-        selectedDate={selectedDate}
-        onSelectDate={setSelectedDate}
-      />
 
       {/* Summary chip — a compact glass card above the journal. Tap to
           collapse it down to just the calorie header + progress bar, or expand
@@ -419,16 +491,28 @@ export function CalorieTracker() {
         </GlassView>
       </View>
 
-      <SavedFoodsSheet
-        visible={savedOpen}
-        onClose={() => setSavedOpen(false)}
-      />
-
       {/* The journal itself: typed lines AI-parse into logged foods; database
           picks from Add food appear as their own lines. */}
       <View style={styles.flex1}>
         <FoodJournal selectedDate={selectedDate} />
       </View>
+        </Reanimated.View>
+      </GestureDetector>
+
+      {/* Calendar bottom sheet — days with entries marked, future days
+          selectable for logging ahead. Day taps update the screen live;
+          Done dismisses. */}
+      <CalendarSheet
+        visible={calendarOpen}
+        onClose={() => setCalendarOpen(false)}
+        selectedDate={selectedDate}
+        onSelectDate={setSelectedDate}
+      />
+
+      <SavedFoodsSheet
+        visible={savedOpen}
+        onClose={() => setSavedOpen(false)}
+      />
 
       <FloatingKeyboardDismiss />
     </SafeAreaView>
