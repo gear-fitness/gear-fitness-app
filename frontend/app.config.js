@@ -93,6 +93,17 @@ export default {
         },
       ],
       [
+        "react-native-vision-camera",
+        {
+          cameraPermissionText:
+            "Allow Gear Fitness to use the camera to take photos for your workout posts and profile picture.",
+          // Photos only. Skip the microphone/location permissions so App
+          // Store review doesn't see unused entitlements.
+          enableMicrophonePermission: false,
+          enableLocation: false,
+        },
+      ],
+      [
         "expo-media-library",
         {
           photosPermission:

@@ -39,6 +39,7 @@ import { DayPosts } from "./screens/DayPosts";
 import { Activity } from "./screens/Activity";
 import FollowScreen from "./screens/FollowScreen";
 import { ImageViewer } from "./screens/ImageViewer";
+import { CameraScreen } from "./screens/CameraScreen";
 import { CalorieTracker } from "./screens/nutrition/CalorieTracker";
 import { AddFood } from "./screens/nutrition/AddFood";
 import { NutritionGoals } from "./screens/nutrition/NutritionGoals";
@@ -264,6 +265,20 @@ const RootStack = createNativeStackNavigator({
         gestureEnabled: false,
       },
     },
+
+    /* IN-APP CAMERA — registered on the root stack so it can be presented
+       from anywhere (workout complete, settings avatar, onboarding). Consumers
+       go through openCamera() in utils/inAppCamera rather than navigating
+       here directly. */
+    Camera: {
+      screen: CameraScreen,
+      options: {
+        presentation: "fullScreenModal",
+        headerShown: false,
+        gestureEnabled: true,
+        gestureDirection: "vertical",
+      },
+    },
     ExerciseList: {
       screen: ExerciseList,
       options: { headerShown: false },
@@ -389,6 +404,8 @@ declare global {
         photos: string[];
         initialIndex: number;
       };
+
+      Camera: undefined;
 
       PostDetail: {
         postId: string;
