@@ -134,7 +134,7 @@ export function NutritionDetailSheet({
     };
   }, [heldDetail]);
 
-  // "Save as Meal": snapshot this line (its typed text + summed nutrition) as
+  // "Save to Favorites": snapshot this line (its typed text + summed nutrition) as
   // a reusable custom food. Once saved, the menu item reads as a receipt for
   // the rest of this viewing; a fresh open can save again (e.g. after edits).
   const [savingMeal, setSavingMeal] = useState(false);
@@ -329,8 +329,8 @@ export function NutritionDetailSheet({
                     savingMeal
                       ? "Saving…"
                       : mealSaved
-                        ? "Saved to Meals"
-                        : "Save as Meal"
+                        ? "Saved to Favorites"
+                        : "Save to Favorites"
                   }
                   t={t}
                   onPress={saveAsMeal}

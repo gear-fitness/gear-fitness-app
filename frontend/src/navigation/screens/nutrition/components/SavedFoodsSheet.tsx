@@ -34,7 +34,7 @@ const round1 = (n: number | null | undefined) => Math.round((n ?? 0) * 10) / 10;
 type Mode = "list" | "create" | "edit";
 
 /**
- * The "Saved Meals" sheet: the user's custom foods — a name, calories, and
+ * The "Favorites" sheet: the user's custom foods — a name, calories, and
  * macros saved for reuse (meal-preppers log the same thing repeatedly). The
  * sheet lists them with search and one-tap logging; "+" opens the create form,
  * the pencil toggles edit mode where tapping a meal opens the edit form (with
@@ -249,7 +249,7 @@ export function SavedFoodsSheet({
 
   const inForm = mode !== "list";
   const title =
-    mode === "create" ? "Create Meal" : mode === "edit" ? "Edit Meal" : "Saved Meals";
+    mode === "create" ? "Create Meal" : mode === "edit" ? "Edit Meal" : "Favorites";
 
   return (
     <BottomSheet
@@ -260,18 +260,25 @@ export function SavedFoodsSheet({
       bodyDrag={false}
     >
       <View style={{ maxHeight: windowHeight * 0.78 }}>
-        {/* Header: close, centered title, and the mode's primary action. */}
+        {/* Header: close, centered title, and the mode's primary action. The
+            title spans the row absolutely so it stays truly centered even
+            though the left and right controls differ in width. */}
         <View style={styles.header}>
+          <Text
+            style={[styles.title, { color: t.text }]}
+            pointerEvents="none"
+          >
+            {title}
+          </Text>
+
           <TouchableOpacity
             style={[styles.circleBtn, { backgroundColor: t.surface }]}
-            accessibilityLabel={inForm ? "Back to saved meals" : "Close"}
+            accessibilityLabel={inForm ? "Back to favorites" : "Close"}
             hitSlop={8}
             onPress={inForm ? backToList : onClose}
           >
             <Ionicons name="close" size={20} color={t.text} />
           </TouchableOpacity>
-
-          <Text style={[styles.title, { color: t.text }]}>{title}</Text>
 
           {mode === "list" ? (
             <View style={[styles.headerPill, { backgroundColor: t.surface }]}>
@@ -354,7 +361,7 @@ export function SavedFoodsSheet({
               <SearchBar
                 value={query}
                 onChangeText={setQuery}
-                placeholder="Search meals"
+                placeholder="Search favorites"
               />
             </View>
 
@@ -376,7 +383,7 @@ export function SavedFoodsSheet({
                     color={t.border}
                   />
                   <Text style={[styles.emptyText, { color: t.text }]}>
-                    {query ? "No meals found" : "No saved meals yet"}
+                    {query ? "No favorites found" : "No favorites yet"}
                   </Text>
                   {!query && (
                     <Text style={[styles.emptySubtext, { color: t.secondary }]}>
@@ -659,11 +666,14 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingBottom: 12,
   },
   title: {
-    flex: 1,
+    position: "absolute",
+    left: 0,
+    right: 0,
     textAlign: "center",
     fontSize: 17,
     fontWeight: "700",

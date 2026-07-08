@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { useNavigation } from "@react-navigation/native";
 import { SearchBar } from "../../../components/SearchBar";
@@ -17,7 +18,11 @@ import { FloatingKeyboardDismiss } from "../../../components/FloatingKeyboardDis
 import { useThemeColors } from "../../../hooks/useThemeColors";
 import { useTier } from "../../../hooks/useTier";
 import { useNutrition } from "../../../context/NutritionContext";
-import { getUserFoods, searchFoods } from "../../../api/nutritionService";
+import {
+  createCustomFood,
+  getUserFoods,
+  searchFoods,
+} from "../../../api/nutritionService";
 import { FoodItem, MeasureUnit, MeasureUnitKey } from "../../../api/types";
 import {
   buildUnits,
@@ -119,6 +124,10 @@ export function AddFood() {
   const [addingId, setAddingId] = useState<string | null>(null);
   const [addedIds, setAddedIds] = useState<Record<string, boolean>>({});
 
+  // Per-food save-to-favorites state (spinner, then a filled bookmark).
+  const [favSavingId, setFavSavingId] = useState<string | null>(null);
+  const [favSavedIds, setFavSavedIds] = useState<Record<string, boolean>>({});
+
   // Which row's portion dropdown is open. Hoisted here (rather than per-row) so
   // only one can be expanded at a time — opening one closes any other.
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -212,6 +221,32 @@ export function AddFood() {
     }
   };
 
+  // Save a search result to the user's favorites (custom foods) so it's one
+  // tap to log later. Snapshots the food's per-serving nutrition; custom foods
+  // don't offer this (they're already favorites).
+  const handleSaveFavorite = async (food: FoodItem) => {
+    if (favSavingId || favSavedIds[food.foodId]) return;
+    setFavSavingId(food.foodId);
+    try {
+      const macros = perServing(food);
+      await createCustomFood({
+        description: food.description,
+        calories: macros.calories,
+        proteinG: macros.proteinG,
+        carbsG: macros.carbsG,
+        fatG: macros.fatG,
+      });
+      setFavSavedIds((prev) => ({ ...prev, [food.foodId]: true }));
+      Haptics.notificationAsync(
+        Haptics.NotificationFeedbackType.Success,
+      ).catch(() => {});
+    } catch (err) {
+      console.error("Failed to save favorite:", err);
+    } finally {
+      setFavSavingId(null);
+    }
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: t.appBg }]}>
       {/* Header: close + title */}
@@ -279,6 +314,9 @@ export function AddFood() {
             t={t}
             added={!!addedIds[item.foodId]}
             busy={addingId === item.foodId}
+            favSaved={!!favSavedIds[item.foodId]}
+            favBusy={favSavingId === item.foodId}
+            onSaveFavorite={() => handleSaveFavorite(item)}
             expanded={expandedId === item.foodId}
             onToggleExpand={() =>
               setExpandedId((prev) =>
@@ -315,16 +353,19 @@ export function AddFood() {
 }
 
 /**
- * A single food result. Collapsed it shows the name/macros with a quick "+"
- * (logs one serving) and a chevron to expand. Expanded it reveals a Serving
- * Size unit selector and a Quantity stepper, then a "Log" button that logs the
- * chosen amount.
+ * A single food result. Collapsed it shows the name/macros with a bookmark
+ * (save to favorites) and a quick "+" (logs one serving); tapping the card
+ * itself expands it, revealing a Serving Size unit selector and a Quantity
+ * stepper, then a "Log" button that logs the chosen amount.
  */
 function FoodRow({
   food,
   t,
   added,
   busy,
+  favSaved,
+  favBusy,
+  onSaveFavorite,
   expanded,
   onToggleExpand,
   onCollapse,
@@ -334,6 +375,9 @@ function FoodRow({
   t: ReturnType<typeof useThemeColors>;
   added: boolean;
   busy: boolean;
+  favSaved: boolean;
+  favBusy: boolean;
+  onSaveFavorite: () => void;
   expanded: boolean;
   onToggleExpand: () => void;
   onCollapse: () => void;
@@ -375,7 +419,18 @@ function FoodRow({
         { backgroundColor: t.cardBg, borderColor: t.cardBorder },
       ]}
     >
-      <View style={styles.rowTop}>
+      {/* The whole header is the expand/collapse affordance; the circle
+          buttons sit on top and win their own taps. */}
+      <TouchableOpacity
+        style={styles.rowTop}
+        activeOpacity={0.7}
+        onPress={onToggleExpand}
+        accessibilityLabel={
+          expanded
+            ? `Hide options for ${food.description}`
+            : `Choose amount for ${food.description}`
+        }
+      >
         <View style={styles.rowInfo}>
           <Text style={[styles.name, { color: t.text }]} numberOfLines={2}>
             {food.description}
@@ -390,19 +445,31 @@ function FoodRow({
         </View>
 
         <View style={styles.rowActions}>
-          <GlassCircleButton
-            glassAvailable={glassAvailable}
-            surface={t.surface}
-            accessibilityLabel={expanded ? "Hide options" : "Choose amount"}
-            hitSlop={8}
-            onPress={onToggleExpand}
-          >
-            <Ionicons
-              name={expanded ? "chevron-up" : "chevron-down"}
-              size={20}
-              color={t.secondary}
-            />
-          </GlassCircleButton>
+          {/* Save to favorites — custom foods are already favorites. */}
+          {food.dataType !== "CUSTOM" && (
+            <GlassCircleButton
+              glassAvailable={glassAvailable}
+              surface={t.surface}
+              accessibilityLabel={
+                favSaved
+                  ? `${food.description} saved to favorites`
+                  : `Save ${food.description} to favorites`
+              }
+              hitSlop={8}
+              disabled={favBusy}
+              onPress={onSaveFavorite}
+            >
+              {favBusy ? (
+                <ActivityIndicator size="small" color={t.tint} />
+              ) : (
+                <Ionicons
+                  name={favSaved ? "bookmark" : "bookmark-outline"}
+                  size={18}
+                  color={t.tint}
+                />
+              )}
+            </GlassCircleButton>
+          )}
 
           {!expanded && (
             <GlassCircleButton
@@ -423,7 +490,7 @@ function FoodRow({
             </GlassCircleButton>
           )}
         </View>
-      </View>
+      </TouchableOpacity>
 
       {expanded && (
         <View style={styles.expanded}>
