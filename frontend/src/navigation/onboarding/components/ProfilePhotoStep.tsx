@@ -1,7 +1,11 @@
 import React, { useMemo, useState } from "react";
 import { View, Text, StyleSheet, Pressable, Image, Alert } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
+import { openCamera } from "../../../utils/inAppCamera";
+import { cropImageToSquare } from "../../../utils/image";
+import { PhotoSourceMenu } from "../../../components/PhotoSourceMenu";
 import { StepProps } from "../stepProps";
 import { OnboardingTopBar } from "./OnboardingTopBar";
 import { useOnboardingColors } from "./useOnboardingColors";
@@ -15,6 +19,7 @@ export function ProfilePhotoStep({
   onBack,
   progress,
 }: StepProps) {
+  const navigation = useNavigation();
   const colors = useOnboardingColors();
   const shared = useMemo(() => makeOnboardingStyles(colors), [colors]);
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -34,7 +39,28 @@ export function ProfilePhotoStep({
     .join("")
     .toUpperCase();
 
-  const pickPhoto = async () => {
+  const applyPhoto = async (uri: string) => {
+    // Camera captures are full-frame; square them off to match the 1:1 crop
+    // the library picker's editing step produces. No-op for square images.
+    const squared = await cropImageToSquare(uri);
+    const manipulated = await ImageManipulator.manipulateAsync(
+      squared,
+      [{ resize: { width: 300 } }],
+      { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG },
+    );
+    setPhotoUri(manipulated.uri);
+    updateDraft({ profile: { ...draft.profile, photoUri: manipulated.uri } });
+  };
+
+  const takePhoto = async () => {
+    const result = await openCamera(navigation, {
+      library: { allowsEditing: true, aspect: [1, 1], quality: 0.8 },
+    });
+    const uri = result?.uris[0];
+    if (uri) await applyPhoto(uri);
+  };
+
+  const chooseFromLibrary = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
       Alert.alert(
@@ -51,13 +77,7 @@ export function ProfilePhotoStep({
       quality: 0.8,
     });
     if (!result.canceled && result.assets[0]) {
-      const manipulated = await ImageManipulator.manipulateAsync(
-        result.assets[0].uri,
-        [{ resize: { width: 300 } }],
-        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG },
-      );
-      setPhotoUri(manipulated.uri);
-      updateDraft({ profile: { ...draft.profile, photoUri: manipulated.uri } });
+      await applyPhoto(result.assets[0].uri);
     }
   };
 
@@ -71,7 +91,14 @@ export function ProfilePhotoStep({
         <Text style={[shared.subheading, styles.sub]}>
           Help your friends recognize you on Gear.
         </Text>
-        <Pressable style={styles.photoCircle} onPress={pickPhoto}>
+        <PhotoSourceMenu
+          width={120}
+          height={120}
+          accessibilityLabel={photoUri ? "Change photo" : "Add photo"}
+          onTakePhoto={takePhoto}
+          onChooseFromLibrary={chooseFromLibrary}
+          style={styles.photoCircle}
+        >
           <AvatarWithCameraOverlay size={120}>
             {photoUri ? (
               <Image source={{ uri: photoUri }} style={styles.photoImage} />
@@ -83,12 +110,10 @@ export function ProfilePhotoStep({
               <Text style={styles.photoPlaceholder}>📷</Text>
             )}
           </AvatarWithCameraOverlay>
-        </Pressable>
-        <Pressable onPress={pickPhoto}>
-          <Text style={[styles.photoLabel, { color: colors.secondary }]}>
-            {photoUri ? "Change photo" : "Add photo"}
-          </Text>
-        </Pressable>
+        </PhotoSourceMenu>
+        <Text style={[styles.photoLabel, { color: colors.secondary }]}>
+          {photoUri ? "Change photo" : "Add photo"}
+        </Text>
       </View>
       <View style={shared.footer}>
         <Pressable
