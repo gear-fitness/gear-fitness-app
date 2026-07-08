@@ -20,9 +20,11 @@ export function ProgressChartStep({
   const chartWidth = width - 48;
 
   const projection = computeProjection(draft);
-  const goalLabel = draft.goals?.length
-    ? GOAL_LABELS[draft.goals[0]]
-    : "reach your goal";
+  // The short flow skips the goals step; without a goal the generic
+  // "reach your goal" label would read "your goal to reach your goal".
+  const subheading = draft.goals?.length
+    ? `A realistic pace toward your goal to ${GOAL_LABELS[draft.goals[0]]}.`
+    : "A realistic pace toward your goal.";
 
   // Headline: mirror the user's own numbers back, CalAI-style.
   let headline = "Here's where you're headed";
@@ -38,7 +40,7 @@ export function ProgressChartStep({
       progress={progress}
       onBack={onBack}
       heading={headline}
-      subheading={`A realistic pace toward your goal to ${goalLabel}.`}
+      subheading={subheading}
       onContinue={onNext}
       continueLabel="I'm in"
     >
