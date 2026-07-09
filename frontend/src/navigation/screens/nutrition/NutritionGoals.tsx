@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
@@ -8,10 +8,10 @@ import {
 import { Text, TextInput } from "../../../components/Text";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useThemeColors } from "../../../hooks/useThemeColors";
 import { useNutrition } from "../../../context/NutritionContext";
-import { getGoal, recalcGoal, updateGoal } from "../../../api/nutritionService";
+import { getGoal, updateGoal } from "../../../api/nutritionService";
 
 const FIELDS = [
   { key: "calorieGoal", label: "Calories", suffix: "cal" },
@@ -49,17 +49,21 @@ export function NutritionGoals() {
       fatG: String(goal.fatG),
     });
 
-  useEffect(() => {
-    (async () => {
-      try {
-        load(await getGoal());
-      } catch (err) {
-        console.error("Failed to load goal:", err);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+  // Load on focus (not just mount) so returning from the calculator wizard
+  // shows the freshly recalculated numbers.
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        try {
+          load(await getGoal());
+        } catch (err) {
+          console.error("Failed to load goal:", err);
+        } finally {
+          setLoading(false);
+        }
+      })();
+    }, []),
+  );
 
   const handleSave = async () => {
     if (saving) return;
@@ -79,16 +83,6 @@ export function NutritionGoals() {
     }
   };
 
-  const handleRecalculate = async () => {
-    setSaving(true);
-    try {
-      load(await recalcGoal());
-    } catch (err) {
-      console.error("Failed to recalculate goal:", err);
-    } finally {
-      setSaving(false);
-    }
-  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: t.appBg }]}>
@@ -145,14 +139,17 @@ export function NutritionGoals() {
             ))}
           </View>
 
+          {/* Opens the same stepped calculator that runs on first tracker
+              view: stats, activity, and cut/bulk goal, then a server-side
+              recalculation of these numbers. */}
           <TouchableOpacity
             style={styles.recalc}
-            onPress={handleRecalculate}
+            onPress={() => navigation.navigate("NutritionSetup")}
             disabled={saving}
           >
-            <Ionicons name="refresh" size={16} color={t.tint} />
+            <Ionicons name="calculator-outline" size={16} color={t.tint} />
             <Text style={[styles.recalcText, { color: t.tint }]}>
-              Recalculate from profile
+              Recalculate with the calorie calculator
             </Text>
           </TouchableOpacity>
 

@@ -36,6 +36,7 @@ type CompareCell = boolean | string;
 const COMPARE: { label: string; basic: CompareCell; plus: CompareCell }[] = [
   { label: "Track workouts & PRs", basic: true, plus: true },
   { label: "Connect with friends", basic: true, plus: true },
+  { label: "Smart calorie tracker", basic: false, plus: true },
   { label: "Routines", basic: "3", plus: "Unlimited" },
   { label: "Exercise history", basic: "1 mo", plus: "1 yr" },
   { label: "Graph types", basic: "Volume", plus: "All" },

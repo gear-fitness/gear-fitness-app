@@ -156,9 +156,9 @@ export function NutritionDetailSheet({
         fatG: totals.fatG,
       });
       setMealSaved(true);
-      Haptics.notificationAsync(
-        Haptics.NotificationFeedbackType.Success,
-      ).catch(() => {});
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
+        () => {},
+      );
     } catch (err) {
       console.error("Failed to save meal:", err);
       Alert.alert("Couldn't save meal", "Something went wrong — try again.");
@@ -510,6 +510,7 @@ type Goal =
       carbsG?: number;
       fatG?: number;
       proteinG?: number;
+      goalType?: string;
     }
   | null
   | undefined;
@@ -547,6 +548,8 @@ function MacroSummary({
           value={round(calories)}
           goal={goal?.calorieGoal ?? 0}
           size={92}
+          // Cutting flips the calorie gauge: green under budget, red spent.
+          reverse={goal?.goalType === "CUT"}
         />
       )}
       <View style={styles.macroStats}>

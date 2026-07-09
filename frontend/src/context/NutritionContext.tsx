@@ -16,6 +16,7 @@ import {
   LogFoodPayload,
 } from "../api/nutritionService";
 import { getCurrentLocalDateString } from "../utils/date";
+import { useAuth } from "./AuthContext";
 
 /**
  * Holds the calorie-tracker's selected day and its cached summary (goal +
@@ -119,11 +120,19 @@ export function NutritionProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Clear stale data immediately on date change, then load the new day.
+  // Clear stale data immediately on date or account change, then load the
+  // new day. Keying on the user id (rather than fetching once on mount)
+  // matters twice over: the mount fetch can fire before auth has restored a
+  // token, and a cached summary must never leak across accounts. Loading as
+  // soon as auth lands also means setupComplete is known by the time the
+  // Nutrition tab first renders, so it shows the right screen (setup wizard
+  // vs tracker) without a flash.
+  const { user } = useAuth();
+  const userId = user?.userId;
   useEffect(() => {
     setSummary(null);
-    fetchFor(selectedDate);
-  }, [selectedDate, fetchFor]);
+    if (userId) fetchFor(selectedDate);
+  }, [selectedDate, userId, fetchFor]);
 
   const refresh = useCallback(
     () => fetchFor(selectedDate),

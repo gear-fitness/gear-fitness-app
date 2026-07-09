@@ -23,7 +23,8 @@ const FILL_EASING = Easing.out(Easing.cubic);
 /**
  * A circular macro gauge: a gray track with a progress arc that fills clockwise
  * from the top as `value` approaches `goal`, coloring red → green by how close
- * to the goal the user is. The current value is shown in the center — as an
+ * to the goal the user is (or green → red with `reverse`, for budget-style
+ * gauges on a cut). The current value is shown in the center — as an
  * editable field when `onChangeText` is supplied.
  */
 export function MacroRing({
@@ -40,6 +41,7 @@ export function MacroRing({
   labelBold,
   showGoal,
   animateKey,
+  reverse,
 }: {
   label: string;
   value: number;
@@ -66,6 +68,9 @@ export function MacroRing({
    * `value`/`goal` change, the arc animates smoothly to the new offset instead.
    */
   animateKey?: string | number;
+  /** Flip the color sweep to green → red: filling this gauge is bad (calorie,
+   *  carb, and fat budgets while cutting weight). Protein never reverses. */
+  reverse?: boolean;
 }) {
   const t = useThemeColors();
   const pct = goal > 0 ? Math.min(value / goal, 1) : 0;
@@ -126,7 +131,7 @@ export function MacroRing({
               cx={center}
               cy={center}
               r={radius}
-              stroke={progressColor(pct)}
+              stroke={progressColor(pct, reverse)}
               strokeWidth={stroke}
               fill="none"
               strokeDasharray={circumference}
@@ -154,9 +159,7 @@ export function MacroRing({
               maxFontSizeMultiplier={1.2}
             >
               {value}
-              {showGoal && (
-                <Text style={{ color: t.secondary }}>/{goal}</Text>
-              )}
+              {showGoal && <Text style={{ color: t.secondary }}>/{goal}</Text>}
             </Text>
           )}
         </View>

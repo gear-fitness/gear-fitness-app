@@ -48,6 +48,14 @@ public class AppUser {
   @Column
   private Integer age;
 
+  // Calorie-calculator inputs, collected during onboarding and editable from
+  // the nutrition setup wizard. Values: sedentary | light | moderate | very_active.
+  @Column(name = "activity_level", length = 20)
+  private String activityLevel;
+
+  @Column(name = "goal_weight_lbs")
+  private Integer goalWeightLbs;
+
   @Column(nullable = false, unique = true)
   private String email;
 

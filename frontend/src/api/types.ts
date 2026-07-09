@@ -22,6 +22,10 @@ export interface WorkoutStats {
   dailyActivity: number[];
 }
 
+// How active the user is day to day; drives the TDEE multiplier in the
+// calorie calculator. Mirrors the onboarding ActivityStep options.
+export type ActivityLevel = "sedentary" | "light" | "moderate" | "very_active";
+
 export interface UserProfile {
   userId: string;
   username: string;
@@ -31,6 +35,10 @@ export interface UserProfile {
   weightLbs: number | null;
   heightInches: number | null;
   age: number | null;
+  // Calorie-calculator inputs (optional so profiles cached before these fields
+  // existed still parse).
+  activityLevel?: ActivityLevel | null;
+  goalWeightLbs?: number | null;
   isPrivate: boolean;
   profilePictureUrl: string | null;
   createdAt: string;
@@ -222,12 +230,21 @@ export interface FoodLogEntry {
   sourceUrl?: string | null;
 }
 
+export type NutritionGoalType = "CUT" | "MAINTAIN" | "BULK";
+export type NutritionGoalIntensity = "SLOW" | "MODERATE" | "AGGRESSIVE";
+
 export interface NutritionGoal {
   calorieGoal: number;
   proteinG: number;
   carbsG: number;
   fatG: number;
   isCustom: boolean;
+  // Optional so responses from servers predating the setup wizard still parse
+  // (an undefined setupComplete also never renders the wizard over the
+  // tracker, which requires a strict false).
+  goalType?: NutritionGoalType;
+  goalIntensity?: NutritionGoalIntensity;
+  setupComplete?: boolean;
 }
 
 export interface MacroTotals {

@@ -318,6 +318,9 @@ export function EditEntrySheet({
                 onChangeText={editCalories}
                 goal={goal?.calorieGoal ?? 0}
                 size={92}
+                // Cutting flips the calorie gauge: green under budget, red
+                // spent.
+                reverse={goal?.goalType === "CUT"}
               />
               <View style={styles.macroStats}>
                 <MacroStat

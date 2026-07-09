@@ -312,13 +312,27 @@ public class NutritionService {
     goal.setCarbsG(req.getCarbsG());
     goal.setFatG(req.getFatG());
     goal.setIsCustom(true);
+    // Hand-tuning the targets counts as having done setup; don't show the
+    // first-view calculator wizard afterward.
+    goal.setSetupComplete(true);
     goal.setUpdatedAt(LocalDateTime.now());
 
     return NutritionGoalDTO.from(nutritionGoalRepository.save(goal));
   }
 
+  /**
+   * Recompute the daily targets from the user's profile. Optionally updates
+   * the stored cut/bulk direction and pace first (both null-guarded), so the
+   * setup wizard can save its choices and recalculate in one call. Always
+   * marks setup complete: a bare recalculate is how the wizard's "skip"
+   * accepts the auto defaults.
+   */
   @Transactional
-  public NutritionGoalDTO recalculateGoal(UUID userId) {
+  public NutritionGoalDTO recalculateGoal(
+    UUID userId,
+    String goalType,
+    String goalIntensity
+  ) {
     AppUser user = appUserRepository
       .findById(userId)
       .orElseThrow(() -> new IllegalArgumentException("User not found"));
@@ -327,11 +341,29 @@ public class NutritionService {
       .findByUser_UserId(userId)
       .orElseGet(() -> NutritionGoal.builder().user(user).build());
 
+    if (goalType != null) {
+      goal.setGoalType(validateChoice(goalType, "CUT", "MAINTAIN", "BULK"));
+    }
+    if (goalIntensity != null) {
+      goal.setGoalIntensity(
+        validateChoice(goalIntensity, "SLOW", "MODERATE", "AGGRESSIVE")
+      );
+    }
+
     applyAutoGoal(goal, user);
     goal.setIsCustom(false);
+    goal.setSetupComplete(true);
     goal.setUpdatedAt(LocalDateTime.now());
 
     return NutritionGoalDTO.from(nutritionGoalRepository.save(goal));
+  }
+
+  private String validateChoice(String value, String... allowed) {
+    String v = value.trim().toUpperCase();
+    for (String a : allowed) {
+      if (a.equals(v)) return v;
+    }
+    throw new IllegalArgumentException("Invalid value: " + value);
   }
 
   /**
@@ -356,9 +388,13 @@ public class NutritionService {
   }
 
   /**
-   * Mifflin-St Jeor BMR x a lightly-active factor, with a protein-forward macro
-   * split. Falls back to a sensible 2000 kcal default when the profile is
-   * missing the height / weight / age needed for the formula.
+   * Mifflin-St Jeor BMR x the user's activity factor, shifted by their cut /
+   * bulk choice, with a protein-forward macro split. Falls back to a sensible
+   * 2000 kcal default when the profile is missing the height / weight / age
+   * needed for the formula.
+   *
+   * The identical formula is mirrored client-side for the live preview in the
+   * nutrition setup wizard (frontend goalFormula.ts); keep the two in sync.
    */
   void applyAutoGoal(NutritionGoal goal, AppUser user) {
     Integer weightLbs = user.getWeightLbs();
@@ -380,9 +416,13 @@ public class NutritionService {
       double heightCm = heightInches * 2.54;
       double sexOffset = sexOffset(user.getGender());
       double bmr = 10 * weightKg + 6.25 * heightCm - 5 * age + sexOffset;
-      double tdee = bmr * 1.375; // lightly active
+      double tdee = bmr * activityFactor(user.getActivityLevel());
 
-      calories = (int) Math.round(tdee);
+      // Cut/bulk shift the target off maintenance; never below a safe floor.
+      calories = (int) Math.max(
+        Math.round(tdee) + goalOffset(goal.getGoalType(), goal.getGoalIntensity()),
+        1200
+      );
       proteinG = (int) Math.round(weightLbs * 1.0); // ~1 g per lb
       fatG = (int) Math.round((calories * 0.25) / 9.0); // 25% of kcal from fat
       int remaining = calories - (proteinG * 4) - (fatG * 9);
@@ -401,6 +441,44 @@ public class NutritionService {
     if (g.startsWith("m")) return 5;
     if (g.startsWith("f")) return -161;
     return -78;
+  }
+
+  /**
+   * Standard TDEE multipliers. "light" matches the pre-calculator behavior
+   * (a hardcoded 1.375), so users who never set an activity level keep the
+   * targets they already had.
+   */
+  private double activityFactor(String activityLevel) {
+    if (activityLevel == null) return 1.375;
+    return switch (activityLevel) {
+      case "sedentary" -> 1.2;
+      case "moderate" -> 1.55;
+      case "very_active" -> 1.725;
+      default -> 1.375; // "light" and anything unrecognized
+    };
+  }
+
+  /**
+   * Daily calorie shift off maintenance for the chosen direction and pace.
+   * Deliberately asymmetric: an aggressive deficit is sustainable in a way an
+   * equally large surplus is not (it mostly adds fat).
+   */
+  private int goalOffset(String goalType, String goalIntensity) {
+    if (goalType == null) return 0;
+    String intensity = goalIntensity == null ? "MODERATE" : goalIntensity;
+    return switch (goalType) {
+      case "CUT" -> switch (intensity) {
+        case "SLOW" -> -250;
+        case "AGGRESSIVE" -> -750;
+        default -> -500;
+      };
+      case "BULK" -> switch (intensity) {
+        case "SLOW" -> 150;
+        case "AGGRESSIVE" -> 500;
+        default -> 300;
+      };
+      default -> 0; // MAINTAIN
+    };
   }
 
   // ------------------------------------------------------------------ helpers

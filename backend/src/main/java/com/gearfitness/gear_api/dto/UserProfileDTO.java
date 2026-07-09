@@ -25,6 +25,8 @@ public class UserProfileDTO {
   private Integer weightLbs;
   private Integer heightInches;
   private Integer age;
+  private String activityLevel;
+  private Integer goalWeightLbs;
   private Boolean isPrivate;
   private String profilePictureUrl;
   private LocalDateTime createdAt;

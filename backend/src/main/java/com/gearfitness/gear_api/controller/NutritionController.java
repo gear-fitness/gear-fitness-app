@@ -9,6 +9,7 @@ import com.gearfitness.gear_api.dto.FoodItemDTO;
 import com.gearfitness.gear_api.dto.LogEntryDTO;
 import com.gearfitness.gear_api.dto.LogFoodRequest;
 import com.gearfitness.gear_api.dto.NutritionGoalDTO;
+import com.gearfitness.gear_api.dto.RecalculateGoalRequest;
 import com.gearfitness.gear_api.dto.UpdateGoalRequest;
 import com.gearfitness.gear_api.security.JwtService;
 import com.gearfitness.gear_api.service.AiNutritionService;
@@ -410,9 +411,14 @@ public class NutritionController {
     }
   }
 
-  /** Recompute the daily targets from the user's profile (clears custom flag). */
+  /**
+   * Recompute the daily targets from the user's profile (clears custom flag,
+   * marks setup complete). Accepts an optional body carrying the cut/bulk
+   * direction and pace from the setup wizard.
+   */
   @PostMapping("/goal/recalculate")
   public ResponseEntity<NutritionGoalDTO> recalculateGoal(
+    @RequestBody(required = false) RecalculateGoalRequest req,
     @RequestHeader("Authorization") String authHeader
   ) {
     UUID userId = resolveUserId(authHeader);
@@ -420,7 +426,15 @@ public class NutritionController {
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
     try {
-      return ResponseEntity.ok(nutritionService.recalculateGoal(userId));
+      return ResponseEntity.ok(
+        nutritionService.recalculateGoal(
+          userId,
+          req == null ? null : req.getGoalType(),
+          req == null ? null : req.getGoalIntensity()
+        )
+      );
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().build();
     } catch (Exception e) {
       log.error(
         "recalculateGoal failed (userId={}): {}",

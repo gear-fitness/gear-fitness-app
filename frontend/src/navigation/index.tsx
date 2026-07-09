@@ -43,6 +43,7 @@ import { CameraScreen } from "./screens/CameraScreen";
 import { CalorieTracker } from "./screens/nutrition/CalorieTracker";
 import { AddFood } from "./screens/nutrition/AddFood";
 import { NutritionGoals } from "./screens/nutrition/NutritionGoals";
+import { NutritionSetup } from "./screens/nutrition/NutritionSetup";
 import { Platform } from "react-native";
 
 /* ---------------------- TABS ---------------------- */
@@ -337,6 +338,14 @@ const RootStack = createNativeStackNavigator({
       screen: NutritionGoals,
       options: { headerShown: false },
     },
+
+    // The calorie-calculator wizard: pushed forced (inescapable until
+    // completed) on visiting the Nutrition tab before setup is done, and
+    // reachable dismissibly from Daily Goals.
+    NutritionSetup: {
+      screen: NutritionSetup,
+      options: { headerShown: false },
+    },
   },
 });
 
@@ -364,6 +373,10 @@ declare global {
       Nutrition: undefined;
       AddFood: undefined;
       NutritionGoals: undefined;
+      // forced: pushed by the tracker when setup is required; the wizard
+      // blocks every way back until it's completed. Daily Goals opens it
+      // without the param, where swipe-back dismisses.
+      NutritionSetup: { forced?: boolean } | undefined;
 
       FollowScreen: {
         initialTab: "followers" | "following";

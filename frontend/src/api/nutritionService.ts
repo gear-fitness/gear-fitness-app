@@ -14,6 +14,8 @@ import {
   FoodItem,
   FoodLogEntry,
   NutritionGoal,
+  NutritionGoalIntensity,
+  NutritionGoalType,
   ServingUnit,
 } from "./types";
 
@@ -196,9 +198,18 @@ export async function updateGoal(goal: {
   return data;
 }
 
-export async function recalcGoal(): Promise<NutritionGoal> {
+/**
+ * Recompute the daily targets server-side from the stored profile. Optionally
+ * saves a new cut/bulk direction and pace first (the setup wizard's save
+ * path); a bare call just recalculates and marks setup complete.
+ */
+export async function recalcGoal(params?: {
+  goalType?: NutritionGoalType;
+  goalIntensity?: NutritionGoalIntensity;
+}): Promise<NutritionGoal> {
   const { data } = await apiClient.post<NutritionGoal>(
     "/nutrition/goal/recalculate",
+    params ?? {},
   );
   return data;
 }
