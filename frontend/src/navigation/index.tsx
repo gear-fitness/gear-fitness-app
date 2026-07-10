@@ -14,6 +14,7 @@ import { Text } from "../components/Text";
 import { Profile } from "./screens/Profile";
 import { PaywallScreen } from "./screens/PaywallScreen";
 import { PlusUpsellSheet } from "./screens/PlusUpsellSheet";
+import { WhatsNewPopup } from "./screens/WhatsNewPopup";
 import { SettingsNavigator } from "./SettingsNavigator";
 import { Social } from "./screens/Social";
 import { Workout } from "./screens/Workout";
@@ -328,6 +329,16 @@ const RootStack = createNativeStackNavigator({
       },
     },
 
+    WhatsNew: {
+      screen: WhatsNewPopup,
+      options: {
+        presentation: "transparentModal",
+        headerShown: false,
+        animation: "none",
+        gestureEnabled: false,
+      },
+    },
+
     EditRoutine: {
       screen: EditRoutine,
       options: { headerShown: false },
@@ -450,6 +461,10 @@ declare global {
       PostDetail: {
         postId: string;
         openCommentsOnMount?: boolean;
+      };
+
+      WhatsNew: {
+        announcement: import("../api/announcementService").Announcement;
       };
 
       CreateRoutine: { prefilledWorkoutId?: string } | undefined;
