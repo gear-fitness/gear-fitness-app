@@ -133,11 +133,15 @@ public class AiPhotoNutritionService {
         );
       }
 
-      String mimeType = meta.contentType() == null
-        ? ""
-        : meta.contentType().trim().toLowerCase();
+      String mimeType =
+        meta.contentType() == null
+          ? ""
+          : meta.contentType().trim().toLowerCase();
       if (!ALLOWED_MIME_TYPES.contains(mimeType)) {
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "AI_BAD_MIME");
+        throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "AI_BAD_MIME"
+        );
       }
       if (meta.contentLength() <= 0 || meta.contentLength() > MAX_IMAGE_BYTES) {
         throw new ResponseStatusException(
