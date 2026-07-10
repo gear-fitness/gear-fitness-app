@@ -257,9 +257,9 @@ export function PhotoEstimateSheet({
     hasLoggedThisSessionRef.current = false;
     await refresh().catch(() => {});
     if (sessionRef.current !== session) return;
-    Haptics.notificationAsync(
-      Haptics.NotificationFeedbackType.Success,
-    ).catch(() => {});
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
+      () => {},
+    );
     onClose();
   };
 
@@ -360,8 +360,8 @@ export function PhotoEstimateSheet({
                       <Text
                         style={[styles.resultMacros, { color: t.secondary }]}
                       >
-                        {round(food.calories)} cal · P {round(food.proteinG)}g
-                        · C {round(food.carbsG)}g · F {round(food.fatG)}g
+                        {round(food.calories)} cal · P {round(food.proteinG)}g ·
+                        C {round(food.carbsG)}g · F {round(food.fatG)}g
                       </Text>
                     </View>
                     {isLogged ? (

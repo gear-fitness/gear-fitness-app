@@ -184,7 +184,8 @@ public class BarcodeFoodService {
     switch (last) {
       case '0', '1', '2' -> middle =
         body.substring(0, 2) + last + "0000" + body.substring(2, 5);
-      case '3' -> middle = body.substring(0, 3) + "00000" + body.substring(3, 5);
+      case '3' -> middle =
+        body.substring(0, 3) + "00000" + body.substring(3, 5);
       case '4' -> middle = body.substring(0, 4) + "00000" + body.charAt(4);
       default -> middle = body.substring(0, 5) + "0000" + last;
     }

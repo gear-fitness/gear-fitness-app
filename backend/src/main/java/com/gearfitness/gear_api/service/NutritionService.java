@@ -145,18 +145,16 @@ public class NutritionService {
   }
 
   private void applyCustomFields(FoodItem food, CustomFoodRequest req) {
-    String description = req.getDescription() == null
-      ? ""
-      : req.getDescription().trim();
+    String description =
+      req.getDescription() == null ? "" : req.getDescription().trim();
     if (description.isEmpty()) {
       throw new IllegalArgumentException("Description required");
     }
     if (req.getCalories() == null || req.getCalories() < 0) {
       throw new IllegalArgumentException("Calories required");
     }
-    String nickname = req.getNickname() == null
-      ? null
-      : req.getNickname().trim();
+    String nickname =
+      req.getNickname() == null ? null : req.getNickname().trim();
     food.setDescription(description);
     food.setNickname(nickname == null || nickname.isEmpty() ? null : nickname);
     food.setCalories(BigDecimal.valueOf(req.getCalories()));
@@ -567,7 +565,8 @@ public class NutritionService {
 
       // Cut/bulk shift the target off maintenance; never below a safe floor.
       calories = (int) Math.max(
-        Math.round(tdee) + goalOffset(goal.getGoalType(), goal.getGoalIntensity()),
+        Math.round(tdee) +
+          goalOffset(goal.getGoalType(), goal.getGoalIntensity()),
         1200
       );
       proteinG = (int) Math.round(weightLbs * 1.0); // ~1 g per lb

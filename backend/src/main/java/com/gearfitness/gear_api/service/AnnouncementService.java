@@ -52,9 +52,13 @@ public class AnnouncementService {
         new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found")
       );
 
-    EnumSet<Announcement.Audience> audiences = user.getTier() == Tier.BASIC
-      ? EnumSet.of(Announcement.Audience.ALL, Announcement.Audience.FREE_ONLY)
-      : EnumSet.of(Announcement.Audience.ALL, Announcement.Audience.PLUS_ONLY);
+    EnumSet<Announcement.Audience> audiences =
+      user.getTier() == Tier.BASIC
+        ? EnumSet.of(Announcement.Audience.ALL, Announcement.Audience.FREE_ONLY)
+        : EnumSet.of(
+            Announcement.Audience.ALL,
+            Announcement.Audience.PLUS_ONLY
+          );
 
     List<Announcement> candidates = announcementRepository.findPendingForUser(
       userId,

@@ -58,11 +58,7 @@ public class AnnouncementController {
     UUID userId = jwtService.extractUserId(token);
 
     try {
-      announcementService.recordEvent(
-        userId,
-        announcementId,
-        body.get("type")
-      );
+      announcementService.recordEvent(userId, announcementId, body.get("type"));
       return ResponseEntity.ok().build();
     } catch (ResponseStatusException e) {
       return ResponseEntity.status(e.getStatusCode()).build();

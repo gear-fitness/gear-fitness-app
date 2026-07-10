@@ -145,7 +145,9 @@ public class RevenueCatWebhookService {
   private void handleTransfer(JsonNode event) {
     JsonNode from = event.path("transferred_from");
     if (!from.isArray()) {
-      log.info("RevenueCat TRANSFER with no transferred_from; nothing to revoke");
+      log.info(
+        "RevenueCat TRANSFER with no transferred_from; nothing to revoke"
+      );
       return;
     }
     for (JsonNode node : from) {
@@ -162,7 +164,10 @@ public class RevenueCatWebhookService {
           if (u.getTier() != Tier.BASIC) {
             u.setTier(Tier.BASIC);
             appUserRepository.save(u);
-            log.info("RevenueCat TRANSFER: revoked tier from sender {}", senderId);
+            log.info(
+              "RevenueCat TRANSFER: revoked tier from sender {}",
+              senderId
+            );
           }
         });
     }

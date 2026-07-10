@@ -78,7 +78,9 @@ export function computeGoalPlan(params: {
   );
   const proteinG = Math.round(weightLbs * 1.0); // ~1 g per lb
   const fatG = Math.round((calories * 0.25) / 9.0); // 25% of kcal from fat
-  const carbsG = Math.round(Math.max(calories - proteinG * 4 - fatG * 9, 0) / 4);
+  const carbsG = Math.round(
+    Math.max(calories - proteinG * 4 - fatG * 9, 0) / 4,
+  );
 
   return { calories, proteinG, fatG, carbsG };
 }

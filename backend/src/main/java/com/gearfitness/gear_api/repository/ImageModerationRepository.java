@@ -11,7 +11,8 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface ImageModerationRepository
-  extends JpaRepository<ImageModeration, UUID> {
+  extends JpaRepository<ImageModeration, UUID>
+{
   /** The review queue: oldest first so reviewers work through a backlog. */
   List<ImageModeration> findByStatusInOrderByCreatedAtAsc(
     List<ImageModeration.Status> statuses

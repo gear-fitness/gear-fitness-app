@@ -100,9 +100,8 @@ public class AiPhotoNutritionService {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "AI_TIER");
     }
 
-    String imageBase64 = req.getImageBase64() == null
-      ? ""
-      : req.getImageBase64().trim();
+    String imageBase64 =
+      req.getImageBase64() == null ? "" : req.getImageBase64().trim();
     if (imageBase64.isEmpty()) {
       throw new ResponseStatusException(
         HttpStatus.BAD_REQUEST,
@@ -110,9 +109,8 @@ public class AiPhotoNutritionService {
       );
     }
 
-    String mimeType = req.getMimeType() == null
-      ? ""
-      : req.getMimeType().trim().toLowerCase();
+    String mimeType =
+      req.getMimeType() == null ? "" : req.getMimeType().trim().toLowerCase();
     if (!ALLOWED_MIME_TYPES.contains(mimeType)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "AI_BAD_MIME");
     }
@@ -164,7 +162,7 @@ public class AiPhotoNutritionService {
     // longer than this cannot decode under MAX_IMAGE_BYTES. Rejecting on
     // string length first avoids materializing an oversized byte[] just to
     // measure it.
-    if (imageBase64.length() > (long) MAX_IMAGE_BYTES * 4 / 3 + 4) {
+    if (imageBase64.length() > ((long) MAX_IMAGE_BYTES * 4) / 3 + 4) {
       throw new ResponseStatusException(
         HttpStatus.BAD_REQUEST,
         "AI_IMAGE_TOO_LARGE"

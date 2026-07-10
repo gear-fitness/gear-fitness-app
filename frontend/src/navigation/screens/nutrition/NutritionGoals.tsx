@@ -83,7 +83,6 @@ export function NutritionGoals() {
     }
   };
 
-
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: t.appBg }]}>
       <View style={styles.header}>

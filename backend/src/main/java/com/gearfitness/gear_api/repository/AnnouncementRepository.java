@@ -11,7 +11,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface AnnouncementRepository
-  extends JpaRepository<Announcement, UUID> {
+  extends JpaRepository<Announcement, UUID>
+{
   /**
    * Active announcements inside their scheduling window that match one of the
    * given audiences and that the user has not already dismissed or acted on

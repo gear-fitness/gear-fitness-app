@@ -37,8 +37,10 @@ public class AiPhotoBodySizeFilter extends OncePerRequestFilter {
    * controller.
    */
   private static final RequestMatcher PHOTO_ESTIMATE_MATCHER =
-    PathPatternRequestMatcher.withDefaults()
-      .matcher(HttpMethod.POST, "/api/nutrition/ai/photo/estimate");
+    PathPatternRequestMatcher.withDefaults().matcher(
+      HttpMethod.POST,
+      "/api/nutrition/ai/photo/estimate"
+    );
 
   /**
    * 4MB of image is ~5.4MB of base64; the rest is headroom for the JSON

@@ -85,8 +85,8 @@ export function UsernameStep({
       <View style={styles.center}>
         <Text style={[shared.heading, styles.heading]}>Choose a username</Text>
         <Text style={[styles.sub, { color: colors.secondary }]}>
-          This is your public @handle that others use to find and follow you.
-          It can only be changed once in a while, so choose wisely.
+          This is your public @handle that others use to find and follow you. It
+          can only be changed once in a while, so choose wisely.
         </Text>
         <View style={styles.inputGroup}>
           <Text style={styles.atSign}>@</Text>

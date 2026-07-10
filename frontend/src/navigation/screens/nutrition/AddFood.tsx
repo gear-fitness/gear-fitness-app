@@ -237,9 +237,9 @@ export function AddFood() {
         fatG: macros.fatG,
       });
       setFavSavedIds((prev) => ({ ...prev, [food.foodId]: true }));
-      Haptics.notificationAsync(
-        Haptics.NotificationFeedbackType.Success,
-      ).catch(() => {});
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
+        () => {},
+      );
     } catch (err) {
       console.error("Failed to save favorite:", err);
     } finally {
@@ -395,8 +395,7 @@ function FoodRow({
   const quantity = parseFloat(quantityText) || 0;
 
   const stepQuantity = (delta: number) => {
-    const next =
-      Math.round(Math.max(1, quantity + delta) * 100) / 100;
+    const next = Math.round(Math.max(1, quantity + delta) * 100) / 100;
     setQuantityText(String(next));
   };
 

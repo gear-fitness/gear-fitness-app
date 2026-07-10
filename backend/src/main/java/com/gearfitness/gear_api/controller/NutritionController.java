@@ -1,5 +1,6 @@
 package com.gearfitness.gear_api.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.gearfitness.gear_api.dto.AiEstimateResponse;
 import com.gearfitness.gear_api.dto.AiLogRequest;
 import com.gearfitness.gear_api.dto.AiLogResponse;
@@ -7,7 +8,6 @@ import com.gearfitness.gear_api.dto.AiPhotoEstimateRequest;
 import com.gearfitness.gear_api.dto.AiPhotoEstimateResponse;
 import com.gearfitness.gear_api.dto.BarcodeLookupResponse;
 import com.gearfitness.gear_api.dto.CustomFoodRequest;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.gearfitness.gear_api.dto.DaySummaryDTO;
 import com.gearfitness.gear_api.dto.FoodItemDTO;
 import com.gearfitness.gear_api.dto.JournalNoteDTO;
@@ -302,7 +302,10 @@ public class NutritionController {
       return ResponseEntity.ok(
         nutritionService.getLoggedDates(userId, start, end)
       );
-    } catch (IllegalArgumentException | java.time.format.DateTimeParseException e) {
+    } catch (
+      IllegalArgumentException
+      | java.time.format.DateTimeParseException e
+    ) {
       return ResponseEntity.badRequest().build();
     } catch (Exception e) {
       log.error(
@@ -337,7 +340,8 @@ public class NutritionController {
         ? ResponseEntity.noContent().build()
         : ResponseEntity.ok(note);
     } catch (
-      IllegalArgumentException | java.time.format.DateTimeParseException e
+      IllegalArgumentException
+      | java.time.format.DateTimeParseException e
     ) {
       return ResponseEntity.badRequest().build();
     } catch (Exception e) {
@@ -394,7 +398,8 @@ public class NutritionController {
       // Preserve validation (400) statuses.
       throw e;
     } catch (
-      IllegalArgumentException | java.time.format.DateTimeParseException e
+      IllegalArgumentException
+      | java.time.format.DateTimeParseException e
     ) {
       return ResponseEntity.badRequest().build();
     } catch (Exception e) {

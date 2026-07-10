@@ -143,7 +143,12 @@ export function BarcodeScannerScreen() {
           style={styles.topButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="close" size={32} color="#fff" style={styles.topIcon} />
+          <Ionicons
+            name="close"
+            size={32}
+            color="#fff"
+            style={styles.topIcon}
+          />
         </TouchableOpacity>
         {cameraReady && device.hasTorch && (
           <TouchableOpacity

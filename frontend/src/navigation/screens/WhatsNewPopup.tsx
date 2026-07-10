@@ -170,9 +170,7 @@ export function WhatsNewPopup() {
                 tintColor={ACCENT}
                 resizeMode="scaleAspectFit"
                 style={styles.heroIcon}
-                fallback={
-                  <Ionicons name="sparkles" size={44} color={ACCENT} />
-                }
+                fallback={<Ionicons name="sparkles" size={44} color={ACCENT} />}
               />
             </View>
           </View>
@@ -223,7 +221,10 @@ export function WhatsNewPopup() {
 
         <Pressable
           onPress={onCtaPress}
-          style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.primaryBtn,
+            pressed && styles.pressed,
+          ]}
         >
           <Text style={styles.primaryBtnText}>{announcement.ctaLabel}</Text>
         </Pressable>

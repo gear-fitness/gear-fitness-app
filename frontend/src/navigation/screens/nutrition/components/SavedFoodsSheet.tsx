@@ -254,12 +254,17 @@ export function SavedFoodsSheet({
           unit: "SERVING",
           sourceType: "DB",
         },
-        { unitKey: "serving", quantity: 1, servingGrams: 100, units: food.units },
+        {
+          unitKey: "serving",
+          quantity: 1,
+          servingGrams: 100,
+          units: food.units,
+        },
       );
       setLoggedIds((prev) => ({ ...prev, [food.foodId]: true }));
-      Haptics.notificationAsync(
-        Haptics.NotificationFeedbackType.Success,
-      ).catch(() => {});
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
+        () => {},
+      );
     } catch (err) {
       console.error("Failed to log custom food:", err);
     } finally {
@@ -269,7 +274,11 @@ export function SavedFoodsSheet({
 
   const inForm = mode !== "list";
   const title =
-    mode === "create" ? "Create Meal" : mode === "edit" ? "Edit Meal" : "Favorites";
+    mode === "create"
+      ? "Create Meal"
+      : mode === "edit"
+        ? "Edit Meal"
+        : "Favorites";
 
   return (
     <BottomSheet
@@ -284,10 +293,7 @@ export function SavedFoodsSheet({
             title spans the row absolutely so it stays truly centered even
             though the left and right controls differ in width. */}
         <View style={styles.header}>
-          <Text
-            style={[styles.title, { color: t.text }]}
-            pointerEvents="none"
-          >
+          <Text style={[styles.title, { color: t.text }]} pointerEvents="none">
             {title}
           </Text>
 
@@ -604,10 +610,7 @@ function FoodCard({
       }
     >
       <View style={styles.cardInfo}>
-        <Text
-          style={[styles.cardTitle, { color: t.text }]}
-          numberOfLines={1}
-        >
+        <Text style={[styles.cardTitle, { color: t.text }]} numberOfLines={1}>
           {food.nickname ?? food.description}
         </Text>
         <Text style={[styles.cardMeta, { color: t.secondary }]}>

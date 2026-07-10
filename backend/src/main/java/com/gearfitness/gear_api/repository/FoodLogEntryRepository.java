@@ -21,7 +21,7 @@ public interface FoodLogEntryRepository
   /** Days in [start, end] on which the user logged at least one food. */
   @Query(
     "select distinct e.logDate from FoodLogEntry e " +
-    "where e.user.userId = :userId and e.logDate between :start and :end"
+      "where e.user.userId = :userId and e.logDate between :start and :end"
   )
   List<LocalDate> findDistinctLogDates(
     @Param("userId") UUID userId,

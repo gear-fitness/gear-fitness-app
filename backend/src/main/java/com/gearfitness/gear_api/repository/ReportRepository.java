@@ -18,7 +18,10 @@ public interface ReportRepository extends JpaRepository<Report, UUID> {
    * is deleted (fk_report_post has no ON DELETE CASCADE).
    */
   @Modifying
-  @Query(value = "DELETE FROM report WHERE post_id = :postId", nativeQuery = true)
+  @Query(
+    value = "DELETE FROM report WHERE post_id = :postId",
+    nativeQuery = true
+  )
   void deleteByPost_PostId(@Param("postId") UUID postId);
 
   /** Distinct users with a still-pending report against the given post. */

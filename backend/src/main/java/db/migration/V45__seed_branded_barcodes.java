@@ -68,7 +68,9 @@ public class V45__seed_branded_barcodes extends BaseJavaMigration {
     ) {
       if (in == null) {
         System.out.println(
-          "[V45] " + RESOURCE + " not found on classpath; skipping branded seed."
+          "[V45] " +
+            RESOURCE +
+            " not found on classpath; skipping branded seed."
         );
         return;
       }

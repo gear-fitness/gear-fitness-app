@@ -100,14 +100,13 @@ export function BarcodeReview() {
     `${round((food?.carbsG ?? 0) * perServingFactor)}g carbs · ` +
     `${round((food?.fatG ?? 0) * perServingFactor)}g fat`;
 
-  const selectedLabel =
-    !food
-      ? ""
-      : mode === "serving"
-        ? servings === 1
-          ? servingLabel(food)
-          : `${servings} × ${servingLabel(food)}`
-        : `${Math.round(amount * servings * 100) / 100} ${currentUnit.label}`;
+  const selectedLabel = !food
+    ? ""
+    : mode === "serving"
+      ? servings === 1
+        ? servingLabel(food)
+        : `${servings} × ${servingLabel(food)}`
+      : `${Math.round(amount * servings * 100) / 100} ${currentUnit.label}`;
 
   const canAdd = !!food && totalGrams > 0 && !adding;
 
@@ -122,8 +121,7 @@ export function BarcodeReview() {
       const backendQty = mode === "serving" ? servings : totalGrams;
       const metaUnitKey: MeasureUnitKey =
         mode === "serving" ? "serving" : currentUnit.key;
-      const metaQuantity =
-        mode === "serving" ? servings : amount * servings;
+      const metaQuantity = mode === "serving" ? servings : amount * servings;
       await addLog(
         {
           foodId: food.foodId,
@@ -138,9 +136,9 @@ export function BarcodeReview() {
           units: food.units,
         },
       );
-      Haptics.notificationAsync(
-        Haptics.NotificationFeedbackType.Success,
-      ).catch(() => {});
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
+        () => {},
+      );
       navigation.goBack();
     } catch (err) {
       console.error("Failed to log scanned food:", err);
@@ -251,9 +249,7 @@ export function BarcodeReview() {
               </Text>
             </View>
             <Ionicons
-              name={
-                mode === "serving" ? "checkmark-circle" : "ellipse-outline"
-              }
+              name={mode === "serving" ? "checkmark-circle" : "ellipse-outline"}
               size={26}
               color={mode === "serving" ? t.accent : t.border}
             />
