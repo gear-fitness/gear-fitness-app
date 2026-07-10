@@ -147,13 +147,14 @@ export interface AiPhotoEstimate {
 
 /**
  * Estimate nutrition from a meal photo via AI (PLUS tier, server-gated 403).
- * The image travels inline as base64 (compress to ~1024px JPEG first); note
- * is optional user context ("2% milk, large bowl"). The client confirms the
- * results and logs them through logFood.
+ * The image is uploaded directly to S3 first (see requestFoodImageUploadUrl +
+ * uploadImageToS3); only the resulting object key travels here, keeping the
+ * request body small enough to clear the WAF. note is optional user context
+ * ("2% milk, large bowl"). The client confirms the results and logs them
+ * through logFood.
  */
 export async function aiPhotoEstimate(payload: {
-  imageBase64: string;
-  mimeType: string;
+  s3Key: string;
   note?: string;
 }): Promise<AiPhotoEstimate> {
   const { data } = await apiClient.post<AiPhotoEstimate>(

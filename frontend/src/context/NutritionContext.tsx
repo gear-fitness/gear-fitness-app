@@ -16,7 +16,11 @@ import {
   LogFoodPayload,
   updateEntryDisplayMeta,
 } from "../api/nutritionService";
-import { getCurrentLocalDateString } from "../utils/date";
+import {
+  getCurrentLocalDateString,
+  getLocalDateStringFromEpoch,
+  parseLocalDate,
+} from "../utils/date";
 import { useAuth } from "./AuthContext";
 
 /**
@@ -41,6 +45,14 @@ const OBSOLETE_STORAGE_KEYS = [
   "nutrition.categoryOrder",
   "nutrition.smartJournal",
 ];
+
+// Shift a YYYY-MM-DD date by whole days in local time (mirrors the tracker's own
+// day stepping) so the neighbouring days can be pre-warmed into the cache.
+function shiftDay(dateStr: string, days: number): string {
+  const d = parseLocalDate(dateStr);
+  d.setDate(d.getDate() + days);
+  return getLocalDateStringFromEpoch(d.getTime());
+}
 
 type EntryUnitsMap = Record<string, EntryUnitMeta>;
 
@@ -69,8 +81,18 @@ export function NutritionProvider({ children }: { children: React.ReactNode }) {
   const [selectedDate, setSelectedDate] = useState<string>(
     getCurrentLocalDateString(),
   );
-  const [summary, setSummary] = useState<DaySummary | null>(null);
+  // Per-date summary cache. Swapping the day reveals cached numbers instantly
+  // instead of blanking to a spinner and refetching; the visible `summary` is
+  // just this map indexed by the current day. Cleared wholesale on account
+  // change (below) so one user's days never leak into another's.
+  const [summaries, setSummaries] = useState<Record<string, DaySummary>>({});
+  const summariesRef = useRef(summaries);
+  summariesRef.current = summaries;
+  const summary = summaries[selectedDate] ?? null;
   const [loading, setLoading] = useState(false);
+  // Bumped whenever the cache is cleared (account switch); a response tagged with
+  // a superseded epoch is dropped rather than written into the new account.
+  const cacheEpoch = useRef(0);
   const [entryUnits, setEntryUnits] = useState<EntryUnitsMap>({});
   // The AsyncStorage load has settled (found or empty); gates the server
   // backfill so an unloaded local map is never mistaken for "no local meta".
@@ -120,31 +142,59 @@ export function NutritionProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
-  const fetchFor = useCallback(async (date: string) => {
-    requestedDate.current = date;
-    setLoading(true);
+  // Load one day into the cache. `quiet` fetches (used to pre-warm neighbouring
+  // days) leave the loading flag and requested-date guard alone, so they never
+  // disturb the day the user is actually looking at. The epoch guard drops a
+  // response whose account has since changed.
+  const fetchFor = useCallback(async (date: string, quiet = false) => {
+    const epoch = cacheEpoch.current;
+    if (!quiet) {
+      requestedDate.current = date;
+      setLoading(true);
+    }
     try {
       const data = await getDay(date);
-      if (requestedDate.current === date) setSummary(data);
+      if (cacheEpoch.current === epoch) {
+        setSummaries((prev) => ({ ...prev, [date]: data }));
+      }
     } catch (err) {
       console.error("Failed to load nutrition day:", err);
     } finally {
-      if (requestedDate.current === date) setLoading(false);
+      if (!quiet && requestedDate.current === date) setLoading(false);
     }
   }, []);
 
-  // Clear stale data immediately on date or account change, then load the
-  // new day. Keying on the user id (rather than fetching once on mount)
+  // Keying the loaders on the user id (rather than fetching once on mount)
   // matters twice over: the mount fetch can fire before auth has restored a
-  // token, and a cached summary must never leak across accounts. Loading as
+  // token, and cached summaries must never leak across accounts. Loading as
   // soon as auth lands also means setupComplete is known by the time the
-  // Nutrition tab first renders, so it shows the right screen (setup wizard
-  // vs tracker) without a flash.
+  // Nutrition tab first renders, so it shows the right screen (setup wizard vs
+  // tracker) without a flash.
   const { user } = useAuth();
   const userId = user?.userId;
+
+  // Drop the whole cache when the account changes so no day leaks across users.
+  // Declared before the loaders so they refetch into an already-cleared cache.
   useEffect(() => {
-    setSummary(null);
+    cacheEpoch.current += 1;
+    setSummaries({});
+  }, [userId]);
+
+  // Load the visible day. No blank-first: the cached numbers — or the previous
+  // day's, easing to the new ones — stay on screen until fresh data lands, so a
+  // day swipe no longer flashes empty.
+  useEffect(() => {
     if (userId) fetchFor(selectedDate);
+  }, [selectedDate, userId, fetchFor]);
+
+  // Pre-warm the neighbouring days so a sequential swipe lands on already-loaded
+  // numbers. Quiet fetches don't drive `loading` or the requested-date guard.
+  useEffect(() => {
+    if (!userId) return;
+    const prev = shiftDay(selectedDate, -1);
+    const next = shiftDay(selectedDate, 1);
+    if (!summariesRef.current[prev]) fetchFor(prev, true);
+    if (!summariesRef.current[next]) fetchFor(next, true);
   }, [selectedDate, userId, fetchFor]);
 
   const refresh = useCallback(
@@ -242,14 +292,18 @@ export function NutritionProvider({ children }: { children: React.ReactNode }) {
   const removeLog = useCallback(
     async (entryId: string) => {
       // Optimistic removal so the row disappears immediately.
-      setSummary((prev) =>
-        prev
-          ? {
-              ...prev,
-              entries: prev.entries.filter((e) => e.entryId !== entryId),
-            }
-          : prev,
-      );
+      // Optimistic removal from the visible day's cached summary.
+      setSummaries((prev) => {
+        const cur = prev[selectedDate];
+        if (!cur) return prev;
+        return {
+          ...prev,
+          [selectedDate]: {
+            ...cur,
+            entries: cur.entries.filter((e) => e.entryId !== entryId),
+          },
+        };
+      });
       persistEntryUnits((prev) => {
         if (!prev[entryId]) return prev;
         const next = { ...prev };

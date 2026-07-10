@@ -167,11 +167,16 @@ export function FoodJournal({ selectedDate }: { selectedDate: string }) {
 
   const [entriesByDate, setEntriesByDate] = useState<EntriesByDate>({});
   const [heights, setHeights] = useState<number[]>([]);
+  // Height of the visible scroll frame, from its onLayout. Paired with the note's
+  // real text height to decide whether scrolling is actually needed.
+  const [viewportH, setViewportH] = useState(0);
   const [activeIndex, setActiveIndex] = useState(0);
 
-  // Whether the note is actively being edited. The editor is only focusable
-  // through an explicit tap (a transparent Pressable), so a scroll drag over
-  // the journal never opens the keyboard.
+  // Whether the note is actively being edited, driven by the field's own
+  // focus/blur. Tapping the note focuses it and drops the caret where the tap
+  // landed (native behaviour); a scroll drag pans the ScrollView instead of
+  // focusing, so browsing the journal never opens the keyboard. Used to pause
+  // background synthesis so entries aren't rewritten mid-edit.
   const [editing, setEditing] = useState(false);
 
   const [detailEntry, setDetailEntry] = useState<Entry | null>(null);
@@ -942,6 +947,28 @@ export function FoodJournal({ selectedDate }: { selectedDate: string }) {
     return arr;
   }, [entries, heights]);
 
+  // The note's real text height — just the lines, not the keyboard buffer padding
+  // the content container carries. Scrolling is only enabled when that overflows
+  // the frame, or while editing (so the keyboard avoider can lift the active line
+  // into view). Idle-and-fits keeps scroll off, which is the whole point: with no
+  // scroll gesture to recognise, a browse drag can never be misread as a tap that
+  // opens the keyboard, and taps still land the caret natively.
+  const contentH = useMemo(() => {
+    let acc = PAD_TOP;
+    for (let i = 0; i < entries.length; i++) acc += heights[i] ?? LINE_HEIGHT;
+    return acc;
+  }, [entries, heights]);
+  const canScroll = editing || contentH > viewportH + 1;
+
+  // Snap back to the top whenever scrolling locks (idle and the list fits).
+  // While editing, the keyboard avoider scrolls the note up to keep the caret
+  // above the keyboard; if scroll then locks on blur with the content still
+  // shifted, the user is stranded on a cut-off list with no way to scroll back.
+  // A locked list fits by definition, so top-aligning it reveals every entry.
+  useEffect(() => {
+    if (!canScroll) scrollRef.current?.scrollTo({ y: 0, animated: true });
+  }, [canScroll]);
+
   /* --- ⋯ menu actions ------------------------------------------------- */
 
   // Re-run the AI parse for a line even if its text is unchanged. Also the
@@ -1035,9 +1062,11 @@ export function FoodJournal({ selectedDate }: { selectedDate: string }) {
     <>
       <ScrollView
         ref={scrollRef}
+        scrollEnabled={canScroll}
+        onLayout={(e) => setViewportH(e.nativeEvent.layout.height)}
         contentContainerStyle={styles.noteScroll}
         keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
+        keyboardDismissMode="none"
         automaticallyAdjustKeyboardInsets
       >
         <View style={styles.editorWrap}>
@@ -1073,17 +1102,6 @@ export function FoodJournal({ selectedDate }: { selectedDate: string }) {
               </Text>
             ))}
           </View>
-
-          {/* Tap-to-focus catcher. While not editing it sits above the text and
-              only fires on a true tap — a scroll drag slides right past it, so
-              browsing the journal never opens the keyboard. Removed once
-              editing so taps reach the field (to reposition the cursor). */}
-          {!editing && (
-            <Pressable
-              style={StyleSheet.absoluteFill}
-              onPress={() => inputRef.current?.focus()}
-            />
-          )}
 
           {/* Annotation overlay: one floating status per non-empty line. */}
           <View style={StyleSheet.absoluteFill} pointerEvents="box-none">

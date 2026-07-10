@@ -20,12 +20,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * AI nutrition estimation from meal photos (PLUS tier and above). Pipeline per
- * request: tier check -> input validation -> per-user daily cap -> Sonar
- * vision call. Photos are analyzed and discarded; nothing is persisted or
- * logged here (the client confirms the results and logs through
- * NutritionService), and unlike the text path there is no cache because every
- * photo is unique.
+ * AI nutrition estimation from meal photos (PLUS tier and above). The client
+ * uploads the compressed JPEG directly to S3 (presigned PUT) and sends only the
+ * object key, so the image bytes never hit this API's request body or its WAF.
+ * Pipeline per request: key ownership guard -> tier check -> HeadObject
+ * size/type guard -> per-user daily cap -> fetch bytes -> Sonar vision call.
+ * The S3 object is deleted in a finally regardless of outcome, and a lifecycle
+ * rule on the ai-food/ prefix sweeps any object a client uploads but never
+ * submits; nothing about the photo is persisted or logged here (the client
+ * confirms the results and logs through NutritionService), and unlike the text
+ * path there is no cache because every photo is unique.
  *
  * Spend note: the per-user daily caps are the only guard. There is no durable
  * global monthly cap; the text path's global cap counts nutrition_cache rows,
@@ -51,6 +55,7 @@ public class AiPhotoNutritionService {
 
   private final PerplexityClient perplexityClient;
   private final AppUserRepository appUserRepository;
+  private final S3StorageService s3StorageService;
   private final int userDailyCap;
 
   // Per-user daily paid-call limiter, the same in-memory backstop
@@ -81,10 +86,12 @@ public class AiPhotoNutritionService {
   public AiPhotoNutritionService(
     PerplexityClient perplexityClient,
     AppUserRepository appUserRepository,
+    S3StorageService s3StorageService,
     @Value("${ai.photo.user.daily.cap:15}") int userDailyCap
   ) {
     this.perplexityClient = perplexityClient;
     this.appUserRepository = appUserRepository;
+    this.s3StorageService = s3StorageService;
     this.userDailyCap = userDailyCap;
   }
 
@@ -96,92 +103,102 @@ public class AiPhotoNutritionService {
       .findById(userId)
       .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-    if (!user.getTier().atLeast(Tier.PLUS)) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "AI_TIER");
-    }
-
-    String imageBase64 =
-      req.getImageBase64() == null ? "" : req.getImageBase64().trim();
-    if (imageBase64.isEmpty()) {
+    // Ownership + prefix guard: the key must be THIS user's ephemeral upload.
+    // Rejected before the try so a foreign or garbage key is never deleted.
+    String key = req.getS3Key() == null ? "" : req.getS3Key().trim();
+    String expectedPrefix = S3StorageService.AI_FOOD_PREFIX + userId + "/";
+    if (!key.startsWith(expectedPrefix)) {
       throw new ResponseStatusException(
         HttpStatus.BAD_REQUEST,
-        "AI_EMPTY_IMAGE"
+        "AI_BAD_IMAGE_KEY"
       );
     }
 
-    String mimeType =
-      req.getMimeType() == null ? "" : req.getMimeType().trim().toLowerCase();
-    if (!ALLOWED_MIME_TYPES.contains(mimeType)) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "AI_BAD_MIME");
-    }
-
-    validateImageSize(imageBase64);
-
-    String note = req.getNote() == null ? null : req.getNote().trim();
-    if (note != null && note.length() > MAX_NOTE_LENGTH) {
-      note = note.substring(0, MAX_NOTE_LENGTH);
-    }
-
-    enforceDailyCap(userId);
-
-    PerplexityResult result;
     try {
-      result = perplexityClient.estimateFoodFromImage(
-        imageBase64,
-        mimeType,
-        note
-      );
-    } catch (ResponseStatusException e) {
-      // Explicit client-visible status from the client layer (e.g. 503
-      // AI_UNAVAILABLE when the API key is unset). Propagate unchanged.
-      throw e;
-    } catch (RuntimeException e) {
-      // Timeout / non-2xx / unparseable upstream response. Retryable, not a
-      // server bug, so map to 502 rather than an opaque 500. The user got
-      // nothing for this call, so hand the daily-cap slot back rather than
-      // letting a flaky upstream burn their allowance.
-      rollbackDailyCap(userId);
-      log.error("Sonar photo estimate failed: {}", e.getMessage());
-      throw new ResponseStatusException(
-        HttpStatus.BAD_GATEWAY,
-        "AI_UPSTREAM",
-        e
-      );
-    }
+      if (!user.getTier().atLeast(Tier.PLUS)) {
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "AI_TIER");
+      }
 
-    return toResponse(result);
-  }
+      // HeadObject bounds size/type before the body is pulled into heap: a
+      // presigned PUT is size-unbounded, so an oversized or wrong-type object
+      // must be rejected without downloading it. A missing object (never
+      // uploaded, already swept, or a stale retry) surfaces as AI_EMPTY_IMAGE.
+      S3StorageService.ObjectMetadata meta;
+      try {
+        meta = s3StorageService.headObject(key);
+      } catch (Exception e) {
+        throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "AI_EMPTY_IMAGE"
+        );
+      }
 
-  /**
-   * Decode and bound the image. Malformed base64 and oversize images both
-   * come back as 400s; the client controls compression, so neither should
-   * happen outside a buggy or hostile caller.
-   */
-  private void validateImageSize(String imageBase64) {
-    // Cheap pre-decode bound: 4 base64 chars encode 3 bytes, so any string
-    // longer than this cannot decode under MAX_IMAGE_BYTES. Rejecting on
-    // string length first avoids materializing an oversized byte[] just to
-    // measure it.
-    if (imageBase64.length() > ((long) MAX_IMAGE_BYTES * 4) / 3 + 4) {
-      throw new ResponseStatusException(
-        HttpStatus.BAD_REQUEST,
-        "AI_IMAGE_TOO_LARGE"
-      );
-    }
-    byte[] decoded;
-    try {
-      decoded = Base64.getDecoder().decode(imageBase64);
-    } catch (IllegalArgumentException e) {
-      throw new ResponseStatusException(
-        HttpStatus.BAD_REQUEST,
-        "AI_EMPTY_IMAGE"
-      );
-    }
-    if (decoded.length > MAX_IMAGE_BYTES) {
-      throw new ResponseStatusException(
-        HttpStatus.BAD_REQUEST,
-        "AI_IMAGE_TOO_LARGE"
-      );
+      String mimeType =
+        meta.contentType() == null
+          ? ""
+          : meta.contentType().trim().toLowerCase();
+      if (!ALLOWED_MIME_TYPES.contains(mimeType)) {
+        throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "AI_BAD_MIME"
+        );
+      }
+      if (meta.contentLength() <= 0 || meta.contentLength() > MAX_IMAGE_BYTES) {
+        throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "AI_IMAGE_TOO_LARGE"
+        );
+      }
+
+      String note = req.getNote() == null ? null : req.getNote().trim();
+      if (note != null && note.length() > MAX_NOTE_LENGTH) {
+        note = note.substring(0, MAX_NOTE_LENGTH);
+      }
+
+      enforceDailyCap(userId);
+
+      byte[] bytes = s3StorageService.getObjectBytes(key);
+      // Defend against a race where the object grew between HEAD and GET.
+      if (bytes.length > MAX_IMAGE_BYTES) {
+        throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "AI_IMAGE_TOO_LARGE"
+        );
+      }
+      String imageBase64 = Base64.getEncoder().encodeToString(bytes);
+
+      PerplexityResult result;
+      try {
+        result = perplexityClient.estimateFoodFromImage(
+          imageBase64,
+          mimeType,
+          note
+        );
+      } catch (ResponseStatusException e) {
+        // Explicit client-visible status from the client layer (e.g. 503
+        // AI_UNAVAILABLE when the API key is unset). Propagate unchanged.
+        throw e;
+      } catch (RuntimeException e) {
+        // Timeout / non-2xx / unparseable upstream response. Retryable, not a
+        // server bug, so map to 502 rather than an opaque 500. The user got
+        // nothing for this call, so hand the daily-cap slot back rather than
+        // letting a flaky upstream burn their allowance.
+        rollbackDailyCap(userId);
+        log.error("Sonar photo estimate failed: {}", e.getMessage());
+        throw new ResponseStatusException(
+          HttpStatus.BAD_GATEWAY,
+          "AI_UPSTREAM",
+          e
+        );
+      }
+
+      return toResponse(result);
+    } finally {
+      // Delete the ephemeral upload no matter the outcome (success, no-food,
+      // tier/cap rejection, upstream failure). The lifecycle rule on the
+      // ai-food/ prefix is only the backstop for objects a client uploads but
+      // never submits here.
+      s3StorageService.deleteAiFoodImage(key);
     }
   }
 

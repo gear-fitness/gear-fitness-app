@@ -5,16 +5,17 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * A meal photo for AI nutrition estimation. The image travels inline as
- * base64 (the client compresses to about 1024px JPEG first); note is optional
- * free-text context from the user ("2% milk, large bowl").
+ * A meal photo for AI nutrition estimation. The client compresses to about
+ * 1024px JPEG, uploads it directly to S3 via a presigned PUT, and sends only
+ * the resulting object key here (keeping the request body tiny so it clears the
+ * WAF). The server reads the object, analyzes it, and deletes it. note is
+ * optional free-text context from the user ("2% milk, large bowl").
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class AiPhotoEstimateRequest {
 
-  private String imageBase64;
-  private String mimeType;
+  private String s3Key;
   private String note;
 }
