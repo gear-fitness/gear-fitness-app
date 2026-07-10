@@ -187,18 +187,10 @@ export function CalorieTracker() {
   // eases from 0 to caloriePct so the bar draws itself on entry.
   const barProgress = useSharedValue(0);
 
-  // Replay the fill from empty on mount and whenever the day changes, matching
-  // the rings' animateKey reset so the whole card reads as one motion.
-  useEffect(() => {
-    barProgress.value = 0;
-    barProgress.value = withTiming(caloriePct, {
-      duration: 600,
-      easing: Easing.out(Easing.cubic),
-    });
-    // Only the day drives the reset; caloriePct is read at replay time.
-  }, [selectedDate]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Ease to the new fill when the day's data refreshes without a day change.
+  // Ease the fill to the current fraction. barProgress starts at 0 so the bar
+  // draws itself in on mount; when the day changes, the fill eases from the
+  // previous day's value straight to the new one (rather than snapping back to
+  // empty first), so swiping between days reads as one continuous motion.
   useEffect(() => {
     barProgress.value = withTiming(caloriePct, {
       duration: 600,
@@ -316,10 +308,13 @@ export function CalorieTracker() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: t.appBg }]}>
-      {/* Everything that belongs to the shown day swipes as one piece; the
-          sheets/modals below live outside so they never translate. */}
+      {/* A day swipe can begin anywhere on the page, but only the journal
+          slides — the date nav, summary card and controls stay put and simply
+          take the new day's values in place, so the heavy top of the screen
+          never moves. The sheets/modals below live outside so they never
+          translate either. */}
       <GestureDetector gesture={daySwipe}>
-        <Reanimated.View style={[styles.flex1, dayShiftStyle]}>
+        <View style={styles.flex1}>
           {/* Date navigation */}
           <View style={styles.dateRow}>
             <TouchableOpacity
@@ -426,7 +421,6 @@ export function CalorieTracker() {
                       size={38}
                       stroke={4}
                       valueFontSize={11}
-                      animateKey={selectedDate}
                       reverse={reverseGauges}
                     />
                     <MacroRing
@@ -436,7 +430,6 @@ export function CalorieTracker() {
                       size={38}
                       stroke={4}
                       valueFontSize={11}
-                      animateKey={selectedDate}
                     />
                     <MacroRing
                       label=""
@@ -445,7 +438,6 @@ export function CalorieTracker() {
                       size={38}
                       stroke={4}
                       valueFontSize={11}
-                      animateKey={selectedDate}
                       reverse={reverseGauges}
                     />
                   </View>
@@ -496,7 +488,6 @@ export function CalorieTracker() {
                     stroke={7}
                     valueFontSize={12}
                     showGoal
-                    animateKey={selectedDate}
                     reverse={reverseGauges}
                   />
                   <MacroRing
@@ -509,7 +500,6 @@ export function CalorieTracker() {
                     stroke={7}
                     valueFontSize={12}
                     showGoal
-                    animateKey={selectedDate}
                   />
                   <MacroRing
                     label="Fat"
@@ -521,7 +511,6 @@ export function CalorieTracker() {
                     stroke={7}
                     valueFontSize={12}
                     showGoal
-                    animateKey={selectedDate}
                     reverse={reverseGauges}
                   />
                 </View>
@@ -586,10 +575,12 @@ export function CalorieTracker() {
               </View>
 
               {/* The journal itself: typed lines AI-parse into logged foods;
-              database picks from Add food appear as their own lines. */}
-              <View style={styles.flex1}>
+              database picks from Add food appear as their own lines. This is the
+              only piece that slides on a day swipe — everything above it holds
+              still and just receives the new day's numbers. */}
+              <Reanimated.View style={[styles.flex1, dayShiftStyle]}>
                 <FoodJournal selectedDate={selectedDate} />
-              </View>
+              </Reanimated.View>
             </View>
 
             {/* Locked (non-Plus): a transparent overlay grabs every touch
@@ -610,7 +601,7 @@ export function CalorieTracker() {
               />
             )}
           </View>
-        </Reanimated.View>
+        </View>
       </GestureDetector>
 
       {/* Calendar bottom sheet — days with entries marked, future days
