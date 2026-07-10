@@ -1,6 +1,6 @@
 import React from "react";
 import { StyleSheet, View, TouchableOpacity } from "react-native";
-import { Text } from "@react-navigation/elements";
+import { Text } from "./Text";
 import { useColorScheme } from "react-native";
 import { renderBodyParts } from "../utils/exerciseUtils";
 import { BodyPartDTO } from "../api/exerciseService";

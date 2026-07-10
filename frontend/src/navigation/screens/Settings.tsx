@@ -3,7 +3,6 @@ import {
   Appearance,
   ColorValue,
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
   Alert,
@@ -11,6 +10,7 @@ import {
   Linking,
   Platform,
 } from "react-native";
+import { Text } from "../../components/Text";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -24,6 +24,11 @@ import { useProfilePhoto } from "../../hooks/useProfilePhoto";
 import { useOnlineStatus } from "../../hooks/useOnlineStatus";
 import { Avatar } from "../../components/Avatar";
 import { AvatarWithCameraOverlay } from "../../components/AvatarWithCameraOverlay";
+import { PhotoSourceMenu } from "../../components/PhotoSourceMenu";
+import {
+  getSavePhotosOnPost,
+  setSavePhotosOnPost,
+} from "../../utils/photoPrefs";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 import { OfflineNotice } from "../../components/OfflineNotice";
 import {
@@ -112,7 +117,8 @@ export function Settings() {
   const navigation = useNavigation<any>();
   const themeColors = useThemeColors();
   const insets = useSafeAreaInsets();
-  const { pickAndUpload, uploading } = useProfilePhoto();
+  const { takePhotoAndUpload, chooseFromLibraryAndUpload, uploading } =
+    useProfilePhoto();
   const online = useOnlineStatus();
   const { weightUnit, setWeightUnit } = useUnitPreference();
   const { restore } = usePurchases();
@@ -144,6 +150,18 @@ export function Settings() {
       }
     });
   }, []);
+
+  // Save in-app camera photos to the library when posting. Defaults to on.
+  const [savePhotosOnPost, setSavePhotosOnPostState] = useState(true);
+
+  useEffect(() => {
+    getSavePhotosOnPost().then(setSavePhotosOnPostState);
+  }, []);
+
+  const handleSavePhotosToggle = (next: boolean) => {
+    setSavePhotosOnPostState(next);
+    setSavePhotosOnPost(next);
+  };
 
   const setThemeMode = async (mode: "system" | "light" | "dark") => {
     setThemeModeState(mode);
@@ -377,8 +395,7 @@ export function Settings() {
     Alert.alert("Contact Support", "Email us at support@gearfitness.app");
   };
 
-  const tierLabel =
-    tier === "ULTRA" ? "Gear Ultra" : tier === "PLUS" ? "Gear Plus" : "Basic";
+  const tierLabel = tier === "PLUS" ? "Gear Plus" : "Basic";
 
   const formatHeight = (h: number | null | undefined) => {
     if (!h) return "Not set";
@@ -585,6 +602,21 @@ export function Settings() {
               : "Choose a fixed appearance that overrides your device setting.",
         },
         {
+          key: "photos",
+          title: "Photos",
+          data: [
+            {
+              id: "save_photos_on_post",
+              type: "toggle" as const,
+              label: "Save Camera Photos",
+              value: savePhotosOnPost,
+              onValueChange: handleSavePhotosToggle,
+            },
+          ],
+          footer:
+            "Photos taken with the in-app camera are saved to your photo library when you post a workout.",
+        },
+        {
           key: "units",
           title: "Units",
           data: [
@@ -701,30 +733,34 @@ export function Settings() {
   const renderAvatarHeader = () => {
     if (!user) return null;
     return (
-      <TouchableOpacity
-        style={styles.avatarSection}
-        onPress={pickAndUpload}
-        disabled={uploading}
-        activeOpacity={0.8}
-      >
-        <AvatarWithCameraOverlay
-          size={88}
-          uploading={uploading}
-          style={styles.avatarWrap}
+      <View style={styles.avatarSection}>
+        <PhotoSourceMenu
+          width={88}
+          height={88}
+          accessibilityLabel="Change profile photo"
+          disabled={uploading}
+          onTakePhoto={takePhotoAndUpload}
+          onChooseFromLibrary={chooseFromLibraryAndUpload}
         >
-          <Avatar
-            username={user.username}
-            profilePictureUrl={user.profilePictureUrl}
+          <AvatarWithCameraOverlay
             size={88}
-          />
-        </AvatarWithCameraOverlay>
+            uploading={uploading}
+            style={styles.avatarWrap}
+          >
+            <Avatar
+              username={user.username}
+              profilePictureUrl={user.profilePictureUrl}
+              size={88}
+            />
+          </AvatarWithCameraOverlay>
+        </PhotoSourceMenu>
         <Text style={[styles.avatarName, { color: themeColors.text }]}>
           {user.displayName || user.username}
         </Text>
         <Text style={[styles.avatarHandle, { color: themeColors.secondary }]}>
           @{user.username}
         </Text>
-      </TouchableOpacity>
+      </View>
     );
   };
 

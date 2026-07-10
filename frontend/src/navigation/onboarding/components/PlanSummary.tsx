@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
-import { View, Text, StyleSheet, useWindowDimensions } from "react-native";
+import { View, StyleSheet, useWindowDimensions } from "react-native";
+import { Text } from "../../../components/Text";
 import { useOnboardingColors } from "./useOnboardingColors";
 import { ProjectionChart } from "./ProjectionChart";
 import { recommendRoutines } from "../routineTemplates";

@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
-import { View, Text, Pressable, ScrollView, StyleSheet } from "react-native";
+import { View, Pressable, ScrollView, StyleSheet } from "react-native";
+import { Text } from "../../../components/Text";
 import { OnboardingTopBar } from "./OnboardingTopBar";
 import { useOnboardingColors } from "./useOnboardingColors";
 import { makeOnboardingStyles } from "./makeOnboardingStyles";
@@ -20,6 +21,8 @@ interface StepScaffoldProps {
   footerExtra?: React.ReactNode;
   /** Extra space above the heading, to push it down from the top bar. */
   headingOffset?: number;
+  /** Hide the back button + progress bar (e.g. an intro step). */
+  hideTopBar?: boolean;
 }
 
 export function StepScaffold({
@@ -34,6 +37,7 @@ export function StepScaffold({
   scroll = false,
   footerExtra,
   headingOffset = 0,
+  hideTopBar = false,
 }: StepScaffoldProps) {
   const colors = useOnboardingColors();
   const shared = useMemo(() => makeOnboardingStyles(colors), [colors]);
@@ -63,7 +67,7 @@ export function StepScaffold({
 
   return (
     <View style={shared.screen}>
-      <OnboardingTopBar progress={progress} onBack={onBack} />
+      {!hideTopBar && <OnboardingTopBar progress={progress} onBack={onBack} />}
       {scroll ? (
         <ScrollView
           style={shared.body}

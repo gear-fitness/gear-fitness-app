@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, StyleSheet } from "react-native";
+import { Text } from "../../../components/Text";
 import { StepProps } from "../stepProps";
 import { StepScaffold } from "./StepScaffold";
 import { OptionCardList } from "./OptionCardList";
@@ -16,6 +17,11 @@ const GENDER_OPTIONS: {
   { value: "male", label: "Male", emoji: "♂" },
   { value: "female", label: "Female", emoji: "♀" },
   { value: "other", label: "Other", icon: "square.grid.2x2.fill" },
+  {
+    value: "prefer_not_to_say",
+    label: "Prefer not to say",
+    icon: "hand.raised.fill",
+  },
 ];
 
 export function GenderStep({

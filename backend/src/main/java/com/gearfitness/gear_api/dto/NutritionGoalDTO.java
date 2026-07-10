@@ -15,6 +15,9 @@ public class NutritionGoalDTO {
   private Integer carbsG;
   private Integer fatG;
   private Boolean isCustom;
+  private String goalType;
+  private String goalIntensity;
+  private Boolean setupComplete;
 
   public static NutritionGoalDTO from(NutritionGoal g) {
     return new NutritionGoalDTO(
@@ -22,7 +25,10 @@ public class NutritionGoalDTO {
       g.getProteinG(),
       g.getCarbsG(),
       g.getFatG(),
-      g.getIsCustom()
+      g.getIsCustom(),
+      g.getGoalType(),
+      g.getGoalIntensity(),
+      g.getSetupComplete()
     );
   }
 }

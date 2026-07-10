@@ -1,11 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  useColorScheme,
-} from "react-native";
+import { View, StyleSheet, Pressable, useColorScheme } from "react-native";
+import { Text } from "../../../components/Text";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { StepProps } from "../stepProps";
 import { useOnboardingColors } from "./useOnboardingColors";

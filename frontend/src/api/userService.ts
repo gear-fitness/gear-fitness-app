@@ -72,6 +72,8 @@ export async function updateUserProfile(
   username?: string | null,
   displayName?: string | null,
   gender?: string | null,
+  activityLevel?: string | null,
+  goalWeightLbs?: number | null,
 ): Promise<any> {
   const { data } = await apiClient.put("/users/me", {
     heightInches,
@@ -80,6 +82,8 @@ export async function updateUserProfile(
     username,
     displayName,
     gender,
+    activityLevel,
+    goalWeightLbs,
   });
   return data;
 }

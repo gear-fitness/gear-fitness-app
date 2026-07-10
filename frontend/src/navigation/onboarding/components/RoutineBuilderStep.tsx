@@ -1,13 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  TextInput,
-  ScrollView,
-  Modal,
-} from "react-native";
+import { View, StyleSheet, Pressable, ScrollView, Modal } from "react-native";
+import { Text, TextInput } from "../../../components/Text";
 import { StepProps } from "../stepProps";
 import { OnboardingTopBar } from "./OnboardingTopBar";
 import { useOnboardingColors } from "./useOnboardingColors";

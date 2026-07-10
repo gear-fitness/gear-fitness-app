@@ -18,4 +18,6 @@ public class UpdateUserProfileRequest {
   private Integer heightInches; // Optional
   private Integer age; // Optional
   private Boolean isPrivate; // Optional
+  private String activityLevel; // Optional: sedentary | light | moderate | very_active
+  private Integer goalWeightLbs; // Optional
 }

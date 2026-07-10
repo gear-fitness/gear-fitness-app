@@ -145,7 +145,9 @@ public class RevenueCatWebhookService {
   private void handleTransfer(JsonNode event) {
     JsonNode from = event.path("transferred_from");
     if (!from.isArray()) {
-      log.info("RevenueCat TRANSFER with no transferred_from; nothing to revoke");
+      log.info(
+        "RevenueCat TRANSFER with no transferred_from; nothing to revoke"
+      );
       return;
     }
     for (JsonNode node : from) {
@@ -162,31 +164,30 @@ public class RevenueCatWebhookService {
           if (u.getTier() != Tier.BASIC) {
             u.setTier(Tier.BASIC);
             appUserRepository.save(u);
-            log.info("RevenueCat TRANSFER: revoked tier from sender {}", senderId);
+            log.info(
+              "RevenueCat TRANSFER: revoked tier from sender {}",
+              senderId
+            );
           }
         });
     }
   }
 
   /**
-   * Highest active entitlement wins. Future-proof: Ultra products grant both
-   * "plus" and "ultra"; "ultra" short-circuits to ULTRA.
+   * Any paid entitlement grants PLUS. "ultra" is a legacy alias: the tier was
+   * never sold, but a promotional grant on that entitlement must keep access.
    */
   private Tier mapEntitlementsToTier(JsonNode event) {
     JsonNode ids = event.path("entitlement_ids");
-    Tier tier = Tier.BASIC;
     if (ids.isArray()) {
       for (JsonNode id : ids) {
         String e = id.asText();
-        if ("ultra".equals(e)) {
-          return Tier.ULTRA;
-        }
-        if ("plus".equals(e)) {
-          tier = Tier.PLUS;
+        if ("plus".equals(e) || "ultra".equals(e)) {
+          return Tier.PLUS;
         }
       }
     }
-    return tier;
+    return Tier.BASIC;
   }
 
   private LocalDateTime parseExpiry(JsonNode event) {

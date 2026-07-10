@@ -1,7 +1,6 @@
 import {
   StyleSheet,
   View,
-  Text,
   FlatList,
   TouchableOpacity,
   useColorScheme,
@@ -9,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { Text } from "../../components/Text";
 import { Calendar } from "react-native-calendars";
 import React, { useMemo, useState, useEffect } from "react";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -253,7 +253,10 @@ export function History() {
           >
             {dateLabel}
           </Text>
-          <Text style={[styles.workoutTitle, { color: t.text }]}>
+          <Text
+            style={[styles.workoutTitle, { color: t.text }]}
+            maxFontSizeMultiplier={1}
+          >
             {item.name}
           </Text>
 
@@ -264,7 +267,10 @@ export function History() {
                   <Text style={[styles.metricLabel, { color: t.textMuted }]}>
                     Time
                   </Text>
-                  <Text style={[styles.metricValue, { color: t.text }]}>
+                  <Text
+                    style={[styles.metricValue, { color: t.text }]}
+                    maxFontSizeMultiplier={1}
+                  >
                     {formatDuration(item.durationMin!)}
                   </Text>
                 </View>
@@ -273,7 +279,10 @@ export function History() {
                 <Text style={[styles.metricLabel, { color: t.textMuted }]}>
                   Exercises
                 </Text>
-                <Text style={[styles.metricValue, { color: t.text }]}>
+                <Text
+                  style={[styles.metricValue, { color: t.text }]}
+                  maxFontSizeMultiplier={1}
+                >
                   {item.exerciseCount}
                 </Text>
               </View>

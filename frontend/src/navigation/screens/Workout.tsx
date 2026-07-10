@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Text } from "@react-navigation/elements";
+import { Text, FontScaleProvider } from "../../components/Text";
 import { StyleSheet, View, TouchableOpacity, Image, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
@@ -128,149 +128,153 @@ export function Workout() {
   const ctaLabel = inProgress ? "End Workout" : "Start Workout";
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: t.bg }]}>
-      {/* Header: streak + nav */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.streakBlock}
-          onPress={() => {
-            setStreakDropdownVisible(true);
-            streakService
-              .getStreakInfo()
-              .then(setStreakInfo)
-              .catch(console.error);
-          }}
-          activeOpacity={0.7}
-        >
-          <View style={styles.streakRow}>
-            <StreakIcon streak={streak} size={46} isDark={isDark} />
-            <Text style={[styles.streakNumber, { color: t.text }]}>
-              {streak}
+    <FontScaleProvider max={1}>
+      <SafeAreaView style={[styles.container, { backgroundColor: t.bg }]}>
+        {/* Header: streak + nav */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.streakBlock}
+            onPress={() => {
+              setStreakDropdownVisible(true);
+              streakService
+                .getStreakInfo()
+                .then(setStreakInfo)
+                .catch(console.error);
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={styles.streakRow}>
+              <StreakIcon streak={streak} size={46} isDark={isDark} />
+              <Text style={[styles.streakNumber, { color: t.text }]}>
+                {streak}
+              </Text>
+            </View>
+            <Text style={[styles.streakLabel, { color: t.textMuted }]}>
+              STREAK
             </Text>
+          </TouchableOpacity>
+
+          <View style={styles.navRow}>
+            <TouchableOpacity
+              accessibilityLabel="Exercises"
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate("ExerciseList")}
+              style={[
+                styles.iconBtn,
+                {
+                  backgroundColor: glassAvailable ? "transparent" : t.surface,
+                  borderColor: glassAvailable ? "transparent" : t.border,
+                },
+              ]}
+            >
+              {glassAvailable && (
+                <GlassView
+                  style={[StyleSheet.absoluteFillObject, { borderRadius: 22 }]}
+                  glassEffectStyle="regular"
+                  isInteractive
+                />
+              )}
+              <MaterialCommunityIcons
+                name="weight-lifter"
+                size={22}
+                color={t.text}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              accessibilityLabel="Routines"
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate("RoutineList")}
+              style={[
+                styles.iconBtn,
+                {
+                  backgroundColor: glassAvailable ? "transparent" : t.surface,
+                  borderColor: glassAvailable ? "transparent" : t.border,
+                },
+              ]}
+            >
+              {glassAvailable && (
+                <GlassView
+                  style={[StyleSheet.absoluteFillObject, { borderRadius: 22 }]}
+                  glassEffectStyle="regular"
+                  isInteractive
+                />
+              )}
+              <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+                <Path
+                  d="M6 3h12v18l-6-4-6 4V3z"
+                  stroke={t.text}
+                  strokeWidth={1.6}
+                  strokeLinejoin="round"
+                  fill={t.text}
+                />
+              </Svg>
+            </TouchableOpacity>
           </View>
-          <Text style={[styles.streakLabel, { color: t.textMuted }]}>
-            STREAK
-          </Text>
-        </TouchableOpacity>
-
-        <View style={styles.navRow}>
-          <TouchableOpacity
-            accessibilityLabel="Exercises"
-            activeOpacity={0.7}
-            onPress={() => navigation.navigate("ExerciseList")}
-            style={[
-              styles.iconBtn,
-              {
-                backgroundColor: glassAvailable ? "transparent" : t.surface,
-                borderColor: glassAvailable ? "transparent" : t.border,
-              },
-            ]}
-          >
-            {glassAvailable && (
-              <GlassView
-                style={[StyleSheet.absoluteFillObject, { borderRadius: 22 }]}
-                glassEffectStyle="regular"
-                isInteractive
-              />
-            )}
-            <MaterialCommunityIcons
-              name="weight-lifter"
-              size={22}
-              color={t.text}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            accessibilityLabel="Routines"
-            activeOpacity={0.7}
-            onPress={() => navigation.navigate("RoutineList")}
-            style={[
-              styles.iconBtn,
-              {
-                backgroundColor: glassAvailable ? "transparent" : t.surface,
-                borderColor: glassAvailable ? "transparent" : t.border,
-              },
-            ]}
-          >
-            {glassAvailable && (
-              <GlassView
-                style={[StyleSheet.absoluteFillObject, { borderRadius: 22 }]}
-                glassEffectStyle="regular"
-                isInteractive
-              />
-            )}
-            <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-              <Path
-                d="M6 3h12v18l-6-4-6 4V3z"
-                stroke={t.text}
-                strokeWidth={1.6}
-                strokeLinejoin="round"
-                fill={t.text}
-              />
-            </Svg>
-          </TouchableOpacity>
         </View>
-      </View>
 
-      {/* Hero: 50/50 split */}
-      <View style={styles.hero}>
-        {/* Top half — quote/timer centered */}
-        <View style={styles.topHalf}>
-          <Text style={[styles.overline, { color: t.textMuted }]}>
-            {inProgress ? "IN PROGRESS" : todayOverline()}
-          </Text>
-          {inProgress ? (
-            <View style={styles.elapsedBlock}>
-              <Text style={[styles.elapsedLabel, { color: t.textMuted }]}>
-                ELAPSED
-              </Text>
-              <Text style={[styles.elapsedTime, { color: t.text }]}>
-                {formatTime(seconds)}
-              </Text>
-            </View>
-          ) : (
-            <Text style={[styles.quote, { color: t.text, fontFamily: SERIF }]}>
-              {dailyQuote()}
+        {/* Hero: 50/50 split */}
+        <View style={styles.hero}>
+          {/* Top half: quote/timer centered */}
+          <View style={styles.topHalf}>
+            <Text style={[styles.overline, { color: t.textMuted }]}>
+              {inProgress ? "IN PROGRESS" : todayOverline()}
             </Text>
-          )}
-        </View>
+            {inProgress ? (
+              <View style={styles.elapsedBlock}>
+                <Text style={[styles.elapsedLabel, { color: t.textMuted }]}>
+                  ELAPSED
+                </Text>
+                <Text style={[styles.elapsedTime, { color: t.text }]}>
+                  {formatTime(seconds)}
+                </Text>
+              </View>
+            ) : (
+              <Text
+                style={[styles.quote, { color: t.text, fontFamily: SERIF }]}
+              >
+                {dailyQuote()}
+              </Text>
+            )}
+          </View>
 
-        {/* Bottom half — CTA + routines */}
-        <View style={styles.bottomHalf}>
-          <TouchableOpacity
-            activeOpacity={0.7}
-            style={[styles.primaryCta, { borderColor: t.text }]}
-            onPress={handlePrimaryPress}
-          >
-            <Text style={[styles.primaryCtaText, { color: t.text }]}>
-              {ctaLabel}
-            </Text>
-          </TouchableOpacity>
+          {/* Bottom half: CTA + routines */}
+          <View style={styles.bottomHalf}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={[styles.primaryCta, { borderColor: t.text }]}
+              onPress={handlePrimaryPress}
+            >
+              <Text style={[styles.primaryCtaText, { color: t.text }]}>
+                {ctaLabel}
+              </Text>
+            </TouchableOpacity>
 
-          {!inProgress && (
-            <View style={styles.routinesWrap}>
-              <TodaysRoutines />
-            </View>
-          )}
+            {!inProgress && (
+              <View style={styles.routinesWrap}>
+                <TodaysRoutines />
+              </View>
+            )}
+          </View>
         </View>
-      </View>
-      <StreakDropdown
-        visible={streakDropdownVisible}
-        onClose={() => setStreakDropdownVisible(false)}
-        streakInfo={streakInfo}
-        onLogRestDay={handleLogRestDay}
-        onRestore={handleRestore}
-        loading={streakLoading}
-        isDark={isDark}
-        isPlus={atLeast("PLUS")}
-        onUpsell={() => {
-          setStreakDropdownVisible(false);
-          navigation.navigate("PlusUpsell", {
-            feature: "Restore your streak with Plus",
-          });
-        }}
-      />
-    </SafeAreaView>
+        <StreakDropdown
+          visible={streakDropdownVisible}
+          onClose={() => setStreakDropdownVisible(false)}
+          streakInfo={streakInfo}
+          onLogRestDay={handleLogRestDay}
+          onRestore={handleRestore}
+          loading={streakLoading}
+          isDark={isDark}
+          isPlus={atLeast("PLUS")}
+          onUpsell={() => {
+            setStreakDropdownVisible(false);
+            navigation.navigate("PlusUpsell", {
+              feature: "Restore your streak with Plus",
+            });
+          }}
+        />
+      </SafeAreaView>
+    </FontScaleProvider>
   );
 }
 

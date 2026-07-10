@@ -1,17 +1,16 @@
 import {
   StyleSheet,
   View,
-  TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
   Image,
-  Text,
   Keyboard,
   Modal,
   Animated,
   Alert,
   useColorScheme,
 } from "react-native";
+import { Text, TextInput } from "./Text";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import {
   useState,

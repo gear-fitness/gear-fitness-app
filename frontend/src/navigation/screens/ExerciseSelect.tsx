@@ -1,4 +1,4 @@
-import { Text } from "@react-navigation/elements";
+import { Text } from "../../components/Text";
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColorScheme } from "react-native";
@@ -83,6 +83,7 @@ export function ExerciseSelect() {
           styles.title,
           { top: insets.top + 10, color: isDark ? "#fff" : "#000" },
         ]}
+        maxFontSizeMultiplier={1}
       >
         Select Exercise
       </Text>

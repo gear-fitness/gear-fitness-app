@@ -1,9 +1,7 @@
 import {
-  Text,
   StyleSheet,
   useColorScheme,
   View,
-  TextInput,
   TouchableOpacity,
   ScrollView,
   Alert,
@@ -14,6 +12,7 @@ import {
   Image,
   useWindowDimensions,
 } from "react-native";
+import { Text, TextInput } from "../../components/Text";
 import Svg, { Path } from "react-native-svg";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState, useRef, useMemo } from "react";
@@ -21,11 +20,15 @@ import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
+import * as MediaLibrary from "expo-media-library";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { useSocialFeed } from "../../context/SocialFeedContext";
 import { submitWorkout, WorkoutSubmission } from "../../api/workoutService";
 import { uploadPostImage } from "../../api/imageService";
 import { isNetworkError } from "../../utils/network";
+import { openCamera } from "../../utils/inAppCamera";
+import { PhotoSourceMenu } from "../../components/PhotoSourceMenu";
+import { getSavePhotosOnPost } from "../../utils/photoPrefs";
 import { enqueueWorkout } from "../../utils/workoutQueue";
 import {
   getCurrentLocalDateString,
@@ -84,6 +87,10 @@ export function WorkoutComplete() {
   const [loading, setLoading] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
+  // URIs captured with the in-app camera this session. These exist only in
+  // the app's cache, so (unlike library picks) they're candidates for
+  // saving to the photo library when the workout is posted.
+  const cameraCaptureUris = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     const showEvent =
@@ -130,8 +137,51 @@ export function WorkoutComplete() {
     0,
   );
 
-  const pickPhoto = async () => {
+  const addPhotos = (uris: string[]) => {
+    setPhotos((prev) => [...prev, ...uris].slice(0, MAX_PHOTOS));
+  };
+
+  const takePhotoWithCamera = async () => {
     if (photos.length >= MAX_PHOTOS) return;
+    const remaining = MAX_PHOTOS - photos.length;
+    const result = await openCamera(navigation, {
+      // Applied if the user picks via the camera screen's library shortcut.
+      library: {
+        allowsMultipleSelection: remaining > 1,
+        selectionLimit: remaining,
+      },
+    });
+    if (result?.uris.length) {
+      if (result.source === "capture") {
+        result.uris.forEach((uri) => cameraCaptureUris.current.add(uri));
+      }
+      addPhotos(result.uris);
+    }
+  };
+
+  // Save in-app camera captures to the photo library when posting, if the
+  // "Save Camera Photos" setting is on (default). Fire-and-forget: failures
+  // never block the post. Saved URIs leave the set so a failed post that's
+  // retried doesn't save duplicates.
+  const saveCapturedPhotosIfEnabled = async () => {
+    const toSave = photos.filter((uri) => cameraCaptureUris.current.has(uri));
+    if (toSave.length === 0) return;
+    try {
+      if (!(await getSavePhotosOnPost())) return;
+      const permission = await MediaLibrary.requestPermissionsAsync(true);
+      if (!permission.granted) return;
+      for (const uri of toSave) {
+        await MediaLibrary.saveToLibraryAsync(uri);
+        cameraCaptureUris.current.delete(uri);
+      }
+    } catch (err) {
+      console.error("Failed to save camera photos to library:", err);
+    }
+  };
+
+  const chooseFromLibrary = async () => {
+    if (photos.length >= MAX_PHOTOS) return;
+    const remaining = MAX_PHOTOS - photos.length;
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
       Alert.alert(
@@ -141,7 +191,6 @@ export function WorkoutComplete() {
       );
       return;
     }
-    const remaining = MAX_PHOTOS - photos.length;
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
       allowsMultipleSelection: remaining > 1,
@@ -149,8 +198,7 @@ export function WorkoutComplete() {
       quality: 0.8,
     });
     if (!result.canceled && result.assets?.length) {
-      const uris = result.assets.map((a) => a.uri).slice(0, remaining);
-      setPhotos((prev) => [...prev, ...uris].slice(0, MAX_PHOTOS));
+      addPhotos(result.assets.map((a) => a.uri).slice(0, remaining));
     }
   };
 
@@ -185,6 +233,7 @@ export function WorkoutComplete() {
     }
 
     setLoading(true);
+    void saveCapturedPhotosIfEnabled();
 
     const buildSubmission = (uploadedUrls: string[]): WorkoutSubmission => ({
       name: workoutName,
@@ -350,7 +399,12 @@ export function WorkoutComplete() {
           <Text style={[styles.overline, { color: t.textMuted }]}>
             WORKOUT COMPLETE
           </Text>
-          <Text style={[styles.heroTitle, { color: t.text }]}>Nice work.</Text>
+          <Text
+            style={[styles.heroTitle, { color: t.text }]}
+            maxFontSizeMultiplier={1}
+          >
+            Nice work.
+          </Text>
 
           <View style={styles.metricsRow}>
             <Metric label="Time" value={`${durationMin} min`} t={t} />
@@ -368,6 +422,7 @@ export function WorkoutComplete() {
             placeholderTextColor={t.textMuted}
             returnKeyType="done"
             onSubmitEditing={() => Keyboard.dismiss()}
+            maxFontSizeMultiplier={1}
             style={[
               styles.nameInput,
               { color: t.text, borderBottomColor: t.border },
@@ -507,32 +562,39 @@ export function WorkoutComplete() {
               </View>
             ))}
             {photos.length < MAX_PHOTOS && (
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={pickPhoto}
-                style={[
-                  styles.photoAdd,
-                  {
-                    width: photoTileSize,
-                    height: photoTileSize,
-                    borderColor: t.chipBorder,
-                  },
-                ]}
+              <PhotoSourceMenu
+                width={photoTileSize}
+                height={photoTileSize}
+                onTakePhoto={takePhotoWithCamera}
+                onChooseFromLibrary={chooseFromLibrary}
               >
-                <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-                  <Path
-                    d="M12 6v12M6 12h12"
-                    stroke={t.textMuted}
-                    strokeWidth={1.6}
-                    strokeLinecap="round"
-                  />
-                </Svg>
-                {photos.length === 0 && (
-                  <Text style={[styles.photoAddLabel, { color: t.textMuted }]}>
-                    Add photo
-                  </Text>
-                )}
-              </TouchableOpacity>
+                <View
+                  style={[
+                    styles.photoAdd,
+                    {
+                      width: photoTileSize,
+                      height: photoTileSize,
+                      borderColor: t.chipBorder,
+                    },
+                  ]}
+                >
+                  <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+                    <Path
+                      d="M12 6v12M6 12h12"
+                      stroke={t.textMuted}
+                      strokeWidth={1.6}
+                      strokeLinecap="round"
+                    />
+                  </Svg>
+                  {photos.length === 0 && (
+                    <Text
+                      style={[styles.photoAddLabel, { color: t.textMuted }]}
+                    >
+                      Add photo
+                    </Text>
+                  )}
+                </View>
+              </PhotoSourceMenu>
             )}
           </View>
         </Section>
@@ -678,7 +740,12 @@ function Metric({
   return (
     <View>
       <Text style={[styles.metricLabel, { color: t.textMuted }]}>{label}</Text>
-      <Text style={[styles.metricValue, { color: t.text }]}>{value}</Text>
+      <Text
+        style={[styles.metricValue, { color: t.text }]}
+        maxFontSizeMultiplier={1}
+      >
+        {value}
+      </Text>
     </View>
   );
 }

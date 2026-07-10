@@ -1,10 +1,5 @@
-import {
-  Dimensions,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Dimensions, StyleSheet, TouchableOpacity, View } from "react-native";
+import { Text } from "./Text";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@react-navigation/native";
 import { BottomSheet } from "./BottomSheet";
@@ -58,7 +53,11 @@ export function PostActionsSheet({
               ]}
             >
               <Ionicons name={action.icon} size={32} color={tint} />
-              <Text style={[styles.tileLabel, { color: tint }]}>
+              <Text
+                style={[styles.tileLabel, { color: tint }]}
+                numberOfLines={1}
+                maxFontSizeMultiplier={1.2}
+              >
                 {action.label}
               </Text>
             </TouchableOpacity>

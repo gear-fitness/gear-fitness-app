@@ -1,12 +1,12 @@
 import { forwardRef } from "react";
 import {
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   View,
   type StyleProp,
   type ViewStyle,
 } from "react-native";
+import { TextInput } from "./Text";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@react-navigation/native";
 
@@ -63,6 +63,7 @@ export const SearchBar = forwardRef<TextInput, SearchBarProps>(
           autoFocus={autoFocus}
           returnKeyType={returnKeyType}
           onSubmitEditing={onSubmitEditing}
+          maxFontSizeMultiplier={1.2}
           style={[styles.input, { color: colors.text }]}
         />
         {value.length > 0 && (

@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
-  Text,
   StyleSheet,
   Pressable,
   Image,
   Platform,
   useColorScheme,
 } from "react-native";
+import { Text } from "../../../components/Text";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FloatingCloseButton } from "../../../components/FloatingCloseButton";
 import { useOnboardingColors } from "./useOnboardingColors";

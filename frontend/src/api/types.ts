@@ -22,6 +22,10 @@ export interface WorkoutStats {
   dailyActivity: number[];
 }
 
+// How active the user is day to day; drives the TDEE multiplier in the
+// calorie calculator. Mirrors the onboarding ActivityStep options.
+export type ActivityLevel = "sedentary" | "light" | "moderate" | "very_active";
+
 export interface UserProfile {
   userId: string;
   username: string;
@@ -31,6 +35,10 @@ export interface UserProfile {
   weightLbs: number | null;
   heightInches: number | null;
   age: number | null;
+  // Calorie-calculator inputs (optional so profiles cached before these fields
+  // existed still parse).
+  activityLevel?: ActivityLevel | null;
+  goalWeightLbs?: number | null;
   isPrivate: boolean;
   profilePictureUrl: string | null;
   createdAt: string;
@@ -41,7 +49,7 @@ export interface UserProfile {
   followStatus?: "ACCEPTED" | "PENDING" | "BLOCKED" | "NONE" | null;
   // Subscription tier (authoritative, from the RevenueCat webhook). Optional so
   // profiles cached before this field existed still parse.
-  tier?: "BASIC" | "PLUS" | "ULTRA";
+  tier?: "BASIC" | "PLUS";
 }
 
 export interface UsernameAvailabilityResponse {
@@ -175,10 +183,15 @@ export interface FoodItem {
   fdcId: number | null;
   description: string;
   brandOwner: string | null;
+  // "CUSTOM" for user-created saved meals; USDA type strings otherwise.
   dataType: string | null;
   servingSize: number | null;
   servingUnit: string | null;
   householdServing: string | null;
+  // Optional display nickname (custom foods only).
+  nickname?: string | null;
+  // Canonical GTIN-14 barcode for scannable branded foods; null otherwise.
+  barcode?: string | null;
   // Valid units of measure for this item (client-derived; see nutritionUnits).
   units?: MeasureUnit[];
   // Nutrient values are per 100 g.
@@ -214,10 +227,32 @@ export interface FoodLogEntry {
   proteinG: number | null;
   carbsG: number | null;
   fatG: number | null;
-  // Provenance for AI-logged entries: "AI_SONAR" | "AI_CACHE"; null for manual.
+  // Provenance: "AI_SONAR" | "AI_CACHE" for AI journal lines, "BARCODE" for
+  // scanned products, "PHOTO" for photo estimates, "DB" for database picks,
+  // null for manual. Only the AI_* values belong to journal-owned lines (see
+  // the FoodJournal reaper); new non-journal sources must NOT start with "AI".
   sourceType?: string | null;
   sourceUrl?: string | null;
+  // The display unit/quantity the entry was logged in ("4 oz"), stored
+  // server-side since V46 so it survives reinstall. Null for AI-logged and
+  // legacy entries.
+  displayMeta?: EntryUnitMeta | null;
 }
+
+/**
+ * One day's server-stored journal note: the FoodJournal's lines blob, opaque
+ * to the server. updatedAt is the sync point for last-write-wins.
+ */
+export interface JournalNote {
+  date: string;
+  // FoodJournal's Entry[]; typed loosely here since the schema is owned by
+  // the journal component.
+  content: unknown[];
+  updatedAt: string;
+}
+
+export type NutritionGoalType = "CUT" | "MAINTAIN" | "BULK";
+export type NutritionGoalIntensity = "SLOW" | "MODERATE" | "AGGRESSIVE";
 
 export interface NutritionGoal {
   calorieGoal: number;
@@ -225,6 +260,12 @@ export interface NutritionGoal {
   carbsG: number;
   fatG: number;
   isCustom: boolean;
+  // Optional so responses from servers predating the setup wizard still parse
+  // (an undefined setupComplete also never renders the wizard over the
+  // tracker, which requires a strict false).
+  goalType?: NutritionGoalType;
+  goalIntensity?: NutritionGoalIntensity;
+  setupComplete?: boolean;
 }
 
 export interface MacroTotals {
@@ -239,4 +280,7 @@ export interface DaySummary {
   goal: NutritionGoal;
   totals: MacroTotals;
   entries: FoodLogEntry[];
+  // The day's journal note, or null/undefined (older servers) when none has
+  // been saved for this date.
+  journal?: JournalNote | null;
 }

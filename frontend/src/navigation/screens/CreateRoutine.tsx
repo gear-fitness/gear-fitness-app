@@ -1,10 +1,8 @@
 import React, { useState, useMemo } from "react";
 import {
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
-  TextInput,
   ScrollView,
   FlatList,
   ActivityIndicator,
@@ -12,6 +10,7 @@ import {
   Platform,
   Alert,
 } from "react-native";
+import { Text, TextInput } from "../../components/Text";
 import {
   SafeAreaView,
   useSafeAreaInsets,

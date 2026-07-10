@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
-import { Text } from "@react-navigation/elements";
+import { Text } from "../../components/Text";
 import { useTheme, useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -448,7 +448,7 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 14,
-    lineHeight: 19,
+    lineHeight: 20,
   },
   username: {
     fontWeight: "700",

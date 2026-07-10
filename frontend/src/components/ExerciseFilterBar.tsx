@@ -6,7 +6,7 @@ import {
   View,
   useColorScheme,
 } from "react-native";
-import { Text } from "@react-navigation/elements";
+import { Text } from "./Text";
 import { SearchBar } from "./SearchBar";
 
 interface ExerciseFilterBarProps {

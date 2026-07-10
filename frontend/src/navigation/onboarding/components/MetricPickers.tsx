@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import { View, StyleSheet, Pressable } from "react-native";
+import { Text } from "../../../components/Text";
 import { Picker } from "@react-native-picker/picker";
 import { PickerSheet } from "./PickerSheet";
 import { useOnboardingColors } from "./useOnboardingColors";

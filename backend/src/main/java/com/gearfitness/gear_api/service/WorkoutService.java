@@ -15,8 +15,10 @@ import com.gearfitness.gear_api.entity.WorkoutExercise;
 import com.gearfitness.gear_api.entity.WorkoutSet;
 import com.gearfitness.gear_api.repository.AppUserRepository;
 import com.gearfitness.gear_api.repository.ExerciseRepository;
+import com.gearfitness.gear_api.repository.ImageModerationRepository;
 import com.gearfitness.gear_api.repository.NotificationRepository;
 import com.gearfitness.gear_api.repository.PostRepository;
+import com.gearfitness.gear_api.repository.ReportRepository;
 import com.gearfitness.gear_api.repository.WorkoutRepository;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
@@ -28,6 +30,8 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 @RequiredArgsConstructor
@@ -38,9 +42,12 @@ public class WorkoutService {
   private final PostRepository postRepository;
   private final AppUserRepository appUserRepository;
   private final NotificationRepository notificationRepository;
+  private final ReportRepository reportRepository;
+  private final ImageModerationRepository imageModerationRepository;
   private final StreakService streakService;
   private final S3StorageService s3StorageService;
   private final PrService prService;
+  private final ModerationService moderationService;
   private final MentionService mentionService;
 
   @Transactional(readOnly = true)
@@ -431,6 +438,25 @@ public class WorkoutService {
       mentionService.notifyCaptionMentions(user, post.getCaption(), post);
     }
 
+    // Run image moderation once this transaction commits. Deferring to
+    // afterCommit guarantees the async worker sees the persisted post row
+    // (and the image is already in S3 — the client uploads via presigned PUT
+    // before submitting). Only post images (posts/ keys) are moderated.
+    String imageKey = post.getImageUrl();
+    if (
+      imageKey != null && imageKey.startsWith(S3StorageService.POSTS_PREFIX)
+    ) {
+      UUID postId = post.getPostId();
+      TransactionSynchronizationManager.registerSynchronization(
+        new TransactionSynchronization() {
+          @Override
+          public void afterCommit() {
+            moderationService.moderatePostImage(postId, imageKey);
+          }
+        }
+      );
+    }
+
     // Return workout details
     return getWorkoutDetails(workout.getWorkoutId(), userId);
   }
@@ -450,11 +476,29 @@ public class WorkoutService {
       );
     }
 
-    if (workout.getPost() != null) {
-      notificationRepository.deleteAllByPost(workout.getPost());
-      notificationRepository.deleteAllByCommentIn(
-        workout.getPost().getPostComments()
-      );
+    // A post hidden/removed by moderation is filtered out of the Workout->Post
+    // association by the @SQLRestriction on Post, so the workout's cascade can't
+    // see it. Load it directly (mirrors PostRepository.updateModerationStatus's
+    // restriction-bypassing style) so the post and every reference to it are
+    // cleaned up and the workout delete doesn't trip the post.workout_id FK.
+    Post post = workout.getPost();
+    boolean postHiddenFromCascade = post == null;
+    if (postHiddenFromCascade) {
+      post = postRepository.findAnyByWorkoutId(workoutId).orElse(null);
+    }
+    if (post != null) {
+      notificationRepository.deleteAllByPost(post);
+      notificationRepository.deleteAllByCommentIn(post.getPostComments());
+      // report and image_moderation reference post_id without ON DELETE CASCADE
+      // and aren't JPA-cascaded from Post, so clear them before the post row.
+      reportRepository.deleteByPost_PostId(post.getPostId());
+      imageModerationRepository.deleteByPost_PostId(post.getPostId());
+      if (postHiddenFromCascade) {
+        // The workout cascade won't see this hidden post, so delete it
+        // explicitly (its likes/comments cascade via JPA).
+        postRepository.delete(post);
+        postRepository.flush();
+      }
     }
 
     if (workout.getPhotoUrls() != null) {

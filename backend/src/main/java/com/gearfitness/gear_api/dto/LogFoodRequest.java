@@ -1,5 +1,6 @@
 package com.gearfitness.gear_api.dto;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import java.util.UUID;
 import lombok.Data;
 
@@ -27,4 +28,8 @@ public class LogFoodRequest {
   // Provenance for AI-logged entries; null for manual/quick-add.
   private String sourceType; // AI_SONAR | AI_CACHE | null
   private String sourceUrl;
+
+  // The display unit/quantity the client logged in ("4 oz"), opaque to the
+  // server (EntryUnitMeta). Null for AI-logged entries and old clients.
+  private JsonNode displayMeta;
 }

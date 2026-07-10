@@ -33,6 +33,8 @@ export async function syncOnboardingProfile(
       draft.profile?.username ?? null,
       resolveDisplayName(draft),
       draft.gender ?? null,
+      draft.activityLevel ?? null,
+      weightToLbs(draft.goalWeight),
     );
 
     if (draft.profile?.photoUri) {

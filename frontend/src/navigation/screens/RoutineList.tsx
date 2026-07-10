@@ -1,13 +1,13 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   View,
-  Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
   Animated,
   Easing,
 } from "react-native";
+import { Text } from "../../components/Text";
 import Swipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 import {
   SafeAreaView,

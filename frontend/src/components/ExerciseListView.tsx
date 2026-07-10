@@ -8,7 +8,7 @@ import {
   View,
   useColorScheme,
 } from "react-native";
-import { Text } from "@react-navigation/elements";
+import { Text } from "./Text";
 import { Exercise } from "../api/exerciseService";
 import { useExerciseFilter } from "../hooks/useExerciseFilter";
 import { ExerciseFilterBar } from "./ExerciseFilterBar";

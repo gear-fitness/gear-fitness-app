@@ -4,10 +4,10 @@ import {
   ScrollView,
   StyleProp,
   StyleSheet,
-  Text,
   TextStyle,
   View,
 } from "react-native";
+import { Text } from "../../components/Text";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useNavigation, useTheme } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";

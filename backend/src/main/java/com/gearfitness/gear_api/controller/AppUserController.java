@@ -14,6 +14,7 @@ import com.gearfitness.gear_api.repository.FollowRepository;
 import com.gearfitness.gear_api.security.JwtService;
 import com.gearfitness.gear_api.service.AppUserService;
 import com.gearfitness.gear_api.service.FollowService;
+import com.gearfitness.gear_api.service.ModerationService;
 import com.gearfitness.gear_api.service.S3StorageService;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +41,7 @@ public class AppUserController {
   private final S3StorageService s3StorageService;
   private final AppUserRepository userRepository;
   private final FollowService followService;
+  private final ModerationService moderationService;
 
   /**
    * GET /api/users/me
@@ -291,6 +293,10 @@ public class AppUserController {
       user.setProfilePictureUrl(expectedKey);
       userRepository.save(user);
 
+      // save() committed in its own transaction, so the async worker will see
+      // the persisted key. The image is already in S3 (client PUT it first).
+      moderationService.moderateProfileImage(userId, expectedKey);
+
       UserDTO updatedUser = userService.getUserProfile(userId);
       return ResponseEntity.ok(updatedUser);
     } catch (Exception e) {
@@ -344,6 +350,8 @@ public class AppUserController {
         .orElseThrow(() -> new RuntimeException("User not found"));
       user.setProfilePictureUrl(key);
       userRepository.save(user);
+
+      moderationService.moderateProfileImage(userId, key);
 
       UserDTO updatedUser = userService.getUserProfile(userId);
       return ResponseEntity.ok(updatedUser);

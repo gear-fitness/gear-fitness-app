@@ -471,6 +471,8 @@ public class AuthService {
       .weightLbs(user.getWeightLbs())
       .heightInches(user.getHeightInches())
       .age(user.getAge())
+      .activityLevel(user.getActivityLevel())
+      .goalWeightLbs(user.getGoalWeightLbs())
       .isPrivate(user.getIsPrivate())
       .createdAt(user.getCreatedAt())
       .build();

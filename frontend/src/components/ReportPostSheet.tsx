@@ -1,11 +1,6 @@
 import { useState } from "react";
-import {
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { Text, TextInput } from "./Text";
 import { useTheme } from "@react-navigation/native";
 import { ReportReason } from "../api/reportService";
 import { BottomSheet } from "./BottomSheet";

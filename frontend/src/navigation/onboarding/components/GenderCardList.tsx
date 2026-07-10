@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import { View, StyleSheet, Pressable } from "react-native";
+import { Text } from "../../../components/Text";
 import { Gender } from "../types";
 import { useOnboardingColors } from "./useOnboardingColors";
 

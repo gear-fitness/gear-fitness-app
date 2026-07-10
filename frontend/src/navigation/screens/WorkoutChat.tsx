@@ -1,13 +1,12 @@
 import {
   StyleSheet,
   View,
-  TextInput,
   TouchableOpacity,
   ScrollView,
-  Text,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { Text, TextInput } from "../../components/Text";
 import {
   SafeAreaView,
   useSafeAreaInsets,

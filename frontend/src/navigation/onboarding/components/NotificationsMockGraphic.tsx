@@ -1,11 +1,6 @@
 import React from "react";
-import {
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-  useWindowDimensions,
-} from "react-native";
+import { View, Pressable, StyleSheet, useWindowDimensions } from "react-native";
+import { Text } from "../../../components/Text";
 import { useOnboardingColors } from "./useOnboardingColors";
 
 /** A stylised iOS notification-permission dialog used as the hero on the

@@ -12,7 +12,7 @@ import {
   TextStyle,
   Dimensions,
 } from "react-native";
-import { Text } from "@react-navigation/elements";
+import { FontScaleProvider, Text } from "./Text";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useTheme } from "@react-navigation/native";
 import { FeedPost } from "../api/socialFeedApi";
@@ -187,268 +187,274 @@ export function FeedPostCard({ post, isPending = false }: Props) {
   const contentPaddingHorizontal = 16;
 
   return (
-    <View
-      style={[
-        styles.card,
-        { backgroundColor: cardBg, borderColor: colors.border },
-      ]}
-    >
-      {isPending && <PendingProgressBar color={colors.text} />}
-      <PostActionsSheet
-        visible={showActionsSheet}
-        actions={menuActions}
-        onClose={closeActionsSheet}
-        onClosed={onActionsSheetClosed}
-      />
-      <PostVisibilitySheet
-        visible={showVisibilitySheet}
-        current={pendingVisibility}
-        onSelect={handleVisibilitySelect}
-        onClose={closeVisibilitySheet}
-      />
-      <ReportPostSheet
-        visible={showReportSheet}
-        onSubmit={submitReport}
-        onClose={closeReportSheet}
-      />
-      <View style={styles.header}>
-        {isOwnPost ? (
-          <View style={styles.userInfoWrap}>{userHeader}</View>
-        ) : (
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() =>
-              (navigation as any).push("UserProfile", {
-                username: post.username,
-              })
-            }
-            style={styles.userInfoWrap}
-          >
-            {userHeader}
-          </TouchableOpacity>
-        )}
-        <TouchableOpacity
-          onPress={onMenuPress}
-          hitSlop={10}
-          accessibilityLabel="More options"
-        >
-          <Ionicons name="ellipsis-horizontal" size={20} color={colors.text} />
-        </TouchableOpacity>
-      </View>
-
-      {photos.length === 1 && (
-        // Single photo (the common case): render directly so its width comes
-        // from the flex-laid-out carouselWrap. This has a real width on the
-        // very first render, so the <Image> can never mount into a 0-width box
-        // (the cause of the flat-gray "average color" bug) regardless of
-        // whether the presigned url is resolved synchronously from cache.
-        <View style={styles.carouselWrap}>
-          <TouchableWithoutFeedback onPress={openImageViewer}>
-            <View>
-              <PresignedImage
-                imageKey={photos[0]}
-                style={[styles.image, { borderColor: colors.border }]}
-                resizeMode="cover"
-              />
-            </View>
-          </TouchableWithoutFeedback>
-        </View>
-      )}
-
-      {photos.length > 1 && (
-        <View style={styles.carouselWrap}>
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onLayout={handleScrollLayout}
-            onMomentumScrollEnd={handlePhotoScroll}
-          >
-            {photos.map((url, i) => (
-              <TouchableWithoutFeedback
-                key={`${url}-${i}`}
-                onPress={openImageViewer}
-              >
-                <View style={{ width: scrollWidth }}>
-                  <PresignedImage
-                    imageKey={url}
-                    style={[styles.image, { borderColor: colors.border }]}
-                    resizeMode="cover"
-                  />
-                </View>
-              </TouchableWithoutFeedback>
-            ))}
-          </ScrollView>
-          <View style={styles.dotsRow}>
-            {photos.map((_, i) => (
-              <View
-                key={i}
-                style={[
-                  styles.dot,
-                  {
-                    backgroundColor:
-                      i === activePhotoIndex ? colors.text : colors.border,
-                    opacity: i === activePhotoIndex ? 0.9 : 0.5,
-                  },
-                ]}
-              />
-            ))}
-          </View>
-        </View>
-      )}
-
-      <TouchableOpacity
-        activeOpacity={isPending ? 1 : 0.7}
-        disabled={isPending}
-        onPress={() => {
-          if (isPending) return;
-          const targetNavigator = navigation.getParent() || navigation;
-          targetNavigator.navigate("DetailedHistory", {
-            workoutId: post.workoutId,
-            caption: post.caption,
-            workoutName: post.workoutName,
-            postId: post.postId,
-            ownerUserId: post.userId,
-            ownerUsername: post.username,
-            viewerFollowsAuthor: post.viewerFollowsAuthor,
-            initialLikeCount: likeCount,
-            initialLikedByUser: likedByUser,
-          });
-        }}
+    <FontScaleProvider max={1}>
+      <View
+        style={[
+          styles.card,
+          { backgroundColor: cardBg, borderColor: colors.border },
+        ]}
       >
-        <View
-          style={[
-            styles.titleBlock,
-            hasPhotos && { paddingHorizontal: contentPaddingHorizontal },
-          ]}
-        >
-          <Text style={[styles.dateOverline, textMuted]}>
-            {formatOverlineDate(post.datePerformed)}
-          </Text>
-          <Text style={[styles.workoutName, { color: colors.text }]}>
-            {post.workoutName}
-          </Text>
+        {isPending && <PendingProgressBar color={colors.text} />}
+        <PostActionsSheet
+          visible={showActionsSheet}
+          actions={menuActions}
+          onClose={closeActionsSheet}
+          onClosed={onActionsSheetClosed}
+        />
+        <PostVisibilitySheet
+          visible={showVisibilitySheet}
+          current={pendingVisibility}
+          onSelect={handleVisibilitySelect}
+          onClose={closeVisibilitySheet}
+        />
+        <ReportPostSheet
+          visible={showReportSheet}
+          onSubmit={submitReport}
+          onClose={closeReportSheet}
+        />
+        <View style={styles.header}>
+          {isOwnPost ? (
+            <View style={styles.userInfoWrap}>{userHeader}</View>
+          ) : (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() =>
+                (navigation as any).push("UserProfile", {
+                  username: post.username,
+                })
+              }
+              style={styles.userInfoWrap}
+            >
+              {userHeader}
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            onPress={onMenuPress}
+            hitSlop={10}
+            accessibilityLabel="More options"
+          >
+            <Ionicons
+              name="ellipsis-horizontal"
+              size={20}
+              color={colors.text}
+            />
+          </TouchableOpacity>
         </View>
 
-        <View
-          style={[
-            styles.metricsRow,
-            hasPhotos && { paddingHorizontal: contentPaddingHorizontal },
-          ]}
-        >
-          {hasDuration && (
-            <View style={styles.metric}>
-              <Text style={[styles.metricLabel, textMuted]}>Time</Text>
-              <Text style={[styles.metricValue, { color: colors.text }]}>
-                {formatDuration(post.durationMin!)}
-              </Text>
+        {photos.length === 1 && (
+          // Single photo (the common case): render directly so its width comes
+          // from the flex-laid-out carouselWrap. This has a real width on the
+          // very first render, so the <Image> can never mount into a 0-width box
+          // (the cause of the flat-gray "average color" bug) regardless of
+          // whether the presigned url is resolved synchronously from cache.
+          <View style={styles.carouselWrap}>
+            <TouchableWithoutFeedback onPress={openImageViewer}>
+              <View>
+                <PresignedImage
+                  imageKey={photos[0]}
+                  style={[styles.image, { borderColor: colors.border }]}
+                  resizeMode="cover"
+                />
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        )}
+
+        {photos.length > 1 && (
+          <View style={styles.carouselWrap}>
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onLayout={handleScrollLayout}
+              onMomentumScrollEnd={handlePhotoScroll}
+            >
+              {photos.map((url, i) => (
+                <TouchableWithoutFeedback
+                  key={`${url}-${i}`}
+                  onPress={openImageViewer}
+                >
+                  <View style={{ width: scrollWidth }}>
+                    <PresignedImage
+                      imageKey={url}
+                      style={[styles.image, { borderColor: colors.border }]}
+                      resizeMode="cover"
+                    />
+                  </View>
+                </TouchableWithoutFeedback>
+              ))}
+            </ScrollView>
+            <View style={styles.dotsRow}>
+              {photos.map((_, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.dot,
+                    {
+                      backgroundColor:
+                        i === activePhotoIndex ? colors.text : colors.border,
+                      opacity: i === activePhotoIndex ? 0.9 : 0.5,
+                    },
+                  ]}
+                />
+              ))}
             </View>
-          )}
-          <View style={styles.metric}>
-            <Text style={[styles.metricLabel, textMuted]}>Exercises</Text>
-            <Text style={[styles.metricValue, { color: colors.text }]}>
-              {post.exerciseCount}
+          </View>
+        )}
+
+        <TouchableOpacity
+          activeOpacity={isPending ? 1 : 0.7}
+          disabled={isPending}
+          onPress={() => {
+            if (isPending) return;
+            const targetNavigator = navigation.getParent() || navigation;
+            targetNavigator.navigate("DetailedHistory", {
+              workoutId: post.workoutId,
+              caption: post.caption,
+              workoutName: post.workoutName,
+              postId: post.postId,
+              ownerUserId: post.userId,
+              ownerUsername: post.username,
+              viewerFollowsAuthor: post.viewerFollowsAuthor,
+              initialLikeCount: likeCount,
+              initialLikedByUser: likedByUser,
+            });
+          }}
+        >
+          <View
+            style={[
+              styles.titleBlock,
+              hasPhotos && { paddingHorizontal: contentPaddingHorizontal },
+            ]}
+          >
+            <Text style={[styles.dateOverline, textMuted]}>
+              {formatOverlineDate(post.datePerformed)}
+            </Text>
+            <Text style={[styles.workoutName, { color: colors.text }]}>
+              {post.workoutName}
             </Text>
           </View>
-          {!hasPhotos && hasMuscles && (
+
+          <View
+            style={[
+              styles.metricsRow,
+              hasPhotos && { paddingHorizontal: contentPaddingHorizontal },
+            ]}
+          >
+            {hasDuration && (
+              <View style={styles.metric}>
+                <Text style={[styles.metricLabel, textMuted]}>Time</Text>
+                <Text style={[styles.metricValue, { color: colors.text }]}>
+                  {formatDuration(post.durationMin!)}
+                </Text>
+              </View>
+            )}
             <View style={styles.metric}>
+              <Text style={[styles.metricLabel, textMuted]}>Exercises</Text>
+              <Text style={[styles.metricValue, { color: colors.text }]}>
+                {post.exerciseCount}
+              </Text>
+            </View>
+            {!hasPhotos && hasMuscles && (
+              <View style={styles.metric}>
+                <Text style={[styles.metricLabel, textMuted]}>Muscles</Text>
+                <Text style={[styles.musclesText, { color: colors.text }]}>
+                  {post.bodyTags.map(formatTag).join(", ")}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {hasPhotos && hasMuscles && (
+            <View
+              style={[
+                styles.musclesRow,
+                { paddingHorizontal: contentPaddingHorizontal },
+              ]}
+            >
               <Text style={[styles.metricLabel, textMuted]}>Muscles</Text>
               <Text style={[styles.musclesText, { color: colors.text }]}>
                 {post.bodyTags.map(formatTag).join(", ")}
               </Text>
             </View>
           )}
-        </View>
 
-        {hasPhotos && hasMuscles && (
-          <View
-            style={[
-              styles.musclesRow,
-              { paddingHorizontal: contentPaddingHorizontal },
-            ]}
+          {post.caption && (
+            <MentionableText
+              text={post.caption}
+              style={[
+                styles.caption,
+                { color: colors.text },
+                hasPhotos && { paddingHorizontal: contentPaddingHorizontal },
+              ]}
+            />
+          )}
+        </TouchableOpacity>
+
+        <View
+          style={[
+            styles.engagement,
+            {
+              backgroundColor: innerBg,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <TouchableOpacity
+            style={styles.engagementItem}
+            onPress={isPending ? undefined : handleLike}
+            disabled={isPending}
+            activeOpacity={isPending ? 1 : 0.7}
           >
-            <Text style={[styles.metricLabel, textMuted]}>Muscles</Text>
-            <Text style={[styles.musclesText, { color: colors.text }]}>
-              {post.bodyTags.map(formatTag).join(", ")}
+            <Ionicons
+              name={likedByUser ? "heart" : "heart-outline"}
+              size={24}
+              color={likedByUser ? "#e74c3c" : colors.text}
+              style={isPending ? styles.engagementDisabled : undefined}
+            />
+            <Text
+              style={[
+                styles.engagementText,
+                { color: likedByUser ? "#e74c3c" : colors.text },
+                isPending && styles.engagementDisabled,
+              ]}
+            >
+              {likeCount}
             </Text>
-          </View>
-        )}
-
-        {post.caption && (
-          <MentionableText
-            text={post.caption}
-            style={[
-              styles.caption,
-              { color: colors.text },
-              hasPhotos && { paddingHorizontal: contentPaddingHorizontal },
-            ]}
-          />
-        )}
-      </TouchableOpacity>
-
-      <View
-        style={[
-          styles.engagement,
-          {
-            backgroundColor: innerBg,
-            borderColor: colors.border,
-          },
-        ]}
-      >
-        <TouchableOpacity
-          style={styles.engagementItem}
-          onPress={isPending ? undefined : handleLike}
-          disabled={isPending}
-          activeOpacity={isPending ? 1 : 0.7}
-        >
-          <Ionicons
-            name={likedByUser ? "heart" : "heart-outline"}
-            size={24}
-            color={likedByUser ? "#e74c3c" : colors.text}
-            style={isPending ? styles.engagementDisabled : undefined}
-          />
-          <Text
-            style={[
-              styles.engagementText,
-              { color: likedByUser ? "#e74c3c" : colors.text },
-              isPending && styles.engagementDisabled,
-            ]}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.engagementItem}
+            onPress={
+              isPending
+                ? undefined
+                : () =>
+                    navigation.navigate("Comments", {
+                      postId: post.postId,
+                      postOwnerId: post.userId,
+                    })
+            }
+            disabled={isPending}
+            activeOpacity={isPending ? 1 : 0.7}
           >
-            {likeCount}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.engagementItem}
-          onPress={
-            isPending
-              ? undefined
-              : () =>
-                  navigation.navigate("Comments", {
-                    postId: post.postId,
-                    postOwnerId: post.userId,
-                  })
-          }
-          disabled={isPending}
-          activeOpacity={isPending ? 1 : 0.7}
-        >
-          <Ionicons
-            name="chatbubble-outline"
-            size={24}
-            color={colors.text}
-            style={isPending ? styles.engagementDisabled : undefined}
-          />
-          <Text
-            style={[
-              styles.engagementText,
-              { color: colors.text },
-              isPending && styles.engagementDisabled,
-            ]}
-          >
-            {post.commentCount}
-          </Text>
-        </TouchableOpacity>
+            <Ionicons
+              name="chatbubble-outline"
+              size={24}
+              color={colors.text}
+              style={isPending ? styles.engagementDisabled : undefined}
+            />
+            <Text
+              style={[
+                styles.engagementText,
+                { color: colors.text },
+                isPending && styles.engagementDisabled,
+              ]}
+            >
+              {post.commentCount}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
+    </FontScaleProvider>
   );
 }
 
