@@ -1,54 +1,56 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
-  Alert,
-  Animated,
-  Keyboard,
   LayoutAnimation,
   Platform,
-  ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   UIManager,
   View,
 } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { Text } from "../../../components/Text";
 import Reanimated, {
   Easing,
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
+  withSequence,
   withTiming,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
-import PagerView from "react-native-pager-view";
-import Swipeable, {
-  SwipeableMethods,
-} from "react-native-gesture-handler/ReanimatedSwipeable";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { useThemeColors } from "../../../hooks/useThemeColors";
 import { useTrackTab } from "../../../hooks/useTrackTab";
+import { useTier } from "../../../hooks/useTier";
 import { useNutrition } from "../../../context/NutritionContext";
-import { FoodLogEntry } from "../../../api/types";
-import { formatQuantity } from "../../../utils/nutritionUnits";
 import {
   getCurrentLocalDateString,
   getLocalDateStringFromEpoch,
   parseLocalDate,
 } from "../../../utils/date";
 import { MacroRing } from "./components/MacroRing";
-import { EditEntrySheet } from "./components/EditEntrySheet";
-import { MealSwipeLeftAction } from "./components/MealMenuButton";
-import { SmartJournal } from "./components/SmartJournal";
+import { macroColor } from "./components/macroColors";
+import { CalendarSheet } from "./components/CalendarSheet";
+import { FoodJournal } from "./components/FoodJournal";
 import { CameraLogMenu } from "./components/CameraLogMenu";
-import { AddLogMenu } from "./components/AddLogMenu";
+import { SavedFoodsSheet } from "./components/SavedFoodsSheet";
+import { PhotoEstimateSheet } from "./components/PhotoEstimateSheet";
+import { useCameraFoodLog } from "./useCameraFoodLog";
 import { progressColor } from "./components/progressColor";
 import { FloatingKeyboardDismiss } from "../../../components/FloatingKeyboardDismiss";
 
-// LayoutAnimation drives the smooth meal-card collapse. It's on by default on
-// iOS; enable the experimental path on Android so the animation isn't dropped.
+// LayoutAnimation drives the smooth summary-card collapse. It's on by default
+// on iOS; enable the experimental path on Android so the animation isn't
+// dropped.
 if (
   Platform.OS === "android" &&
   UIManager.setLayoutAnimationEnabledExperimental
@@ -79,64 +81,45 @@ function dateLabel(dateStr: string): string {
 
 const round = (n: number | null | undefined) => Math.round(n ?? 0);
 
-// Subtitle for a logged row: the exact quantity + unit. Prefers the entry's
-// client-side display unit (e.g. "4 oz", "1 cup"); falls back to its stored
-// serving/gram amount.
-function entrySubtitle(
-  entry: FoodLogEntry,
-  meta: ReturnType<ReturnType<typeof useNutrition>["getEntryUnitMeta"]>,
-): string {
-  if (meta) return formatQuantity(meta.quantity, meta.unitKey);
-  const n = entry.quantity;
-  if (entry.unit === "GRAM") return `${n} g`;
-  return `${n} ${n === 1 ? "serving" : "servings"}`;
-}
+// Day-swipe tuning. Activation is deliberately horizontal (a vertical drift
+// fails the gesture so the journal keeps scrolling), the content follows the
+// finger heavily damped, and a swipe only commits on release — one day per
+// gesture, no matter how far the finger travels.
+const DAY_SWIPE_ACTIVATE = 24; // horizontal px before the pan claims the touch
+const DAY_SWIPE_FAIL_Y = 16; // vertical px that hands the touch to scrolling
+const DAY_SWIPE_TRIGGER = 72; // slow drag must travel this far to commit
+const DAY_SWIPE_FLICK_DISTANCE = 36; // a flick may commit from here...
+const DAY_SWIPE_FLICK_VELOCITY = 650; // ...if it's at least this fast (px/s)
+const DAY_SWIPE_DAMPING = 0.35; // finger-follow resistance
+const DAY_SWIPE_SLIDE = 56; // slide-out/in distance when a swipe commits
 
+/**
+ * The Nutrition tab: a per-day food journal (Plus-only). The summary card
+ * tracks calories/macros against the user's goals; below it, one journal holds
+ * everything logged that day — lines typed and AI-parsed, and foods picked
+ * from the database via the "+" (Add food) button. Non-Plus users get the
+ * locked screen with an upsell.
+ */
 export function CalorieTracker() {
   useTrackTab("Nutrition");
   const t = useThemeColors();
-  const navigation = useNavigation<any>();
-  const {
-    selectedDate,
-    setSelectedDate,
-    summary,
-    categories,
-    isRecurring,
-    refresh,
-    removeLog,
-    getEntryUnitMeta,
-    addCategory,
-    renameCategory,
-    removeCategory,
-    setCategoryRecurring,
-  } = useNutrition();
-
-  const [isAddingCategory, setIsAddingCategory] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState("");
-  const [editingEntry, setEditingEntry] = useState<FoodLogEntry | null>(null);
-  const [renamingCategory, setRenamingCategory] = useState<string | null>(null);
-  const [renameText, setRenameText] = useState("");
-
-  // Which logging section is showing: 0 = Manual, 1 = Smart journal. Kept in
-  // sync with the pager below (swipe or tap the toggle to switch).
-  const [activeSection, setActiveSection] = useState(0);
-  const pagerRef = useRef<PagerView>(null);
-
-  // Names of the meal cards the user has expanded. Everything starts collapsed;
-  // expanding reveals a card's entries behind a smooth height change.
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const navigation = useNavigation() as any;
+  const { atLeast } = useTier();
+  const isPlus = atLeast("PLUS");
+  const { selectedDate, setSelectedDate, summary, refresh } = useNutrition();
 
   // Whether the calorie summary card is collapsed to its compact form (just the
-  // calorie header + progress bar). Expanding reveals the macro rings. Starts
-  // collapsed so the screen opens compact.
-  const [summaryCollapsed, setSummaryCollapsed] = useState(true);
+  // calorie header + progress bar). Collapsing hides the macro rings. Starts
+  // expanded so the macros are visible on open.
+  const [summaryCollapsed, setSummaryCollapsed] = useState(false);
 
-  const changeSection = (index: number) => {
-    if (index === activeSection) return;
-    Keyboard.dismiss();
-    Haptics.selectionAsync().catch(() => {});
-    pagerRef.current?.setPage(index);
-  };
+  // Calendar bottom sheet opened from the date label, for jumping straight to
+  // a day instead of stepping the chevrons one day at a time.
+  const [calendarOpen, setCalendarOpen] = useState(false);
+
+  // Favorites sheet (the user's reusable custom foods), opened from the
+  // ribbon button in the controls row.
+  const [savedOpen, setSavedOpen] = useState(false);
 
   const toggleSummary = () => {
     Haptics.selectionAsync().catch(() => {});
@@ -150,38 +133,56 @@ export function CalorieTracker() {
     setSummaryCollapsed((v) => !v);
   };
 
-  const toggleExpanded = (name: string) => {
-    Haptics.selectionAsync().catch(() => {});
-    LayoutAnimation.configureNext(
-      LayoutAnimation.create(
-        220,
-        LayoutAnimation.Types.easeInEaseOut,
-        LayoutAnimation.Properties.opacity,
-      ),
-    );
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
-      return next;
-    });
-  };
-
   const glassAvailable = isLiquidGlassAvailable();
 
   useFocusEffect(
     useCallback(() => {
+      // Refresh for every tier: non-Plus users can't log, but they can edit
+      // goals, so the summary card must reflect goal changes on return.
       refresh();
     }, [refresh]),
   );
 
+  // Setup is required before the tracker is usable: visiting this tab before
+  // completing the calorie-calculator wizard (server-tracked via
+  // goal.setupComplete) pushes the wizard full screen in forced mode, which
+  // offers no way back, so completing it is the only path to the tracker.
+  // Saving awaits the summary refresh before popping, so this screen
+  // refocuses with setupComplete already true and doesn't re-push. The ref
+  // de-dupes pushes within one focus (the effect re-runs when the summary
+  // refreshes); the blur listener re-arms it for the next visit. The strict
+  // `=== false` keeps old cached/legacy responses (undefined) from trapping
+  // users who already completed setup.
+  const needsSetup = summary?.goal?.setupComplete === false;
+  const setupPushed = useRef(false);
+  useEffect(
+    () =>
+      navigation.addListener("blur", () => {
+        setupPushed.current = false;
+      }),
+    [navigation],
+  );
+  useFocusEffect(
+    useCallback(() => {
+      if (!setupPushed.current && needsSetup) {
+        setupPushed.current = true;
+        navigation.navigate("NutritionSetup", { forced: true });
+      }
+    }, [needsSetup, navigation]),
+  );
+
   const goal = summary?.goal;
   const totals = summary?.totals;
+  // Cutting turns the calorie/carb/fat gauges into budgets: green anywhere
+  // under the goal, sweeping to red only once it's exceeded. Protein stays a
+  // target (green when met) on every goal type.
+  const reverseGauges = goal?.goalType === "CUT";
   const consumed = round(totals?.calories);
   const calorieGoal = goal?.calorieGoal ?? 0;
-  const caloriePct = calorieGoal > 0 ? Math.min(consumed / calorieGoal, 1) : 0;
-  const isToday = selectedDate === getCurrentLocalDateString();
-
+  // Raw ratio keeps the overshoot for the budget coloring; the clamped pct
+  // drives the bar width so the fill never escapes the track.
+  const rawCaloriePct = calorieGoal > 0 ? consumed / calorieGoal : 0;
+  const caloriePct = Math.min(rawCaloriePct, 1);
   // Fraction of the calorie bar filled, animated on the UI thread. The width
   // eases from 0 to caloriePct so the bar draws itself on entry.
   const barProgress = useSharedValue(0);
@@ -211,737 +212,437 @@ export function CalorieTracker() {
     width: `${barProgress.value * 100}%`,
   }));
 
-  // AI Smart Journal foods live only in that tab — keep them out of the manual
-  // meal cards (they still count toward the day's totals, which come from
-  // summary.totals, computed server-side over every entry).
-  const entries = (summary?.entries ?? []).filter(
-    (e) => !e.sourceType?.startsWith("AI"),
-  );
-
-  // An entry's visual bucket: its label, or "Uncategorized" when it has none.
-  // Without this fallback, entries with a null/empty category (e.g. legacy rows
-  // from the old meal_category table) are summed into the day's totals by the
-  // backend but never rendered under any card — showing phantom calories with
-  // "nothing logged". Bucketing them keeps the displayed cards reconciled with
-  // the total and lets the user delete them.
-  const bucketOf = (e: FoodLogEntry): string =>
-    e.category && e.category.trim() ? e.category : "Uncategorized";
-
-  const entriesForCategory = (name: string): FoodLogEntry[] =>
-    entries.filter((e) => bucketOf(e) === name);
-
-  // Cards to show: the user's category list, plus any bucket present in the
-  // day's entries that isn't already in the list (so logged food is never
-  // hidden from the totals).
-  const extraCategories = Array.from(
-    new Set(entries.map(bucketOf).filter((c) => !categories.includes(c))),
-  );
-  const displayedCategories = [...categories, ...extraCategories];
-
   const openAddFood = useCallback(() => {
-    navigation.navigate("AddFood", {
-      category: displayedCategories[0] ?? "Breakfast",
+    navigation.navigate("AddFood");
+  }, [navigation]);
+
+  // Camera logging flows (barcode scan / take photo / choose from library).
+  // Sits behind the same Plus capture overlay as the rest of the controls.
+  const cameraLog = useCameraFoodLog();
+
+  // Non-Plus users see the tracker as a preview: the summary card stays live
+  // (collapse toggle + Edit goals are free features), but anything that logs
+  // or browses the journal opens the upsell sheet instead. Gating is split by
+  // shape: discrete buttons wrap their handlers in `gate`, the controls row +
+  // journal sit under a capture overlay, and the day-swipe pan branches in
+  // its onEnd.
+  const openUpsell = useCallback(() => {
+    navigation.navigate("PlusUpsell", {
+      feature: "Track calories and macros with the food journal",
     });
-  }, [navigation, displayedCategories]);
+  }, [navigation]);
 
-  const createCategory = async (raw: string) => {
-    const name = raw.trim();
-    if (!name) return;
-    if (categories.some((c) => c.toLowerCase() === name.toLowerCase())) {
-      Alert.alert("Meal exists", `"${name}" is already a meal.`);
-      return;
-    }
-    await addCategory(name);
-  };
+  // Non-Plus taps open the upsell instead of running the action. Incomplete
+  // setup needs no gate here: the wizard renders in place of the tracker, so
+  // these controls don't exist until setup is done.
+  const gate = useCallback(
+    (fn: () => void) => () => {
+      if (!isPlus) {
+        openUpsell();
+      } else {
+        fn();
+      }
+    },
+    [isPlus, openUpsell],
+  );
 
-  // "Add meal category" from the "+" menu. iOS gets a native text prompt so the
-  // whole flow lives at the menu; Android (no Alert.prompt) falls back to the
-  // inline input card rendered under the meal list.
-  const promptAddCategory = () => {
-    if (Platform.OS === "ios") {
-      Alert.prompt(
-        "New meal category",
-        "Name this meal (e.g. Meal Prep)",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Add",
-            onPress: (text?: string) => createCategory(text ?? ""),
-          },
-        ],
-        "plain-text",
-      );
-      return;
-    }
-    setNewCategoryName("");
-    setIsAddingCategory(true);
-  };
+  // Horizontal swipe steps one day: left → next, right → previous. The
+  // content follows the finger (damped, slightly fading), and on a decisive
+  // release slides out toward the swipe and the new day slides in from the
+  // other side. Committing only on release caps it at one day per gesture.
+  const dayShift = useSharedValue(0);
+  const selectedDateRef = useRef(selectedDate);
+  selectedDateRef.current = selectedDate;
 
-  const handleInlineCreate = async () => {
-    setIsAddingCategory(false);
-    const raw = newCategoryName;
-    setNewCategoryName("");
-    await createCategory(raw);
-  };
+  const swipeToDay = useCallback(
+    (dir: 1 | -1) => {
+      Haptics.selectionAsync().catch(() => {});
+      setSelectedDate(shiftDate(selectedDateRef.current, dir));
+    },
+    [setSelectedDate],
+  );
 
-  const handleDeleteCategory = (name: string) => {
-    const count = entriesForCategory(name).length;
-    const msg =
-      count > 0
-        ? `Delete "${name}"? The ${count} item${count === 1 ? "" : "s"} logged under it today will also be removed.`
-        : `Delete "${name}"?`;
-    Alert.alert("Delete meal", msg, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => removeCategory(name),
-      },
-    ]);
-  };
+  const daySwipe = useMemo(
+    () =>
+      Gesture.Pan()
+        .activeOffsetX([-DAY_SWIPE_ACTIVATE, DAY_SWIPE_ACTIVATE])
+        .failOffsetY([-DAY_SWIPE_FAIL_Y, DAY_SWIPE_FAIL_Y])
+        .onUpdate((e) => {
+          dayShift.value = e.translationX * DAY_SWIPE_DAMPING;
+        })
+        .onEnd((e) => {
+          const tx = e.translationX;
+          const decisive =
+            Math.abs(tx) >= DAY_SWIPE_TRIGGER ||
+            (Math.abs(tx) >= DAY_SWIPE_FLICK_DISTANCE &&
+              Math.abs(e.velocityX) >= DAY_SWIPE_FLICK_VELOCITY);
+          if (!decisive || !isPlus) {
+            // Settle back without changing the day: either the drag wasn't a
+            // real swipe, or day browsing is locked (non-Plus). A decisive
+            // locked swipe still counts as an interaction, so it opens the
+            // upsell as the content springs home.
+            dayShift.value = withTiming(0, {
+              duration: 180,
+              easing: Easing.out(Easing.cubic),
+            });
+            if (decisive && !isPlus) runOnJS(openUpsell)();
+            return;
+          }
+          const dir = tx < 0 ? 1 : -1;
+          runOnJS(swipeToDay)(dir);
+          // Slide out with the swipe, teleport to the far side, ease back in —
+          // reads as the new day sliding into place.
+          dayShift.value = withSequence(
+            withTiming(-dir * DAY_SWIPE_SLIDE, {
+              duration: 110,
+              easing: Easing.in(Easing.quad),
+            }),
+            withTiming(dir * DAY_SWIPE_SLIDE, { duration: 0 }),
+            withTiming(0, {
+              duration: 220,
+              easing: Easing.out(Easing.cubic),
+            }),
+          );
+        }),
+    [dayShift, swipeToDay, isPlus, openUpsell],
+  );
 
-  const renameCategoryTo = async (old: string, raw: string) => {
-    const next = raw.trim();
-    if (!old || !next || next === old) return;
-    if (
-      categories.some(
-        (c) =>
-          c.toLowerCase() === next.toLowerCase() &&
-          c.toLowerCase() !== old.toLowerCase(),
-      )
-    ) {
-      Alert.alert("Meal exists", `"${next}" is already a meal.`);
-      return;
-    }
-    // Carry the expanded flag across the rename. `expanded` is keyed by
-    // category name, so without this the renamed card loses its state and
-    // springs shut (or the stale old-name entry lingers).
-    setExpanded((prev) => {
-      if (!prev.has(old)) return prev;
-      const nextSet = new Set(prev);
-      nextSet.delete(old);
-      nextSet.add(next);
-      return nextSet;
-    });
-    await renameCategory(old, next);
-  };
-
-  // Rename from a meal card's menu. iOS gets a native text prompt pre-filled
-  // with the current name; Android (no Alert.prompt) falls back to the inline
-  // TextInput in the card header.
-  const startRename = (name: string) => {
-    if (Platform.OS === "ios") {
-      Alert.prompt(
-        "Rename meal",
-        undefined,
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Save",
-            onPress: (text?: string) => renameCategoryTo(name, text ?? ""),
-          },
-        ],
-        "plain-text",
-        name,
-      );
-      return;
-    }
-    setRenamingCategory(name);
-    setRenameText(name);
-  };
-
-  const submitInlineRename = async () => {
-    const old = renamingCategory;
-    const raw = renameText;
-    setRenamingCategory(null);
-    setRenameText("");
-    if (!old) return;
-    await renameCategoryTo(old, raw);
-  };
+  const dayShiftStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: dayShift.value }],
+    // Subtle fade with displacement so the drag reads as "leaving the page".
+    opacity:
+      1 - Math.min(Math.abs(dayShift.value) / (DAY_SWIPE_SLIDE * 3), 0.35),
+  }));
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: t.appBg }]}>
-      {/* Date navigation */}
-      <View style={styles.dateRow}>
-        <TouchableOpacity
-          accessibilityLabel="Previous day"
-          hitSlop={12}
-          onPress={() => {
-            // Fire on an actual day change; the back chevron is always enabled.
-            Haptics.selectionAsync().catch(() => {});
-            setSelectedDate(shiftDate(selectedDate, -1));
-          }}
-        >
-          <Ionicons name="chevron-back" size={24} color={t.text} />
-        </TouchableOpacity>
-        <Text style={[styles.dateLabel, { color: t.text }]}>
-          {dateLabel(selectedDate)}
-        </Text>
-        <TouchableOpacity
-          accessibilityLabel="Next day"
-          hitSlop={12}
-          disabled={isToday}
-          onPress={() => {
-            // Disabled on today, so this only fires when the day actually moves.
-            Haptics.selectionAsync().catch(() => {});
-            setSelectedDate(shiftDate(selectedDate, 1));
-          }}
-        >
-          <Ionicons
-            name="chevron-forward"
-            size={24}
-            color={isToday ? t.border : t.text}
-          />
-        </TouchableOpacity>
-      </View>
+      {/* Everything that belongs to the shown day swipes as one piece; the
+          sheets/modals below live outside so they never translate. */}
+      <GestureDetector gesture={daySwipe}>
+        <Reanimated.View style={[styles.flex1, dayShiftStyle]}>
+          {/* Date navigation */}
+          <View style={styles.dateRow}>
+            <TouchableOpacity
+              accessibilityLabel="Previous day"
+              hitSlop={12}
+              onPress={gate(() => {
+                // Fire on an actual day change; the back chevron is always enabled.
+                Haptics.selectionAsync().catch(() => {});
+                setSelectedDate(shiftDate(selectedDate, -1));
+              })}
+            >
+              <Ionicons name="chevron-back" size={24} color={t.text} />
+            </TouchableOpacity>
+            {/* Tap the label to open a calendar dropdown and jump straight to a
+            day (the chevrons still step one day at a time). */}
+            <TouchableOpacity
+              style={styles.dateLabelBtn}
+              accessibilityLabel="Choose date"
+              hitSlop={8}
+              onPress={gate(() => {
+                Haptics.selectionAsync().catch(() => {});
+                setCalendarOpen(true);
+              })}
+            >
+              <Text style={[styles.dateLabel, { color: t.text }]}>
+                {dateLabel(selectedDate)}
+              </Text>
+              {/* Absolutely positioned so the label centers on the text alone
+              and the caret hangs off its right edge. */}
+              <Ionicons
+                name="chevron-down"
+                size={14}
+                color={t.secondary}
+                style={styles.dateCaret}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              accessibilityLabel="Next day"
+              hitSlop={12}
+              onPress={gate(() => {
+                // Future days are steppable too (logging ahead), matching the
+                // calendar sheet, which has always allowed selecting them.
+                Haptics.selectionAsync().catch(() => {});
+                setSelectedDate(shiftDate(selectedDate, 1));
+              })}
+            >
+              <Ionicons name="chevron-forward" size={24} color={t.text} />
+            </TouchableOpacity>
+          </View>
 
-      {/* Summary chip — a compact glass card above the logging sections. Tap to
+          {/* Summary chip — a compact glass card above the journal. Tap to
           collapse it down to just the calorie header + progress bar, or expand
           to reveal the macro rings. */}
-      <View style={styles.summaryWrap}>
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={toggleSummary}
-          accessibilityLabel={summaryCollapsed ? "Show macros" : "Hide macros"}
-          style={[
-            styles.summaryCard,
-            {
-              backgroundColor: glassAvailable ? "transparent" : t.cardBg,
-              borderColor: glassAvailable ? "transparent" : t.cardBorder,
-            },
-          ]}
-        >
-          {glassAvailable && (
-            <GlassView
-              style={[StyleSheet.absoluteFillObject, { borderRadius: 20 }]}
-              glassEffectStyle="regular"
-            />
-          )}
-          {/* Calories: label + count. Goals are edited from Settings. When the
-              card is collapsed, compact macro rings sit on the right. */}
-          <View style={styles.calHeader}>
-            <View style={styles.calHeaderLeft}>
-              {!summaryCollapsed && (
-                <Text style={[styles.calLabel, { color: t.secondary }]}>
-                  Calories
-                </Text>
-              )}
-              <Text
-                style={[styles.calCount, { color: t.text }]}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.7}
-              >
-                {consumed}
-                <Text style={[styles.calGoal, { color: t.secondary }]}>
-                  {" / "}
-                  {calorieGoal}
-                </Text>
-              </Text>
-            </View>
-            {summaryCollapsed && (
-              <View style={styles.miniRingsRow}>
-                <MacroRing
-                  label=""
-                  value={round(totals?.carbsG)}
-                  goal={goal?.carbsG ?? 0}
-                  size={38}
-                  stroke={4}
-                  valueFontSize={11}
-                  animateKey={selectedDate}
-                />
-                <MacroRing
-                  label=""
-                  value={round(totals?.proteinG)}
-                  goal={goal?.proteinG ?? 0}
-                  size={38}
-                  stroke={4}
-                  valueFontSize={11}
-                  animateKey={selectedDate}
-                />
-                <MacroRing
-                  label=""
-                  value={round(totals?.fatG)}
-                  goal={goal?.fatG ?? 0}
-                  size={38}
-                  stroke={4}
-                  valueFontSize={11}
-                  animateKey={selectedDate}
-                />
-              </View>
-            )}
-          </View>
-
-          <View style={[styles.calTrack, { backgroundColor: t.trackBg }]}>
-            <Reanimated.View
+          <View style={styles.summaryWrap}>
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={toggleSummary}
+              accessibilityLabel={
+                summaryCollapsed ? "Show macros" : "Hide macros"
+              }
               style={[
-                styles.calFill,
-                barFillStyle,
-                { backgroundColor: progressColor(caloriePct) },
+                styles.summaryCard,
+                {
+                  backgroundColor: glassAvailable ? "transparent" : t.cardBg,
+                  borderColor: glassAvailable ? "transparent" : t.cardBorder,
+                },
               ]}
-            />
-          </View>
-
-          {/* Compact macro rings — hidden while the card is collapsed. */}
-          {!summaryCollapsed && (
-            <View style={styles.ringsRow}>
-              <MacroRing
-                label="Carbs"
-                value={round(totals?.carbsG)}
-                goal={goal?.carbsG ?? 0}
-                size={54}
-                stroke={6}
-                valueFontSize={15}
-                animateKey={selectedDate}
-              />
-              <MacroRing
-                label="Protein"
-                value={round(totals?.proteinG)}
-                goal={goal?.proteinG ?? 0}
-                size={54}
-                stroke={6}
-                valueFontSize={15}
-                animateKey={selectedDate}
-              />
-              <MacroRing
-                label="Fat"
-                value={round(totals?.fatG)}
-                goal={goal?.fatG ?? 0}
-                size={54}
-                stroke={6}
-                valueFontSize={15}
-                animateKey={selectedDate}
-              />
-            </View>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      {/* Controls row, centered between the summary card and the meal cards: a
-          Manual <-> Smart journal toggle, a camera menu (scan / photo / library),
-          and a "+" that opens the Add Food screen. */}
-      <View style={styles.controlsRow}>
-        <GlassView style={styles.circleGlass}>
-          <TouchableOpacity
-            style={styles.circleBtn}
-            onPress={() => changeSection(activeSection === 0 ? 1 : 0)}
-            accessibilityLabel={
-              activeSection === 1
-                ? "Switch to manual logging"
-                : "Switch to smart journal"
-            }
-          >
-            {activeSection === 1 ? (
-              <Ionicons name="restaurant" size={18} color={t.tint} />
-            ) : (
-              <MaterialCommunityIcons
-                name="creation"
-                size={19}
-                color={t.tint}
-              />
-            )}
-          </TouchableOpacity>
-        </GlassView>
-
-        <CameraLogMenu size={38} color={t.tint} />
-
-        <AddLogMenu
-          size={38}
-          color={t.tint}
-          onAddFood={openAddFood}
-          onAddCategory={promptAddCategory}
-        />
-      </View>
-
-      {/* Swipeable logging sections: Manual <-> Smart journal. Both pages stay
-          mounted; swipe or tap the toggle to switch (kept in sync via
-          onPageSelected). */}
-      <PagerView
-        ref={pagerRef}
-        style={styles.flex1}
-        initialPage={0}
-        onPageSelected={(e) => setActiveSection(e.nativeEvent.position)}
-      >
-        <View key="manual" style={styles.flex1} collapsable={false}>
-          <ScrollView
-            contentContainerStyle={styles.pageScroll}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            {/* Meal category cards */}
-            {displayedCategories.map((name) => {
-              const catEntries = entriesForCategory(name);
-              const catCals = catEntries.reduce(
-                (sum, e) => sum + round(e.calories),
-                0,
-              );
-              return (
-                <MealCard
-                  key={name}
-                  name={name}
-                  entries={catEntries}
-                  cals={catCals}
-                  collapsed={!expanded.has(name)}
-                  recurring={isRecurring(name)}
-                  renaming={renamingCategory === name}
-                  renameText={renameText}
-                  onRenameChange={setRenameText}
-                  onRenameSubmit={submitInlineRename}
-                  onToggle={() => toggleExpanded(name)}
-                  onToggleRecurring={() =>
-                    setCategoryRecurring(name, !isRecurring(name))
-                  }
-                  onRename={() => startRename(name)}
-                  onDelete={() => handleDeleteCategory(name)}
-                  onAdd={() =>
-                    navigation.navigate("AddFood", { category: name })
-                  }
-                  onEntryPress={(e) => setEditingEntry(e)}
-                  getSubtitle={(e) =>
-                    entrySubtitle(e, getEntryUnitMeta(e.entryId))
-                  }
+            >
+              {glassAvailable && (
+                <GlassView
+                  style={[StyleSheet.absoluteFillObject, { borderRadius: 20 }]}
+                  glassEffectStyle="regular"
                 />
-              );
-            })}
-
-            {/* New meal category input — Android fallback for the "+" menu's
-                "Add meal category" option (iOS uses a native Alert.prompt). */}
-            {isAddingCategory && (
-              <View
-                style={[
-                  styles.card,
-                  { backgroundColor: t.cardBg, borderColor: t.cardBorder },
-                ]}
-              >
-                <TextInput
-                  autoFocus
-                  value={newCategoryName}
-                  onChangeText={setNewCategoryName}
-                  placeholder="Meal name (e.g. Meal Prep)"
-                  placeholderTextColor={t.secondary}
-                  returnKeyType="done"
-                  onSubmitEditing={handleInlineCreate}
-                  style={[styles.addCategoryInput, { color: t.text }]}
-                />
-                <View style={styles.addCategoryActions}>
+              )}
+              {/* Calories: label + count. Goals are edited via the Edit affordance
+              on the expanded card, or from Settings. When the card is
+              collapsed, compact macro rings sit on the right. */}
+              <View style={styles.calHeader}>
+                <View style={styles.calHeaderLeft}>
+                  <Text
+                    style={[styles.calCount, { color: t.text }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                  >
+                    {consumed}
+                    <Text style={[styles.calGoal, { color: t.secondary }]}>
+                      {" / "}
+                      {calorieGoal}
+                    </Text>
+                  </Text>
+                  {!summaryCollapsed && (
+                    <Text style={[styles.calLabel, { color: t.secondary }]}>
+                      Calories
+                    </Text>
+                  )}
+                </View>
+                {summaryCollapsed ? (
+                  <View style={styles.miniRingsRow}>
+                    <MacroRing
+                      label=""
+                      value={round(totals?.carbsG)}
+                      goal={goal?.carbsG ?? 0}
+                      size={38}
+                      stroke={4}
+                      valueFontSize={11}
+                      animateKey={selectedDate}
+                      reverse={reverseGauges}
+                    />
+                    <MacroRing
+                      label=""
+                      value={round(totals?.proteinG)}
+                      goal={goal?.proteinG ?? 0}
+                      size={38}
+                      stroke={4}
+                      valueFontSize={11}
+                      animateKey={selectedDate}
+                    />
+                    <MacroRing
+                      label=""
+                      value={round(totals?.fatG)}
+                      goal={goal?.fatG ?? 0}
+                      size={38}
+                      stroke={4}
+                      valueFontSize={11}
+                      animateKey={selectedDate}
+                      reverse={reverseGauges}
+                    />
+                  </View>
+                ) : (
                   <TouchableOpacity
+                    style={styles.editGoals}
+                    hitSlop={10}
+                    accessibilityLabel="Edit goals"
                     onPress={() => {
-                      setIsAddingCategory(false);
-                      setNewCategoryName("");
+                      Haptics.selectionAsync().catch(() => {});
+                      navigation.navigate("NutritionGoals");
                     }}
                   >
-                    <Text
-                      style={[styles.addCategoryCancel, { color: t.secondary }]}
-                    >
-                      Cancel
+                    <Ionicons name="pencil" size={12} color={t.tint} />
+                    <Text style={[styles.editGoalsText, { color: t.tint }]}>
+                      Edit
                     </Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={handleInlineCreate}>
-                    <Text style={[styles.addCategoryDone, { color: t.tint }]}>
-                      Add
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+                )}
               </View>
-            )}
-          </ScrollView>
-        </View>
-        <View key="journal" style={styles.flex1} collapsable={false}>
-          <SmartJournal selectedDate={selectedDate} />
-        </View>
-      </PagerView>
 
-      <EditEntrySheet
-        entry={editingEntry}
-        visible={editingEntry !== null}
-        onClose={() => setEditingEntry(null)}
-        onDelete={() => {
-          if (editingEntry) removeLog(editingEntry.entryId);
-          setEditingEntry(null);
+              <View style={[styles.calTrack, { backgroundColor: t.trackBg }]}>
+                <Reanimated.View
+                  style={[
+                    styles.calFill,
+                    barFillStyle,
+                    {
+                      backgroundColor: progressColor(
+                        rawCaloriePct,
+                        reverseGauges,
+                      ),
+                    },
+                  ]}
+                />
+              </View>
+
+              {/* Macro rings — hidden while the card is collapsed. Centers show
+              consumed/goal; labels wear each macro's identity color. */}
+              {!summaryCollapsed && (
+                <View style={styles.ringsRow}>
+                  <MacroRing
+                    label="Carbs"
+                    labelColor={macroColor("carbs", t.isDark)}
+                    labelBold
+                    value={round(totals?.carbsG)}
+                    goal={goal?.carbsG ?? 0}
+                    size={68}
+                    stroke={7}
+                    valueFontSize={12}
+                    showGoal
+                    animateKey={selectedDate}
+                    reverse={reverseGauges}
+                  />
+                  <MacroRing
+                    label="Protein"
+                    labelColor={macroColor("protein", t.isDark)}
+                    labelBold
+                    value={round(totals?.proteinG)}
+                    goal={goal?.proteinG ?? 0}
+                    size={68}
+                    stroke={7}
+                    valueFontSize={12}
+                    showGoal
+                    animateKey={selectedDate}
+                  />
+                  <MacroRing
+                    label="Fat"
+                    labelColor={macroColor("fat", t.isDark)}
+                    labelBold
+                    value={round(totals?.fatG)}
+                    goal={goal?.fatG ?? 0}
+                    size={68}
+                    stroke={7}
+                    valueFontSize={12}
+                    showGoal
+                    animateKey={selectedDate}
+                    reverse={reverseGauges}
+                  />
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Everything below the summary card is Plus-only, grouped under one
+          wrapper so a single capture overlay gates it all (including the
+          camera menu's and journal's internal controls, which would otherwise
+          each need their own tier checks). */}
+          <View style={styles.flex1}>
+            <View
+              style={styles.flex1}
+              // Hide the gated controls from screen readers while locked, so
+              // VoiceOver lands on the overlay button instead of activating the
+              // controls underneath (which never see touches but do get a11y
+              // activations).
+              accessibilityElementsHidden={!isPlus}
+              importantForAccessibility={
+                !isPlus ? "no-hide-descendants" : "auto"
+              }
+            >
+              {/* Controls row, centered between the summary card and the journal:
+              favorites (reusable custom foods), a camera menu (scan / photo /
+              library), and a "+" that opens the Add food database search. */}
+              <View style={styles.controlsRow}>
+                <GlassView style={styles.circleGlass}>
+                  <TouchableOpacity
+                    style={styles.circleBtn}
+                    onPress={() => {
+                      Haptics.selectionAsync().catch(() => {});
+                      setSavedOpen(true);
+                    }}
+                    accessibilityLabel="Favorites"
+                  >
+                    <Ionicons name="bookmark" size={19} color={t.tint} />
+                  </TouchableOpacity>
+                </GlassView>
+
+                <CameraLogMenu
+                  size={38}
+                  color={t.tint}
+                  onScanBarcode={cameraLog.scanBarcode}
+                  onTakePhoto={cameraLog.takePhoto}
+                  onChooseFromLibrary={cameraLog.chooseFromLibrary}
+                />
+
+                <GlassView style={styles.circleGlass}>
+                  <TouchableOpacity
+                    style={styles.circleBtn}
+                    onPress={openAddFood}
+                    accessibilityLabel="Add food"
+                  >
+                    <MaterialCommunityIcons
+                      name="plus"
+                      size={22}
+                      color={t.tint}
+                    />
+                  </TouchableOpacity>
+                </GlassView>
+              </View>
+
+              {/* The journal itself: typed lines AI-parse into logged foods;
+              database picks from Add food appear as their own lines. */}
+              <View style={styles.flex1}>
+                <FoodJournal selectedDate={selectedDate} />
+              </View>
+            </View>
+
+            {/* Locked (non-Plus): a transparent overlay grabs every touch
+            headed for the controls or journal before it reaches them, opening
+            the upsell sheet instead. `onStartShouldSetResponder` claims the
+            gesture on touch-down so nothing beneath ever activates; refusing
+            termination keeps the responder until release, so the sheet
+            reliably opens (reading as a tap). */}
+            {!isPlus && (
+              <View
+                style={StyleSheet.absoluteFill}
+                accessibilityRole="button"
+                accessibilityLabel="Unlock the food journal with Plus"
+                onStartShouldSetResponder={() => true}
+                onMoveShouldSetResponder={() => true}
+                onResponderTerminationRequest={() => false}
+                onResponderRelease={openUpsell}
+              />
+            )}
+          </View>
+        </Reanimated.View>
+      </GestureDetector>
+
+      {/* Calendar bottom sheet — days with entries marked, future days
+          selectable for logging ahead. Day taps update the screen live;
+          Done dismisses. */}
+      <CalendarSheet
+        visible={calendarOpen}
+        onClose={() => setCalendarOpen(false)}
+        selectedDate={selectedDate}
+        onSelectDate={setSelectedDate}
+      />
+
+      <SavedFoodsSheet
+        visible={savedOpen || cameraLog.customFoodOpen}
+        onClose={() => {
+          setSavedOpen(false);
+          cameraLog.closeCustomFood();
         }}
+        // Barcode-miss fallback: land on the create form prefilled with
+        // whatever product name the lookup returned.
+        initialMode={cameraLog.customFoodOpen ? "create" : undefined}
+        initialDescription={cameraLog.customFoodPrefill ?? undefined}
+      />
+
+      <PhotoEstimateSheet
+        visible={cameraLog.photoVisible}
+        uri={cameraLog.photoUri}
+        onClose={cameraLog.closePhoto}
       />
 
       <FloatingKeyboardDismiss />
     </SafeAreaView>
-  );
-}
-
-// A disclosure chevron that spins between 0 (collapsed, pointing right) and 90
-// degrees (expanded, pointing down) with a small spring, matching the card's
-// collapse animation.
-function DisclosureChevron({ open, color }: { open: boolean; color: string }) {
-  const anim = useRef(new Animated.Value(open ? 1 : 0)).current;
-
-  useEffect(() => {
-    Animated.spring(anim, {
-      toValue: open ? 1 : 0,
-      useNativeDriver: true,
-      damping: 22,
-      stiffness: 220,
-    }).start();
-  }, [open, anim]);
-
-  const rotate = anim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["0deg", "90deg"],
-  });
-
-  return (
-    <Animated.View style={{ transform: [{ rotate }] }}>
-      <Ionicons name="chevron-forward" size={16} color={color} />
-    </Animated.View>
-  );
-}
-
-// A single meal category: a collapsible card whose header (name + total cals)
-// is always visible and whose entries reveal on tap. Keeps its header compact
-// and leans on negative space instead of nested bordered boxes.
-function MealCard({
-  name,
-  entries,
-  cals,
-  collapsed,
-  recurring,
-  renaming,
-  renameText,
-  onRenameChange,
-  onRenameSubmit,
-  onToggle,
-  onToggleRecurring,
-  onRename,
-  onDelete,
-  onAdd,
-  onEntryPress,
-  getSubtitle,
-}: {
-  name: string;
-  entries: FoodLogEntry[];
-  cals: number;
-  collapsed: boolean;
-  recurring: boolean;
-  renaming: boolean;
-  renameText: string;
-  onRenameChange: (v: string) => void;
-  onRenameSubmit: () => void;
-  onToggle: () => void;
-  onToggleRecurring: () => void;
-  onRename: () => void;
-  onDelete: () => void;
-  onAdd: () => void;
-  onEntryPress: (entry: FoodLogEntry) => void;
-  getSubtitle: (entry: FoodLogEntry) => string;
-}) {
-  const t = useThemeColors();
-  const glassAvailable = isLiquidGlassAvailable();
-  const swipeRef = useRef<SwipeableMethods>(null);
-  const swipeOpen = useRef(false);
-  // Mirrors the row's open state in React state (the swipeOpen ref stays for
-  // tap guarding). Drives the dynamic leftward-drag threshold below so an open
-  // row can be swiped closed while a closed row lets the pager take the swipe.
-  const [menuOpen, setMenuOpen] = useState(false);
-  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const closeSwipe = () => swipeRef.current?.close();
-
-  // Clear any pending "swipe settled" timer on unmount.
-  useEffect(
-    () => () => {
-      if (settleTimer.current) clearTimeout(settleTimer.current);
-    },
-    [],
-  );
-
-  // When the row is open, a tap anywhere on the card should just close it rather
-  // than collapse the card or open a food entry — matches iOS swipe behavior and
-  // prevents a swipe from accidentally registering as a tap on release.
-  const guardTap = (action: () => void) => () => {
-    if (swipeOpen.current) {
-      closeSwipe();
-      return;
-    }
-    action();
-  };
-
-  return (
-    // Swipe the card right to reveal a pencil menu on the left; tap it for the
-    // category actions. Disabled while renaming inline.
-    <Swipeable
-      ref={swipeRef}
-      friction={2}
-      leftThreshold={36}
-      overshootLeft={false}
-      enabled={!renaming}
-      // Only left actions exist here (revealed by dragging right). Internally the
-      // pan gesture is configured as activeOffsetX([-dragOffsetFromRightEdge,
-      // dragOffsetFromLeftEdge]), so dragOffsetFromRightEdge sets the leftward
-      // activation threshold. We flip it based on the row's open state:
-      //   - Closed: a huge threshold pushes leftward activation to infinity, so
-      //     leftward drags never claim the gesture and fall through to the
-      //     PagerView (Manual <-> Smart journal). Rightward drags still open the
-      //     menu at the default 10pt threshold.
-      //   - Open: the default 10pt threshold lets a leftward swipe close the
-      //     row (iOS-standard), so paging is intentionally suppressed on that
-      //     row until it's closed. A tap still closes it too (guardTap ->
-      //     close()), which is a separate gesture and stays unaffected.
-      dragOffsetFromRightEdge={menuOpen ? 10 : Number.MAX_SAFE_INTEGER}
-      containerStyle={styles.mealSwipe}
-      // Mark the row "busy" the moment a swipe drag starts (not just once open),
-      // so a tap on release is swallowed by guardTap instead of collapsing the
-      // card or opening a food entry.
-      onSwipeableOpenStartDrag={() => {
-        if (settleTimer.current) clearTimeout(settleTimer.current);
-        swipeOpen.current = true;
-        setMenuOpen(true);
-      }}
-      onSwipeableWillOpen={() => {
-        if (settleTimer.current) clearTimeout(settleTimer.current);
-        swipeOpen.current = true;
-        setMenuOpen(true);
-      }}
-      onSwipeableWillClose={() => {
-        // Restore the closed-row threshold right away so the pager can take
-        // leftward swipes again once the row settles shut.
-        setMenuOpen(false);
-        // Keep the row marked "busy" for a beat after it starts closing so the
-        // swipe's release (or the tap that dismissed the menu/rename prompt)
-        // isn't caught by the header's onPress and mistaken for a collapse or
-        // entry tap.
-        if (settleTimer.current) clearTimeout(settleTimer.current);
-        settleTimer.current = setTimeout(() => {
-          swipeOpen.current = false;
-          settleTimer.current = null;
-        }, 400);
-      }}
-      renderLeftActions={() => (
-        <MealSwipeLeftAction
-          name={name}
-          recurring={recurring}
-          color={t.tint}
-          onToggleRecurring={onToggleRecurring}
-          onRename={onRename}
-          onDelete={onDelete}
-          onSelected={closeSwipe}
-        />
-      )}
-    >
-      <View
-        style={[
-          styles.mealCard,
-          {
-            backgroundColor: glassAvailable ? "transparent" : t.cardBg,
-            borderColor: glassAvailable ? "transparent" : t.cardBorder,
-          },
-        ]}
-      >
-        {glassAvailable && (
-          <GlassView
-            style={[StyleSheet.absoluteFillObject, { borderRadius: 16 }]}
-            glassEffectStyle="regular"
-          />
-        )}
-        {/* Header — tap to expand/collapse (disabled while renaming inline). */}
-        <TouchableOpacity
-          style={styles.mealHeader}
-          activeOpacity={0.7}
-          disabled={renaming}
-          onPress={guardTap(onToggle)}
-          accessibilityLabel={`${collapsed ? "Expand" : "Collapse"} ${name}`}
-        >
-          <View style={styles.mealHeaderLeft}>
-            <DisclosureChevron open={!collapsed} color={t.secondary} />
-            {renaming ? (
-              <TextInput
-                autoFocus
-                value={renameText}
-                onChangeText={onRenameChange}
-                onSubmitEditing={onRenameSubmit}
-                onBlur={onRenameSubmit}
-                returnKeyType="done"
-                placeholder="Meal name"
-                placeholderTextColor={t.secondary}
-                style={[styles.renameInput, { color: t.text }]}
-              />
-            ) : (
-              <View style={styles.mealTitleRow}>
-                <Text style={[styles.mealTitle, { color: t.text }]}>
-                  {name}
-                </Text>
-                {recurring && (
-                  <Ionicons name="repeat" size={14} color={t.secondary} />
-                )}
-              </View>
-            )}
-          </View>
-          <View style={styles.mealHeaderRight}>
-            {/* Matches the entry rows' calorie styling: bold number + a lighter
-                " cal" suffix. */}
-            <Text style={[styles.entryCals, { color: t.text }]}>
-              {cals}
-              <Text style={[styles.entryCalUnit, { color: t.secondary }]}>
-                {" cal"}
-              </Text>
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        {/* Body — entries + a lightweight add row, only while expanded. */}
-        {!collapsed && (
-          <View style={styles.mealBody}>
-            {entries.map((e) => (
-              <MealEntryRow
-                key={e.entryId}
-                entry={e}
-                subtitle={getSubtitle(e)}
-                onPress={guardTap(() => onEntryPress(e))}
-              />
-            ))}
-            <TouchableOpacity
-              style={[styles.addRow, { borderTopColor: t.separator }]}
-              onPress={guardTap(onAdd)}
-            >
-              <MaterialCommunityIcons name="plus" size={18} color={t.tint} />
-              <Text style={[styles.addText, { color: t.tint }]}>Add food</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
-    </Swipeable>
-  );
-}
-
-// A flattened entry row: no bordered box, just a hairline separator and open
-// space. Tapping it opens the edit sheet (which is also where a food is
-// deleted). No trailing chevron — the whole row is the affordance.
-function MealEntryRow({
-  entry,
-  subtitle,
-  onPress,
-}: {
-  entry: FoodLogEntry;
-  subtitle: string;
-  onPress: () => void;
-}) {
-  const t = useThemeColors();
-
-  return (
-    <TouchableOpacity
-      style={[styles.entryRow, { borderTopColor: t.separator }]}
-      onPress={onPress}
-      activeOpacity={0.6}
-      accessibilityLabel={`Edit ${entry.description}`}
-    >
-      <View style={styles.entryInfo}>
-        <Text style={[styles.entryName, { color: t.text }]} numberOfLines={1}>
-          {entry.description}
-        </Text>
-        <Text style={[styles.entryMeta, { color: t.secondary }]}>
-          {subtitle}
-        </Text>
-      </View>
-      <Text style={[styles.entryCals, { color: t.text }]}>
-        {round(entry.calories)}
-        <Text style={[styles.entryCalUnit, { color: t.secondary }]}> cal</Text>
-      </Text>
-    </TouchableOpacity>
   );
 }
 
@@ -955,9 +656,17 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   dateLabel: { fontSize: 17, fontWeight: "600" },
+  dateLabelBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  dateCaret: {
+    position: "absolute",
+    left: "100%",
+    marginLeft: 4,
+  },
   flex1: { flex: 1 },
   summaryWrap: { paddingHorizontal: 16 },
-  pageScroll: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 120 },
   controlsRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -978,12 +687,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  card: {
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: 16,
-    marginBottom: 12,
-  },
   // Compact glass summary chip.
   summaryCard: {
     borderRadius: 20,
@@ -999,12 +702,16 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   calHeaderLeft: {
+    // Bottom-aligned (not baseline): the "Calories" word should sit flush with
+    // the bottom of the larger number. The small marginBottom on the label
+    // compensates for its shallower descender box so the glyph bottoms line up
+    // optically; may need a point of on-device tuning.
     flexDirection: "row",
-    alignItems: "baseline",
-    gap: 8,
+    alignItems: "flex-end",
+    gap: 6,
     flexShrink: 1,
   },
-  calLabel: { fontSize: 13, fontWeight: "600" },
+  calLabel: { fontSize: 13, fontWeight: "700", marginBottom: 2 },
   calCount: { fontSize: 20, fontWeight: "700" },
   calGoal: { fontSize: 20, fontWeight: "700" },
   calTrack: {
@@ -1019,78 +726,17 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
     marginTop: 14,
   },
+  // Sits in the header's top-right corner while the card is expanded (the
+  // collapsed card shows the mini rings there instead).
+  editGoals: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  editGoalsText: { fontSize: 13, fontWeight: "600" },
   miniRingsRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
   },
-  // Spacing between cards lives on the swipe container so the card itself keeps
-  // its rounded shape as it slides over the revealed menu.
-  mealSwipe: { marginBottom: 12 },
-  // Meal card: no inner padding so the header fills the tappable width; rows
-  // manage their own horizontal padding.
-  mealCard: {
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 16,
-    overflow: "hidden",
-  },
-  mealHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 14,
-  },
-  mealHeaderLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    flex: 1,
-  },
-  mealHeaderRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  mealBody: { paddingBottom: 6 },
-  mealTitleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  mealTitle: { fontSize: 16, fontWeight: "600" },
-  renameInput: {
-    fontSize: 16,
-    fontWeight: "600",
-    flex: 1,
-    paddingVertical: 2,
-    marginRight: 12,
-  },
-  entryRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderTopWidth: StyleSheet.hairlineWidth,
-    paddingVertical: 12,
-  },
-  entryInfo: { flex: 1, paddingRight: 12 },
-  entryName: { fontSize: 16, fontWeight: "500" },
-  entryMeta: { fontSize: 13, marginTop: 3 },
-  entryCals: { fontSize: 16, fontWeight: "700" },
-  entryCalUnit: { fontSize: 13, fontWeight: "500" },
-  addRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderTopWidth: StyleSheet.hairlineWidth,
-    paddingVertical: 12,
-    gap: 4,
-  },
-  addText: { fontSize: 15, fontWeight: "500" },
-  addCategoryInput: {
-    fontSize: 16,
-    paddingVertical: 4,
-  },
-  addCategoryActions: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: 20,
-    marginTop: 12,
-  },
-  addCategoryCancel: { fontSize: 15 },
-  addCategoryDone: { fontSize: 15, fontWeight: "600" },
 });

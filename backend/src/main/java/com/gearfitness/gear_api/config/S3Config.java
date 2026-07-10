@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.rekognition.RekognitionClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
@@ -41,6 +42,19 @@ public class S3Config {
   @Bean
   public S3Presigner s3Presigner() {
     return S3Presigner.builder()
+      .region(Region.of(region))
+      .credentialsProvider(credentialsProvider())
+      .build();
+  }
+
+  // Image moderation reads S3 objects server-side via IAM (buckets stay
+  // private). The backend's IAM user needs rekognition:DetectModerationLabels
+  // and s3:GetObject on the posts bucket. Rekognition is regional, so this
+  // client MUST be in the same region as the bucket it reads — sharing
+  // ${aws.s3.region} keeps the two from drifting apart.
+  @Bean
+  public RekognitionClient rekognitionClient() {
+    return RekognitionClient.builder()
       .region(Region.of(region))
       .credentialsProvider(credentialsProvider())
       .build();

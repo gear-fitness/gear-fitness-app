@@ -26,6 +26,8 @@ import { FollowStatusProvider } from "./context/FollowStatusContext";
 import { UnitPreferenceProvider } from "./context/UnitPreferenceContext";
 import { NutritionProvider } from "./context/NutritionContext";
 import { WorkoutPlayer } from "./components/WorkoutPlayer";
+import { getPendingAnnouncement } from "./api/announcementService";
+import { hasSeenAnnouncement } from "./utils/announcementStorage";
 import * as Notifications from "expo-notifications";
 import {
   useFonts,
@@ -105,7 +107,8 @@ function AppContent({
   theme: typeof DarkTheme | typeof DefaultTheme;
 }) {
   const [isNavigationReady, setIsNavigationReady] = React.useState(false);
-  const { isLoading } = useAuth();
+  const { isLoading, isAuthenticated } = useAuth();
+  const whatsNewAttempted = React.useRef(false);
 
   const [fontsLoaded] = useFonts({
     LibreCaslonText_400Regular,
@@ -205,6 +208,56 @@ function AppContent({
       SplashScreen.hideAsync();
     }
   }, [isNavigationReady, isLoading, fontsLoaded]);
+
+  useEffect(() => {
+    // What's New popup: at most one attempt per app session, and only once
+    // the user has actually landed on HomeTabs. AuthLoading holds the root
+    // route on its launch video well after auth resolves, so a one-shot
+    // route check here would race it and lose; instead listen for
+    // navigation-state changes and fire when HomeTabs becomes focused.
+    if (isLoading || !isAuthenticated || !isNavigationReady) return;
+    if (whatsNewAttempted.current) return;
+
+    // Focused top-level route, not getCurrentRoute(): that returns the
+    // deepest route (a tab name), and routes[0] would still say HomeTabs
+    // while a notification deep link sits on top.
+    const isOnHomeTabs = () => {
+      const state = navigationRef.current?.getRootState();
+      if (!state || state.index == null) return false;
+      return state.routes[state.index]?.name === "HomeTabs";
+    };
+
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let unsubscribe: (() => void) | undefined;
+
+    const attempt = () => {
+      if (cancelled || whatsNewAttempted.current || !isOnHomeTabs()) return;
+      whatsNewAttempted.current = true;
+      unsubscribe?.();
+      (async () => {
+        const announcement = await getPendingAnnouncement();
+        if (!announcement || cancelled) return;
+        if (await hasSeenAnnouncement(announcement.id)) return;
+        // Let the arrival transition settle, then re-check the route in
+        // case a slow notification deep link landed during the delay.
+        timer = setTimeout(() => {
+          if (!cancelled && isOnHomeTabs()) {
+            navigationRef.current?.navigate("WhatsNew", { announcement });
+          }
+        }, 800);
+      })();
+    };
+
+    unsubscribe = navigationRef.current?.addListener("state", attempt);
+    attempt();
+
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+      if (timer) clearTimeout(timer);
+    };
+  }, [isLoading, isAuthenticated, isNavigationReady]);
 
   return (
     <GestureHandlerRootView

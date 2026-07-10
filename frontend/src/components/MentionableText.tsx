@@ -1,4 +1,5 @@
-import { Text, StyleProp, TextStyle } from "react-native";
+import { StyleProp, TextStyle } from "react-native";
+import { Text } from "./Text";
 import { useNavigation } from "@react-navigation/native";
 
 interface Props {

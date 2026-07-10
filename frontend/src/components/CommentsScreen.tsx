@@ -6,11 +6,11 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Platform,
-  Text,
   Keyboard,
   KeyboardEvent,
   Alert,
 } from "react-native";
+import { Text } from "./Text";
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -606,7 +606,9 @@ export function CommentsScreen() {
             {commenting ? (
               <ActivityIndicator size="small" color="#000" />
             ) : (
-              <Text style={styles.sendArrow}>↑</Text>
+              <Text maxFontSizeMultiplier={1} style={styles.sendArrow}>
+                ↑
+              </Text>
             )}
           </TouchableOpacity>
         </View>

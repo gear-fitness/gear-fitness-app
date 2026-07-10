@@ -10,6 +10,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "food_log_entry")
@@ -72,6 +74,13 @@ public class FoodLogEntry {
   // Primary citation URL from Sonar for AI-logged entries.
   @Column(name = "source_url")
   private String sourceUrl;
+
+  // The display unit/quantity the entry was logged in ("4 oz", "2 cups"),
+  // richer than the SERVING/GRAM stored above. Opaque JSON owned by the
+  // client (EntryUnitMeta); null for AI-logged and legacy entries.
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "display_meta")
+  private String displayMeta;
 
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)

@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
-import { View, Text, StyleSheet, Share, Pressable } from "react-native";
+import { View, StyleSheet, Share, Pressable } from "react-native";
+import { Text } from "../../../components/Text";
 import { SymbolView } from "expo-symbols";
 import { StepProps } from "../stepProps";
 import { OnboardingTopBar } from "./OnboardingTopBar";

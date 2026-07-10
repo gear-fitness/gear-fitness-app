@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
-import { View, Text, Alert, Pressable } from "react-native";
+import { View, Alert, Pressable } from "react-native";
+import { Text } from "../../../components/Text";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../../context/AuthContext";

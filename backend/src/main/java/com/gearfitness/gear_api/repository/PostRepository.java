@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -118,4 +119,33 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
   Page<Post> findDiscoverPosts(@Param("userId") UUID userId, Pageable pageable);
 
   Optional<Post> findByWorkout_WorkoutId(UUID workoutId);
+
+  /**
+   * Find a post by its workout regardless of moderation state. Native so it
+   * bypasses the @SQLRestriction on Post (which hides HIDDEN/REMOVED/soft-hidden
+   * posts from entity queries) — needed when deleting a workout whose post was
+   * hidden by moderation, so the post can still be cleaned up rather than
+   * orphaning the workout_id foreign key. Mirrors updateModerationStatus.
+   */
+  @Query(
+    value = "SELECT * FROM post WHERE workout_id = :workoutId",
+    nativeQuery = true
+  )
+  Optional<Post> findAnyByWorkoutId(@Param("workoutId") UUID workoutId);
+
+  /**
+   * Set a post's moderation status directly. Native because the entity carries
+   * an @SQLRestriction that hides non-VISIBLE posts from all JPA queries, so a
+   * managed-entity load can't reach a HIDDEN/REMOVED post to un-hide it. This
+   * is the moderation-review counterpart to the report system's inline hide.
+   */
+  @Modifying
+  @Query(
+    value = "UPDATE post SET moderation_status = :status WHERE post_id = :postId",
+    nativeQuery = true
+  )
+  int updateModerationStatus(
+    @Param("postId") UUID postId,
+    @Param("status") String status
+  );
 }

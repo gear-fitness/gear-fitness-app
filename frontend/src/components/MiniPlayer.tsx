@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
+import { View, StyleSheet, TouchableOpacity, Image } from "react-native";
+import { Text, FontScaleProvider } from "./Text";
 import { useColorScheme } from "react-native";
 import { SymbolView } from "expo-symbols";
 
@@ -87,6 +88,7 @@ export function MiniPlayer({ onTap, isVisible }: MiniPlayerProps) {
     timerText: {
       fontSize: 16,
       fontWeight: "600",
+      fontVariant: ["tabular-nums"],
     },
 
     playPauseButton: {
@@ -105,79 +107,87 @@ export function MiniPlayer({ onTap, isVisible }: MiniPlayerProps) {
   });
 
   return (
-    <GlassView
-      style={[styles.container, { backgroundColor: colors.bg }]}
-      glassEffectStyle={"clear"}
-    >
-      <TouchableOpacity
-        activeOpacity={0.8}
-        onPress={onTap}
-        disabled={!isVisible}
-        style={[
-          {
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            elevation: 8,
-          },
-        ]}
+    <FontScaleProvider max={1}>
+      <GlassView
+        style={[styles.container, { backgroundColor: colors.bg }]}
+        glassEffectStyle={"clear"}
       >
-        <View style={styles.leftContent}>
-          {currentExercise ? (
-            <>
-              <Text
-                style={[styles.exerciseName, { color: colors.text }]}
-                numberOfLines={1}
-              >
-                {currentExercise.name}
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={onTap}
+          disabled={!isVisible}
+          style={[
+            {
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              elevation: 8,
+            },
+          ]}
+        >
+          <View style={styles.leftContent}>
+            {currentExercise ? (
+              <>
+                <Text
+                  style={[styles.exerciseName, { color: colors.text }]}
+                  numberOfLines={1}
+                >
+                  {currentExercise.name}
+                </Text>
+                {lastSet ? (
+                  <Text
+                    style={[styles.setInfo, { color: colors.subtle }]}
+                    numberOfLines={1}
+                  >
+                    Set {validSets.length}: {lastSet.reps} reps ×{" "}
+                    {toDisplayWeight(Number(lastSet.weight) || 0, weightUnit)}{" "}
+                    {weightUnit}
+                  </Text>
+                ) : (
+                  <Text
+                    style={[styles.setInfo, { color: colors.subtle }]}
+                    numberOfLines={1}
+                  >
+                    No sets yet
+                  </Text>
+                )}
+              </>
+            ) : isVisible ? (
+              <Text style={[styles.exerciseName, { color: colors.text }]}>
+                Workout in Progress
               </Text>
-              {lastSet ? (
-                <Text style={[styles.setInfo, { color: colors.subtle }]}>
-                  Set {validSets.length}: {lastSet.reps} reps ×{" "}
-                  {toDisplayWeight(Number(lastSet.weight) || 0, weightUnit)}{" "}
-                  {weightUnit}
-                </Text>
-              ) : (
-                <Text style={[styles.setInfo, { color: colors.subtle }]}>
-                  No sets yet
-                </Text>
-              )}
-            </>
-          ) : isVisible ? (
-            <Text style={[styles.exerciseName, { color: colors.text }]}>
-              Workout in Progress
+            ) : (
+              <View style={{ height: 40 }} />
+            )}
+          </View>
+
+          <View style={styles.rightContent}>
+            <Image
+              source={stopwatch}
+              style={[styles.timerIcon, { tintColor: colors.text }]}
+            />
+            <Text style={[styles.timerText, { color: colors.text }]}>
+              {formatTime(seconds)}
             </Text>
-          ) : (
-            <View style={{ height: 40 }} />
-          )}
-        </View>
 
-        <View style={styles.rightContent}>
-          <Image
-            source={stopwatch}
-            style={[styles.timerIcon, { tintColor: colors.text }]}
-          />
-          <Text style={[styles.timerText, { color: colors.text }]}>
-            {formatTime(seconds)}
-          </Text>
-
-          {isVisible && (
-            <TouchableOpacity
-              onPress={(e) => {
-                e.stopPropagation();
-                running ? pause() : start();
-              }}
-              style={styles.playPauseButton}
-            >
-              <SymbolView
-                name={running ? "pause.fill" : "play.fill"}
-                tintColor={isDark ? "#fff" : "#000"}
-                size={14}
-              />
-            </TouchableOpacity>
-          )}
-        </View>
-      </TouchableOpacity>
-    </GlassView>
+            {isVisible && (
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation();
+                  running ? pause() : start();
+                }}
+                style={styles.playPauseButton}
+              >
+                <SymbolView
+                  name={running ? "pause.fill" : "play.fill"}
+                  tintColor={isDark ? "#fff" : "#000"}
+                  size={14}
+                />
+              </TouchableOpacity>
+            )}
+          </View>
+        </TouchableOpacity>
+      </GlassView>
+    </FontScaleProvider>
   );
 }

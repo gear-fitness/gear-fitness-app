@@ -28,6 +28,7 @@ public class ReportService {
   private final ReportRepository reportRepository;
   private final PostRepository postRepository;
   private final AppUserRepository appUserRepository;
+  private final PostModerationService postModerationService;
 
   public void createReport(
     UUID reporterId,
@@ -106,8 +107,7 @@ public class ReportService {
       distinctReporters >= AUTO_HIDE_THRESHOLD &&
       post.getModerationStatus() == Post.ModerationStatus.VISIBLE
     ) {
-      post.setModerationStatus(Post.ModerationStatus.HIDDEN);
-      postRepository.save(post);
+      postModerationService.hide(post);
     }
   }
 }

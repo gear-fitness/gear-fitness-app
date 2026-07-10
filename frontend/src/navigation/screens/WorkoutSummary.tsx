@@ -1,11 +1,11 @@
 import {
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
   useColorScheme,
 } from "react-native";
+import { Text } from "../../components/Text";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Swipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 import { useNavigation } from "@react-navigation/native";
@@ -136,6 +136,7 @@ export function WorkoutSummary() {
           </View>
           <Text
             style={[styles.heroTitle, { color: t.text, fontFamily: SERIF }]}
+            maxFontSizeMultiplier={1}
           >
             {today}
           </Text>
@@ -364,7 +365,12 @@ function Metric({
   return (
     <View>
       <Text style={[styles.metricLabel, { color: t.textMuted }]}>{label}</Text>
-      <Text style={[styles.metricValue, { color: t.text }]}>{value}</Text>
+      <Text
+        style={[styles.metricValue, { color: t.text }]}
+        maxFontSizeMultiplier={1}
+      >
+        {value}
+      </Text>
     </View>
   );
 }

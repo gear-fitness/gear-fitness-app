@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Alert,
   Animated,
+  Easing,
   Image,
   LayoutAnimation,
   Linking,
@@ -8,24 +10,26 @@ import {
   ScrollView,
   StyleProp,
   StyleSheet,
-  Text,
   TouchableOpacity,
   useWindowDimensions,
   View,
   ViewStyle,
 } from "react-native";
+import { Text } from "../../../../components/Text";
 import { Ionicons } from "@expo/vector-icons";
-import Svg, { Circle } from "react-native-svg";
+import * as Haptics from "expo-haptics";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { useThemeColors } from "../../../../hooks/useThemeColors";
 import { useNutrition } from "../../../../context/NutritionContext";
+import { createCustomFood } from "../../../../api/nutritionService";
 import { FoodLogEntry } from "../../../../api/types";
 import { BottomSheet } from "../../../../components/BottomSheet";
 import { MacroRing } from "./MacroRing";
+import { macroColor } from "./macroColors";
 import { faviconOf, hostOf } from "./sources";
 
 /**
- * Everything the AI Smart Journal knows about one logged line: the created
+ * Everything the food journal knows about one logged line: the created
  * entries (one per parsed food), Sonar's reasoning + confidence, the sources it
  * cited, and whether the parse was replayed from cache.
  */
@@ -39,6 +43,14 @@ export interface AiLineDetail {
 
 const round = (n: number | null | undefined) => Math.round(n ?? 0);
 const round1 = (n: number | null | undefined) => Math.round((n ?? 0) * 10) / 10;
+
+// Parsed descriptions carry portion details in parens — "Ribeye steak (112 g,
+// 1 serving, cooked)". The item row shows just the name; the thought-process
+// paragraph already covers the portion assumptions.
+const foodNameOf = (description: string): string => {
+  const name = description.split("(")[0].trim();
+  return name || description;
+};
 
 // Smooth the per-item / references expand so it eases instead of snapping,
 // matching CalorieTracker's collapse toggles (~220ms easeInEaseOut). On Android
@@ -122,6 +134,38 @@ export function NutritionDetailSheet({
       fatG: e.reduce((s, x) => s + (x.fatG ?? 0), 0),
     };
   }, [heldDetail]);
+
+  // "Save to Favorites": snapshot this line (its typed text + summed nutrition) as
+  // a reusable custom food. Once saved, the menu item reads as a receipt for
+  // the rest of this viewing; a fresh open can save again (e.g. after edits).
+  const [savingMeal, setSavingMeal] = useState(false);
+  const [mealSaved, setMealSaved] = useState(false);
+  useEffect(() => {
+    if (visible) setMealSaved(false);
+  }, [visible]);
+
+  const saveAsMeal = async () => {
+    if (!heldDetail || savingMeal || mealSaved) return;
+    setSavingMeal(true);
+    try {
+      await createCustomFood({
+        description: heldFoodText.trim() || "Saved meal",
+        calories: totals.calories,
+        proteinG: totals.proteinG,
+        carbsG: totals.carbsG,
+        fatG: totals.fatG,
+      });
+      setMealSaved(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
+        () => {},
+      );
+    } catch (err) {
+      console.error("Failed to save meal:", err);
+      Alert.alert("Couldn't save meal", "Something went wrong — try again.");
+    } finally {
+      setSavingMeal(false);
+    }
+  };
 
   return (
     <BottomSheet
@@ -212,9 +256,8 @@ export function NutritionDetailSheet({
                   style={styles.card}
                 >
                   {heldDetail.confidence > 0 && (
-                    <View style={styles.confRow}>
-                      <ConfidenceRing value={heldDetail.confidence} />
-                      <View style={styles.confMeta}>
+                    <View style={styles.confBlock}>
+                      <View style={styles.confHeader}>
                         <Text
                           style={[styles.confCaption, { color: t.secondary }]}
                         >
@@ -229,9 +272,11 @@ export function NutritionDetailSheet({
                             },
                           ]}
                         >
-                          {confidenceLabel(heldDetail.confidence).label}
+                          {confidenceLabel(heldDetail.confidence).label} ·{" "}
+                          {heldDetail.confidence}%
                         </Text>
                       </View>
+                      <ConfidenceBar value={heldDetail.confidence} />
                     </View>
                   )}
                   {!!heldDetail.reasoning?.trim() && (
@@ -244,8 +289,10 @@ export function NutritionDetailSheet({
                       onPress={() => onEditEntry(heldDetail.entries[0])}
                       style={styles.editLink}
                     >
-                      <Ionicons name="pencil" size={13} color="#7C6BF5" />
-                      <Text style={styles.editLinkText}>
+                      <Ionicons name="pencil" size={13} color={t.secondary} />
+                      <Text
+                        style={[styles.editLinkText, { color: t.secondary }]}
+                      >
                         Something off? Click to edit
                       </Text>
                     </TouchableOpacity>
@@ -277,6 +324,18 @@ export function NutritionDetailSheet({
                 onPress={() => setMenuOpen(false)}
               />
               <MenuPopover t={t}>
+                <MenuItem
+                  icon={mealSaved ? "checkmark" : "bookmark-outline"}
+                  label={
+                    savingMeal
+                      ? "Saving…"
+                      : mealSaved
+                        ? "Saved to Favorites"
+                        : "Save to Favorites"
+                  }
+                  t={t}
+                  onPress={saveAsMeal}
+                />
                 <MenuItem
                   icon="create-outline"
                   label="Edit Nutrition"
@@ -364,7 +423,7 @@ function CircleButton({
           hitSlop={8}
           style={styles.circleBtn}
         >
-          <Ionicons name={icon} size={18} color={t.secondary} />
+          <Ionicons name={icon} size={22} color={t.secondary} />
         </TouchableOpacity>
       </GlassView>
     );
@@ -375,7 +434,7 @@ function CircleButton({
       hitSlop={8}
       style={[styles.closeBtn, { backgroundColor: t.surface }]}
     >
-      <Ionicons name={icon} size={18} color={t.secondary} />
+      <Ionicons name={icon} size={22} color={t.secondary} />
     </TouchableOpacity>
   );
 }
@@ -451,6 +510,7 @@ type Goal =
       carbsG?: number;
       fatG?: number;
       proteinG?: number;
+      goalType?: string;
     }
   | null
   | undefined;
@@ -469,6 +529,7 @@ function MacroSummary({
   proteinG,
   goal,
   t,
+  showCalorieRing = true,
 }: {
   calories: number;
   carbsG: number;
@@ -476,32 +537,41 @@ function MacroSummary({
   proteinG: number;
   goal: Goal;
   t: Theme;
+  /** Item cards drop the big calorie ring and center just the three macros. */
+  showCalorieRing?: boolean;
 }) {
   return (
     <View style={styles.macroRow}>
-      <MacroRing
-        label="cal"
-        value={round(calories)}
-        goal={goal?.calorieGoal ?? 0}
-        size={92}
-      />
+      {showCalorieRing && (
+        <MacroRing
+          label="Calories"
+          value={round(calories)}
+          goal={goal?.calorieGoal ?? 0}
+          size={92}
+          // Cutting flips the calorie gauge: green under budget, red spent.
+          reverse={goal?.goalType === "CUT"}
+        />
+      )}
       <View style={styles.macroStats}>
         <MacroStat
           label="Carbs"
+          labelColor={macroColor("carbs", t.isDark)}
           grams={round1(carbsG)}
           pct={pctOfGoal(carbsG, goal?.carbsG)}
           t={t}
         />
         <MacroStat
-          label="Fat"
-          grams={round1(fatG)}
-          pct={pctOfGoal(fatG, goal?.fatG)}
+          label="Protein"
+          labelColor={macroColor("protein", t.isDark)}
+          grams={round1(proteinG)}
+          pct={pctOfGoal(proteinG, goal?.proteinG)}
           t={t}
         />
         <MacroStat
-          label="Protein"
-          grams={round1(proteinG)}
-          pct={pctOfGoal(proteinG, goal?.proteinG)}
+          label="Fat"
+          labelColor={macroColor("fat", t.isDark)}
+          grams={round1(fatG)}
+          pct={pctOfGoal(fatG, goal?.fatG)}
           t={t}
         />
       </View>
@@ -511,11 +581,14 @@ function MacroSummary({
 
 function MacroStat({
   label,
+  labelColor,
   grams,
   pct,
   t,
 }: {
   label: string;
+  /** Macro identity color for the label word (yellow/purple/pink-red). */
+  labelColor: string;
   grams: number;
   pct: number;
   t: Theme;
@@ -524,7 +597,7 @@ function MacroStat({
     <View style={styles.stat}>
       <Text style={[styles.statPct, { color: t.secondary }]}>{pct}%</Text>
       <Text style={[styles.statGrams, { color: t.text }]}>{grams} g</Text>
-      <Text style={[styles.statLabel, { color: t.secondary }]}>{label}</Text>
+      <Text style={[styles.statLabel, { color: labelColor }]}>{label}</Text>
     </View>
   );
 }
@@ -555,7 +628,7 @@ function ItemCard({
         }}
       >
         <Text style={[styles.itemName, { color: t.text }]} numberOfLines={1}>
-          {entry.description}
+          {foodNameOf(entry.description)}
         </Text>
         <View style={styles.itemRight}>
           <Text style={[styles.itemCal, { color: t.secondary }]}>
@@ -577,10 +650,13 @@ function ItemCard({
             proteinG={entry.proteinG ?? 0}
             goal={goal}
             t={t}
+            showCalorieRing={false}
           />
           <TouchableOpacity onPress={onEdit} style={styles.editLink}>
-            <Ionicons name="pencil" size={13} color="#7C6BF5" />
-            <Text style={styles.editLinkText}>Edit</Text>
+            <Ionicons name="pencil" size={13} color={t.secondary} />
+            <Text style={[styles.editLinkText, { color: t.secondary }]}>
+              Edit
+            </Text>
           </TouchableOpacity>
         </View>
       )}
@@ -588,44 +664,34 @@ function ItemCard({
   );
 }
 
-/** Circular gauge showing the raw 0–100 confidence in its center. */
-function ConfidenceRing({ value }: { value: number }) {
-  const size = 52;
-  const stroke = 4;
-  const radius = (size - stroke) / 2;
-  const circumference = 2 * Math.PI * radius;
+/**
+ * Horizontal 0–100 confidence gauge. The fill eases in from empty on mount
+ * (600ms ease-out, matching the macro rings' entry animation) in the same
+ * red/amber/green as the bucket label; the track is the fill at low alpha.
+ */
+function ConfidenceBar({ value }: { value: number }) {
   const pct = Math.max(0, Math.min(value / 100, 1));
-  const center = size / 2;
   const { color } = confidenceLabel(value);
+  const anim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(anim, {
+      toValue: pct,
+      duration: 600,
+      easing: Easing.out(Easing.cubic),
+      // Percentage width can't run on the native driver; the bar is tiny, so
+      // a JS-driven tween is imperceptible.
+      useNativeDriver: false,
+    }).start();
+  }, [anim, pct]);
+  const width = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0%", "100%"],
+  });
   return (
-    <View style={{ width: size, height: size }}>
-      <Svg width={size} height={size}>
-        <Circle
-          cx={center}
-          cy={center}
-          r={radius}
-          stroke={color + "33"}
-          strokeWidth={stroke}
-          fill="none"
-        />
-        <Circle
-          cx={center}
-          cy={center}
-          r={radius}
-          stroke={color}
-          strokeWidth={stroke}
-          fill="none"
-          strokeDasharray={circumference}
-          strokeDashoffset={circumference * (1 - pct)}
-          strokeLinecap="round"
-          rotation={-90}
-          originX={center}
-          originY={center}
-        />
-      </Svg>
-      <View style={styles.ringCenter}>
-        <Text style={[styles.ringValue, { color }]}>{value}</Text>
-      </View>
+    <View style={[styles.confTrack, { backgroundColor: color + "33" }]}>
+      <Animated.View
+        style={[styles.confFill, { width, backgroundColor: color }]}
+      />
     </View>
   );
 }
@@ -653,7 +719,7 @@ function References({
       >
         <FaviconStack urls={urls} />
         <View style={styles.itemRight}>
-          <Text style={[styles.itemCal, { color: t.secondary }]}>
+          <Text style={[styles.refCount, { color: t.secondary }]}>
             {urls.length} {urls.length === 1 ? "source" : "sources"}
           </Text>
           <Ionicons
@@ -757,28 +823,28 @@ const styles = StyleSheet.create({
   headerBtns: { flexDirection: "row", gap: 10 },
   // Glass header circle (matches CalorieTracker's circleGlass) + its icon slot.
   circleGlass: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     overflow: "hidden",
   },
   circleBtn: {
-    width: 32,
-    height: 32,
+    width: 40,
+    height: 40,
     alignItems: "center",
     justifyContent: "center",
   },
   // Fallback circle when liquid glass is unavailable.
   closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
   },
   menu: {
     position: "absolute",
-    top: 44,
+    top: 52,
     right: 20,
     minWidth: 210,
     borderRadius: 14,
@@ -819,7 +885,8 @@ const styles = StyleSheet.create({
   stat: { alignItems: "center" },
   statPct: { fontSize: 14, fontWeight: "600" },
   statGrams: { fontSize: 18, fontWeight: "700", marginTop: 4 },
-  statLabel: { fontSize: 12, marginTop: 4 },
+  // Weighted so the macro identity colors read clearly at this size.
+  statLabel: { fontSize: 12, fontWeight: "600", marginTop: 4 },
   section: {
     fontSize: 13,
     fontWeight: "600",
@@ -837,25 +904,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  itemName: { fontSize: 16, fontWeight: "600", flex: 1, marginRight: 10 },
+  itemName: { fontSize: 16, fontWeight: "400", flex: 1, marginRight: 10 },
   itemRight: { flexDirection: "row", alignItems: "center", gap: 8 },
-  itemCal: { fontSize: 15, fontVariant: ["tabular-nums"] },
+  itemCal: { fontSize: 15, fontWeight: "700", fontVariant: ["tabular-nums"] },
+  refCount: { fontSize: 15 },
   itemBody: { marginTop: 14 },
-  confRow: {
+  confBlock: { marginBottom: 12 },
+  confHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
-    marginBottom: 12,
+    justifyContent: "space-between",
+    marginBottom: 8,
   },
-  confMeta: { justifyContent: "center" },
   confCaption: { fontSize: 13 },
-  confLabel: { fontSize: 16, fontWeight: "700", marginTop: 2 },
-  ringCenter: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: "center",
-    justifyContent: "center",
+  confLabel: { fontSize: 14, fontWeight: "700" },
+  confTrack: {
+    height: 8,
+    borderRadius: 4,
+    overflow: "hidden",
   },
-  ringValue: { fontSize: 16, fontWeight: "800" },
+  confFill: { height: 8, borderRadius: 4 },
   reasoning: { fontSize: 15, lineHeight: 22 },
   editLink: {
     flexDirection: "row",
@@ -863,7 +931,7 @@ const styles = StyleSheet.create({
     gap: 5,
     marginTop: 14,
   },
-  editLinkText: { fontSize: 14, fontWeight: "600", color: "#7C6BF5" },
+  editLinkText: { fontSize: 14, fontWeight: "600" },
   refList: { marginTop: 12, gap: 8 },
   refRow: {
     flexDirection: "row",

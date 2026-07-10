@@ -7,11 +7,11 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
-  Text,
   useColorScheme,
   Animated,
   Easing,
 } from "react-native";
+import { Text } from "../../components/Text";
 import { Button } from "@react-navigation/elements";
 import {
   useNavigation,
@@ -557,6 +557,7 @@ export function Profile() {
             <Text
               style={[styles.displayName, { color: t.text }]}
               numberOfLines={1}
+              maxFontSizeMultiplier={1}
             >
               {primaryName}
             </Text>
@@ -711,7 +712,10 @@ export function Profile() {
               </View>
               <View style={styles.streakInline}>
                 <StreakIcon streak={streak} size={25} isDark={isDark} />
-                <Text style={[styles.streakNumber, { color: t.text }]}>
+                <Text
+                  style={[styles.streakNumber, { color: t.text }]}
+                  maxFontSizeMultiplier={1}
+                >
                   {streak}
                 </Text>
               </View>
@@ -906,7 +910,12 @@ function Stat({
       <Text style={[styles.statLabel, { color: theme.textMuted }]}>
         {label}
       </Text>
-      <Text style={[styles.statValue, { color: theme.text }]}>{value}</Text>
+      <Text
+        style={[styles.statValue, { color: theme.text }]}
+        maxFontSizeMultiplier={1}
+      >
+        {value}
+      </Text>
     </View>
   );
 }

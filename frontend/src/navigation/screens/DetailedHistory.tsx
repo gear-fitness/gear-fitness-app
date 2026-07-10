@@ -1,5 +1,4 @@
 import {
-  Text,
   StyleSheet,
   View,
   ScrollView,
@@ -10,6 +9,7 @@ import {
   TextStyle,
   ColorValue,
 } from "react-native";
+import { Text } from "../../components/Text";
 import Svg, { Path } from "react-native-svg";
 import React, { useState, useEffect } from "react";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";

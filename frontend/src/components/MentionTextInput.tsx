@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
   View,
-  Text,
-  TextInput,
   TextInputProps,
   TouchableOpacity,
   StyleSheet,
@@ -11,6 +9,7 @@ import {
   NativeSyntheticEvent,
   TextInputSelectionChangeEventData,
 } from "react-native";
+import { Text, TextInput } from "./Text";
 import { useTheme } from "@react-navigation/native";
 import { searchUsers } from "../api/userService";
 import { SearchUserResult } from "../api/types";

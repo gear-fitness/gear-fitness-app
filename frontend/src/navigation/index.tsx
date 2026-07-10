@@ -7,12 +7,14 @@ import {
   StaticParamList,
 } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { View, Text } from "react-native";
+import { View } from "react-native";
+import { Text } from "../components/Text";
 
 /* SCREENS */
 import { Profile } from "./screens/Profile";
 import { PaywallScreen } from "./screens/PaywallScreen";
 import { PlusUpsellSheet } from "./screens/PlusUpsellSheet";
+import { WhatsNewPopup } from "./screens/WhatsNewPopup";
 import { SettingsNavigator } from "./SettingsNavigator";
 import { Social } from "./screens/Social";
 import { Workout } from "./screens/Workout";
@@ -38,9 +40,13 @@ import { DayPosts } from "./screens/DayPosts";
 import { Activity } from "./screens/Activity";
 import FollowScreen from "./screens/FollowScreen";
 import { ImageViewer } from "./screens/ImageViewer";
+import { CameraScreen } from "./screens/CameraScreen";
+import { BarcodeScannerScreen } from "./screens/BarcodeScannerScreen";
+import { BarcodeReview } from "./screens/nutrition/BarcodeReview";
 import { CalorieTracker } from "./screens/nutrition/CalorieTracker";
 import { AddFood } from "./screens/nutrition/AddFood";
 import { NutritionGoals } from "./screens/nutrition/NutritionGoals";
+import { NutritionSetup } from "./screens/nutrition/NutritionSetup";
 import { Platform } from "react-native";
 
 /* ---------------------- TABS ---------------------- */
@@ -263,6 +269,32 @@ const RootStack = createNativeStackNavigator({
         gestureEnabled: false,
       },
     },
+
+    /* IN-APP CAMERA — registered on the root stack so it can be presented
+       from anywhere (workout complete, settings avatar, onboarding). Consumers
+       go through openCamera() in utils/inAppCamera rather than navigating
+       here directly. */
+    Camera: {
+      screen: CameraScreen,
+      options: {
+        presentation: "fullScreenModal",
+        headerShown: false,
+        gestureEnabled: true,
+        gestureDirection: "vertical",
+      },
+    },
+
+    /* BARCODE SCANNER: same contract as Camera; consumers go through
+       openBarcodeScanner() in utils/barcodeScanner and await the code. */
+    BarcodeScanner: {
+      screen: BarcodeScannerScreen,
+      options: {
+        presentation: "fullScreenModal",
+        headerShown: false,
+        gestureEnabled: true,
+        gestureDirection: "vertical",
+      },
+    },
     ExerciseList: {
       screen: ExerciseList,
       options: { headerShown: false },
@@ -297,6 +329,16 @@ const RootStack = createNativeStackNavigator({
       },
     },
 
+    WhatsNew: {
+      screen: WhatsNewPopup,
+      options: {
+        presentation: "transparentModal",
+        headerShown: false,
+        animation: "none",
+        gestureEnabled: false,
+      },
+    },
+
     EditRoutine: {
       screen: EditRoutine,
       options: { headerShown: false },
@@ -317,8 +359,27 @@ const RootStack = createNativeStackNavigator({
       options: { headerShown: false },
     },
 
+    // Barcode-scan result review: pageSheet-style modal where the user picks
+    // the serving and quantity before the product is logged.
+    BarcodeReview: {
+      screen: BarcodeReview,
+      options: {
+        presentation: "modal",
+        headerShown: false,
+        gestureEnabled: true,
+      },
+    },
+
     NutritionGoals: {
       screen: NutritionGoals,
+      options: { headerShown: false },
+    },
+
+    // The calorie-calculator wizard: pushed forced (inescapable until
+    // completed) on visiting the Nutrition tab before setup is done, and
+    // reachable dismissibly from Daily Goals.
+    NutritionSetup: {
+      screen: NutritionSetup,
       options: { headerShown: false },
     },
   },
@@ -346,8 +407,12 @@ declare global {
       };
       Activity: undefined;
       Nutrition: undefined;
-      AddFood: { category?: string } | undefined;
+      AddFood: undefined;
       NutritionGoals: undefined;
+      // forced: pushed by the tracker when setup is required; the wizard
+      // blocks every way back until it's completed. Daily Goals opens it
+      // without the param, where swipe-back dismisses.
+      NutritionSetup: { forced?: boolean } | undefined;
 
       FollowScreen: {
         initialTab: "followers" | "following";
@@ -389,9 +454,17 @@ declare global {
         initialIndex: number;
       };
 
+      Camera: undefined;
+      BarcodeScanner: undefined;
+      BarcodeReview: { food: import("../api/types").FoodItem };
+
       PostDetail: {
         postId: string;
         openCommentsOnMount?: boolean;
+      };
+
+      WhatsNew: {
+        announcement: import("../api/announcementService").Announcement;
       };
 
       CreateRoutine: { prefilledWorkoutId?: string } | undefined;

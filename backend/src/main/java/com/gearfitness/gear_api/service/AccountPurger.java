@@ -19,11 +19,13 @@ import org.springframework.transaction.annotation.Transactional;
  *       ({@code post_id/workout_id IN (this user's ...)}). No statement can ever
  *       reach another user's standalone data.</li>
  *   <li>Deletes run child-before-parent to satisfy every foreign key that lacks
- *       {@code ON DELETE CASCADE} (verified against migrations V1–V25). FKs that
+ *       {@code ON DELETE CASCADE} (verified against migrations V1–V48). FKs that
  *       DO cascade — notification (V8), refresh_token (V9), rest_day /
  *       streak_restore (V11), workout_photo_url (V14), exercise_body_part (V12),
- *       routine_exercise / routine_scheduled_days (V6) — are left to the database,
- *       and routine.source_workout_id (V6, ON DELETE SET NULL) likewise.</li>
+ *       routine_exercise / routine_scheduled_days (V6), announcement_event (V47)
+ *       — are left to the database, and routine.source_workout_id (V6, ON DELETE
+ *       SET NULL) likewise. image_moderation (V48) does NOT cascade and is
+ *       deleted explicitly below.</li>
  * </ul>
  */
 @Component
@@ -60,6 +62,18 @@ public class AccountPurger {
         "(SELECT post_id FROM post WHERE user_id = :uid)",
       userId
     );
+
+    // 3b) Image-moderation rows for this user's posts and for this user's own
+    //     profile picture. image_moderation.post_id and image_moderation.user_id
+    //     both reference their parents with NO cascade (V48), and the CHECK
+    //     constraint means each row carries exactly one of the two. These must
+    //     precede the post delete (step 4) and the app_user delete (step 9).
+    exec(
+      "DELETE FROM image_moderation WHERE post_id IN " +
+        "(SELECT post_id FROM post WHERE user_id = :uid)",
+      userId
+    );
+    exec("DELETE FROM image_moderation WHERE user_id = :uid", userId);
 
     // 4) This user's posts. notification.post_id / comment_id cascade (V8), so
     //    related notifications clear automatically here.

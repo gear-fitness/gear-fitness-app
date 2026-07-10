@@ -6,12 +6,11 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   useWindowDimensions,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../../../components/Text";
 import {
   Host,
   Menu,
@@ -38,6 +37,7 @@ import {
 } from "../../../../utils/nutritionUnits";
 import { BottomSheet } from "../../../../components/BottomSheet";
 import { MacroRing } from "./MacroRing";
+import { macroColor } from "./macroColors";
 
 type Theme = ReturnType<typeof useThemeColors>;
 
@@ -47,8 +47,8 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 
 /**
  * Bottom sheet to edit a logged food entry: change the serving size (unit) and
- * quantity, move it to a different meal category, and see the resulting macros
- * as a percentage of the user's daily goals. The backend has no update endpoint
+ * quantity, and see the resulting macros as a percentage of the user's daily
+ * goals. The backend has no update endpoint
  * and only stores SERVING/GRAM, so saving re-logs the entry (converting the
  * chosen unit to grams) and persists the display unit as client-side metadata.
  *
@@ -67,21 +67,21 @@ export function EditEntrySheet({
   entry: FoodLogEntry | null;
   visible: boolean;
   onClose: () => void;
-  /** Fired after a successful save with the freshly re-logged entry, so a
-   *  caller (the Smart Journal) can keep its own cached copy in sync. */
+  /** Fired after a successful save with the freshly re-logged entry, so the
+   *  food journal can keep its own cached copy in sync. */
   onSaved?: (entry: FoodLogEntry | null) => void;
-  /** When provided (AI Smart Journal entries), shows a "Recalculate"
-   *  action that re-parses the food instead of hand-editing it. */
+  /** When provided (AI journal lines), shows a "Recalculate" action that
+   *  re-parses the food instead of hand-editing it. */
   onRecalculate?: () => void;
-  /** When provided (manual entries), shows a "Delete" action that removes the
+  /** When provided (database lines), shows a "Delete" action that removes the
    *  logged food. The caller performs the delete and closes the sheet. */
   onDelete?: () => void;
-  /** Heading to show instead of the entry's parsed description — the Smart
-   *  Journal passes the exact text the user typed for that line. */
+  /** Heading to show instead of the entry's parsed description — the food
+   *  journal passes the exact text of that line. */
   titleText?: string;
 }) {
   const t = useThemeColors();
-  const { categories, summary, updateLog, getEntryUnitMeta } = useNutrition();
+  const { summary, updateLog, getEntryUnitMeta } = useNutrition();
   const goal = summary?.goal;
 
   // The content (~520-560pt) is taller than a small screen once the keyboard is
@@ -98,8 +98,8 @@ export function EditEntrySheet({
   const shownEntry = entry ?? lastEntryRef.current;
 
   // Hold the heading text alongside the entry. Storing it on every render where
-  // `entry` is non-null (even when undefined) keeps a manual entry from leaking
-  // a stale Smart Journal title, while preserving the last value while closing.
+  // `entry` is non-null (even when undefined) keeps an entry from leaking a
+  // stale journal-line title, while preserving the last value while closing.
   const lastTitleRef = useRef<string | undefined>(undefined);
   if (entry) lastTitleRef.current = titleText;
   const shownTitle = lastTitleRef.current;
@@ -118,7 +118,6 @@ export function EditEntrySheet({
 
   const [unitKey, setUnitKey] = useState<MeasureUnitKey>("serving");
   const [quantityText, setQuantityText] = useState("1");
-  const [category, setCategory] = useState("");
   const [saving, setSaving] = useState(false);
 
   // Editable macros + calories. Seeded from the entry, re-derived when the
@@ -158,7 +157,6 @@ export function EditEntrySheet({
         meta?.unitKey ?? (entry.unit === "GRAM" ? "g" : "serving");
       setUnitKey(startUnit);
       setQuantityText(String(meta?.quantity ?? entry.quantity));
-      setCategory(entry.category ?? categories[0] ?? "Breakfast");
       setProteinText(String(round1(entry.proteinG)));
       setCarbsText(String(round1(entry.carbsG)));
       setFatText(String(round1(entry.fatG)));
@@ -266,7 +264,7 @@ export function EditEntrySheet({
       const created = await updateLog(
         shownEntry.entryId,
         {
-          category,
+          category: shownEntry.category ?? undefined,
           quantity: backendQty,
           unit: backendUnit,
           sourceType: shownEntry.sourceType,
@@ -289,7 +287,15 @@ export function EditEntrySheet({
   const glassAvailable = isLiquidGlassAvailable();
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} keyboardDismiss>
+    // avoidKeyboard lifts the whole sheet in sync with the keyboard, so the
+    // quantity field (low in the sheet) isn't covered while editing; the
+    // ScrollView cap keeps the top reachable on small screens.
+    <BottomSheet
+      visible={visible}
+      onClose={onClose}
+      avoidKeyboard
+      keyboardDismiss
+    >
       <ScrollView
         style={{ maxHeight: sheetMaxHeight }}
         keyboardShouldPersistTaps="handled"
@@ -312,32 +318,38 @@ export function EditEntrySheet({
                 onChangeText={editCalories}
                 goal={goal?.calorieGoal ?? 0}
                 size={92}
+                // Cutting flips the calorie gauge: green under budget, red
+                // spent.
+                reverse={goal?.goalType === "CUT"}
               />
               <View style={styles.macroStats}>
                 <MacroStat
                   label="Carbs"
+                  labelColor={macroColor("carbs", t.isDark)}
                   value={carbsText}
                   onChangeText={(v) => editMacro("carbsG", v)}
                   t={t}
                 />
                 <MacroStat
-                  label="Fat"
-                  value={fatText}
-                  onChangeText={(v) => editMacro("fatG", v)}
+                  label="Protein"
+                  labelColor={macroColor("protein", t.isDark)}
+                  value={proteinText}
+                  onChangeText={(v) => editMacro("proteinG", v)}
                   t={t}
                 />
                 <MacroStat
-                  label="Protein"
-                  value={proteinText}
-                  onChangeText={(v) => editMacro("proteinG", v)}
+                  label="Fat"
+                  labelColor={macroColor("fat", t.isDark)}
+                  value={fatText}
+                  onChangeText={(v) => editMacro("fatG", v)}
                   t={t}
                 />
               </View>
             </View>
           </GlassCard>
 
-          {/* Serving size, quantity, and meal — at the bottom. Serving size and
-            meal are matching dropdown rows; quantity is a +/- stepper. */}
+          {/* Serving size and quantity — at the bottom. Serving size is a
+            dropdown row; quantity is a +/- stepper. */}
           <GlassCard glass={glassAvailable} t={t}>
             <SelectRow
               label="Serving Size"
@@ -361,9 +373,17 @@ export function EditEntrySheet({
                   glass={glassAvailable}
                   t={t}
                 />
-                <Text style={[styles.stepValue, { color: t.text }]}>
-                  {quantityText}
-                </Text>
+                <TextInput
+                  value={quantityText}
+                  onChangeText={changeQuantity}
+                  keyboardType="decimal-pad"
+                  placeholder="0"
+                  placeholderTextColor={t.secondary}
+                  maxLength={6}
+                  selectTextOnFocus
+                  accessibilityLabel="Quantity"
+                  style={[styles.stepValue, { color: t.text }]}
+                />
                 <StepButton
                   icon="add"
                   onPress={() => stepQuantity(qtyStep)}
@@ -372,15 +392,6 @@ export function EditEntrySheet({
                 />
               </View>
             </View>
-
-            <SelectRow
-              label="Meal"
-              valueKey={category}
-              valueLabel={category}
-              options={categories.map((name) => ({ key: name, label: name }))}
-              onSelect={setCategory}
-              t={t}
-            />
           </GlassCard>
 
           <TouchableOpacity
@@ -427,11 +438,14 @@ export function EditEntrySheet({
 
 function MacroStat({
   label,
+  labelColor,
   value,
   onChangeText,
   t,
 }: {
   label: string;
+  /** Macro identity color for the label word (shared macroColors). */
+  labelColor: string;
   value: string;
   onChangeText: (v: string) => void;
   t: Theme;
@@ -448,7 +462,7 @@ function MacroStat({
         />
         <Text style={[styles.statUnit, { color: t.text }]}>g</Text>
       </View>
-      <Text style={[styles.statLabel, { color: t.secondary }]}>{label}</Text>
+      <Text style={[styles.statLabel, { color: labelColor }]}>{label}</Text>
     </View>
   );
 }
@@ -492,7 +506,7 @@ function StepButton({
 }
 
 /**
- * A rounded card matching the calorie tracker's glass summary/meal cards: a
+ * A rounded card matching the calorie tracker's glass summary card: a
  * translucent GlassView fill where liquid glass is available, falling back to a
  * plain surface card otherwise.
  */
@@ -680,6 +694,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 17,
     fontWeight: "600",
+    paddingVertical: 0,
   },
   macroRow: {
     flexDirection: "row",

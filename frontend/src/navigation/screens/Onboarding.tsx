@@ -6,6 +6,7 @@ import React, {
   useMemo,
 } from "react";
 import { View, StyleSheet, Alert, Appearance } from "react-native";
+import { FontScaleProvider } from "../../components/Text";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CommonActions, useNavigation } from "@react-navigation/native";
 import {
@@ -543,51 +544,54 @@ export function OnboardingScreen() {
   const CurrentStep = STEP_COMPONENTS[safeStep];
 
   return (
-    <View
-      style={[
-        styles.container,
-        {
-          backgroundColor: colors.screenBg ?? initialBg,
-          paddingTop: insets.top,
-        },
-      ]}
-    >
-      <CurrentStep {...stepProps} />
-      {__DEV__ && <TesterBackButton onBack={goBack} />}
-      {__DEV__ && <TesterSkipButton onSkip={onTesterSkip} />}
-      {authOverlay && (
-        <View
-          style={[
-            StyleSheet.absoluteFill,
-            { backgroundColor: colors.screenBg ?? initialBg },
-          ]}
-        >
-          {authOverlay.mode === "signIn" ? (
-            <SignInScreen
-              onBack={closeAuthOverlay}
-              onGoogleSignIn={onGoogleSignIn}
-              onAppleSignIn={onAppleSignIn}
-              onSignUp={() => {
-                closeAuthOverlay();
-                goTo(1); // NameStep — first onboarding question (skip Welcome)
-              }}
-              isSigningIn={isSigningIn}
-            />
-          ) : (
-            <AccountExistsScreen
-              provider={authOverlay.provider}
-              onBack={closeAuthOverlay}
-              onSignIn={() =>
-                authOverlay.provider === "google"
-                  ? handleGoogleAuth("sign_in")
-                  : handleAppleAuth("sign_in")
-              }
-              isSigningIn={isSigningIn}
-            />
-          )}
-        </View>
-      )}
-    </View>
+    // Onboarding layouts are pixel-exact; never let iOS text sizing scale them.
+    <FontScaleProvider max={1}>
+      <View
+        style={[
+          styles.container,
+          {
+            backgroundColor: colors.screenBg ?? initialBg,
+            paddingTop: insets.top,
+          },
+        ]}
+      >
+        <CurrentStep {...stepProps} />
+        {__DEV__ && <TesterBackButton onBack={goBack} />}
+        {__DEV__ && <TesterSkipButton onSkip={onTesterSkip} />}
+        {authOverlay && (
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              { backgroundColor: colors.screenBg ?? initialBg },
+            ]}
+          >
+            {authOverlay.mode === "signIn" ? (
+              <SignInScreen
+                onBack={closeAuthOverlay}
+                onGoogleSignIn={onGoogleSignIn}
+                onAppleSignIn={onAppleSignIn}
+                onSignUp={() => {
+                  closeAuthOverlay();
+                  goTo(1); // NameStep: first onboarding question (skip Welcome)
+                }}
+                isSigningIn={isSigningIn}
+              />
+            ) : (
+              <AccountExistsScreen
+                provider={authOverlay.provider}
+                onBack={closeAuthOverlay}
+                onSignIn={() =>
+                  authOverlay.provider === "google"
+                    ? handleGoogleAuth("sign_in")
+                    : handleAppleAuth("sign_in")
+                }
+                isSigningIn={isSigningIn}
+              />
+            )}
+          </View>
+        )}
+      </View>
+    </FontScaleProvider>
   );
 }
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, StyleSheet } from "react-native";
+import { Text } from "../../../components/Text";
 import Slider from "@react-native-community/slider";
 import * as Haptics from "expo-haptics";
 import { useOnboardingColors } from "./useOnboardingColors";

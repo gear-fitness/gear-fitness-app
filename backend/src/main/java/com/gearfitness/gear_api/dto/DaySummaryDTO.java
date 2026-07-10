@@ -15,6 +15,8 @@ public class DaySummaryDTO {
   private NutritionGoalDTO goal;
   private Totals totals;
   private List<LogEntryDTO> entries;
+  // The day's journal note, or null if none has been saved for this date.
+  private JournalNoteDTO journal;
 
   @Data
   @NoArgsConstructor

@@ -1,5 +1,6 @@
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { FontScaleProvider, Text } from "./Text";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 
@@ -100,177 +101,183 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
   };
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.85}
-      onPress={openDetail}
-      style={[
-        styles.card,
-        { backgroundColor: t.surface, borderColor: t.border, width },
-      ]}
-    >
-      <PostActionsSheet
-        visible={showActionsSheet}
-        actions={menuActions}
-        onClose={closeActionsSheet}
-        onClosed={onActionsSheetClosed}
-      />
-      <PostVisibilitySheet
-        visible={showVisibilitySheet}
-        current={pendingVisibility}
-        onSelect={handleVisibilitySelect}
-        onClose={closeVisibilitySheet}
-      />
-      <ReportPostSheet
-        visible={showReportSheet}
-        onSubmit={submitReport}
-        onClose={closeReportSheet}
-      />
-      <View style={styles.cardHeader}>
-        <Avatar
-          username={post.username}
-          profilePictureUrl={post.userProfilePictureUrl}
-          size={24}
+    <FontScaleProvider max={1}>
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={openDetail}
+        style={[
+          styles.card,
+          { backgroundColor: t.surface, borderColor: t.border, width },
+        ]}
+      >
+        <PostActionsSheet
+          visible={showActionsSheet}
+          actions={menuActions}
+          onClose={closeActionsSheet}
+          onClosed={onActionsSheetClosed}
         />
-        <Text
-          style={[styles.timeAgo, { color: t.textFaint }]}
-          numberOfLines={1}
-        >
-          {formatTimeAgo(post.createdAt)}
-        </Text>
-        {visibilityIcon && (
-          <Ionicons
-            name={visibilityIcon}
-            size={12}
-            color={t.text}
-            style={{ opacity: 0.5 }}
-          />
-        )}
-        <View style={{ flex: 1 }} />
-        <TouchableOpacity
-          onPress={(e) => {
-            e.stopPropagation?.();
-            onMenuPress();
-          }}
-          hitSlop={10}
-          accessibilityLabel="More options"
-        >
-          <Ionicons name="ellipsis-horizontal" size={16} color={t.text} />
-        </TouchableOpacity>
-      </View>
-
-      <Text style={[styles.workoutName, { color: t.text }]} numberOfLines={2}>
-        {post.workoutName}
-      </Text>
-
-      <View style={styles.metricsRow}>
-        <View>
-          <Text style={[styles.metricValue, { color: t.text }]}>{time}</Text>
-          <Text style={[styles.metricLabel, { color: t.textFaint }]}>TIME</Text>
-        </View>
-        <View>
-          <Text style={[styles.metricValue, { color: t.text }]}>
-            {post.exerciseCount}
-          </Text>
-          <Text style={[styles.metricLabel, { color: t.textFaint }]}>EX.</Text>
-        </View>
-        {photos.length > 0 && (
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={openImageViewer}
-            style={styles.thumbStackWrap}
-          >
-            {photos[2] && (
-              <View
-                shouldRasterizeIOS
-                renderToHardwareTextureAndroid
-                style={[
-                  styles.thumbLayer,
-                  styles.thumbLayerThird,
-                  { backgroundColor: t.surface, borderColor: t.surface },
-                ]}
-              >
-                <PresignedImage
-                  imageKey={photos[2]}
-                  style={[styles.thumbImage, { borderColor: t.border }]}
-                  resizeMode="cover"
-                  showLoader={false}
-                />
-              </View>
-            )}
-            {photos[1] && (
-              <View
-                shouldRasterizeIOS
-                renderToHardwareTextureAndroid
-                style={[
-                  styles.thumbLayer,
-                  styles.thumbLayerSecond,
-                  { backgroundColor: t.surface, borderColor: t.surface },
-                ]}
-              >
-                <PresignedImage
-                  imageKey={photos[1]}
-                  style={[styles.thumbImage, { borderColor: t.border }]}
-                  resizeMode="cover"
-                  showLoader={false}
-                />
-              </View>
-            )}
-            <View
-              style={[
-                styles.thumbLayer,
-                { backgroundColor: t.surface, borderColor: t.surface },
-              ]}
-            >
-              <PresignedImage
-                imageKey={photos[0]}
-                style={[styles.thumbImage, { borderColor: t.border }]}
-                resizeMode="cover"
-                showLoader={false}
-              />
-            </View>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      <View style={[styles.cardFooter, { borderTopColor: t.border }]}>
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={handleLike}
-          hitSlop={8}
-          style={styles.footerItem}
-        >
-          <Ionicons
-            name={likedByUser ? "heart" : "heart-outline"}
-            size={16}
-            color={likedByUser ? "#e74c3c" : t.text}
+        <PostVisibilitySheet
+          visible={showVisibilitySheet}
+          current={pendingVisibility}
+          onSelect={handleVisibilitySelect}
+          onClose={closeVisibilitySheet}
+        />
+        <ReportPostSheet
+          visible={showReportSheet}
+          onSubmit={submitReport}
+          onClose={closeReportSheet}
+        />
+        <View style={styles.cardHeader}>
+          <Avatar
+            username={post.username}
+            profilePictureUrl={post.userProfilePictureUrl}
+            size={24}
           />
           <Text
-            style={[
-              styles.footerText,
-              { color: likedByUser ? "#e74c3c" : t.text },
-            ]}
+            style={[styles.timeAgo, { color: t.textFaint }]}
+            numberOfLines={1}
           >
-            {likeCount}
+            {formatTimeAgo(post.createdAt)}
           </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={() =>
-            navigation.navigate("Comments", {
-              postId: post.postId,
-              postOwnerId: post.userId,
-            })
-          }
-          hitSlop={8}
-          style={styles.footerItem}
-        >
-          <Ionicons name="chatbubble-outline" size={16} color={t.text} />
-          <Text style={[styles.footerText, { color: t.text }]}>
-            {post.commentCount}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
+          {visibilityIcon && (
+            <Ionicons
+              name={visibilityIcon}
+              size={12}
+              color={t.text}
+              style={{ opacity: 0.5 }}
+            />
+          )}
+          <View style={{ flex: 1 }} />
+          <TouchableOpacity
+            onPress={(e) => {
+              e.stopPropagation?.();
+              onMenuPress();
+            }}
+            hitSlop={10}
+            accessibilityLabel="More options"
+          >
+            <Ionicons name="ellipsis-horizontal" size={16} color={t.text} />
+          </TouchableOpacity>
+        </View>
+
+        <Text style={[styles.workoutName, { color: t.text }]} numberOfLines={2}>
+          {post.workoutName}
+        </Text>
+
+        <View style={styles.metricsRow}>
+          <View>
+            <Text style={[styles.metricValue, { color: t.text }]}>{time}</Text>
+            <Text style={[styles.metricLabel, { color: t.textFaint }]}>
+              TIME
+            </Text>
+          </View>
+          <View>
+            <Text style={[styles.metricValue, { color: t.text }]}>
+              {post.exerciseCount}
+            </Text>
+            <Text style={[styles.metricLabel, { color: t.textFaint }]}>
+              EX.
+            </Text>
+          </View>
+          {photos.length > 0 && (
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={openImageViewer}
+              style={styles.thumbStackWrap}
+            >
+              {photos[2] && (
+                <View
+                  shouldRasterizeIOS
+                  renderToHardwareTextureAndroid
+                  style={[
+                    styles.thumbLayer,
+                    styles.thumbLayerThird,
+                    { backgroundColor: t.surface, borderColor: t.surface },
+                  ]}
+                >
+                  <PresignedImage
+                    imageKey={photos[2]}
+                    style={[styles.thumbImage, { borderColor: t.border }]}
+                    resizeMode="cover"
+                    showLoader={false}
+                  />
+                </View>
+              )}
+              {photos[1] && (
+                <View
+                  shouldRasterizeIOS
+                  renderToHardwareTextureAndroid
+                  style={[
+                    styles.thumbLayer,
+                    styles.thumbLayerSecond,
+                    { backgroundColor: t.surface, borderColor: t.surface },
+                  ]}
+                >
+                  <PresignedImage
+                    imageKey={photos[1]}
+                    style={[styles.thumbImage, { borderColor: t.border }]}
+                    resizeMode="cover"
+                    showLoader={false}
+                  />
+                </View>
+              )}
+              <View
+                style={[
+                  styles.thumbLayer,
+                  { backgroundColor: t.surface, borderColor: t.surface },
+                ]}
+              >
+                <PresignedImage
+                  imageKey={photos[0]}
+                  style={[styles.thumbImage, { borderColor: t.border }]}
+                  resizeMode="cover"
+                  showLoader={false}
+                />
+              </View>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <View style={[styles.cardFooter, { borderTopColor: t.border }]}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={handleLike}
+            hitSlop={8}
+            style={styles.footerItem}
+          >
+            <Ionicons
+              name={likedByUser ? "heart" : "heart-outline"}
+              size={16}
+              color={likedByUser ? "#e74c3c" : t.text}
+            />
+            <Text
+              style={[
+                styles.footerText,
+                { color: likedByUser ? "#e74c3c" : t.text },
+              ]}
+            >
+              {likeCount}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() =>
+              navigation.navigate("Comments", {
+                postId: post.postId,
+                postOwnerId: post.userId,
+              })
+            }
+            hitSlop={8}
+            style={styles.footerItem}
+          >
+            <Ionicons name="chatbubble-outline" size={16} color={t.text} />
+            <Text style={[styles.footerText, { color: t.text }]}>
+              {post.commentCount}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    </FontScaleProvider>
   );
 }
 

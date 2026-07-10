@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text, Image, StyleSheet } from "react-native";
+import { View, Image, StyleSheet } from "react-native";
+import { Text } from "../../../components/Text";
 import { StepProps } from "../stepProps";
 import { useOnboardingColors } from "./useOnboardingColors";
 import { GOAL_SUCCESS_STAT_PCT } from "../intakeOptions";

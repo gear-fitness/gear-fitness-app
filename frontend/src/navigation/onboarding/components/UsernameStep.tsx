@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
+import { View, Pressable, StyleSheet } from "react-native";
+import { Text, TextInput } from "../../../components/Text";
 import { checkUsernameAvailability } from "../../../api/userService";
 import { StepProps } from "../stepProps";
 import { OnboardingTopBar } from "./OnboardingTopBar";
@@ -84,8 +85,8 @@ export function UsernameStep({
       <View style={styles.center}>
         <Text style={[shared.heading, styles.heading]}>Choose a username</Text>
         <Text style={[styles.sub, { color: colors.secondary }]}>
-          This is your public @handle that others use to find and follow you.
-          It can only be changed once in a while, so choose wisely.
+          This is your public @handle that others use to find and follow you. It
+          can only be changed once in a while, so choose wisely.
         </Text>
         <View style={styles.inputGroup}>
           <Text style={styles.atSign}>@</Text>

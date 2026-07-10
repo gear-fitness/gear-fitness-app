@@ -46,6 +46,24 @@ public class NutritionGoal {
   @Builder.Default
   private Boolean isCustom = false;
 
+  // Direction the auto-calculation aims for: CUT | MAINTAIN | BULK.
+  @Column(name = "goal_type", nullable = false, length = 10)
+  @Builder.Default
+  private String goalType = "MAINTAIN";
+
+  // How aggressive the cut/bulk offset is: SLOW | MODERATE | AGGRESSIVE.
+  // Ignored while goalType is MAINTAIN.
+  @Column(name = "goal_intensity", nullable = false, length = 12)
+  @Builder.Default
+  private String goalIntensity = "MODERATE";
+
+  // True once the user has been through the first-view calculator wizard
+  // (saved or explicitly accepted the defaults), or has manually overridden
+  // the targets. Gates the wizard's auto-open on the tracker screen.
+  @Column(name = "setup_complete", nullable = false)
+  @Builder.Default
+  private Boolean setupComplete = false;
+
   @Column(name = "updated_at", nullable = false)
   private LocalDateTime updatedAt;
 }

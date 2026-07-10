@@ -4,11 +4,11 @@ import {
   NativeSyntheticEvent,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
   useWindowDimensions,
 } from "react-native";
+import { Text } from "../../components/Text";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";

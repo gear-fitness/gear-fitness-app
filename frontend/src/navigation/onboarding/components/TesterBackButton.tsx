@@ -1,5 +1,6 @@
 import React from "react";
-import { Pressable, Text, StyleSheet } from "react-native";
+import { Pressable, StyleSheet } from "react-native";
+import { Text } from "../../../components/Text";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useOnboardingColors } from "./useOnboardingColors";
 

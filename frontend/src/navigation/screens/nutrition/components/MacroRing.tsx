@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
-import { StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text, TextInput } from "../../../../components/Text";
 import Svg, { Circle } from "react-native-svg";
 import Animated, {
   Easing,
@@ -22,8 +23,10 @@ const FILL_EASING = Easing.out(Easing.cubic);
 /**
  * A circular macro gauge: a gray track with a progress arc that fills clockwise
  * from the top as `value` approaches `goal`, coloring red → green by how close
- * to the goal the user is. The current value is shown in the center — as an
- * editable field when `onChangeText` is supplied.
+ * to the goal the user is (or, with `reverse`, staying green until the goal is
+ * exceeded and then sweeping to red, for budget-style gauges on a cut). The
+ * current value is shown in the center — as an editable field when
+ * `onChangeText` is supplied.
  */
 export function MacroRing({
   label,
@@ -35,7 +38,11 @@ export function MacroRing({
   onChangeText,
   valueFontSize = 19,
   labelFontSize = 13,
+  labelColor,
+  labelBold,
+  showGoal,
   animateKey,
+  reverse,
 }: {
   label: string;
   value: number;
@@ -49,15 +56,29 @@ export function MacroRing({
   valueFontSize?: number;
   /** Bottom-label font size — shrink for compact inline rings. */
   labelFontSize?: number;
+  /** Bottom-label color (e.g. the macro's identity color); secondary otherwise. */
+  labelColor?: string;
+  /** Bold the bottom label (the tracker's expanded card). */
+  labelBold?: boolean;
+  /** Render the center as a `value/goal` fraction instead of the bare value.
+   *  The "/goal" tail is greyed, matching the tracker's calorie readout. */
+  showGoal?: boolean;
   /**
    * Changing this resets the arc to empty and refills it (used to replay the
    * entry animation when the tracker switches days). When it stays the same but
    * `value`/`goal` change, the arc animates smoothly to the new offset instead.
    */
   animateKey?: string | number;
+  /** Treat the gauge as a budget: green anywhere under the goal, sweeping to
+   *  red only once it is exceeded (calorie, carb, and fat budgets while
+   *  cutting weight). Protein never reverses. */
+  reverse?: boolean;
 }) {
   const t = useThemeColors();
-  const pct = goal > 0 ? Math.min(value / goal, 1) : 0;
+  // rawPct keeps the overshoot so reversed (budget) gauges can color by how
+  // far over the goal the user is; pct clamps it for the arc geometry.
+  const rawPct = goal > 0 ? value / goal : 0;
+  const pct = Math.min(rawPct, 1);
 
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -115,7 +136,7 @@ export function MacroRing({
               cx={center}
               cy={center}
               r={radius}
-              stroke={progressColor(pct)}
+              stroke={progressColor(rawPct, reverse)}
               strokeWidth={stroke}
               fill="none"
               strokeDasharray={circumference}
@@ -143,6 +164,7 @@ export function MacroRing({
               maxFontSizeMultiplier={1.2}
             >
               {value}
+              {showGoal && <Text style={{ color: t.secondary }}>/{goal}</Text>}
             </Text>
           )}
         </View>
@@ -151,7 +173,8 @@ export function MacroRing({
         <Text
           style={[
             styles.label,
-            { color: t.secondary, fontSize: labelFontSize },
+            { color: labelColor ?? t.secondary, fontSize: labelFontSize },
+            labelBold && styles.labelBold,
           ]}
         >
           {label}
@@ -175,4 +198,5 @@ const styles = StyleSheet.create({
     minWidth: 54,
   },
   label: { fontSize: 13, fontWeight: "600", marginTop: 8 },
+  labelBold: { fontWeight: "700" },
 });

@@ -1,5 +1,7 @@
 package com.gearfitness.gear_api.dto;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gearfitness.gear_api.entity.FoodLogEntry;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
@@ -10,6 +12,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class LogEntryDTO {
+
+  private static final ObjectMapper MAPPER = new ObjectMapper();
 
   private UUID entryId;
   private UUID foodId;
@@ -23,6 +27,7 @@ public class LogEntryDTO {
   private Double fatG;
   private String sourceType;
   private String sourceUrl;
+  private JsonNode displayMeta;
 
   public static LogEntryDTO from(FoodLogEntry e) {
     return new LogEntryDTO(
@@ -37,7 +42,19 @@ public class LogEntryDTO {
       e.getCarbsG() == null ? null : e.getCarbsG().doubleValue(),
       e.getFatG() == null ? null : e.getFatG().doubleValue(),
       e.getSourceType(),
-      e.getSourceUrl()
+      e.getSourceUrl(),
+      parseJson(e.getDisplayMeta())
     );
+  }
+
+  // The column is jsonb, so stored values are always parseable; a null column
+  // stays null in the DTO.
+  private static JsonNode parseJson(String raw) {
+    if (raw == null) return null;
+    try {
+      return MAPPER.readTree(raw);
+    } catch (Exception ex) {
+      return null;
+    }
   }
 }

@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { View, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { Text } from "./Text";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
 import Svg, { Path } from "react-native-svg";

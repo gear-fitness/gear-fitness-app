@@ -3,21 +3,26 @@ import {
   ActivityIndicator,
   Animated,
   FlatList,
-  Pressable,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../../components/Text";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useNavigation } from "@react-navigation/native";
 import { SearchBar } from "../../../components/SearchBar";
 import { FloatingKeyboardDismiss } from "../../../components/FloatingKeyboardDismiss";
 import { useThemeColors } from "../../../hooks/useThemeColors";
+import { useTier } from "../../../hooks/useTier";
 import { useNutrition } from "../../../context/NutritionContext";
-import { getUserFoods, searchFoods } from "../../../api/nutritionService";
+import {
+  createCustomFood,
+  getUserFoods,
+  searchFoods,
+} from "../../../api/nutritionService";
 import { FoodItem, MeasureUnit, MeasureUnitKey } from "../../../api/types";
 import {
   buildUnits,
@@ -92,30 +97,36 @@ function GlassCircleButton({
 
 export function AddFood() {
   const t = useThemeColors();
-  const navigation = useNavigation<any>();
-  const routeCategory = (
-    useRoute<any>().params as { category?: string } | undefined
-  )?.category;
+  const navigation = useNavigation() as any;
+  const { atLeast } = useTier();
 
-  const { categories, addLog } = useNutrition();
-  const [category, setCategory] = useState<string>(
-    routeCategory ?? categories[0] ?? "Breakfast",
-  );
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const { addLog } = useNutrition();
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<FoodItem[]>([]);
   const [loading, setLoading] = useState(false);
   const reqId = useRef(0);
 
-  // Measured bottom edge of the header so the category dropdown opens just
-  // below the button rather than overlapping it (the overlay starts at the
-  // very top of the screen, behind the safe-area inset).
-  const [headerBottom, setHeaderBottom] = useState(0);
+  // The whole tracker is Plus-gated, but this screen is reachable directly
+  // (deep links, stale entry points) — bounce non-Plus users to the upsell
+  // rather than letting them search foods they can't log.
+  useEffect(() => {
+    if (!atLeast("PLUS")) {
+      navigation.goBack();
+      navigation.navigate("PlusUpsell", {
+        feature: "Track calories and macros with the food journal",
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Per-food add state so the row's "+" can show a spinner then a checkmark.
   const [addingId, setAddingId] = useState<string | null>(null);
   const [addedIds, setAddedIds] = useState<Record<string, boolean>>({});
+
+  // Per-food save-to-favorites state (spinner, then a filled bookmark).
+  const [favSavingId, setFavSavingId] = useState<string | null>(null);
+  const [favSavedIds, setFavSavedIds] = useState<Record<string, boolean>>({});
 
   // Which row's portion dropdown is open. Hoisted here (rather than per-row) so
   // only one can be expanded at a time — opening one closes any other.
@@ -193,9 +204,11 @@ export function AddFood() {
       await addLog(
         {
           foodId: food.foodId,
-          category,
           quantity: backendQty,
           unit: backendUnit,
+          // Journal provenance: a database pick, so the journal materializes a
+          // "db" line for it (and the AI orphan reaper never touches it).
+          sourceType: "DB",
         },
         { unitKey, quantity, servingGrams, units: food.units },
       );
@@ -208,15 +221,36 @@ export function AddFood() {
     }
   };
 
+  // Save a search result to the user's favorites (custom foods) so it's one
+  // tap to log later. Snapshots the food's per-serving nutrition; custom foods
+  // don't offer this (they're already favorites).
+  const handleSaveFavorite = async (food: FoodItem) => {
+    if (favSavingId || favSavedIds[food.foodId]) return;
+    setFavSavingId(food.foodId);
+    try {
+      const macros = perServing(food);
+      await createCustomFood({
+        description: food.description,
+        calories: macros.calories,
+        proteinG: macros.proteinG,
+        carbsG: macros.carbsG,
+        fatG: macros.fatG,
+      });
+      setFavSavedIds((prev) => ({ ...prev, [food.foodId]: true }));
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
+        () => {},
+      );
+    } catch (err) {
+      console.error("Failed to save favorite:", err);
+    } finally {
+      setFavSavingId(null);
+    }
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: t.appBg }]}>
-      {/* Header: close + tappable category selector */}
-      <View
-        style={styles.header}
-        onLayout={(e) =>
-          setHeaderBottom(e.nativeEvent.layout.y + e.nativeEvent.layout.height)
-        }
-      >
+      {/* Header: close + title */}
+      <View style={styles.header}>
         <TouchableOpacity
           accessibilityLabel="Back"
           hitSlop={12}
@@ -225,23 +259,9 @@ export function AddFood() {
           <Ionicons name="chevron-back" size={26} color={t.text} />
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.categoryBtn}
-          accessibilityLabel="Change meal"
-          hitSlop={8}
-          onPress={() => setPickerOpen(true)}
-        >
-          <Text style={[styles.categoryText, { color: t.tint }]}>
-            {category}
-          </Text>
-          <Ionicons
-            name={pickerOpen ? "chevron-up" : "chevron-down"}
-            size={18}
-            color={t.tint}
-          />
-        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: t.text }]}>Add food</Text>
 
-        {/* Spacer to keep the category centered opposite the close button. */}
+        {/* Spacer to keep the title centered opposite the close button. */}
         <View style={styles.headerSpacer} />
       </View>
 
@@ -291,10 +311,12 @@ export function AddFood() {
         renderItem={({ item }) => (
           <FoodRow
             food={item}
-            category={category}
             t={t}
             added={!!addedIds[item.foodId]}
             busy={addingId === item.foodId}
+            favSaved={!!favSavedIds[item.foodId]}
+            favBusy={favSavingId === item.foodId}
+            onSaveFavorite={() => handleSaveFavorite(item)}
             expanded={expandedId === item.foodId}
             onToggleExpand={() =>
               setExpandedId((prev) =>
@@ -308,52 +330,6 @@ export function AddFood() {
           />
         )}
       />
-
-      {/* Category dropdown — anchored under the header button */}
-      {pickerOpen && (
-        <Pressable
-          style={styles.dropdownOverlay}
-          onPress={() => setPickerOpen(false)}
-        >
-          <Pressable
-            style={[
-              styles.dropdown,
-              {
-                marginTop: headerBottom + 4,
-                backgroundColor: t.cardBg,
-                borderColor: t.cardBorder,
-              },
-            ]}
-          >
-            {categories.map((name) => {
-              const selected = name === category;
-              return (
-                <TouchableOpacity
-                  key={name}
-                  style={styles.dropdownRow}
-                  onPress={() => {
-                    setCategory(name);
-                    setPickerOpen(false);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.dropdownText,
-                      { color: t.text },
-                      selected && styles.dropdownTextSelected,
-                    ]}
-                  >
-                    {name}
-                  </Text>
-                  {selected && (
-                    <Ionicons name="checkmark" size={18} color={t.tint} />
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </Pressable>
-        </Pressable>
-      )}
 
       {/* "Logged!" confirmation toast */}
       {toastVisible && (
@@ -377,27 +353,31 @@ export function AddFood() {
 }
 
 /**
- * A single food result. Collapsed it shows the name/macros with a quick "+"
- * (logs one serving) and a chevron to expand. Expanded it reveals a Serving
- * Size unit selector and a Quantity stepper, then a "Log to {category}" button
- * that logs the chosen amount.
+ * A single food result. Collapsed it shows the name/macros with a bookmark
+ * (save to favorites) and a quick "+" (logs one serving); tapping the card
+ * itself expands it, revealing a Serving Size unit selector and a Quantity
+ * stepper, then a "Log" button that logs the chosen amount.
  */
 function FoodRow({
   food,
-  category,
   t,
   added,
   busy,
+  favSaved,
+  favBusy,
+  onSaveFavorite,
   expanded,
   onToggleExpand,
   onCollapse,
   onLog,
 }: {
   food: FoodItem;
-  category: string;
   t: ReturnType<typeof useThemeColors>;
   added: boolean;
   busy: boolean;
+  favSaved: boolean;
+  favBusy: boolean;
+  onSaveFavorite: () => void;
   expanded: boolean;
   onToggleExpand: () => void;
   onCollapse: () => void;
@@ -409,7 +389,15 @@ function FoodRow({
   const glassAvailable = isLiquidGlassAvailable();
   const [unitPickerOpen, setUnitPickerOpen] = useState(false);
   const [unitKey, setUnitKey] = useState<MeasureUnitKey>("serving");
-  const [quantity, setQuantity] = useState(1);
+  // Held as text so the number is directly editable (decimal-pad, like the
+  // exercise inputs); the steppers read/write through it.
+  const [quantityText, setQuantityText] = useState("1");
+  const quantity = parseFloat(quantityText) || 0;
+
+  const stepQuantity = (delta: number) => {
+    const next = Math.round(Math.max(1, quantity + delta) * 100) / 100;
+    setQuantityText(String(next));
+  };
 
   // Units offered for this food. The "serving" option is labelled with the
   // food's household serving (e.g. "4 oz", "1 cup") so it reads like the meta.
@@ -428,6 +416,7 @@ function FoodRow({
   const macros = perServing(food);
 
   const handleLog = async () => {
+    if (quantity <= 0) return;
     await onLog(food, { unitKey, quantity });
     onCollapse();
   };
@@ -439,7 +428,18 @@ function FoodRow({
         { backgroundColor: t.cardBg, borderColor: t.cardBorder },
       ]}
     >
-      <View style={styles.rowTop}>
+      {/* The whole header is the expand/collapse affordance; the circle
+          buttons sit on top and win their own taps. */}
+      <TouchableOpacity
+        style={styles.rowTop}
+        activeOpacity={0.7}
+        onPress={onToggleExpand}
+        accessibilityLabel={
+          expanded
+            ? `Hide options for ${food.description}`
+            : `Choose amount for ${food.description}`
+        }
+      >
         <View style={styles.rowInfo}>
           <Text style={[styles.name, { color: t.text }]} numberOfLines={2}>
             {food.description}
@@ -454,25 +454,37 @@ function FoodRow({
         </View>
 
         <View style={styles.rowActions}>
-          <GlassCircleButton
-            glassAvailable={glassAvailable}
-            surface={t.surface}
-            accessibilityLabel={expanded ? "Hide options" : "Choose amount"}
-            hitSlop={8}
-            onPress={onToggleExpand}
-          >
-            <Ionicons
-              name={expanded ? "chevron-up" : "chevron-down"}
-              size={20}
-              color={t.secondary}
-            />
-          </GlassCircleButton>
+          {/* Save to favorites — custom foods are already favorites. */}
+          {food.dataType !== "CUSTOM" && (
+            <GlassCircleButton
+              glassAvailable={glassAvailable}
+              surface={t.surface}
+              accessibilityLabel={
+                favSaved
+                  ? `${food.description} saved to favorites`
+                  : `Save ${food.description} to favorites`
+              }
+              hitSlop={8}
+              disabled={favBusy}
+              onPress={onSaveFavorite}
+            >
+              {favBusy ? (
+                <ActivityIndicator size="small" color={t.tint} />
+              ) : (
+                <Ionicons
+                  name={favSaved ? "bookmark" : "bookmark-outline"}
+                  size={18}
+                  color={t.tint}
+                />
+              )}
+            </GlassCircleButton>
+          )}
 
           {!expanded && (
             <GlassCircleButton
               glassAvailable={glassAvailable}
               surface={t.surface}
-              accessibilityLabel={`Add ${food.description} to ${category}`}
+              accessibilityLabel={`Add ${food.description}`}
               hitSlop={8}
               disabled={busy}
               onPress={() => onLog(food)}
@@ -487,7 +499,7 @@ function FoodRow({
             </GlassCircleButton>
           )}
         </View>
-      </View>
+      </TouchableOpacity>
 
       {expanded && (
         <View style={styles.expanded}>
@@ -518,7 +530,7 @@ function FoodRow({
                   accessibilityLabel="Decrease quantity"
                   hitSlop={8}
                   disabled={quantity <= 1}
-                  onPress={() => setQuantity((q) => Math.max(1, q - 1))}
+                  onPress={() => stepQuantity(-1)}
                   style={styles.stepperBtn}
                 >
                   <Ionicons
@@ -527,13 +539,21 @@ function FoodRow({
                     color={quantity <= 1 ? t.border : t.tint}
                   />
                 </TouchableOpacity>
-                <Text style={[styles.stepperValue, { color: t.text }]}>
-                  {quantity}
-                </Text>
+                <TextInput
+                  value={quantityText}
+                  onChangeText={setQuantityText}
+                  keyboardType="decimal-pad"
+                  placeholder="0"
+                  placeholderTextColor={t.secondary}
+                  maxLength={6}
+                  selectTextOnFocus
+                  accessibilityLabel="Quantity"
+                  style={[styles.stepperValue, { color: t.text }]}
+                />
                 <TouchableOpacity
                   accessibilityLabel="Increase quantity"
                   hitSlop={8}
-                  onPress={() => setQuantity((q) => q + 1)}
+                  onPress={() => stepQuantity(1)}
                   style={styles.stepperBtn}
                 >
                   <Ionicons name="add" size={22} color={t.tint} />
@@ -580,14 +600,14 @@ function FoodRow({
 
           <TouchableOpacity
             style={[styles.logBtn, { backgroundColor: t.accent }]}
-            disabled={busy}
+            disabled={busy || quantity <= 0}
             onPress={handleLog}
           >
             {busy ? (
               <ActivityIndicator size="small" color={t.accentText} />
             ) : (
               <Text style={[styles.logBtnText, { color: t.accentText }]}>
-                Log to {category}
+                Log
               </Text>
             )}
           </TouchableOpacity>
@@ -606,12 +626,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
-  categoryBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  categoryText: { fontSize: 17, fontWeight: "700" },
+  headerTitle: { fontSize: 17, fontWeight: "700" },
   headerSpacer: { width: 26 },
   searchWrap: { paddingHorizontal: 16, paddingBottom: 8 },
   listContent: { flexGrow: 1, paddingHorizontal: 16, paddingBottom: 32 },
@@ -685,8 +700,9 @@ const styles = StyleSheet.create({
   stepperValue: {
     fontSize: 16,
     fontWeight: "600",
-    minWidth: 24,
+    minWidth: 40,
     textAlign: "center",
+    paddingVertical: 0,
   },
   chipRow: {
     flexDirection: "row",
@@ -718,31 +734,6 @@ const styles = StyleSheet.create({
   },
   emptyText: { fontSize: 20, fontWeight: "600", marginTop: 16 },
   emptySubtext: { fontSize: 14, marginTop: 8, textAlign: "center" },
-  dropdownOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: "center",
-  },
-  dropdown: {
-    minWidth: 200,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingVertical: 6,
-    shadowColor: "#000",
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
-  },
-  dropdownRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 16,
-  },
-  dropdownText: { fontSize: 16 },
-  dropdownTextSelected: { fontWeight: "700" },
   toast: {
     position: "absolute",
     bottom: 40,

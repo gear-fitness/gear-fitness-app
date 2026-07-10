@@ -10,10 +10,9 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
   Platform,
-  TextInput,
   Dimensions,
 } from "react-native";
-import { Text } from "@react-navigation/elements";
+import { Text, TextInput } from "../../components/Text";
 import {
   SafeAreaView,
   useSafeAreaInsets,

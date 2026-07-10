@@ -7,11 +7,11 @@ import {
   NativeSyntheticEvent,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
   useColorScheme,
 } from "react-native";
+import { Text } from "../../components/Text";
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import * as MediaLibrary from "expo-media-library";
