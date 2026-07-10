@@ -173,12 +173,16 @@ export function CalorieTracker() {
 
   const goal = summary?.goal;
   const totals = summary?.totals;
-  // Cutting flips the gauge colors: calories/carbs/fat are budgets (green
-  // under, red spent), while protein stays a target (green when met).
+  // Cutting turns the calorie/carb/fat gauges into budgets: green anywhere
+  // under the goal, sweeping to red only once it's exceeded. Protein stays a
+  // target (green when met) on every goal type.
   const reverseGauges = goal?.goalType === "CUT";
   const consumed = round(totals?.calories);
   const calorieGoal = goal?.calorieGoal ?? 0;
-  const caloriePct = calorieGoal > 0 ? Math.min(consumed / calorieGoal, 1) : 0;
+  // Raw ratio keeps the overshoot for the budget coloring; the clamped pct
+  // drives the bar width so the fill never escapes the track.
+  const rawCaloriePct = calorieGoal > 0 ? consumed / calorieGoal : 0;
+  const caloriePct = Math.min(rawCaloriePct, 1);
   // Fraction of the calorie bar filled, animated on the UI thread. The width
   // eases from 0 to caloriePct so the bar draws itself on entry.
   const barProgress = useSharedValue(0);
@@ -469,7 +473,10 @@ export function CalorieTracker() {
                     styles.calFill,
                     barFillStyle,
                     {
-                      backgroundColor: progressColor(caloriePct, reverseGauges),
+                      backgroundColor: progressColor(
+                        rawCaloriePct,
+                        reverseGauges,
+                      ),
                     },
                   ]}
                 />
@@ -485,9 +492,9 @@ export function CalorieTracker() {
                     labelBold
                     value={round(totals?.carbsG)}
                     goal={goal?.carbsG ?? 0}
-                    size={60}
-                    stroke={6}
-                    valueFontSize={11}
+                    size={68}
+                    stroke={7}
+                    valueFontSize={12}
                     showGoal
                     animateKey={selectedDate}
                     reverse={reverseGauges}
@@ -498,9 +505,9 @@ export function CalorieTracker() {
                     labelBold
                     value={round(totals?.proteinG)}
                     goal={goal?.proteinG ?? 0}
-                    size={60}
-                    stroke={6}
-                    valueFontSize={11}
+                    size={68}
+                    stroke={7}
+                    valueFontSize={12}
                     showGoal
                     animateKey={selectedDate}
                   />
@@ -510,9 +517,9 @@ export function CalorieTracker() {
                     labelBold
                     value={round(totals?.fatG)}
                     goal={goal?.fatG ?? 0}
-                    size={60}
-                    stroke={6}
-                    valueFontSize={11}
+                    size={68}
+                    stroke={7}
+                    valueFontSize={12}
                     showGoal
                     animateKey={selectedDate}
                     reverse={reverseGauges}

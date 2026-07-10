@@ -23,9 +23,10 @@ const FILL_EASING = Easing.out(Easing.cubic);
 /**
  * A circular macro gauge: a gray track with a progress arc that fills clockwise
  * from the top as `value` approaches `goal`, coloring red → green by how close
- * to the goal the user is (or green → red with `reverse`, for budget-style
- * gauges on a cut). The current value is shown in the center — as an
- * editable field when `onChangeText` is supplied.
+ * to the goal the user is (or, with `reverse`, staying green until the goal is
+ * exceeded and then sweeping to red, for budget-style gauges on a cut). The
+ * current value is shown in the center — as an editable field when
+ * `onChangeText` is supplied.
  */
 export function MacroRing({
   label,
@@ -68,12 +69,16 @@ export function MacroRing({
    * `value`/`goal` change, the arc animates smoothly to the new offset instead.
    */
   animateKey?: string | number;
-  /** Flip the color sweep to green → red: filling this gauge is bad (calorie,
-   *  carb, and fat budgets while cutting weight). Protein never reverses. */
+  /** Treat the gauge as a budget: green anywhere under the goal, sweeping to
+   *  red only once it is exceeded (calorie, carb, and fat budgets while
+   *  cutting weight). Protein never reverses. */
   reverse?: boolean;
 }) {
   const t = useThemeColors();
-  const pct = goal > 0 ? Math.min(value / goal, 1) : 0;
+  // rawPct keeps the overshoot so reversed (budget) gauges can color by how
+  // far over the goal the user is; pct clamps it for the arc geometry.
+  const rawPct = goal > 0 ? value / goal : 0;
+  const pct = Math.min(rawPct, 1);
 
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -131,7 +136,7 @@ export function MacroRing({
               cx={center}
               cy={center}
               r={radius}
-              stroke={progressColor(pct, reverse)}
+              stroke={progressColor(rawPct, reverse)}
               strokeWidth={stroke}
               fill="none"
               strokeDasharray={circumference}

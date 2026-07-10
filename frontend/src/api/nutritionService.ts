@@ -11,8 +11,10 @@ import apiClient from "./apiClient";
 import { unitsForFood } from "../utils/nutritionUnits";
 import {
   DaySummary,
+  EntryUnitMeta,
   FoodItem,
   FoodLogEntry,
+  JournalNote,
   NutritionGoal,
   NutritionGoalIntensity,
   NutritionGoalType,
@@ -201,6 +203,9 @@ export interface LogFoodPayload {
   // reserved for journal-owned lines (the journal reaps unreferenced ones).
   sourceType?: string | null;
   sourceUrl?: string | null;
+  // The display unit/quantity being logged in ("4 oz"); stored server-side
+  // alongside the entry so it survives reinstall.
+  displayMeta?: EntryUnitMeta | null;
 }
 
 export async function logFood(payload: LogFoodPayload): Promise<FoodLogEntry> {
@@ -213,6 +218,42 @@ export async function logFood(payload: LogFoodPayload): Promise<FoodLogEntry> {
 
 export async function deleteEntry(entryId: string): Promise<void> {
   await apiClient.delete(`/nutrition/log/${entryId}`);
+}
+
+/**
+ * Backfill an entry's display metadata (one-time migration of the locally
+ * stored unit map); new entries carry displayMeta on the log payload itself.
+ */
+export async function updateEntryDisplayMeta(
+  entryId: string,
+  meta: EntryUnitMeta,
+): Promise<FoodLogEntry> {
+  const { data } = await apiClient.put<FoodLogEntry>(
+    `/nutrition/log/${entryId}/display`,
+    meta,
+  );
+  return data;
+}
+
+/**
+ * Upsert one day's journal note (last-write-wins). The server treats the
+ * lines as an opaque blob. Empty lines delete the note; the response is then
+ * a tombstone (empty content + the deletion time) whose updatedAt keeps the
+ * client's sync point monotonic, so a stale in-flight /day snapshot can't
+ * resurrect the deleted note. With ifAbsent, an existing note is never
+ * overwritten; used by the one-time local-to-server migration (resolves null
+ * only in the ifAbsent-and-nothing-exists case).
+ */
+export async function putJournal(
+  date: string,
+  lines: unknown[],
+  ifAbsent = false,
+): Promise<JournalNote | null> {
+  const { data } = await apiClient.put<JournalNote | undefined>(
+    "/nutrition/journal",
+    { date, content: lines, ifAbsent },
+  );
+  return data ?? null;
 }
 
 export interface AiLogPayload {

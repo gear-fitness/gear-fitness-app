@@ -14,6 +14,7 @@ import {
   getDay,
   logFood as apiLogFood,
   LogFoodPayload,
+  updateEntryDisplayMeta,
 } from "../api/nutritionService";
 import { getCurrentLocalDateString } from "../utils/date";
 import { useAuth } from "./AuthContext";
@@ -25,6 +26,10 @@ import { useAuth } from "./AuthContext";
  * One piece of client-side metadata, AsyncStorage-backed:
  *  - entryUnits: the display unit/quantity a logged entry was last edited in
  *    (the backend only stores SERVING/GRAM, so richer units live here).
+ *    Since V46 the same metadata is also stored server-side per entry
+ *    (displayMeta), so it survives reinstall; the local map is the offline
+ *    cache. Server values are adopted on summary load, and entries that only
+ *    have local meta (logged before V46) are backfilled opportunistically.
  */
 const ENTRY_UNITS_STORAGE_KEY = "nutrition.entryUnits";
 
@@ -67,6 +72,9 @@ export function NutritionProvider({ children }: { children: React.ReactNode }) {
   const [summary, setSummary] = useState<DaySummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [entryUnits, setEntryUnits] = useState<EntryUnitsMap>({});
+  // The AsyncStorage load has settled (found or empty); gates the server
+  // backfill so an unloaded local map is never mistaken for "no local meta".
+  const [unitsLoaded, setUnitsLoaded] = useState(false);
 
   // Track the in-flight date so a slow response for an old date can't clobber
   // the summary after the user has already moved to another day.
@@ -88,19 +96,24 @@ export function NutritionProvider({ children }: { children: React.ReactNode }) {
         AsyncStorage.multiRemove(OBSOLETE_STORAGE_KEYS).catch(() => {});
       } catch (err) {
         console.error("Failed to load nutrition metadata:", err);
+      } finally {
+        setUnitsLoaded(true);
       }
     })();
   }, []);
 
-  // Write-through update for the entry-unit map.
+  // Write-through update for the entry-unit map. An updater that returns the
+  // previous map unchanged (same reference) skips the AsyncStorage write.
   const persistEntryUnits = useCallback(
     (updater: (prev: EntryUnitsMap) => EntryUnitsMap) => {
       setEntryUnits((prev) => {
         const next = updater(prev);
-        AsyncStorage.setItem(
-          ENTRY_UNITS_STORAGE_KEY,
-          JSON.stringify(next),
-        ).catch((err) => console.error("Failed to save entry units:", err));
+        if (next !== prev) {
+          AsyncStorage.setItem(
+            ENTRY_UNITS_STORAGE_KEY,
+            JSON.stringify(next),
+          ).catch((err) => console.error("Failed to save entry units:", err));
+        }
         return next;
       });
     },
@@ -139,6 +152,40 @@ export function NutritionProvider({ children }: { children: React.ReactNode }) {
     [fetchFor, selectedDate],
   );
 
+  // Reconcile the entry-unit map with the loaded day's server-side displayMeta:
+  // adopt server values the local map lacks (restores units after a
+  // reinstall), and backfill entries that only have local meta (logged before
+  // displayMeta existed). Backfill is self-limiting: once the server stores
+  // the meta, the missing-on-server condition disappears, so no done-flag is
+  // needed; failures simply retry on a later load.
+  const entryUnitsRef = useRef(entryUnits);
+  entryUnitsRef.current = entryUnits;
+  const backfillInFlight = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!summary || !unitsLoaded) return;
+    persistEntryUnits((prev) => {
+      let next = prev;
+      for (const e of summary.entries) {
+        if (e.displayMeta && !next[e.entryId]) {
+          if (next === prev) next = { ...prev };
+          next[e.entryId] = e.displayMeta;
+        }
+      }
+      return next;
+    });
+    for (const e of summary.entries) {
+      const local = entryUnitsRef.current[e.entryId];
+      if (!local || e.displayMeta) continue;
+      if (backfillInFlight.current.has(e.entryId)) continue;
+      backfillInFlight.current.add(e.entryId);
+      updateEntryDisplayMeta(e.entryId, local).catch(() => {
+        // Offline or old server: drop the in-flight mark so a later summary
+        // load retries.
+        backfillInFlight.current.delete(e.entryId);
+      });
+    }
+  }, [summary, unitsLoaded, persistEntryUnits]);
+
   const getEntryUnitMeta = useCallback(
     (entryId: string) => entryUnits[entryId],
     [entryUnits],
@@ -148,7 +195,11 @@ export function NutritionProvider({ children }: { children: React.ReactNode }) {
     async (payload: Omit<LogFoodPayload, "date">, unitMeta?: EntryUnitMeta) => {
       let created: FoodLogEntry | null = null;
       try {
-        created = await apiLogFood({ ...payload, date: selectedDate });
+        created = await apiLogFood({
+          ...payload,
+          date: selectedDate,
+          displayMeta: unitMeta ?? null,
+        });
         if (created && unitMeta) {
           const id = created.entryId;
           persistEntryUnits((prev) => ({ ...prev, [id]: unitMeta }));
@@ -170,7 +221,11 @@ export function NutritionProvider({ children }: { children: React.ReactNode }) {
       payload: Omit<LogFoodPayload, "date">,
       unitMeta?: EntryUnitMeta,
     ) => {
-      const created = await apiLogFood({ ...payload, date: selectedDate });
+      const created = await apiLogFood({
+        ...payload,
+        date: selectedDate,
+        displayMeta: unitMeta ?? null,
+      });
       await apiDeleteEntry(entryId);
       persistEntryUnits((prev) => {
         const next = { ...prev };

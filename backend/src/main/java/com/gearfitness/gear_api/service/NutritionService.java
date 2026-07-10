@@ -1,8 +1,11 @@
 package com.gearfitness.gear_api.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.gearfitness.gear_api.dto.CustomFoodRequest;
 import com.gearfitness.gear_api.dto.DaySummaryDTO;
 import com.gearfitness.gear_api.dto.FoodItemDTO;
+import com.gearfitness.gear_api.dto.JournalNoteDTO;
 import com.gearfitness.gear_api.dto.LogEntryDTO;
 import com.gearfitness.gear_api.dto.LogFoodRequest;
 import com.gearfitness.gear_api.dto.NutritionGoalDTO;
@@ -11,20 +14,25 @@ import com.gearfitness.gear_api.entity.AppUser;
 import com.gearfitness.gear_api.entity.FoodItem;
 import com.gearfitness.gear_api.entity.FoodLogEntry;
 import com.gearfitness.gear_api.entity.NutritionGoal;
+import com.gearfitness.gear_api.entity.NutritionJournalNote;
 import com.gearfitness.gear_api.repository.AppUserRepository;
 import com.gearfitness.gear_api.repository.FoodItemRepository;
 import com.gearfitness.gear_api.repository.FoodLogEntryRepository;
 import com.gearfitness.gear_api.repository.NutritionGoalRepository;
+import com.gearfitness.gear_api.repository.NutritionJournalNoteRepository;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
@@ -32,9 +40,16 @@ public class NutritionService {
 
   private static final int DEFAULT_PAGE_SIZE = 25;
 
+  // Caps on the client-owned JSON blobs so a buggy or hostile client can't
+  // grow rows without bound. A day's journal is a short note; 64 KB is over
+  // 100x a heavy day.
+  private static final int MAX_JOURNAL_BYTES = 64 * 1024;
+  private static final int MAX_DISPLAY_META_BYTES = 8 * 1024;
+
   private final FoodItemRepository foodItemRepository;
   private final FoodLogEntryRepository foodLogEntryRepository;
   private final NutritionGoalRepository nutritionGoalRepository;
+  private final NutritionJournalNoteRepository journalNoteRepository;
   private final AppUserRepository appUserRepository;
 
   // ---------------------------------------------------------------- search
@@ -176,8 +191,98 @@ public class NutritionService {
       date.toString(),
       NutritionGoalDTO.from(getOrCreateGoalEntity(userId)),
       totals,
-      entries.stream().map(LogEntryDTO::from).collect(Collectors.toList())
+      entries.stream().map(LogEntryDTO::from).collect(Collectors.toList()),
+      journalNoteRepository
+        .findByUser_UserIdAndLogDate(userId, date)
+        .map(JournalNoteDTO::from)
+        .orElse(null)
     );
+  }
+
+  // --------------------------------------------------------------- journal
+
+  /** The journal note for a day, or null if none has been saved. */
+  @Transactional
+  public JournalNoteDTO getJournal(UUID userId, String dateStr) {
+    LocalDate date = LocalDate.parse(dateStr);
+    return journalNoteRepository
+      .findByUser_UserIdAndLogDate(userId, date)
+      .map(JournalNoteDTO::from)
+      .orElse(null);
+  }
+
+  /**
+   * Upsert a day's journal note (last-write-wins). Empty content deletes the
+   * note. With {@code ifAbsent}, an existing note is returned untouched, which
+   * keeps the client's one-time migration idempotent and unable to clobber
+   * another device's journal.
+   */
+  @Transactional
+  public JournalNoteDTO upsertJournal(
+    UUID userId,
+    String dateStr,
+    JsonNode content,
+    boolean ifAbsent
+  ) {
+    if (dateStr == null || dateStr.isBlank()) {
+      throw new IllegalArgumentException("Date required");
+    }
+    LocalDate date = LocalDate.parse(dateStr);
+
+    NutritionJournalNote existing = journalNoteRepository
+      .findByUser_UserIdAndLogDate(userId, date)
+      .orElse(null);
+
+    boolean empty =
+      content == null ||
+      content.isNull() ||
+      (content.isContainerNode() && content.isEmpty());
+    if (empty) {
+      if (ifAbsent) {
+        return existing == null ? null : JournalNoteDTO.from(existing);
+      }
+      if (existing != null) {
+        journalNoteRepository.delete(existing);
+      }
+      // Tombstone: empty content with the deletion time, NOT a bodyless 204.
+      // The client keeps updatedAt as the date's sync point, so a stale /day
+      // response fetched before the delete (whose journal predates this
+      // stamp) can never resurrect the deleted note.
+      return new JournalNoteDTO(
+        date.toString(),
+        JsonNodeFactory.instance.arrayNode(),
+        LocalDateTime.now().toString()
+      );
+    }
+
+    String raw = content.toString();
+    if (utf8Bytes(raw) > MAX_JOURNAL_BYTES) {
+      throw new IllegalArgumentException("Journal content too large");
+    }
+
+    if (existing != null) {
+      if (ifAbsent) {
+        return JournalNoteDTO.from(existing);
+      }
+      existing.setContent(raw);
+      existing.setUpdatedAt(LocalDateTime.now());
+      return JournalNoteDTO.from(journalNoteRepository.save(existing));
+    }
+
+    AppUser user = appUserRepository
+      .findById(userId)
+      .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    NutritionJournalNote note = NutritionJournalNote.builder()
+      .user(user)
+      .logDate(date)
+      .content(raw)
+      .updatedAt(LocalDateTime.now())
+      .build();
+    // saveAndFlush so a first-insert race for this (user, date) surfaces as a
+    // DataIntegrityViolationException HERE (the unique constraint), not as an
+    // opaque commit failure after the method returns. The controller retries
+    // once; the retry takes the update/ifAbsent branch above and resolves it.
+    return JournalNoteDTO.from(journalNoteRepository.saveAndFlush(note));
   }
 
   /**
@@ -233,7 +338,8 @@ public class NutritionService {
       .quantity(quantity)
       .unit(unit)
       .sourceType(req.getSourceType())
-      .sourceUrl(req.getSourceUrl());
+      .sourceUrl(req.getSourceUrl())
+      .displayMeta(serializeDisplayMeta(req.getDisplayMeta()));
 
     if (req.getFoodId() != null) {
       FoodItem food = foodItemRepository
@@ -288,6 +394,47 @@ public class NutritionService {
       throw new IllegalArgumentException("Unauthorized access");
     }
     foodLogEntryRepository.delete(entry);
+  }
+
+  /**
+   * Set (or clear, with null) an entry's display metadata. Exists for the
+   * client's one-time backfill of locally stored unit metadata; new entries
+   * carry displayMeta on the log request itself.
+   */
+  @Transactional
+  public LogEntryDTO updateEntryDisplayMeta(
+    UUID userId,
+    UUID entryId,
+    JsonNode meta
+  ) {
+    FoodLogEntry entry = foodLogEntryRepository
+      .findById(entryId)
+      .orElseThrow(() -> new IllegalArgumentException("Entry not found"));
+    if (!entry.getUser().getUserId().equals(userId)) {
+      throw new IllegalArgumentException("Unauthorized access");
+    }
+    entry.setDisplayMeta(serializeDisplayMeta(meta));
+    return LogEntryDTO.from(foodLogEntryRepository.save(entry));
+  }
+
+  private static String serializeDisplayMeta(JsonNode meta) {
+    if (meta == null || meta.isNull()) return null;
+    String raw = meta.toString();
+    // ResponseStatusException (not IllegalArgumentException) so the /display
+    // endpoint's IAE -> 404 ownership mapping can't swallow a size violation:
+    // the client must be able to tell "never retry this payload" (400) apart
+    // from "entry not found" (404).
+    if (utf8Bytes(raw) > MAX_DISPLAY_META_BYTES) {
+      throw new ResponseStatusException(
+        HttpStatus.BAD_REQUEST,
+        "Display metadata too large"
+      );
+    }
+    return raw;
+  }
+
+  private static int utf8Bytes(String s) {
+    return s.getBytes(StandardCharsets.UTF_8).length;
   }
 
   // ------------------------------------------------------------------- goals

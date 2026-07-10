@@ -23,7 +23,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useThemeColors } from "../../../../hooks/useThemeColors";
 import { useNutrition } from "../../../../context/NutritionContext";
 import { formatQuantity } from "../../../../utils/nutritionUnits";
-import { aiLogFood } from "../../../../api/nutritionService";
+import { aiLogFood, putJournal } from "../../../../api/nutritionService";
 import { FoodLogEntry } from "../../../../api/types";
 import { isNetworkError } from "../../../../utils/network";
 import { AiLineDetail, NutritionDetailSheet } from "./NutritionDetailSheet";
@@ -49,12 +49,28 @@ import { faviconOf } from "./sources";
  *    line text; never AI-parsed. Tapping its total opens the edit sheet
  *    directly. Editing the line's TEXT converts it to an "ai" line: the db row
  *    is deleted and the new text is parsed like any typed line.
+ *
+ * Persistence: AsyncStorage is the offline-first cache; the server holds the
+ * durable copy, one note per (user, date), synced last-write-wins via the
+ * date's updatedAt (see SYNC_KEY). User-driven mutations mark the date dirty
+ * and a debounced PUT pushes it; /day responses carry the server copy back
+ * for restore after a reinstall or on a second device.
  */
 const AI_STORAGE_KEY = "nutrition.aiJournal";
 // Backend entryIds awaiting deletion, persisted so an offline/killed app still
 // tears down rows whose journal lines were removed (else they'd keep counting
 // toward daily totals while shown nowhere).
 const AI_GRAVEYARD_KEY = "nutrition.aiGraveyard";
+// Per-date server-sync state: Record<date, { syncedAt, dirty }>. syncedAt is
+// the server updatedAt last applied or successfully PUT for that date (never
+// compared against a device clock); dirty means local edits haven't reached
+// the server yet, so a server copy must not replace them. Kept separate from
+// AI_STORAGE_KEY so the journal blob's shape stays what older builds wrote.
+const SYNC_KEY = "nutrition.journalSync";
+// One-time upload of the pre-existing local journal to the server (ifAbsent,
+// so it can never clobber another device's copy). Set only after every date
+// succeeded; a partial failure retries on the next app launch.
+const MIGRATED_KEY = "nutrition.journalMigrated";
 const BLUE = "#2F6FED";
 
 // Note-editor geometry. The measurer, the text field, and the annotation
@@ -108,11 +124,42 @@ interface Entry {
 
 type EntriesByDate = Record<string, Entry[]>;
 
+/** Server-sync state for one date's note (see SYNC_KEY). */
+interface JournalSync {
+  syncedAt: string | null;
+  dirty: boolean;
+}
+
 let idSeq = 0;
 const newId = () => `e${Date.now().toString(36)}${(idSeq++).toString(36)}`;
 
 const statusForText = (text: string, nonEmpty: EntryStatus): EntryStatus =>
   text.trim() ? nonEmpty : "empty";
+
+// What gets persisted (AsyncStorage and server): in-flight "pending" demotes
+// to "dirty" so a line restored mid-request shows "…" not a stuck spinner.
+const sanitizeLines = (list: Entry[]): Entry[] =>
+  list.map((e) =>
+    e.status === "pending" ? { ...e, status: "dirty" as const } : e,
+  );
+
+// JSON.stringify with object keys sorted recursively (and undefined-valued
+// keys dropped, matching JSON.stringify semantics). Content that round-trips
+// through Postgres jsonb comes back with reordered keys, so a plain
+// stringify comparison against its locally built twin never matches.
+const stableStringify = (v: unknown): string => {
+  if (Array.isArray(v)) return `[${v.map(stableStringify).join(",")}]`;
+  if (v && typeof v === "object") {
+    const rec = v as Record<string, unknown>;
+    const body = Object.keys(rec)
+      .filter((k) => rec[k] !== undefined)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${stableStringify(rec[k])}`)
+      .join(",");
+    return `{${body}}`;
+  }
+  return JSON.stringify(v) ?? "null";
+};
 
 export function FoodJournal({ selectedDate }: { selectedDate: string }) {
   const t = useThemeColors();
@@ -150,11 +197,17 @@ export function FoodJournal({ selectedDate }: { selectedDate: string }) {
   const scrollRef = useRef<ScrollView>(null);
   const committingRef = useRef<Set<string>>(new Set());
   const graveyardRef = useRef<string[]>([]); // backend entryIds pending delete
-  const journalLoadedRef = useRef(false); // AsyncStorage journal finished loading
-  // Load finished, even when storage was empty (fresh install). Distinct from
-  // journalLoadedRef, which stays false without stored data so the orphan
-  // reaper never runs on a journal it can't vouch for. State (not a ref) so
-  // the synthesis effect re-fires once loading settles.
+  // Dates whose journal we can vouch for: hydrated from local storage,
+  // restored from the server, or edited by the user this session. The orphan
+  // reaper only arms for these — for any other date we don't know which AI
+  // rows are legitimate, so we never blind-delete them.
+  const journalSourcesRef = useRef<Set<string>>(new Set());
+  // Per-date server-sync state (SYNC_KEY), kept in a ref: it steers effects
+  // but never renders.
+  const syncRef = useRef<Record<string, JournalSync>>({});
+  const flushingRef = useRef<Set<string>>(new Set()); // dates with a PUT in flight
+  // Load finished, even when storage was empty (fresh install). State (not a
+  // ref) so the synthesis/reconcile effects re-fire once loading settles.
   const [storageSettled, setStorageSettled] = useState(false);
 
   const entries = useMemo(
@@ -185,7 +238,18 @@ export function FoodJournal({ selectedDate }: { selectedDate: string }) {
   useEffect(() => {
     (async () => {
       try {
-        const raw = await AsyncStorage.getItem(AI_STORAGE_KEY);
+        const [rawSync, raw] = await Promise.all([
+          AsyncStorage.getItem(SYNC_KEY),
+          AsyncStorage.getItem(AI_STORAGE_KEY),
+        ]);
+        if (rawSync) {
+          try {
+            const s = JSON.parse(rawSync);
+            if (s && typeof s === "object") syncRef.current = s;
+          } catch {
+            /* corrupt sync map: start fresh */
+          }
+        }
         if (!raw) {
           setStorageSettled(true);
           return;
@@ -213,10 +277,10 @@ export function FoodJournal({ selectedDate }: { selectedDate: string }) {
             }
           }
           setEntriesByDate(parsed);
-          // Only enable the orphan sweep once we've actually loaded the local
-          // journal. If storage is empty/absent we have no idea which AI rows
-          // are legitimate, so we never blind-delete them.
-          journalLoadedRef.current = true;
+          // These dates' journals are vouched for locally: the orphan sweep
+          // may arm for them. Dates absent here can still be vouched for
+          // later by a server-restored copy or a user edit.
+          Object.keys(parsed).forEach((d) => journalSourcesRef.current.add(d));
           setStorageSettled(true);
         }
       } catch (err) {
@@ -234,13 +298,16 @@ export function FoodJournal({ selectedDate }: { selectedDate: string }) {
   // line references. Debounced so an in-flight log/edit is never mistaken for a
   // stray (empty lines don't count as references — their detail is stale).
   useEffect(() => {
-    if (!journalLoadedRef.current) return;
+    if (!storageSettled) return;
     const id = setTimeout(() => {
       if (committingRef.current.size > 0) return;
       const date = dateRef.current;
-      // Only reap for a date we actually hold a local journal for. If the date
-      // key is absent (fresh install, a second device, partial storage loss),
-      // we don't know which AI rows are legitimate — never blind-delete them.
+      // Only reap for a date whose journal we can vouch for (hydrated,
+      // server-restored, or user-edited this session). Anything else (fresh
+      // install before the server copy lands, a second device, partial
+      // storage loss) means we don't know which AI rows are legitimate —
+      // never blind-delete them.
+      if (!journalSourcesRef.current.has(date)) return;
       if (!Object.prototype.hasOwnProperty.call(entriesRef.current, date))
         return;
       const list = entriesRef.current[date] ?? [];
@@ -273,11 +340,78 @@ export function FoodJournal({ selectedDate }: { selectedDate: string }) {
       );
     }, 1500);
     return () => clearTimeout(id);
-  }, [summary, entriesByDate, selectedDate, removeLog]);
+  }, [summary, entriesByDate, selectedDate, removeLog, storageSettled]);
+
+  /* --- server sync ------------------------------------------------------ */
+
+  const persistSync = useCallback(() => {
+    AsyncStorage.setItem(SYNC_KEY, JSON.stringify(syncRef.current)).catch(
+      () => {},
+    );
+  }, []);
+
+  // A user-driven mutation touched this date's note: its server copy is now
+  // stale (so reconcile must not overwrite it) and it needs a PUT. Also vouch
+  // for the date — the user owns its lines this session.
+  const markJournalDirty = useCallback(
+    (date: string) => {
+      journalSourcesRef.current.add(date);
+      if (syncRef.current[date]?.dirty) return;
+      syncRef.current[date] = {
+        syncedAt: syncRef.current[date]?.syncedAt ?? null,
+        dirty: true,
+      };
+      persistSync();
+    },
+    [persistSync],
+  );
+
+  // PUT every dirty date's sanitized lines. Last-write-wins per date. On
+  // success the response updatedAt becomes the date's sync point (so the next
+  // /day echoing our own write is a no-op); a network failure keeps the date
+  // dirty for the next flush point, mirroring the graveyard's triage. Content
+  // that changed while the PUT was in flight stays dirty too.
+  const flushJournal = useCallback(() => {
+    for (const date of Object.keys(syncRef.current)) {
+      if (!syncRef.current[date]?.dirty) continue;
+      if (flushingRef.current.has(date)) continue;
+      flushingRef.current.add(date);
+      const lines = sanitizeLines(entriesRef.current[date] ?? []);
+      putJournal(date, lines)
+        .then((res) => {
+          const now = sanitizeLines(entriesRef.current[date] ?? []);
+          const unchanged = JSON.stringify(now) === JSON.stringify(lines);
+          syncRef.current[date] = {
+            syncedAt: res?.updatedAt ?? null,
+            dirty: !unchanged,
+          };
+          persistSync();
+        })
+        .catch((err) => {
+          // Stays dirty either way (never drop user text); only non-network
+          // failures are worth a log line.
+          if (!isNetworkError(err)) {
+            console.error("Journal sync failed:", err);
+          }
+        })
+        .finally(() => {
+          flushingRef.current.delete(date);
+        });
+    }
+  }, [persistSync]);
+
+  // Resume dirty dates stranded by a previous offline/killed session.
+  useEffect(() => {
+    if (!storageSettled) return;
+    flushJournal();
+  }, [storageSettled, flushJournal]);
+
+  /* --- local persistence ------------------------------------------------ */
 
   // Persist on a debounce (typing mutates state on every keystroke; we don't
-  // want an AsyncStorage write each one). Transient in-flight state is demoted
-  // to "dirty" so a line reloaded mid-request shows "…" not a stuck spinner.
+  // want an AsyncStorage write each one), then push dirty dates to the
+  // server. Transient in-flight state is demoted to "dirty" so a line
+  // reloaded mid-request shows "…" not a stuck spinner.
   const loadedRef = useRef(false);
   useEffect(() => {
     if (!loadedRef.current) {
@@ -287,26 +421,35 @@ export function FoodJournal({ selectedDate }: { selectedDate: string }) {
     const id = setTimeout(() => {
       const clean: EntriesByDate = {};
       for (const [date, list] of Object.entries(entriesByDate)) {
-        const arr = list.map((e) =>
-          e.status === "pending" ? { ...e, status: "dirty" as const } : e,
-        );
+        const arr = sanitizeLines(list);
         if (arr.length) clean[date] = arr;
       }
       AsyncStorage.setItem(AI_STORAGE_KEY, JSON.stringify(clean)).catch((err) =>
         console.error("Failed to save AI journal:", err),
       );
+      flushJournal();
     }, 400);
     return () => clearTimeout(id);
-  }, [entriesByDate]);
+  }, [entriesByDate, flushJournal]);
 
+  // markDirty=false is for programmatic replacements (hydration reconcile,
+  // server-restored copies, lines synthesized from the day summary): they
+  // must not re-PUT what the server already knows (echo loop) — synthesized
+  // db lines are derived from server entries and rebuild identically on any
+  // device, so they don't need the journal blob at all.
   const setEntries = useCallback(
-    (date: string, updater: (list: Entry[]) => Entry[]) => {
+    (
+      date: string,
+      updater: (list: Entry[]) => Entry[],
+      opts?: { markDirty?: boolean },
+    ) => {
+      if (opts?.markDirty !== false) markJournalDirty(date);
       setEntriesByDate((prev) => ({
         ...prev,
         [date]: updater(prev[date] ?? []),
       }));
     },
-    [],
+    [markJournalDirty],
   );
 
   const updateEntry = useCallback(
@@ -384,13 +527,19 @@ export function FoodJournal({ selectedDate }: { selectedDate: string }) {
           fromCache: false,
         },
       }));
-      setEntries(date, (old) => {
-        // Fill one trailing blank line (a stray newline at the end of the
-        // note) instead of stranding it above the appended foods.
-        const next = [...old];
-        if (next.length && !next[next.length - 1].text.trim()) next.pop();
-        return [...next, ...lines];
-      });
+      setEntries(
+        date,
+        (old) => {
+          // Fill one trailing blank line (a stray newline at the end of the
+          // note) instead of stranding it above the appended foods.
+          const next = [...old];
+          if (next.length && !next[next.length - 1].text.trim()) next.pop();
+          return [...next, ...lines];
+        },
+        // Derived from the day summary: any device rebuilds these lines
+        // identically, so they don't dirty the server journal.
+        { markDirty: false },
+      );
     }, 800);
     return () => clearTimeout(id);
   }, [
@@ -402,6 +551,104 @@ export function FoodJournal({ selectedDate }: { selectedDate: string }) {
     setEntries,
     dbLineText,
   ]);
+
+  // Restore this date's note from the server (summary.journal rides the /day
+  // response): the layer that survives an app delete/reinstall or a second
+  // device. Applied only when the server copy is one we haven't seen
+  // (updatedAt differs from the date's sync point) and local edits aren't
+  // ahead of it (not dirty), and only while the journal is idle — the same
+  // guards as the synthesis effect, so a restore never lands under the
+  // user's caret or races an in-flight commit.
+  useEffect(() => {
+    if (!storageSettled) return;
+    if (editing) return;
+    const id = setTimeout(() => {
+      if (committingRef.current.size > 0) return;
+      const date = dateRef.current;
+      // Clobber guard: only restore from a summary for the shown date.
+      if (summaryRef.current?.date !== date) return;
+      const journal = summaryRef.current?.journal;
+      if (!journal) return;
+      // The server vouches for this date's journal even if we skip applying
+      // it below: the reaper may arm once the local copy is authoritative.
+      journalSourcesRef.current.add(date);
+      const sync = syncRef.current[date];
+      if (sync?.dirty) return; // local edits win until flushed
+      if (flushingRef.current.has(date)) return; // our own PUT is in flight
+      // Apply only copies strictly newer than the last one we applied or
+      // wrote. Both stamps come from the server clock (ISO-sortable), so
+      // this also drops a stale /day snapshot that was already in flight
+      // when our own PUT landed.
+      if (sync?.syncedAt && journal.updatedAt <= sync.syncedAt) return;
+      const list = entriesRef.current[date] ?? [];
+      if (list.some((e) => e.status === "pending" || e.status === "dirty")) {
+        return;
+      }
+
+      const restored = (journal.content as Entry[]).map((e) => {
+        // Journals persisted before line kinds existed are all typed lines.
+        const kind = e.kind ?? "ai";
+        // A line stored "dirty" WITH logged rows already owns real backend
+        // entries — restore it settled, or the commit effect would re-parse
+        // it (re-spending an AI call and churning rows). A dirty line
+        // WITHOUT rows is text the user typed but never committed; keep it
+        // dirty so it commits here, exactly as it would have on the
+        // original device.
+        const status =
+          (e.status === "dirty" || e.status === "pending") &&
+          (e.detail?.entries?.length ?? 0) > 0
+            ? ("logged" as const)
+            : e.status === "pending"
+              ? ("dirty" as const)
+              : e.status;
+        return { ...e, kind, status };
+      });
+
+      syncRef.current[date] = { syncedAt: journal.updatedAt, dirty: false };
+      persistSync();
+      // Identical content (e.g. the echo of our own flushed write on a
+      // fresh sync map) just records the sync point — no state churn. Key
+      // order differs after the jsonb round-trip, hence stableStringify.
+      const current = sanitizeLines(list);
+      if (stableStringify(current) === stableStringify(restored)) return;
+      setEntries(date, () => restored, { markDirty: false });
+    }, 300);
+    return () => clearTimeout(id);
+  }, [summary, storageSettled, editing, setEntries, persistSync]);
+
+  // One-time migration: upload the pre-existing local journal so history
+  // written before server sync existed survives a reinstall. ifAbsent means
+  // an existing server note always wins — this can never clobber another
+  // device. Runs after the first summary arrives (auth is ready by then);
+  // the flag is only set when every date made it up, so a partial failure
+  // (offline mid-way) retries on the next launch.
+  const migrationRanRef = useRef(false);
+  useEffect(() => {
+    if (!storageSettled || !summary || migrationRanRef.current) return;
+    migrationRanRef.current = true;
+    (async () => {
+      try {
+        const done = await AsyncStorage.getItem(MIGRATED_KEY);
+        if (done) return;
+        let allOk = true;
+        for (const [date, list] of Object.entries(entriesRef.current)) {
+          const lines = sanitizeLines(list);
+          const hasContent = lines.some(
+            (e) => e.text.trim() || (e.detail?.entries?.length ?? 0) > 0,
+          );
+          if (!hasContent) continue;
+          try {
+            await putJournal(date, lines, true);
+          } catch {
+            allOk = false;
+          }
+        }
+        if (allOk) await AsyncStorage.setItem(MIGRATED_KEY, "1");
+      } catch {
+        /* retried next launch */
+      }
+    })();
+  }, [storageSettled, summary]);
 
   /* --- backend sync --------------------------------------------------- */
 
@@ -562,7 +809,8 @@ export function FoodJournal({ selectedDate }: { selectedDate: string }) {
     [updateEntry, removeLog, logIntoEntry],
   );
 
-  // Commit dirty lines the cursor has left; flush any structurally-removed rows.
+  // Commit dirty lines the cursor has left; flush any structurally-removed
+  // rows and any journal dates still awaiting their server PUT.
   useEffect(() => {
     entries.forEach((e, i) => {
       if (e.status === "dirty" && i !== activeIndex) {
@@ -570,7 +818,15 @@ export function FoodJournal({ selectedDate }: { selectedDate: string }) {
       }
     });
     flushGraveyard();
-  }, [entries, activeIndex, selectedDate, commitEntry, flushGraveyard]);
+    flushJournal();
+  }, [
+    entries,
+    activeIndex,
+    selectedDate,
+    commitEntry,
+    flushGraveyard,
+    flushJournal,
+  ]);
 
   /* --- text reconciliation ------------------------------------------- */
 

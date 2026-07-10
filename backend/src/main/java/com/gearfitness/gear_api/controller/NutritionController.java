@@ -7,8 +7,11 @@ import com.gearfitness.gear_api.dto.AiPhotoEstimateRequest;
 import com.gearfitness.gear_api.dto.AiPhotoEstimateResponse;
 import com.gearfitness.gear_api.dto.BarcodeLookupResponse;
 import com.gearfitness.gear_api.dto.CustomFoodRequest;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.gearfitness.gear_api.dto.DaySummaryDTO;
 import com.gearfitness.gear_api.dto.FoodItemDTO;
+import com.gearfitness.gear_api.dto.JournalNoteDTO;
+import com.gearfitness.gear_api.dto.JournalUpsertRequest;
 import com.gearfitness.gear_api.dto.LogEntryDTO;
 import com.gearfitness.gear_api.dto.LogFoodRequest;
 import com.gearfitness.gear_api.dto.NutritionGoalDTO;
@@ -23,6 +26,7 @@ import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -313,6 +317,135 @@ public class NutritionController {
     }
   }
 
+  /**
+   * The day's journal note (the calorie tracker's shared per-day note), or 204
+   * if none has been saved. The app normally reads this via /day; this exists
+   * for the client's one-time migration check and debugging.
+   */
+  @GetMapping("/journal")
+  public ResponseEntity<JournalNoteDTO> getJournal(
+    @RequestParam String date,
+    @RequestHeader("Authorization") String authHeader
+  ) {
+    UUID userId = resolveUserId(authHeader);
+    if (userId == null) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+    try {
+      JournalNoteDTO note = nutritionService.getJournal(userId, date);
+      return note == null
+        ? ResponseEntity.noContent().build()
+        : ResponseEntity.ok(note);
+    } catch (
+      IllegalArgumentException | java.time.format.DateTimeParseException e
+    ) {
+      return ResponseEntity.badRequest().build();
+    } catch (Exception e) {
+      log.error(
+        "getJournal failed (userId={}, date={}): {}",
+        userId,
+        date,
+        e.getMessage(),
+        e
+      );
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+    }
+  }
+
+  /**
+   * Upsert the day's journal note (last-write-wins per date). Empty content
+   * deletes the note (204). ifAbsent never overwrites an existing note, which
+   * keeps the client migration idempotent across devices.
+   */
+  @PutMapping("/journal")
+  public ResponseEntity<JournalNoteDTO> putJournal(
+    @RequestBody JournalUpsertRequest req,
+    @RequestHeader("Authorization") String authHeader
+  ) {
+    UUID userId = resolveUserId(authHeader);
+    if (userId == null) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+    try {
+      boolean ifAbsent = Boolean.TRUE.equals(req.getIfAbsent());
+      JournalNoteDTO note;
+      try {
+        note = nutritionService.upsertJournal(
+          userId,
+          req.getDate(),
+          req.getContent(),
+          ifAbsent
+        );
+      } catch (DataIntegrityViolationException e) {
+        // Two devices raced the first insert for this (user, date); the row
+        // exists now, so one retry resolves it through the update/ifAbsent
+        // branch instead of surfacing a 500.
+        note = nutritionService.upsertJournal(
+          userId,
+          req.getDate(),
+          req.getContent(),
+          ifAbsent
+        );
+      }
+      return note == null
+        ? ResponseEntity.noContent().build()
+        : ResponseEntity.ok(note);
+    } catch (ResponseStatusException e) {
+      // Preserve validation (400) statuses.
+      throw e;
+    } catch (
+      IllegalArgumentException | java.time.format.DateTimeParseException e
+    ) {
+      return ResponseEntity.badRequest().build();
+    } catch (Exception e) {
+      log.error(
+        "putJournal failed (userId={}, date={}): {}",
+        userId,
+        req == null ? null : req.getDate(),
+        e.getMessage(),
+        e
+      );
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+    }
+  }
+
+  /**
+   * Set an entry's display metadata (the unit/quantity it was logged in, e.g.
+   * "4 oz"). Exists for the client's one-time backfill of locally stored unit
+   * metadata; new entries send displayMeta on the log request itself.
+   */
+  @PutMapping("/log/{entryId}/display")
+  public ResponseEntity<LogEntryDTO> updateEntryDisplayMeta(
+    @PathVariable UUID entryId,
+    @RequestBody(required = false) JsonNode meta,
+    @RequestHeader("Authorization") String authHeader
+  ) {
+    UUID userId = resolveUserId(authHeader);
+    if (userId == null) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+    try {
+      return ResponseEntity.ok(
+        nutritionService.updateEntryDisplayMeta(userId, entryId, meta)
+      );
+    } catch (ResponseStatusException e) {
+      // Preserve the oversize-payload 400: it must stay distinguishable from
+      // the ownership 404 below (a 400 payload should never be retried).
+      throw e;
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+    } catch (Exception e) {
+      log.error(
+        "updateEntryDisplayMeta failed (userId={}, entryId={}): {}",
+        userId,
+        entryId,
+        e.getMessage(),
+        e
+      );
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+    }
+  }
+
   /** Log a food (seeded reference or quick-add). */
   @PostMapping("/log")
   public ResponseEntity<LogEntryDTO> logFood(
@@ -327,6 +460,9 @@ public class NutritionController {
       return ResponseEntity.status(HttpStatus.CREATED).body(
         nutritionService.logFood(userId, req)
       );
+    } catch (ResponseStatusException e) {
+      // Preserve validation (400) statuses, e.g. oversize displayMeta.
+      throw e;
     } catch (IllegalArgumentException e) {
       return ResponseEntity.badRequest().build();
     } catch (Exception e) {

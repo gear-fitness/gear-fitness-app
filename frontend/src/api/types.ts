@@ -233,6 +233,22 @@ export interface FoodLogEntry {
   // the FoodJournal reaper); new non-journal sources must NOT start with "AI".
   sourceType?: string | null;
   sourceUrl?: string | null;
+  // The display unit/quantity the entry was logged in ("4 oz"), stored
+  // server-side since V46 so it survives reinstall. Null for AI-logged and
+  // legacy entries.
+  displayMeta?: EntryUnitMeta | null;
+}
+
+/**
+ * One day's server-stored journal note: the FoodJournal's lines blob, opaque
+ * to the server. updatedAt is the sync point for last-write-wins.
+ */
+export interface JournalNote {
+  date: string;
+  // FoodJournal's Entry[]; typed loosely here since the schema is owned by
+  // the journal component.
+  content: unknown[];
+  updatedAt: string;
 }
 
 export type NutritionGoalType = "CUT" | "MAINTAIN" | "BULK";
@@ -264,4 +280,7 @@ export interface DaySummary {
   goal: NutritionGoal;
   totals: MacroTotals;
   entries: FoodLogEntry[];
+  // The day's journal note, or null/undefined (older servers) when none has
+  // been saved for this date.
+  journal?: JournalNote | null;
 }
