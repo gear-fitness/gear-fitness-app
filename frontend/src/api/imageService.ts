@@ -144,6 +144,21 @@ export async function requestPostImageUploadUrl(
 }
 
 /**
+ * Mint a presigned PUT url for an ephemeral AI meal photo. The uploaded object
+ * is analyzed and deleted server-side right after; unlike post images its key
+ * is never persisted. Uploading straight to S3 keeps the image bytes off the
+ * API request body, which the CloudFront WAF blocks for a base64 payload.
+ */
+export async function requestFoodImageUploadUrl(
+  contentType: string,
+): Promise<{ key: string; uploadUrl: string }> {
+  const { data } = await apiClient.post("/images/food-upload-url", {
+    contentType,
+  });
+  return data;
+}
+
+/**
  * PUT a local image file directly to S3 using a presigned PUT url. The
  * Content-Type MUST match what the backend signed or S3 returns
  * SignatureDoesNotMatch. FormData does not work for a direct S3 PUT — the bytes

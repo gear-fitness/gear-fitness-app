@@ -65,6 +65,40 @@ public class ImageController {
   }
 
   /**
+   * POST /api/images/food-upload-url
+   * Presigned PUT url for an ephemeral AI meal photo. The client PUTs the
+   * compressed JPEG straight to S3 (bypassing the WAF that 403s a base64 body),
+   * then submits only the returned key to the estimate endpoint, which analyzes
+   * and deletes the object. PLUS tier is enforced there, not here.
+   */
+  @PostMapping("/food-upload-url")
+  public ResponseEntity<?> createFoodUploadUrl(
+    @RequestHeader("Authorization") String authHeader,
+    @RequestBody ImageUploadUrlRequest request
+  ) {
+    UUID userId;
+    try {
+      userId = jwtService.extractUserId(authHeader.substring(7));
+    } catch (Exception e) {
+      return ResponseEntity.status(401).build();
+    }
+
+    String contentType = request.contentType();
+    if (contentType == null || !ALLOWED_UPLOAD_TYPES.contains(contentType)) {
+      return ResponseEntity.badRequest().body(
+        "Only image/jpeg and image/png uploads are allowed"
+      );
+    }
+
+    S3StorageService.PresignedUpload upload =
+      s3StorageService.generateAiFoodUploadUrl(userId, contentType);
+
+    return ResponseEntity.ok(
+      Map.of("key", upload.key(), "uploadUrl", upload.url())
+    );
+  }
+
+  /**
    * GET /api/images/view-url?key=...
    * Returns a presigned GET url for a single stored key.
    */

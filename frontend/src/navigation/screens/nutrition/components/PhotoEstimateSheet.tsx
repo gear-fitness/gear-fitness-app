@@ -20,6 +20,10 @@ import {
   aiPhotoEstimate,
   logFood,
 } from "../../../../api/nutritionService";
+import {
+  requestFoodImageUploadUrl,
+  uploadImageToS3,
+} from "../../../../api/imageService";
 
 // Photo food logging sheet. Flow: compose (thumbnail + optional caption for
 // context) -> analyzing (AI vision estimate) -> results (per-item review,
@@ -141,22 +145,26 @@ export function PhotoEstimateSheet({
     const session = ++sessionRef.current;
     setPhase("analyzing");
     try {
-      // ~1024px JPEG keeps the base64 payload in the low hundreds of KB.
+      // ~1024px JPEG keeps the upload in the low hundreds of KB.
       const manipulated = await ImageManipulator.manipulateAsync(
         photoUri,
         [{ resize: { width: 1024 } }],
         {
           compress: 0.7,
           format: ImageManipulator.SaveFormat.JPEG,
-          base64: true,
         },
       );
+      if (sessionRef.current !== session) return;
+      if (!manipulated.uri) throw new Error("no image");
+      // Upload the JPEG straight to S3, then send only the object key. The
+      // bytes never hit our API body (which the CloudFront WAF blocks for a
+      // base64 payload); the server reads the object, analyzes it, deletes it.
+      const { key, uploadUrl } = await requestFoodImageUploadUrl("image/jpeg");
+      await uploadImageToS3(uploadUrl, manipulated.uri, "image/jpeg");
       // Bail before the paid AI call if the sheet closed or the photo changed.
       if (sessionRef.current !== session) return;
-      if (!manipulated.base64) throw new Error("no base64");
       const result = await aiPhotoEstimate({
-        imageBase64: manipulated.base64,
-        mimeType: "image/jpeg",
+        s3Key: key,
         note: caption.trim() || undefined,
       });
       if (sessionRef.current !== session) return;

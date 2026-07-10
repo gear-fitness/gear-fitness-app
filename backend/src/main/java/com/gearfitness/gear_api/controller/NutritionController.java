@@ -534,9 +534,11 @@ public class NutritionController {
 
   /**
    * Estimate nutrition from a meal photo WITHOUT logging (PLUS tier and
-   * above). The client sends the image inline as base64; the response lists
-   * the foods the model saw, which the client confirms and logs through the
-   * plain /log endpoint. Nothing is persisted server-side.
+   * above). The client uploads the image directly to S3 (presigned PUT via
+   * /api/images/food-upload-url) and sends only the object key here; the
+   * response lists the foods the model saw, which the client confirms and logs
+   * through the plain /log endpoint. The image is deleted right after analysis;
+   * nothing about it is persisted server-side.
    */
   @PostMapping("/ai/photo/estimate")
   public ResponseEntity<AiPhotoEstimateResponse> aiPhotoEstimate(
