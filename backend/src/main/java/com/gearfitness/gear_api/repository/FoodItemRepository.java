@@ -2,6 +2,7 @@ package com.gearfitness.gear_api.repository;
 
 import com.gearfitness.gear_api.entity.FoodItem;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -72,6 +73,9 @@ public interface FoodItemRepository extends JpaRepository<FoodItem, UUID> {
 
   /** The user's custom foods ("saved meals"), newest first. */
   List<FoodItem> findByOwnerUserIdOrderByCreatedAtDesc(UUID ownerUserId);
+
+  /** Lookup by canonical GTIN-14 barcode (see BarcodeFoodService.normalize). */
+  Optional<FoodItem> findByBarcode(String barcode);
 
   /**
    * The user's own foods, ranked by a recency + frequency hybrid so their

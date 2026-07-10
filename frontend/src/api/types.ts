@@ -190,6 +190,8 @@ export interface FoodItem {
   householdServing: string | null;
   // Optional display nickname (custom foods only).
   nickname?: string | null;
+  // Canonical GTIN-14 barcode for scannable branded foods; null otherwise.
+  barcode?: string | null;
   // Valid units of measure for this item (client-derived; see nutritionUnits).
   units?: MeasureUnit[];
   // Nutrient values are per 100 g.
@@ -225,7 +227,10 @@ export interface FoodLogEntry {
   proteinG: number | null;
   carbsG: number | null;
   fatG: number | null;
-  // Provenance for AI-logged entries: "AI_SONAR" | "AI_CACHE"; null for manual.
+  // Provenance: "AI_SONAR" | "AI_CACHE" for AI journal lines, "BARCODE" for
+  // scanned products, "PHOTO" for photo estimates, "DB" for database picks,
+  // null for manual. Only the AI_* values belong to journal-owned lines (see
+  // the FoodJournal reaper); new non-journal sources must NOT start with "AI".
   sourceType?: string | null;
   sourceUrl?: string | null;
 }

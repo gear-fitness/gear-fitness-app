@@ -43,6 +43,8 @@ import { CalendarSheet } from "./components/CalendarSheet";
 import { FoodJournal } from "./components/FoodJournal";
 import { CameraLogMenu } from "./components/CameraLogMenu";
 import { SavedFoodsSheet } from "./components/SavedFoodsSheet";
+import { PhotoEstimateSheet } from "./components/PhotoEstimateSheet";
+import { useCameraFoodLog } from "./useCameraFoodLog";
 import { progressColor } from "./components/progressColor";
 import { FloatingKeyboardDismiss } from "../../../components/FloatingKeyboardDismiss";
 
@@ -209,6 +211,10 @@ export function CalorieTracker() {
   const openAddFood = useCallback(() => {
     navigation.navigate("AddFood");
   }, [navigation]);
+
+  // Camera logging flows (barcode scan / take photo / choose from library).
+  // Sits behind the same Plus capture overlay as the rest of the controls.
+  const cameraLog = useCameraFoodLog();
 
   // Non-Plus users see the tracker as a preview: the summary card stays live
   // (collapse toggle + Edit goals are free features), but anything that logs
@@ -549,7 +555,13 @@ export function CalorieTracker() {
                   </TouchableOpacity>
                 </GlassView>
 
-                <CameraLogMenu size={38} color={t.tint} />
+                <CameraLogMenu
+                  size={38}
+                  color={t.tint}
+                  onScanBarcode={cameraLog.scanBarcode}
+                  onTakePhoto={cameraLog.takePhoto}
+                  onChooseFromLibrary={cameraLog.chooseFromLibrary}
+                />
 
                 <GlassView style={styles.circleGlass}>
                   <TouchableOpacity
@@ -605,8 +617,21 @@ export function CalorieTracker() {
       />
 
       <SavedFoodsSheet
-        visible={savedOpen}
-        onClose={() => setSavedOpen(false)}
+        visible={savedOpen || cameraLog.customFoodOpen}
+        onClose={() => {
+          setSavedOpen(false);
+          cameraLog.closeCustomFood();
+        }}
+        // Barcode-miss fallback: land on the create form prefilled with
+        // whatever product name the lookup returned.
+        initialMode={cameraLog.customFoodOpen ? "create" : undefined}
+        initialDescription={cameraLog.customFoodPrefill ?? undefined}
+      />
+
+      <PhotoEstimateSheet
+        visible={cameraLog.photoVisible}
+        uri={cameraLog.photoUri}
+        onClose={cameraLog.closePhoto}
       />
 
       <FloatingKeyboardDismiss />

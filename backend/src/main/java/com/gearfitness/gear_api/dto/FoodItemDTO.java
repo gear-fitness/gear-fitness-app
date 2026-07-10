@@ -28,6 +28,7 @@ public class FoodItemDTO {
   private Double carbsG;
   private Double fatG;
   private String nickname;
+  private String barcode;
 
   public static FoodItemDTO from(FoodItem f) {
     return new FoodItemDTO(
@@ -43,7 +44,8 @@ public class FoodItemDTO {
       f.getProteinG() == null ? null : f.getProteinG().doubleValue(),
       f.getCarbsG() == null ? null : f.getCarbsG().doubleValue(),
       f.getFatG() == null ? null : f.getFatG().doubleValue(),
-      f.getNickname()
+      f.getNickname(),
+      f.getBarcode()
     );
   }
 }

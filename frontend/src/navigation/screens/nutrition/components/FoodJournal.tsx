@@ -257,6 +257,10 @@ export function FoodJournal({ selectedDate }: { selectedDate: string }) {
           .filter((e) => e.text.trim())
           .flatMap((e) => (e.detail?.entries ?? []).map((x) => x.entryId)),
       );
+      // Load-bearing prefix check: sourceTypes starting with "AI" are owned
+      // by typed journal lines and get reaped when unreferenced. Entries
+      // logged outside the journal (BARCODE, PHOTO, DB) must never use an
+      // AI-prefixed sourceType or they'd be deleted right here.
       const strays = (summaryRef.current?.entries ?? []).filter(
         (e) => e.sourceType?.startsWith("AI") && !referenced.has(e.entryId),
       );

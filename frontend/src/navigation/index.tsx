@@ -40,6 +40,8 @@ import { Activity } from "./screens/Activity";
 import FollowScreen from "./screens/FollowScreen";
 import { ImageViewer } from "./screens/ImageViewer";
 import { CameraScreen } from "./screens/CameraScreen";
+import { BarcodeScannerScreen } from "./screens/BarcodeScannerScreen";
+import { BarcodeReview } from "./screens/nutrition/BarcodeReview";
 import { CalorieTracker } from "./screens/nutrition/CalorieTracker";
 import { AddFood } from "./screens/nutrition/AddFood";
 import { NutritionGoals } from "./screens/nutrition/NutritionGoals";
@@ -280,6 +282,18 @@ const RootStack = createNativeStackNavigator({
         gestureDirection: "vertical",
       },
     },
+
+    /* BARCODE SCANNER: same contract as Camera; consumers go through
+       openBarcodeScanner() in utils/barcodeScanner and await the code. */
+    BarcodeScanner: {
+      screen: BarcodeScannerScreen,
+      options: {
+        presentation: "fullScreenModal",
+        headerShown: false,
+        gestureEnabled: true,
+        gestureDirection: "vertical",
+      },
+    },
     ExerciseList: {
       screen: ExerciseList,
       options: { headerShown: false },
@@ -332,6 +346,17 @@ const RootStack = createNativeStackNavigator({
     AddFood: {
       screen: AddFood,
       options: { headerShown: false },
+    },
+
+    // Barcode-scan result review: pageSheet-style modal where the user picks
+    // the serving and quantity before the product is logged.
+    BarcodeReview: {
+      screen: BarcodeReview,
+      options: {
+        presentation: "modal",
+        headerShown: false,
+        gestureEnabled: true,
+      },
     },
 
     NutritionGoals: {
@@ -419,6 +444,8 @@ declare global {
       };
 
       Camera: undefined;
+      BarcodeScanner: undefined;
+      BarcodeReview: { food: import("../api/types").FoodItem };
 
       PostDetail: {
         postId: string;

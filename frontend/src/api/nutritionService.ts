@@ -3,7 +3,7 @@
  * FoodData Central; daily logs and goals are per-user (scoped server-side by the
  * JWT attached in apiClient).
  *
- * Note: each log entry carries an optional free-text `category` label — a
+ * Note: each log entry carries an optional free-text `category` label, a
  * leftover from the retired meal-card UI, kept nullable for old clients. New
  * entries are logged without one.
  */
@@ -94,12 +94,73 @@ export interface AiEstimate {
 
 /**
  * Estimate nutrition from natural-language text via AI (PLUS tier) without
- * logging anything — backs the custom-food form's "calculate calories for me".
+ * logging anything; backs the custom-food form's "calculate calories for me".
  */
 export async function aiEstimateFood(text: string): Promise<AiEstimate> {
   const { data } = await apiClient.post<AiEstimate>("/nutrition/ai/estimate", {
     text,
   });
+  return data;
+}
+
+/** Result of a barcode lookup (local seed first, OpenFoodFacts fallback). */
+export interface BarcodeLookup {
+  status: "FOUND" | "NOT_FOUND" | "INCOMPLETE";
+  food: FoodItem | null;
+  // Set on INCOMPLETE: the product exists upstream but has no usable
+  // nutrition, so the client prefills the custom-food form with this name.
+  productName: string | null;
+}
+
+/**
+ * Resolve a scanned barcode to a food (PLUS tier, server-gated 403). The
+ * backend normalizes the code, so pass the raw scanned value.
+ */
+export async function lookupBarcode(code: string): Promise<BarcodeLookup> {
+  const { data } = await apiClient.get<BarcodeLookup>(
+    `/nutrition/foods/barcode/${encodeURIComponent(code)}`,
+  );
+  return data.food
+    ? { ...data, food: { ...data.food, units: unitsForFood(data.food) } }
+    : data;
+}
+
+/** One food the vision model recognized in a meal photo. */
+export interface PhotoEstimateFood {
+  description: string;
+  calories: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+}
+
+/** AI nutrition estimate for a meal photo; nothing is logged by the call. */
+export interface AiPhotoEstimate {
+  foods: PhotoEstimateFood[];
+  reasoning?: string;
+  confidence?: number;
+  // True when the model saw no food or drink in the image at all.
+  noFood: boolean;
+}
+
+/**
+ * Estimate nutrition from a meal photo via AI (PLUS tier, server-gated 403).
+ * The image travels inline as base64 (compress to ~1024px JPEG first); note
+ * is optional user context ("2% milk, large bowl"). The client confirms the
+ * results and logs them through logFood.
+ */
+export async function aiPhotoEstimate(payload: {
+  imageBase64: string;
+  mimeType: string;
+  note?: string;
+}): Promise<AiPhotoEstimate> {
+  const { data } = await apiClient.post<AiPhotoEstimate>(
+    "/nutrition/ai/photo/estimate",
+    payload,
+    // Vision estimates are slow but not endless; a hung connection should
+    // surface the generic failure state instead of analyzing forever.
+    { timeout: 60000 },
+  );
   return data;
 }
 
@@ -134,8 +195,10 @@ export interface LogFoodPayload {
   carbsG?: number;
   fatG?: number;
   // Provenance: "AI_SONAR"/"AI_CACHE" for AI-parsed journal lines, "DB" for
-  // database picks added from the journal, null for legacy manual entries.
-  // Preserved when re-logging an entry through an edit.
+  // database picks added from the journal, "BARCODE" for scanned products,
+  // "PHOTO" for photo estimates, null for legacy manual entries. Preserved
+  // when re-logging an entry through an edit. Values starting with "AI" are
+  // reserved for journal-owned lines (the journal reaps unreferenced ones).
   sourceType?: string | null;
   sourceUrl?: string | null;
 }
@@ -161,11 +224,11 @@ export interface AiLogPayload {
 export interface AiLogResult {
   entries: FoodLogEntry[];
   fromCache: boolean;
-  // True when the parse recognized no food in the text — nothing was logged.
+  // True when the parse recognized no food in the text; nothing was logged.
   noFood?: boolean;
   sourceUrls: string[];
-  // Sonar's short explanation of the estimate + its 0–100 confidence. Surfaced
-  // in the nutrition-detail sheet's "Gear's thought process" panel.
+  // Sonar's short explanation of the estimate + its 0 to 100 confidence.
+  // Surfaced in the nutrition-detail sheet's "Gear's thought process" panel.
   reasoning?: string;
   confidence?: number;
 }

@@ -64,6 +64,13 @@ public class FoodItem {
   @Column(name = "fat_g")
   private BigDecimal fatG;
 
+  /**
+   * GTIN/UPC barcode in canonical GTIN-14 form (digits only, zero-padded to
+   * 14). NULL for foods without a known barcode.
+   */
+  @Column
+  private String barcode;
+
   /** Owner of a custom food; NULL for seeded USDA rows. */
   @Column(name = "owner_user_id")
   private UUID ownerUserId;

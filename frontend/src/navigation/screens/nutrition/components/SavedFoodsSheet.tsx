@@ -43,9 +43,17 @@ type Mode = "list" | "create" | "edit";
 export function SavedFoodsSheet({
   visible,
   onClose,
+  initialMode,
+  initialDescription,
 }: {
   visible: boolean;
   onClose: () => void;
+  /**
+   * Land directly on the create form when opening (the barcode scanner's
+   * product-not-found fallback), optionally prefilled with the product name.
+   */
+  initialMode?: "create";
+  initialDescription?: string;
 }) {
   const t = useThemeColors();
   const { height: windowHeight } = useWindowDimensions();
@@ -85,16 +93,29 @@ export function SavedFoodsSheet({
     }
   }, []);
 
-  // Fresh state each open.
+  // Fresh state each open; an initialMode of "create" skips the list and
+  // lands on the (optionally prefilled) create form.
   useEffect(() => {
     if (visible) {
-      setMode("list");
       setEditMode(false);
       setQuery("");
       setLoggedIds({});
       loadFoods();
+      if (initialMode === "create") {
+        setEditingFood(null);
+        setDescription(initialDescription ?? "");
+        setNickname("");
+        setCaloriesText("");
+        setProteinText("");
+        setCarbsText("");
+        setFatText("");
+        setEstimateError(null);
+        setMode("create");
+      } else {
+        setMode("list");
+      }
     }
-  }, [visible, loadFoods]);
+  }, [visible, loadFoods, initialMode, initialDescription]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();

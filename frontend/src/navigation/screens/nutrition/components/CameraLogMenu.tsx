@@ -6,8 +6,8 @@ import { GlassView } from "expo-glass-effect";
 import { Host, Menu, Button, Image } from "@expo/ui/swift-ui";
 
 // A small glass camera button that opens a native menu of photo-based logging
-// options: scan a barcode, take a photo, or choose an existing photo. All three
-// are stubbed no-ops for now.
+// options: scan a barcode, take a photo, or choose an existing photo. The
+// three handlers come from useCameraFoodLog via the tracker.
 //
 // On iOS this is a real SwiftUI Menu (anchored to the camera icon) sitting on a
 // liquid-glass pill; on other platforms it falls back to a plain button + an
@@ -15,15 +15,16 @@ import { Host, Menu, Button, Image } from "@expo/ui/swift-ui";
 export function CameraLogMenu({
   size = 38,
   color,
+  onScanBarcode,
+  onTakePhoto,
+  onChooseFromLibrary,
 }: {
   size?: number;
   color: string;
+  onScanBarcode: () => void;
+  onTakePhoto: () => void;
+  onChooseFromLibrary: () => void;
 }) {
-  // Stubs — wired to nothing yet.
-  const scanBarcode = () => {};
-  const takePhoto = () => {};
-  const chooseFromLibrary = () => {};
-
   const pill = { width: size, height: size, borderRadius: size / 2 };
 
   if (Platform.OS !== "ios") {
@@ -35,9 +36,9 @@ export function CameraLogMenu({
           onPress={() => {
             Haptics.selectionAsync().catch(() => {});
             Alert.alert("Log with camera", undefined, [
-              { text: "Scan barcode", onPress: scanBarcode },
-              { text: "Take photo", onPress: takePhoto },
-              { text: "Choose from library", onPress: chooseFromLibrary },
+              { text: "Scan barcode", onPress: onScanBarcode },
+              { text: "Take photo", onPress: onTakePhoto },
+              { text: "Choose from library", onPress: onChooseFromLibrary },
               { text: "Cancel", style: "cancel" },
             ]);
           }}
@@ -67,13 +68,17 @@ export function CameraLogMenu({
           <Button
             label="Scan barcode"
             systemImage="barcode.viewfinder"
-            onPress={scanBarcode}
+            onPress={onScanBarcode}
           />
-          <Button label="Take photo" systemImage="camera" onPress={takePhoto} />
+          <Button
+            label="Take photo"
+            systemImage="camera"
+            onPress={onTakePhoto}
+          />
           <Button
             label="Choose from library"
             systemImage="photo.on.rectangle"
-            onPress={chooseFromLibrary}
+            onPress={onChooseFromLibrary}
           />
         </Menu>
       </Host>

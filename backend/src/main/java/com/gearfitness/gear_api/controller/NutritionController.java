@@ -3,6 +3,9 @@ package com.gearfitness.gear_api.controller;
 import com.gearfitness.gear_api.dto.AiEstimateResponse;
 import com.gearfitness.gear_api.dto.AiLogRequest;
 import com.gearfitness.gear_api.dto.AiLogResponse;
+import com.gearfitness.gear_api.dto.AiPhotoEstimateRequest;
+import com.gearfitness.gear_api.dto.AiPhotoEstimateResponse;
+import com.gearfitness.gear_api.dto.BarcodeLookupResponse;
 import com.gearfitness.gear_api.dto.CustomFoodRequest;
 import com.gearfitness.gear_api.dto.DaySummaryDTO;
 import com.gearfitness.gear_api.dto.FoodItemDTO;
@@ -13,6 +16,8 @@ import com.gearfitness.gear_api.dto.RecalculateGoalRequest;
 import com.gearfitness.gear_api.dto.UpdateGoalRequest;
 import com.gearfitness.gear_api.security.JwtService;
 import com.gearfitness.gear_api.service.AiNutritionService;
+import com.gearfitness.gear_api.service.AiPhotoNutritionService;
+import com.gearfitness.gear_api.service.BarcodeFoodService;
 import com.gearfitness.gear_api.service.NutritionService;
 import java.util.List;
 import java.util.UUID;
@@ -31,6 +36,8 @@ public class NutritionController {
 
   private final NutritionService nutritionService;
   private final AiNutritionService aiNutritionService;
+  private final AiPhotoNutritionService aiPhotoNutritionService;
+  private final BarcodeFoodService barcodeFoodService;
   private final JwtService jwtService;
 
   /**
@@ -212,6 +219,41 @@ public class NutritionController {
     }
   }
 
+  /**
+   * Resolve a scanned barcode to a food (PLUS tier and above). Checks the local
+   * table first (seeded USDA Branded rows plus previously scanned products),
+   * then falls back to a live OpenFoodFacts lookup whose hit is persisted for
+   * next time. INCOMPLETE/NOT_FOUND statuses steer the client to the
+   * custom-food fallback.
+   */
+  @GetMapping("/foods/barcode/{code}")
+  public ResponseEntity<BarcodeLookupResponse> barcodeLookup(
+    @PathVariable String code,
+    @RequestHeader("Authorization") String authHeader
+  ) {
+    UUID userId = resolveUserId(authHeader);
+    if (userId == null) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+    try {
+      return ResponseEntity.ok(barcodeFoodService.lookup(userId, code));
+    } catch (ResponseStatusException e) {
+      // Preserve tier (403) / validation (400) / upstream (502) statuses.
+      throw e;
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().build();
+    } catch (Exception e) {
+      log.error(
+        "barcodeLookup failed (userId={}, code={}): {}",
+        userId,
+        code,
+        e.getMessage(),
+        e
+      );
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+    }
+  }
+
   /** Goal, consumed totals, and logged entries for a given day. */
   @GetMapping("/day")
   public ResponseEntity<DaySummaryDTO> getDay(
@@ -345,6 +387,39 @@ public class NutritionController {
       return ResponseEntity.badRequest().build();
     } catch (Exception e) {
       log.error("aiEstimate failed (userId={}): {}", userId, e.getMessage(), e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+    }
+  }
+
+  /**
+   * Estimate nutrition from a meal photo WITHOUT logging (PLUS tier and
+   * above). The client sends the image inline as base64; the response lists
+   * the foods the model saw, which the client confirms and logs through the
+   * plain /log endpoint. Nothing is persisted server-side.
+   */
+  @PostMapping("/ai/photo/estimate")
+  public ResponseEntity<AiPhotoEstimateResponse> aiPhotoEstimate(
+    @RequestBody AiPhotoEstimateRequest req,
+    @RequestHeader("Authorization") String authHeader
+  ) {
+    UUID userId = resolveUserId(authHeader);
+    if (userId == null) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+    try {
+      return ResponseEntity.ok(aiPhotoNutritionService.estimate(userId, req));
+    } catch (ResponseStatusException e) {
+      // Preserve tier (403) / spend-guard (503) / validation (400) statuses.
+      throw e;
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().build();
+    } catch (Exception e) {
+      log.error(
+        "aiPhotoEstimate failed (userId={}): {}",
+        userId,
+        e.getMessage(),
+        e
+      );
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
   }

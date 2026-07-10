@@ -19,7 +19,7 @@ export default {
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
         NSPhotoLibraryUsageDescription:
-          "Allow Gear Fitness to access your photos to set a profile picture.",
+          "Allow Gear Fitness to access your photos to set a profile picture and log food from photos of your meals.",
         NSUserNotificationsUsageDescription:
           "Gear Fitness sends reminders to finish your workouts and keep your training streak going.",
       },
@@ -89,14 +89,14 @@ export default {
         "expo-image-picker",
         {
           photosPermission:
-            "Allow Gear Fitness to access your photos to set a profile picture.",
+            "Allow Gear Fitness to access your photos to set a profile picture and log food from photos of your meals.",
         },
       ],
       [
         "react-native-vision-camera",
         {
           cameraPermissionText:
-            "Allow Gear Fitness to use the camera to take photos for your workout posts and profile picture.",
+            "Allow Gear Fitness to use the camera to take photos for your workout posts and profile picture, and to log food by photo or barcode.",
           // Photos only. Skip the microphone/location permissions so App
           // Store review doesn't see unused entitlements.
           enableMicrophonePermission: false,
