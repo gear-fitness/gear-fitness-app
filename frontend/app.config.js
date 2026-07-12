@@ -31,6 +31,10 @@ export default {
       },
       package: "com.gearfitness",
       usesCleartextTraffic: false,
+      // Coarse-only location: the gym picker just needs "which gyms are near
+      // me", so keep the precise-location permission out of the manifest
+      // entirely (expo-location adds both by default).
+      blockedPermissions: ["android.permission.ACCESS_FINE_LOCATION"],
     },
     web: {
       favicon: "./assets/GearLogo.png",
@@ -101,6 +105,17 @@ export default {
           // Store review doesn't see unused entitlements.
           enableMicrophonePermission: false,
           enableLocation: false,
+        },
+      ],
+      [
+        "expo-location",
+        {
+          locationWhenInUsePermission:
+            "Gear Fitness uses your location to suggest nearby gyms when you tag where you worked out. Your location is never stored or shared.",
+          // When-in-use only. Strip the plugin's default "Always" permission
+          // strings so App Store review doesn't see unused entitlements.
+          locationAlwaysPermission: false,
+          locationAlwaysAndWhenInUsePermission: false,
         },
       ],
       [

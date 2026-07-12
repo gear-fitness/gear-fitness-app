@@ -9,5 +9,9 @@
   },
   "devDependencies": {
     "prettier-plugin-java": "^2.8.1"
+  },
+  "dependencies": {
+    "expo": "^57.0.4",
+    "expo-location": "~57.0.2"
   }
 }

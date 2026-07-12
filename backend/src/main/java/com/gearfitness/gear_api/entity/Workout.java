@@ -62,6 +62,14 @@ public class Workout {
   @Builder.Default
   private List<String> photoUrls = new ArrayList<>();
 
+  // Optional gym tag. Shared row — no cascade; deleting a location nulls
+  // this FK (ON DELETE SET NULL in V49).
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "location_id")
+  @ToString.Exclude
+  @EqualsAndHashCode.Exclude
+  private Location location;
+
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
   private LocalDateTime createdAt;

@@ -30,6 +30,8 @@ public class FeedPostDTO {
   private LocalDate datePerformed;
   private Integer durationMin;
   private List<String> bodyTags;
+  private UUID locationId;
+  private String locationName;
   private Long exerciseCount;
   private Long setCount;
 

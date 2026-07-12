@@ -3,6 +3,7 @@ package com.gearfitness.gear_api.dto;
 
 import com.gearfitness.gear_api.entity.MuscleGroup;
 import com.gearfitness.gear_api.entity.Workout;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
@@ -30,6 +31,23 @@ public class WorkoutSubmissionDTO {
 
   // Optional - S3 URLs of photos attached to the workout
   private List<String> photoUrls;
+
+  // Optional - gym tag chosen in the picker. The backend find-or-creates the
+  // location row at submit time, so nothing is persisted for search results
+  // the user merely scrolled past.
+  private LocationSubmissionDTO location;
+
+  @Data
+  @NoArgsConstructor
+  @AllArgsConstructor
+  public static class LocationSubmissionDTO {
+
+    private String googlePlaceId; // null for manual "add your gym" entries
+    private String name;
+    private String address;
+    private BigDecimal latitude;
+    private BigDecimal longitude;
+  }
 
   @Data
   @NoArgsConstructor

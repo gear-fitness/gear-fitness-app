@@ -24,7 +24,10 @@ import * as MediaLibrary from "expo-media-library";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { useSocialFeed } from "../../context/SocialFeedContext";
 import { submitWorkout, WorkoutSubmission } from "../../api/workoutService";
+import { GymLocation } from "../../api/locationService";
 import { uploadPostImage } from "../../api/imageService";
+import { addRecentGym } from "../../utils/locationRecents";
+import { LocationPicker } from "../../components/LocationPicker";
 import { isNetworkError } from "../../utils/network";
 import { openCamera } from "../../utils/inAppCamera";
 import { PhotoSourceMenu } from "../../components/PhotoSourceMenu";
@@ -84,6 +87,8 @@ export function WorkoutComplete() {
   const [visibility, setVisibility] = useState<
     "PUBLIC" | "FRIENDS" | "PRIVATE"
   >("PUBLIC");
+  const [location, setLocation] = useState<GymLocation | null>(null);
+  const [locationPickerVisible, setLocationPickerVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -261,6 +266,7 @@ export function WorkoutComplete() {
       caption: caption || undefined,
       imageUrl: uploadedUrls.length > 0 ? uploadedUrls[0] : undefined,
       photoUrls: uploadedUrls,
+      location: location ?? undefined,
     });
 
     const finishOffline = async (
@@ -315,6 +321,9 @@ export function WorkoutComplete() {
       const submission = buildSubmission(uploadedUrls);
 
       await submitWorkout(submission);
+      // Remember the tagged gym so the picker can offer it instantly next
+      // time (fire-and-forget; storage failures never block the post).
+      if (location) void addRecentGym(location);
       // Clear in-memory + persisted state BEFORE the Alert so that any path
       // out of this screen — tapping OK, backgrounding, force-quitting — is
       // safe. reset() also engages the write barrier so late side-effect
@@ -599,6 +608,43 @@ export function WorkoutComplete() {
           </View>
         </Section>
 
+        {/* Location — optional gym tag */}
+        <Section label="Location" hint="Optional" t={t}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => setLocationPickerVisible(true)}
+            style={[
+              styles.locationRow,
+              { backgroundColor: t.surface, borderColor: t.border },
+            ]}
+          >
+            <Ionicons
+              name="location-outline"
+              size={18}
+              color={location ? t.text : t.textMuted}
+            />
+            <Text
+              style={[
+                styles.locationText,
+                { color: location ? t.text : t.textMuted },
+              ]}
+              numberOfLines={1}
+            >
+              {location ? location.name : "Add location"}
+            </Text>
+            {location && (
+              <TouchableOpacity
+                accessibilityLabel="Remove location"
+                activeOpacity={0.7}
+                onPress={() => setLocation(null)}
+                hitSlop={8}
+              >
+                <Ionicons name="close-circle" size={18} color={t.textMuted} />
+              </TouchableOpacity>
+            )}
+          </TouchableOpacity>
+        </Section>
+
         {/* Discard — tertiary destructive link */}
         <TouchableOpacity
           activeOpacity={0.5}
@@ -609,6 +655,13 @@ export function WorkoutComplete() {
           <Text style={styles.discardText}>Discard workout</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <LocationPicker
+        visible={locationPickerVisible}
+        onClose={() => setLocationPickerVisible(false)}
+        selected={location}
+        onSelect={setLocation}
+      />
 
       {/* Footer — hidden while keyboard is open */}
       {!keyboardVisible && (
@@ -939,6 +992,21 @@ const styles = StyleSheet.create({
     minHeight: 66,
     textAlignVertical: "top",
     padding: 0,
+  },
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    marginTop: 4,
+  },
+  locationText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "600",
+    letterSpacing: -0.2,
   },
   discardLink: {
     paddingHorizontal: 20,

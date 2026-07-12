@@ -5,6 +5,7 @@
 
 import apiClient from "./apiClient";
 import { BodyPartDTO, getCachedExercises } from "./exerciseService";
+import { GymLocation } from "./locationService";
 import {
   DailyVolumeData,
   WeeklyVolumeData,
@@ -37,6 +38,8 @@ export interface WorkoutSubmission {
   caption?: string;
   imageUrl?: string;
   photoUrls?: string[];
+  // Optional gym tag; backend find-or-creates the location row at submit time.
+  location?: GymLocation;
 }
 
 export interface ExerciseSubmission {

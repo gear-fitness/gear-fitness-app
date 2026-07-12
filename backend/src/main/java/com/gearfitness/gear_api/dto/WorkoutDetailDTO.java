@@ -21,4 +21,7 @@ public class WorkoutDetailDTO {
   private List<String> bodyTags;
   private List<WorkoutExerciseDTO> exercises;
   private List<String> photoUrls;
+  private UUID locationId;
+  private String locationName;
+  private String locationAddress;
 }

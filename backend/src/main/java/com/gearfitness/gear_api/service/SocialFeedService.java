@@ -196,6 +196,16 @@ public class SocialFeedService {
               .collect(Collectors.toList())
           : null
       )
+      .locationId(
+        post.getWorkout().getLocation() != null
+          ? post.getWorkout().getLocation().getLocationId()
+          : null
+      )
+      .locationName(
+        post.getWorkout().getLocation() != null
+          ? post.getWorkout().getLocation().getName()
+          : null
+      )
       .exerciseCount((long) post.getWorkout().getWorkoutExercises().size())
       .setCount(
         post

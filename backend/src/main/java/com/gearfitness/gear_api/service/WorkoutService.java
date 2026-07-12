@@ -9,6 +9,7 @@ import com.gearfitness.gear_api.dto.WorkoutSetDTO;
 import com.gearfitness.gear_api.dto.WorkoutSubmissionDTO;
 import com.gearfitness.gear_api.entity.AppUser;
 import com.gearfitness.gear_api.entity.Exercise;
+import com.gearfitness.gear_api.entity.Location;
 import com.gearfitness.gear_api.entity.Post;
 import com.gearfitness.gear_api.entity.Workout;
 import com.gearfitness.gear_api.entity.WorkoutExercise;
@@ -16,6 +17,7 @@ import com.gearfitness.gear_api.entity.WorkoutSet;
 import com.gearfitness.gear_api.repository.AppUserRepository;
 import com.gearfitness.gear_api.repository.ExerciseRepository;
 import com.gearfitness.gear_api.repository.ImageModerationRepository;
+import com.gearfitness.gear_api.repository.LocationRepository;
 import com.gearfitness.gear_api.repository.NotificationRepository;
 import com.gearfitness.gear_api.repository.PostRepository;
 import com.gearfitness.gear_api.repository.ReportRepository;
@@ -44,6 +46,7 @@ public class WorkoutService {
   private final NotificationRepository notificationRepository;
   private final ReportRepository reportRepository;
   private final ImageModerationRepository imageModerationRepository;
+  private final LocationRepository locationRepository;
   private final StreakService streakService;
   private final S3StorageService s3StorageService;
   private final PrService prService;
@@ -128,6 +131,19 @@ public class WorkoutService {
         workout.getPhotoUrls() != null
           ? new ArrayList<>(workout.getPhotoUrls())
           : new ArrayList<>()
+      )
+      .locationId(
+        workout.getLocation() != null
+          ? workout.getLocation().getLocationId()
+          : null
+      )
+      .locationName(
+        workout.getLocation() != null ? workout.getLocation().getName() : null
+      )
+      .locationAddress(
+        workout.getLocation() != null
+          ? workout.getLocation().getAddress()
+          : null
       )
       .build();
   }
@@ -344,6 +360,7 @@ public class WorkoutService {
           ? new ArrayList<>(submission.getPhotoUrls())
           : new ArrayList<>()
       )
+      .location(resolveLocation(submission.getLocation(), user))
       .workoutExercises(new ArrayList<>())
       .build();
 
@@ -459,6 +476,45 @@ public class WorkoutService {
 
     // Return workout details
     return getWorkoutDetails(workout.getWorkoutId(), userId);
+  }
+
+  /**
+   * Find-or-create the tagged gym. Dedupe key is googlePlaceId when present
+   * (Places-sourced picks), otherwise case-insensitive name (manual
+   * entries). Returns null when no location was tagged.
+   */
+  private Location resolveLocation(
+    WorkoutSubmissionDTO.LocationSubmissionDTO dto,
+    AppUser user
+  ) {
+    if (dto == null || dto.getName() == null || dto.getName().isBlank()) {
+      return null;
+    }
+    String name = dto.getName().trim();
+    String placeId =
+      dto.getGooglePlaceId() != null && !dto.getGooglePlaceId().isBlank()
+        ? dto.getGooglePlaceId().trim()
+        : null;
+
+    Optional<Location> existing =
+      placeId != null
+        ? locationRepository.findByGooglePlaceId(placeId)
+        : locationRepository.findFirstByGooglePlaceIdIsNullAndNameIgnoreCase(
+            name
+          );
+
+    return existing.orElseGet(() ->
+      locationRepository.save(
+        Location.builder()
+          .name(name)
+          .address(dto.getAddress())
+          .latitude(dto.getLatitude())
+          .longitude(dto.getLongitude())
+          .googlePlaceId(placeId)
+          .createdBy(user.getUserId())
+          .build()
+      )
+    );
   }
 
   @Transactional
