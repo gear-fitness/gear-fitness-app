@@ -42,13 +42,27 @@ interface Props {
   /**
    * When true, render an indeterminate progress bar at the top of the card
    * and suppress interactions whose targets only exist server-side (likes,
-   * comments, navigation to the workout detail). Used for offline posts that
+   * comments, navigation to the workout detail). Used for outbox posts that
    * have been saved locally but not yet sent to the backend.
    */
   isPending?: boolean;
+  /**
+   * When true (only meaningful with isPending), the backing outbox entry
+   * gave up delivering: render the failed treatment with Retry and Discard
+   * instead of the progress bar.
+   */
+  pendingFailed?: boolean;
+  onRetryPending?: () => void;
+  onDiscardPending?: () => void;
 }
 
-export function FeedPostCard({ post, isPending = false }: Props) {
+export function FeedPostCard({
+  post,
+  isPending = false,
+  pendingFailed = false,
+  onRetryPending,
+  onDiscardPending,
+}: Props) {
   const { colors } = useTheme();
   const cardBg = colors.card;
   const innerBg = colors.card;
@@ -194,7 +208,15 @@ export function FeedPostCard({ post, isPending = false }: Props) {
           { backgroundColor: cardBg, borderColor: colors.border },
         ]}
       >
-        {isPending && <PendingProgressBar color={colors.text} />}
+        {isPending &&
+          (pendingFailed ? (
+            <FailedPostBar
+              onRetry={onRetryPending}
+              onDiscard={onDiscardPending}
+            />
+          ) : (
+            <PendingProgressBar color={colors.text} />
+          ))}
         <PostActionsSheet
           visible={showActionsSheet}
           actions={menuActions}
@@ -482,6 +504,55 @@ function PendingProgressBar({ color }: { color: string }) {
   );
 }
 
+const FAILED_RED = "#C93838";
+
+/**
+ * Failed-delivery variant of the pending treatment: the outbox gave up on
+ * this post (or the server rejected it) and it needs a user decision. The
+ * workout itself is safe on-device; Retry re-queues it, Discard removes it
+ * permanently (the confirmation lives at the call site).
+ */
+function FailedPostBar({
+  onRetry,
+  onDiscard,
+}: {
+  onRetry?: () => void;
+  onDiscard?: () => void;
+}) {
+  const { colors } = useTheme();
+  return (
+    <View>
+      <View
+        style={[
+          styles.progressBackdrop,
+          { backgroundColor: `${FAILED_RED}55` },
+        ]}
+      />
+      <View style={styles.failedRow}>
+        <Text style={[styles.failedMessage, { color: colors.text }]}>
+          Couldn't post. It's saved on this device.
+        </Text>
+        <View style={styles.failedActions}>
+          {onRetry && (
+            <TouchableOpacity onPress={onRetry} hitSlop={8}>
+              <Text style={[styles.failedAction, { color: colors.text }]}>
+                Retry
+              </Text>
+            </TouchableOpacity>
+          )}
+          {onDiscard && (
+            <TouchableOpacity onPress={onDiscard} hitSlop={8}>
+              <Text style={[styles.failedAction, { color: FAILED_RED }]}>
+                Discard
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   card: {
     marginHorizontal: CARD_MARGIN_HORIZONTAL,
@@ -654,5 +725,30 @@ const styles = StyleSheet.create({
     paddingTop: 6,
     paddingBottom: 2,
     textAlign: "center",
+  },
+  failedRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
+    paddingTop: 9,
+    paddingBottom: 2,
+    gap: 12,
+  },
+  failedMessage: {
+    fontSize: 11,
+    fontWeight: "500",
+    letterSpacing: 0.2,
+    opacity: 0.7,
+    flexShrink: 1,
+  },
+  failedActions: {
+    flexDirection: "row",
+    gap: 16,
+  },
+  failedAction: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
 });

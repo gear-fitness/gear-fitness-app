@@ -31,6 +31,10 @@ public class WorkoutSubmissionDTO {
   // Optional - S3 URLs of photos attached to the workout
   private List<String> photoUrls;
 
+  // Optional - client-minted key, unique per workout session per user.
+  // Resubmits with the same key return the already-created workout.
+  private String idempotencyKey;
+
   @Data
   @NoArgsConstructor
   @AllArgsConstructor

@@ -16,6 +16,8 @@ import {
   scheduleUnfinishedWorkoutReminder,
   cancelUnfinishedWorkoutReminder,
 } from "../utils/unfinishedWorkoutReminder";
+import { mintIdempotencyKey } from "../utils/idempotency";
+import { hasQueuedIdempotencyKey } from "../utils/workoutQueue";
 
 export { WORKOUT_STATE_STORAGE_KEY };
 
@@ -51,6 +53,11 @@ interface PersistedWorkoutState {
   // set once and never reset, so the workout's streak/calendar day can be pinned
   // to when the user actually started training. See getLocalDateStringFromEpoch.
   workoutStartedAtEpoch: number | null;
+  // Write-once submission idempotency key for this workout session. Rides on
+  // the queue entry at post time; the server dedupes resubmits on it. Also
+  // how restore recognizes an already-posted ghost blob (the enqueue write
+  // landed but the reset() write didn't before the app died).
+  idempotencyKey?: string | null;
   running: boolean;
   lastSaveTimestamp: number;
   exercises: WorkoutExercise[];
@@ -108,6 +115,10 @@ interface WorkoutContextValue {
   // down (and possibly replaced) while it was suspended, and must then skip
   // its own cleanup instead of destroying the new session.
   getSessionGeneration: () => number;
+  // Submission idempotency key for the current session, minted on first use
+  // and stable until reset(). Synchronous so handlePost can stamp it before
+  // its first await.
+  getOrMintIdempotencyKey: () => string;
 
   exercises: WorkoutExercise[];
   // All discrete exercise-list mutations write through to AsyncStorage
@@ -243,6 +254,18 @@ export function WorkoutTimerProvider({
   const sessionGenerationRef = useRef(0);
   const getSessionGeneration = () => sessionGenerationRef.current;
 
+  // Idempotency key for the current workout session. Ref, not state: it must
+  // be readable/mintable synchronously before a post flow's first await, and
+  // nothing renders from it. Persisted via doSave, restored on launch,
+  // cleared by reset().
+  const idempotencyKeyRef = useRef<string | null>(null);
+  const getOrMintIdempotencyKey = () => {
+    if (idempotencyKeyRef.current === null) {
+      idempotencyKeyRef.current = mintIdempotencyKey();
+    }
+    return idempotencyKeyRef.current;
+  };
+
   // Render-time mirror of `running` so event handlers and queued notification
   // ops read current truth instead of a stale closure.
   const runningRef = useRef(running);
@@ -274,6 +297,7 @@ export function WorkoutTimerProvider({
         totalElapsedSeconds,
         startTimestamp,
         workoutStartedAtEpoch,
+        idempotencyKey: idempotencyKeyRef.current,
         running,
         lastSaveTimestamp: Date.now(),
         exercises,
@@ -353,6 +377,21 @@ export function WorkoutTimerProvider({
         return;
       }
 
+      // Reject already-posted ghosts: if this blob's idempotency key sits in
+      // the outbox queue, the post's enqueue write landed but the app died
+      // before reset() could clear this blob. The queue (and the server's
+      // key dedupe) own the workout now; restoring it would resurrect a
+      // posted session into the mini player. With no active user the check
+      // is skipped and restore proceeds; the server dedupe is the backstop.
+      if (
+        typeof parsed.idempotencyKey === "string" &&
+        (await hasQueuedIdempotencyKey(parsed.idempotencyKey))
+      ) {
+        await AsyncStorage.removeItem(STORAGE_KEY);
+        setIsRestoringState(false);
+        return;
+      }
+
       // Restore state
       setExercises(parsed.exercises);
       setPlayerVisible(parsed.playerVisible);
@@ -367,6 +406,9 @@ export function WorkoutTimerProvider({
       setWorkoutStartedAtEpoch(
         parsed.workoutStartedAtEpoch ?? parsed.startTimestamp ?? null,
       );
+      // Lazy-mint for blobs persisted before the key existed; the next
+      // autosave writes it back.
+      idempotencyKeyRef.current = parsed.idempotencyKey ?? mintIdempotencyKey();
       restoreTimerState(parsed);
     } catch (error) {
       console.error("Failed to restore workout state:", error);
@@ -646,6 +688,10 @@ export function WorkoutTimerProvider({
     if (workoutStartedAtEpoch === null) {
       setWorkoutStartedAtEpoch(Date.now());
     }
+    // Same write-once contract for the submission idempotency key.
+    if (idempotencyKeyRef.current === null) {
+      idempotencyKeyRef.current = mintIdempotencyKey();
+    }
     // If we resumed with an active exercise that was frozen on pause, restart
     // its live ticker so it accumulates from now forward — without this the
     // per-exercise display would jump by the entire pause gap on resume.
@@ -706,6 +752,7 @@ export function WorkoutTimerProvider({
     setSeconds(0);
     setStartTimestamp(null);
     setWorkoutStartedAtEpoch(null);
+    idempotencyKeyRef.current = null;
     setTotalElapsedSeconds(0);
     setExercises([]);
     setLastModalScreen(null);
@@ -762,6 +809,7 @@ export function WorkoutTimerProvider({
       setRunning(true);
       setStartTimestamp(Date.now());
       setWorkoutStartedAtEpoch(Date.now());
+      idempotencyKeyRef.current = mintIdempotencyKey();
       setCurrentExerciseId(newExercises[0].workoutExerciseId);
       setPlayerVisible(true);
     }
@@ -807,6 +855,7 @@ export function WorkoutTimerProvider({
         beginFinishing,
         endFinishing,
         getSessionGeneration,
+        getOrMintIdempotencyKey,
         exercises,
         addExercise,
         updateExercise,

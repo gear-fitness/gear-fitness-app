@@ -46,7 +46,11 @@ import { Avatar } from "../../components/Avatar";
 import { StreakIcon } from "../../components/StreakIcon";
 import { getStreakAccentColor } from "../../utils/streak";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
-import { getPendingPosts, isPendingPostId } from "../../utils/pendingPosts";
+import { getPendingPosts, isPendingFeedPost } from "../../utils/pendingPosts";
+import {
+  discardPendingWorkout,
+  retryPendingWorkout,
+} from "../../utils/workoutQueue";
 
 // Accent for Gear Plus UI (sparkle icon + badge).
 const PLUS_ACCENT = "#4F6BF6";
@@ -418,6 +422,40 @@ export function Profile() {
       console.error("Error loading pending posts:", err);
       return [];
     }
+  };
+
+  // Retry/Discard for a failed outbox post (surfaced on the pending card).
+  // Retry resolves when the queue drain finishes, so the reload reflects the
+  // outcome: entry gone (posted) or still failed.
+  const handleRetryPendingPost = async (queueId: string) => {
+    try {
+      await retryPendingWorkout(queueId);
+    } catch (err) {
+      console.error("Error retrying pending post:", err);
+    }
+    await loadUserPosts();
+  };
+
+  const handleDiscardPendingPost = (queueId: string) => {
+    Alert.alert(
+      "Discard workout?",
+      "It was never posted and will be permanently deleted.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Discard",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await discardPendingWorkout(queueId);
+            } catch (err) {
+              console.error("Error discarding pending post:", err);
+            }
+            await loadUserPosts();
+          },
+        },
+      ],
+    );
   };
 
   const loadUserPosts = async (profileData?: UserProfile) => {
@@ -823,6 +861,12 @@ export function Profile() {
     );
   }
 
+  // Narrow the headline card's post once, here, because the type guard's
+  // narrowing would not survive into the JSX callbacks below.
+  const headlinePost = posts.length > 0 ? posts[0] : null;
+  const headlinePending =
+    headlinePost && isPendingFeedPost(headlinePost) ? headlinePost : null;
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.bg }} edges={["top"]}>
       {isOtherUser && (
@@ -873,11 +917,27 @@ export function Profile() {
                 Follow this account to see their posts.
               </Text>
             </View>
-          ) : posts.length > 0 ? (
+          ) : headlinePost ? (
             <FeedPostCard
-              post={posts[0]}
+              post={headlinePost}
               onOpenComments={handleOpenComments}
-              isPending={isPendingPostId(posts[0].postId)}
+              isPending={headlinePending != null}
+              pendingFailed={headlinePending?.pendingStatus === "failed"}
+              onRetryPending={
+                headlinePending
+                  ? () => {
+                      void handleRetryPendingPost(
+                        headlinePending.pendingQueueId,
+                      );
+                    }
+                  : undefined
+              }
+              onDiscardPending={
+                headlinePending
+                  ? () =>
+                      handleDiscardPendingPost(headlinePending.pendingQueueId)
+                  : undefined
+              }
             />
           ) : postsLoading ? (
             <PostCardSkeleton t={t} />
