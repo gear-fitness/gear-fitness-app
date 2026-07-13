@@ -64,8 +64,15 @@ export function WorkoutComplete() {
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const photoTileSize = Math.floor((screenWidth - 40 - 24) / 4);
-  const { exercises, seconds, workoutStartedAtEpoch, reset } =
-    useWorkoutTimer();
+  const {
+    exercises,
+    seconds,
+    workoutStartedAtEpoch,
+    reset,
+    beginFinishing,
+    endFinishing,
+    getSessionGeneration,
+  } = useWorkoutTimer();
   const { invalidateAll: invalidateFeeds } = useSocialFeed();
 
   const initialBodyTags = useMemo(() => {
@@ -232,6 +239,18 @@ export function WorkoutComplete() {
       return;
     }
 
+    // Open the finishing window synchronously, before the first await, so a
+    // background/inactive event during the upload/post (including the iOS
+    // permission dialog saveCapturedPhotosIfEnabled can trigger) can neither
+    // arm the unfinished-workout reminder nor re-persist state. Must come
+    // AFTER the validation early-returns above: they exit outside the
+    // try/finally that closes the window. Closed in finally.
+    beginFinishing();
+    // If the user tears this flow down and starts a new workout while the
+    // post is suspended mid-await, the generation changes and this flow must
+    // not reset() the new session or pop its navigation.
+    const sessionAtPost = getSessionGeneration();
+
     setLoading(true);
     void saveCapturedPhotosIfEnabled();
 
@@ -273,6 +292,12 @@ export function WorkoutComplete() {
         buildSubmission(alreadyUploadedUrls),
         stillPendingUris,
       );
+      if (getSessionGeneration() !== sessionAtPost) {
+        // The workout this flow was posting no longer exists (the user tore
+        // the flow down and started another session while we were awaiting).
+        // The queue entry is safe; leave the new session alone.
+        return;
+      }
       await reset();
       Alert.alert(
         "Saved offline",
@@ -315,6 +340,17 @@ export function WorkoutComplete() {
       const submission = buildSubmission(uploadedUrls);
 
       await submitWorkout(submission);
+      // INVARIANT: nothing may be inserted between submitWorkout resolving
+      // and the synchronous head of reset(). Any code added here widens the
+      // window in which a background event sees a posted-but-not-cleared
+      // workout.
+      if (getSessionGeneration() !== sessionAtPost) {
+        // Posted, but the session this flow belonged to was already torn
+        // down and possibly replaced. Refresh the feeds so the post shows,
+        // and leave the new session's state and navigation untouched.
+        invalidateFeeds();
+        return;
+      }
       // Clear in-memory + persisted state BEFORE the Alert so that any path
       // out of this screen — tapping OK, backgrounding, force-quitting — is
       // safe. reset() also engages the write barrier so late side-effect
@@ -341,6 +377,11 @@ export function WorkoutComplete() {
       console.error("Failed to post workout:", error);
       Alert.alert("Error", "Failed to post workout. Please try again.");
     } finally {
+      // Close the finishing window. On success reset() has already engaged
+      // the write barrier, so the AppState handler stays inert; on failure
+      // the workout is genuinely unfinished again and the reminder semantics
+      // must come back.
+      endFinishing();
       setLoading(false);
     }
   };

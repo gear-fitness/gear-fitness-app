@@ -19,6 +19,9 @@ import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 import { notificationService } from "../api/notificationService";
+import { cancelUnfinishedWorkoutReminder } from "../utils/unfinishedWorkoutReminder";
+import { markExplicitLogout } from "../utils/logoutSignal";
+import { WORKOUT_STATE_STORAGE_KEY } from "../constants/workoutState";
 import { setForceLogoutCallback } from "../api/apiClient";
 import { logoutFromServer } from "../api/authService";
 import {
@@ -299,6 +302,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
    */
   const logout = async () => {
     const currentUserId = user?.userId ?? null;
+    // Tell WorkoutTimerProvider's auth watcher that the coming
+    // authenticated-to-unauthenticated transition is user-initiated, so it
+    // fully resets the in-progress workout. A forced logout (token refresh
+    // rejected) does not mark this and the workout survives for re-login.
+    markExplicitLogout();
     try {
       await notificationService.unregisterToken();
       const refreshToken = await getRefreshToken();
@@ -307,8 +315,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
       await clearAuthTokens();
       setUser(null);
-      // Clear any in-progress workout
-      await AsyncStorage.removeItem("@workout_state");
+      // Clear any in-progress workout. WorkoutTimerProvider's auth watcher
+      // performs the full in-memory reset; this direct cleanup is kept so
+      // storage and the scheduled reminder are cleared even if the app dies
+      // before that effect gets to run.
+      await AsyncStorage.removeItem(WORKOUT_STATE_STORAGE_KEY);
+      await cancelUnfinishedWorkoutReminder();
       // Drop the per-user offline caches so the next sign-in starts clean.
       if (currentUserId) {
         await clearCache(CACHE_KEYS.userProfile(currentUserId));

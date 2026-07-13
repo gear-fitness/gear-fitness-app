@@ -7,9 +7,17 @@ import React, {
 } from "react";
 import { AppState, AppStateStatus } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as Notifications from "expo-notifications";
 import { BodyPartDTO } from "../api/exerciseService";
 import { WeightUnit } from "../utils/weight";
+import { useAuth } from "./AuthContext";
+import { WORKOUT_STATE_STORAGE_KEY } from "../constants/workoutState";
+import { consumeExplicitLogout } from "../utils/logoutSignal";
+import {
+  scheduleUnfinishedWorkoutReminder,
+  cancelUnfinishedWorkoutReminder,
+} from "../utils/unfinishedWorkoutReminder";
+
+export { WORKOUT_STATE_STORAGE_KEY };
 
 export interface WorkoutSet {
   reps: string;
@@ -55,54 +63,25 @@ interface PersistedWorkoutState {
 }
 
 const WORKOUT_STATE_VERSION = 1;
-export const WORKOUT_STATE_STORAGE_KEY = "@workout_state";
 const STORAGE_KEY = WORKOUT_STATE_STORAGE_KEY;
 const SAVE_DEBOUNCE_MS = 500;
 const MAX_STATE_AGE_DAYS = 7;
 
-// Local notification fired if the user backgrounds the app mid-workout
-// and doesn't return within this window.
-export const UNFINISHED_WORKOUT_NOTIFICATION_ID = "unfinished-workout-reminder";
-const UNFINISHED_WORKOUT_DELAY_SECONDS = 20 * 60;
-
-async function scheduleUnfinishedWorkoutReminder() {
-  try {
-    await Notifications.scheduleNotificationAsync({
-      identifier: UNFINISHED_WORKOUT_NOTIFICATION_ID,
-      content: {
-        title: "Finish your workout?",
-        body: "You've got an unfinished workout waiting. Tap to jump back in.",
-        data: { type: "UNFINISHED_WORKOUT" },
-        sound: true,
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-        seconds: UNFINISHED_WORKOUT_DELAY_SECONDS,
-      },
-    });
-  } catch (error) {
-    console.error("Failed to schedule unfinished workout reminder:", error);
-  }
-}
-
-async function cancelUnfinishedWorkoutReminder() {
-  try {
-    await Notifications.cancelScheduledNotificationAsync(
-      UNFINISHED_WORKOUT_NOTIFICATION_ID,
-    );
-  } catch {
-    // No pending notification with this identifier; safe to ignore.
-  }
-  // Also clear any *delivered* copy of this notification from the tray so the
-  // user doesn't keep seeing "finish your workout" reminders after the workout
-  // has been posted.
-  try {
-    await Notifications.dismissNotificationAsync(
-      UNFINISHED_WORKOUT_NOTIFICATION_ID,
-    );
-  } catch {
-    // Not in tray; safe to ignore.
-  }
+// True when a persisted workout blob describes a real, resumable workout:
+// logged exercises, accumulated time, or a live fresh session (the player is
+// shown at exercise pick, before any set is saved). Anything else is a
+// zombie, the signature of a stray start() persisted after a reset. Shared
+// by restore below and by the notification-tap router in App.tsx so the two
+// liveness rules can never drift apart.
+export function describesActiveWorkout(parsed: unknown): boolean {
+  if (!parsed || typeof parsed !== "object") return false;
+  const blob = parsed as Partial<PersistedWorkoutState>;
+  const hasExercises =
+    Array.isArray(blob.exercises) && blob.exercises.length > 0;
+  const hasElapsedTime =
+    typeof blob.totalElapsedSeconds === "number" &&
+    blob.totalElapsedSeconds > 0;
+  return hasExercises || hasElapsedTime || blob.playerVisible === true;
 }
 
 interface WorkoutContextValue {
@@ -114,6 +93,21 @@ interface WorkoutContextValue {
   start: () => void;
   pause: () => void;
   reset: () => void;
+  // Finishing window. beginFinishing() must be called synchronously, before
+  // the first await of a post/enqueue flow. While the counter is nonzero the
+  // AppState background handler neither re-persists state nor arms the
+  // unfinished-workout reminder, so backgrounding mid-post (or the iOS
+  // "inactive" blip from a permission dialog) can't schedule a reminder for
+  // a workout that is about to be posted. Counter, not boolean: overlapping
+  // flows must not clear each other's window. Always pair with endFinishing()
+  // in a finally block.
+  beginFinishing: () => void;
+  endFinishing: () => void;
+  // Monotonic id of the current workout session, bumped by reset(). A flow
+  // that captured it before an await can detect that its workout was torn
+  // down (and possibly replaced) while it was suspended, and must then skip
+  // its own cleanup instead of destroying the new session.
+  getSessionGeneration: () => number;
 
   exercises: WorkoutExercise[];
   // All discrete exercise-list mutations write through to AsyncStorage
@@ -172,6 +166,7 @@ export function WorkoutTimerProvider({
 }) {
   const [seconds, setSeconds] = useState(0);
   const [running, setRunning] = useState(false);
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
 
   // Timestamp-based tracking for background persistence
   const [startTimestamp, setStartTimestamp] = useState<number | null>(null);
@@ -218,6 +213,49 @@ export function WorkoutTimerProvider({
   const [immediateSaveCounter, setImmediateSaveCounter] = useState(0);
   const immediateSaveSkipInitialRef = useRef(true);
 
+  // See beginFinishing in the interface. Ref (not state) on purpose: the
+  // value must be visible to the AppState listener in the same tick it is
+  // set, before any await can suspend us.
+  const finishingCountRef = useRef(0);
+  const beginFinishing = () => {
+    finishingCountRef.current += 1;
+  };
+  const endFinishing = () => {
+    finishingCountRef.current = Math.max(0, finishingCountRef.current - 1);
+    if (finishingCountRef.current > 0) return;
+    // The finishing window may have swallowed a background event's save and
+    // reminder arm. If the flow ended with the workout still alive (a failed
+    // post) while the app is already backgrounded, perform those actions
+    // now; otherwise a genuinely unfinished workout would sit with no
+    // reminder and stale persisted state until the NEXT background event,
+    // which may never come. After a successful post reset() has engaged the
+    // write barrier, so this stays inert.
+    if (suppressWritesRef.current) return;
+    if (!AppState.currentState.match(/inactive|background/)) return;
+    saveWorkoutState(true);
+    if (runningRef.current) {
+      scheduleUnfinishedWorkoutReminder(isReminderEligible);
+    }
+  };
+
+  // See getSessionGeneration in the interface. Bumped in reset(), which every
+  // path into a new workout session goes through first.
+  const sessionGenerationRef = useRef(0);
+  const getSessionGeneration = () => sessionGenerationRef.current;
+
+  // Render-time mirror of `running` so event handlers and queued notification
+  // ops read current truth instead of a stale closure.
+  const runningRef = useRef(running);
+  runningRef.current = running;
+
+  // The reminder may only arm for a live, running workout with no finish in
+  // flight. Evaluated at execution time inside the serialized notification
+  // chain, so a reset or post that happens while the op is queued disarms it.
+  const isReminderEligible = () =>
+    !suppressWritesRef.current &&
+    finishingCountRef.current === 0 &&
+    runningRef.current;
+
   // ---------------- PERSISTENCE FUNCTIONS ----------------
   const saveWorkoutState = (immediate = false) => {
     if (isRestoringState) return; // Don't save during restoration
@@ -226,6 +264,11 @@ export function WorkoutTimerProvider({
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
 
     const doSave = async () => {
+      // Re-check the barrier at execution time, not just at scheduling time:
+      // an immediate save's async body (or a debounced one) can otherwise
+      // interleave with reset() and re-persist a workout that was just
+      // cleared from storage.
+      if (suppressWritesRef.current) return;
       const state: PersistedWorkoutState = {
         version: WORKOUT_STATE_VERSION,
         totalElapsedSeconds,
@@ -298,6 +341,13 @@ export function WorkoutTimerProvider({
       const daysSinceLastSave =
         (Date.now() - parsed.lastSaveTimestamp) / (1000 * 60 * 60 * 24);
       if (daysSinceLastSave > MAX_STATE_AGE_DAYS) {
+        await AsyncStorage.removeItem(STORAGE_KEY);
+        setIsRestoringState(false);
+        return;
+      }
+
+      // Reject zombie blobs (see describesActiveWorkout).
+      if (!describesActiveWorkout(parsed)) {
         await AsyncStorage.removeItem(STORAGE_KEY);
         setIsRestoringState(false);
         return;
@@ -427,10 +477,18 @@ export function WorkoutTimerProvider({
           // this guard, backgrounding the app between the success Alert and
           // the navigation pop would write a zombie state back to storage.
           if (suppressWritesRef.current) return;
+          // A post/enqueue is in flight. Discrete mutations already wrote
+          // through long before this point, so skipping the save loses
+          // nothing, and re-persisting here would race the reset() that
+          // follows a successful post. Arming the reminder here is the bug
+          // this guard exists for: the workout is seconds from being posted,
+          // but iOS may suspend JS before the post's cleanup can cancel a
+          // notification armed now.
+          if (finishingCountRef.current > 0) return;
           // App going to background - save immediately (no debounce)
           saveWorkoutState(true);
           if (running) {
-            scheduleUnfinishedWorkoutReminder();
+            scheduleUnfinishedWorkoutReminder(isReminderEligible);
           }
         }
       },
@@ -634,6 +692,10 @@ export function WorkoutTimerProvider({
     // `beforeRemove` save during stack unmount, a backgrounded AppState
     // event, etc.) safely no-op.
     suppressWritesRef.current = true;
+    // This session is over. Any in-flight flow that captured the previous
+    // generation (a post whose await resolved after the user tore the flow
+    // down and started a new workout) must not run its own cleanup.
+    sessionGenerationRef.current += 1;
     // Kill any pending debounced save before it can fire with stale state
     // captured in its closure.
     if (saveTimeoutRef.current) {
@@ -651,9 +713,12 @@ export function WorkoutTimerProvider({
     setActiveExerciseStartedAt(null);
     hidePlayer();
 
-    // Clear persisted state
+    // Issue the notification cancel before the storage clear so the highest
+    // value native call is dispatched as early as possible; if the app is
+    // suspended mid-reset, the cancel has the best chance of having landed.
+    const cancelPromise = cancelUnfinishedWorkoutReminder();
     await clearPersistedState();
-    await cancelUnfinishedWorkoutReminder();
+    await cancelPromise;
   };
 
   // Player actions
@@ -705,6 +770,31 @@ export function WorkoutTimerProvider({
   const hasActiveWorkout =
     exercises.length > 0 || running || totalElapsedSeconds > 0;
 
+  // Tear down workout state when the user explicitly logs out. Deliberately
+  // transition-based: it fires only after auth was observed true in this app
+  // session, so a cold start that resolves to signed-out (for example
+  // launching offline with no cached session) never wipes a restorable
+  // workout. The apiClient force-logout (token refresh definitively
+  // rejected) also lands here but is NOT an explicit logout: the same user
+  // will typically sign straight back in, so their in-progress workout and
+  // its reminder are preserved, matching the pre-existing session-expiry
+  // behavior.
+  const wasAuthenticatedRef = useRef(false);
+  useEffect(() => {
+    if (isAuthLoading) return;
+    if (isAuthenticated) {
+      wasAuthenticatedRef.current = true;
+      return;
+    }
+    if (wasAuthenticatedRef.current) {
+      wasAuthenticatedRef.current = false;
+      if (consumeExplicitLogout()) {
+        void reset();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, isAuthLoading]);
+
   return (
     <WorkoutTimerContext.Provider
       value={{
@@ -714,6 +804,9 @@ export function WorkoutTimerProvider({
         start,
         pause,
         reset,
+        beginFinishing,
+        endFinishing,
+        getSessionGeneration,
         exercises,
         addExercise,
         updateExercise,
