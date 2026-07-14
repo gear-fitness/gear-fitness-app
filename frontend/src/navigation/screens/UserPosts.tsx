@@ -31,7 +31,7 @@ type ViewMode = "grid" | "square";
 
 export function UserPosts() {
   const navigation = useNavigation() as any;
-  const route = useRoute<any>();
+  const route = useRoute() as any;
   const insets = useSafeAreaInsets();
   const scheme = useColorScheme();
   const isDark = scheme === "dark";
