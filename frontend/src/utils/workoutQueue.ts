@@ -63,6 +63,44 @@ export function isEntryFailed(entry: PendingWorkout): boolean {
 }
 
 // ---------------------------------------------------------------------------
+// Enqueue tombstone. A global (NOT per-user) bounded ring of the idempotency
+// keys the outbox has taken ownership of. Written at enqueue time (the post
+// flow's commit point) so restore can reject an already-committed ghost blob
+// deterministically even when the per-user queue check can't run: no active
+// user id is resolvable, OR the queue entry already flushed and was removed.
+// It only ever holds opaque keys and is content-free, so it can outlive the
+// queue entry and survive logout without leaking anything.
+// ---------------------------------------------------------------------------
+
+const MAX_TOMBSTONE_KEYS = 5;
+
+/**
+ * Record an idempotency key as committed to the outbox. Must be called under
+ * the queue lock so its ordering relative to the queue append is deterministic.
+ * Newest key is kept last; the ring is capped so the record stays bounded.
+ */
+async function recordEnqueuedTombstone(key: string): Promise<void> {
+  const existing =
+    (await readCache<string[]>(CACHE_KEYS.enqueuedWorkoutKeys)) ?? [];
+  if (existing.includes(key)) return;
+  const next = [...existing, key].slice(-MAX_TOMBSTONE_KEYS);
+  await writeCache(CACHE_KEYS.enqueuedWorkoutKeys, next);
+}
+
+/**
+ * True when this idempotency key was ever committed to the outbox. Needs no
+ * active user id, so it closes the hole where restore skips the per-user queue
+ * check (unresolvable user, or an entry that already flushed). Used by
+ * WorkoutContext's restore to reject an already-posted ghost blob.
+ */
+export async function hasTombstonedIdempotencyKey(
+  key: string,
+): Promise<boolean> {
+  const keys = await readCache<string[]>(CACHE_KEYS.enqueuedWorkoutKeys);
+  return Array.isArray(keys) && keys.includes(key);
+}
+
+// ---------------------------------------------------------------------------
 // Queue storage. ALL read-modify-write cycles must go through withQueueLock:
 // the flush loop persists per item while WorkoutComplete enqueues and the
 // Profile card retries/discards, and an unserialized load-mutate-save would
@@ -206,7 +244,12 @@ export async function enqueueWorkout(
   }
   await withQueueLock(async () => {
     const queue = await loadQueue(userId);
-    if (queue.some((e) => e.idempotencyKey === idempotencyKey)) return;
+    if (queue.some((e) => e.idempotencyKey === idempotencyKey)) {
+      // A prior enqueue appended this key; re-record its tombstone in case
+      // that enqueue was killed between the queue write and the tombstone.
+      await recordEnqueuedTombstone(idempotencyKey);
+      return;
+    }
     queue.push({
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       createdAt: Date.now(),
@@ -217,6 +260,13 @@ export async function enqueueWorkout(
       attempts: 0,
     });
     await saveQueue(userId, queue);
+    // Tombstone strictly AFTER the queue entry is durable. A kill between the
+    // two writes must leave an entry with no tombstone (it still flushes, and
+    // the per-user queue check still rejects the ghost blob), never a
+    // tombstone with no entry, which restore would treat as already posted
+    // and silently discard the workout. The tombstone must outlive the queue
+    // entry, so it is never removed on flush.
+    await recordEnqueuedTombstone(idempotencyKey);
   });
 }
 
@@ -328,6 +378,9 @@ async function flushOnce(): Promise<number> {
           (photoKeys.length > 0 ? photoKeys[0] : undefined),
       };
       await submitWorkout(submission);
+      // Remove the delivered entry. The enqueue tombstone is deliberately
+      // left in place so a ghost blob killed after this flush (but before
+      // reset()) is still rejected on restore.
       await removeEntry(userId, item.id);
       posted += 1;
     } catch (err) {

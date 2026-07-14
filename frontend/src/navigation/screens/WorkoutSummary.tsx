@@ -18,6 +18,7 @@ import { toDisplayWeight } from "../../utils/weight";
 import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
+import { dismissWorkoutFlow } from "../../utils/dismissWorkoutFlow";
 
 const DESTRUCTIVE = "#C93838";
 const LIVE = "#22B574";
@@ -112,7 +113,7 @@ export function WorkoutSummary() {
 
   return (
     <View style={[styles.container, { backgroundColor: t.bg }]}>
-      <FloatingCloseButton />
+      <FloatingCloseButton onPress={() => dismissWorkoutFlow(navigation)} />
 
       <ScrollView
         contentContainerStyle={{

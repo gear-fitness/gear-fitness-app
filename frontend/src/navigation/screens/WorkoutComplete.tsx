@@ -27,6 +27,7 @@ import { openCamera } from "../../utils/inAppCamera";
 import { PhotoSourceMenu } from "../../components/PhotoSourceMenu";
 import { getSavePhotosOnPost } from "../../utils/photoPrefs";
 import { enqueueWorkout, flushWorkoutQueue } from "../../utils/workoutQueue";
+import { dismissWorkoutFlow } from "../../utils/dismissWorkoutFlow";
 import {
   getCurrentLocalDateString,
   getLocalDateStringFromEpoch,
@@ -222,9 +223,7 @@ export function WorkoutComplete() {
   };
 
   const popOutOfFlow = () => {
-    const parent = navigation.getParent();
-    if (parent) parent.goBack();
-    else navigation.goBack();
+    dismissWorkoutFlow(navigation);
   };
 
   // Fire-and-forget delivery kick. The outbox owns the post from here;
@@ -374,7 +373,7 @@ export function WorkoutComplete() {
       <FloatingCloseButton
         direction="left"
         accessibilityLabel="Back to summary"
-        onPress={() => navigation.navigate("WorkoutSummary")}
+        onPress={() => navigation.popTo("WorkoutSummary")}
       />
 
       <ScrollView

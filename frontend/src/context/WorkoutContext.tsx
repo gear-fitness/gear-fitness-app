@@ -17,7 +17,10 @@ import {
   cancelUnfinishedWorkoutReminder,
 } from "../utils/unfinishedWorkoutReminder";
 import { mintIdempotencyKey } from "../utils/idempotency";
-import { hasQueuedIdempotencyKey } from "../utils/workoutQueue";
+import {
+  hasQueuedIdempotencyKey,
+  hasTombstonedIdempotencyKey,
+} from "../utils/workoutQueue";
 
 export { WORKOUT_STATE_STORAGE_KEY };
 
@@ -377,19 +380,23 @@ export function WorkoutTimerProvider({
         return;
       }
 
-      // Reject already-posted ghosts: if this blob's idempotency key sits in
-      // the outbox queue, the post's enqueue write landed but the app died
-      // before reset() could clear this blob. The queue (and the server's
-      // key dedupe) own the workout now; restoring it would resurrect a
-      // posted session into the mini player. With no active user the check
-      // is skipped and restore proceeds; the server dedupe is the backstop.
-      if (
-        typeof parsed.idempotencyKey === "string" &&
-        (await hasQueuedIdempotencyKey(parsed.idempotencyKey))
-      ) {
-        await AsyncStorage.removeItem(STORAGE_KEY);
-        setIsRestoringState(false);
-        return;
+      // Reject already-committed ghosts: if this blob's idempotency key was
+      // taken over by the outbox, the post's enqueue write landed but the app
+      // died before reset() could clear this blob. The queue (and the server's
+      // key dedupe) own the workout now; restoring it would resurrect a posted
+      // session into the mini player. Two independent checks: the global
+      // tombstone (no user id needed, and outlives a flushed-then-removed
+      // queue entry) is tried first, then the per-user queue as a backstop.
+      if (typeof parsed.idempotencyKey === "string") {
+        const key = parsed.idempotencyKey;
+        if (
+          (await hasTombstonedIdempotencyKey(key)) ||
+          (await hasQueuedIdempotencyKey(key))
+        ) {
+          await AsyncStorage.removeItem(STORAGE_KEY);
+          setIsRestoringState(false);
+          return;
+        }
       }
 
       // Restore state
