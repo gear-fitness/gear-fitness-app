@@ -47,6 +47,7 @@ import { PostActionsSheet } from "./PostActionsSheet";
 import { PostVisibilitySheet } from "./PostVisibilitySheet";
 import { PresignedImage } from "./PresignedImage";
 import { ReportPostSheet } from "./ReportPostSheet";
+import { CardUploadPill } from "./UploadStatusPill";
 
 // Keep the seeded carousel width aligned with the card's screen margins. This
 // prevents iOS from initially decoding a photo into a zero-width image while
@@ -78,6 +79,11 @@ interface Props {
   pendingFailed?: boolean;
   onRetryPending?: () => void;
   onDiscardPending?: () => void;
+  /**
+   * Outbox queue id backing this pending post. Lets the uploading pill show
+   * live delivery progress; without it the bar parks at an almost-done fill.
+   */
+  pendingQueueId?: string;
 }
 
 export function FeedPostCard({
@@ -86,6 +92,7 @@ export function FeedPostCard({
   pendingFailed = false,
   onRetryPending,
   onDiscardPending,
+  pendingQueueId,
 }: Props) {
   const { colors, dark } = useTheme();
   const { user } = useAuth();
@@ -310,6 +317,20 @@ export function FeedPostCard({
     />
   );
 
+  // Centered over the media (or the card body for text posts); box-none so
+  // taps outside the pill still reach the content beneath.
+  const pendingPill = isPending ? (
+    <View style={styles.pendingPillOverlay} pointerEvents="box-none">
+      <CardUploadPill
+        failed={pendingFailed}
+        onRetry={onRetryPending}
+        onDiscard={onDiscardPending}
+        overPhotos={hasPhotos}
+        queueId={pendingQueueId}
+      />
+    </View>
+  ) : null;
+
   return (
     <FontScaleProvider max={1}>
       <View style={styles.cardShadow}>
@@ -346,16 +367,6 @@ export function FeedPostCard({
           onSubmit={submitReport}
           onClose={closeReportSheet}
         />
-
-        {isPending &&
-          (pendingFailed ? (
-            <FailedPostBar
-              onRetry={onRetryPending}
-              onDiscard={onDiscardPending}
-            />
-          ) : (
-            <PendingProgressBar color={colors.text} />
-          ))}
 
         {hasPhotos ? (
           <>
@@ -439,6 +450,8 @@ export function FeedPostCard({
               )}
 
               <View style={styles.photoActions}>{actionBar}</View>
+
+              {pendingPill}
             </View>
 
             <TouchableOpacity
@@ -486,6 +499,8 @@ export function FeedPostCard({
               ) : null}
             </TouchableOpacity>
             <View style={styles.textActions}>{actionBar}</View>
+
+            {pendingPill}
           </>
         )}
         </View>
@@ -813,74 +828,6 @@ function PostActionBar({
   );
 }
 
-function PendingProgressBar({ color }: { color: ColorValue }) {
-  const { dark } = useTheme();
-  const backdropColor = dark ? "#616161" : "#E5E5E5";
-  const trackColor = dark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.12)";
-  return (
-    <View>
-      <View
-        style={[styles.progressBackdrop, { backgroundColor: backdropColor }]}
-      />
-      <View style={[styles.progressTrack, { backgroundColor: trackColor }]}>
-        <View style={[styles.progressFill, { backgroundColor: color }]} />
-      </View>
-      <Text style={[styles.progressHint, { color, opacity: 0.6 }]}>
-        Uploading...
-      </Text>
-    </View>
-  );
-}
-
-const FAILED_RED = "#C93838";
-
-/**
- * Failed-delivery variant of the pending treatment: the outbox gave up on
- * this post (or the server rejected it) and it needs a user decision. The
- * workout itself is safe on-device; Retry re-queues it, Discard removes it
- * permanently (the confirmation lives at the call site).
- */
-function FailedPostBar({
-  onRetry,
-  onDiscard,
-}: {
-  onRetry?: () => void;
-  onDiscard?: () => void;
-}) {
-  const { colors } = useTheme();
-  return (
-    <View>
-      <View
-        style={[
-          styles.progressBackdrop,
-          { backgroundColor: `${FAILED_RED}55` },
-        ]}
-      />
-      <View style={styles.failedRow}>
-        <Text style={[styles.failedMessage, { color: colors.text }]}>
-          Couldn't post. It's saved on this device.
-        </Text>
-        <View style={styles.failedActions}>
-          {onRetry && (
-            <TouchableOpacity onPress={onRetry} hitSlop={8}>
-              <Text style={[styles.failedAction, { color: colors.text }]}>
-                Retry
-              </Text>
-            </TouchableOpacity>
-          )}
-          {onDiscard && (
-            <TouchableOpacity onPress={onDiscard} hitSlop={8}>
-              <Text style={[styles.failedAction, { color: FAILED_RED }]}>
-                Discard
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   cardShadow: {
     marginHorizontal: CARD_MARGIN_HORIZONTAL,
@@ -1087,57 +1034,11 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 16,
   },
-  progressBackdrop: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 3,
-  },
-  progressTrack: {
-    height: 3,
-    marginRight: 64,
-    borderTopRightRadius: 2,
-    borderBottomRightRadius: 2,
-    overflow: "hidden",
-    flexDirection: "row",
-  },
-  progressFill: {
-    height: 3,
-    width: "80%",
-  },
-  progressHint: {
-    fontSize: 11,
-    fontWeight: "500",
-    letterSpacing: 0.2,
-    paddingHorizontal: 14,
-    paddingTop: 6,
-    paddingBottom: 2,
-    textAlign: "center",
-  },
-  failedRow: {
-    flexDirection: "row",
+  pendingPillOverlay: {
+    ...StyleSheet.absoluteFillObject,
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 14,
-    paddingTop: 9,
-    paddingBottom: 2,
-    gap: 12,
-  },
-  failedMessage: {
-    fontSize: 11,
-    fontWeight: "500",
-    letterSpacing: 0.2,
-    opacity: 0.7,
-    flexShrink: 1,
-  },
-  failedActions: {
-    flexDirection: "row",
-    gap: 16,
-  },
-  failedAction: {
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 0.2,
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    zIndex: 4,
   },
 });

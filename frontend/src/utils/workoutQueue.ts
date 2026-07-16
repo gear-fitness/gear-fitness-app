@@ -2,7 +2,7 @@ import * as ImageManipulator from "expo-image-manipulator";
 import { submitWorkout, WorkoutSubmission } from "../api/workoutService";
 import { uploadPostImage } from "../api/imageService";
 import { Workout } from "../api/types";
-import { isNetworkError } from "./network";
+import { isNetworkError, isOnline } from "./network";
 import { mintIdempotencyKey } from "./idempotency";
 import {
   clearUploadProgress,
@@ -23,6 +23,15 @@ export const PENDING_WORKOUT_PREFIX = "pending_workout_";
 // the entry is parked as "failed" and handed to the user (Retry/Discard on
 // the Profile card). 4xx failures park immediately: they won't self-heal.
 const MAX_SERVER_ATTEMPTS = 5;
+
+// Budget for passes lost to a photo upload that times out while the network
+// still reports online (the S3 watchdog case). Each strike represents a full
+// pass wasted on an upload that could not finish, roughly a minute each; after
+// the budget the entry is parked as "failed" so the user gets Retry/Discard
+// instead of an eternal progress pill restarting the upload from byte 0.
+// Offline failures never spend this budget: retrying forever is correct when
+// there is no connectivity.
+const MAX_TIMEOUT_STRIKES = 3;
 
 export function isPendingWorkoutId(id: string): boolean {
   return id.startsWith(PENDING_WORKOUT_PREFIX);
@@ -53,6 +62,13 @@ export interface PendingWorkout {
   status?: "pending" | "failed";
   /** Consecutive server/unknown failures; parked as failed at the cap. */
   attempts?: number;
+  /**
+   * Consecutive timed-out-while-online passes; parked as failed at the cap.
+   * Offline failures do not count: retrying forever is correct when there is
+   * no connectivity. Cleared when a photo lands (proof the link can make
+   * progress) and on user-driven Retry.
+   */
+  timeoutStrikes?: number;
   failedAt?: number;
   /** "client" = 4xx (won't self-heal); "server" = 5xx/unknown (gave up). */
   lastErrorKind?: "client" | "server";
@@ -289,6 +305,7 @@ export async function retryPendingWorkout(queueId: string): Promise<number> {
     entry.attempts = 0;
     entry.failedAt = undefined;
     entry.lastErrorKind = undefined;
+    entry.timeoutStrikes = undefined;
   });
   return flushWorkoutQueue();
 }
@@ -355,8 +372,21 @@ async function flushOnce(): Promise<number> {
   if (!userId) return 0;
   const snapshot = await withQueueLock(() => loadQueueNormalized(userId));
 
+  // A pass can outlive the session it started under: a slow S3 upload can
+  // straddle user A logging out and user B logging in on the same device.
+  // The queue is per-user and survives logout, so an aborted entry simply
+  // stays pending under the captured user's own key and delivers on their
+  // next login. Re-checked before each entry and, load-bearingly, right
+  // before submitWorkout.
+  const activeUserUnchanged = async () =>
+    (await getActiveUserId()) === userId;
+
   for (const item of snapshot) {
     if (isEntryFailed(item)) continue;
+    if (!(await activeUserUnchanged())) {
+      clearUploadProgress();
+      return posted;
+    }
     // Progress model for the feed's upload bar (post-producing entries only;
     // save-without-posting workouts render no bar and must not publish): each
     // photo is one step, the final submission is one more. Photo steps
@@ -376,6 +406,15 @@ async function flushOnce(): Promise<number> {
       if (isPost) publishUploadProgress(item.id, doneSteps / totalSteps);
       for (let i = 0; i < item.pendingPhotoUris.length; i++) {
         if (uploadedKeys[i]) continue;
+        // The upload URL presign runs through apiClient under whatever
+        // tokens are active NOW, so a pass straddling an account switch must
+        // stop before each photo, not only before the submit: otherwise it
+        // keeps minting presigns attributed to the new user (or eats 401s
+        // once the tokens are cleared).
+        if (!(await activeUserUnchanged())) {
+          clearUploadProgress();
+          return posted;
+        }
         const compressed = await ImageManipulator.manipulateAsync(
           item.pendingPhotoUris[i],
           [{ resize: { width: 1600 } }],
@@ -405,7 +444,14 @@ async function flushOnce(): Promise<number> {
         if (isPost) publishUploadProgress(item.id, doneSteps / totalSteps);
         await updateEntry(userId, item.id, (entry) => {
           entry.uploadedPhotoKeys = [...uploadedKeys];
+          // A completed photo proves the link can make progress, so the
+          // timeout-strike budget starts over.
+          entry.timeoutStrikes = undefined;
         });
+        // Keep the pass's snapshot in step: the catch below counts strikes
+        // from item, and a timeout later in this same pass must build on the
+        // reset value, not the stale pre-progress one.
+        item.timeoutStrikes = undefined;
       }
 
       const photoKeys = uploadedKeys.filter((k): k is string => k !== null);
@@ -417,6 +463,19 @@ async function flushOnce(): Promise<number> {
           item.submission.imageUrl ??
           (photoKeys.length > 0 ? photoKeys[0] : undefined),
       };
+      // The load-bearing user check. The S3 PUTs above are unauthenticated
+      // (presigned urls) and harmless under any account, and the per-photo
+      // updateEntry persists write to the captured user's own queue key
+      // (harmless, even useful: the entry resumes from those keys on their
+      // next login). submitWorkout is different: it posts with whatever
+      // tokens are active NOW, so it must never run for a user who is no
+      // longer signed in or the workout lands on the wrong account. The
+      // entry is not failed and attempts are not counted; it stays pending
+      // in its owner's queue.
+      if (!(await activeUserUnchanged())) {
+        clearUploadProgress();
+        return posted;
+      }
       // Park the bar near-full for the submit leg so it never sits dead at
       // 0% (a zero-photo post's only step is this one) and reads as "almost
       // done" while the POST is in flight.
@@ -432,8 +491,37 @@ async function flushOnce(): Promise<number> {
     } catch (err) {
       clearUploadProgress();
       if (isNetworkError(err)) {
-        // Offline (or timed out): keep the entry pending and stop the pass;
-        // there's no point hammering further calls when the network is down.
+        // Two shapes land here and they need different handling. Genuinely
+        // offline (ERR_NETWORK, "network error", or anything while the
+        // network singleton says offline): keep the entry pending, count
+        // nothing, and retry forever, since delivery is only a reconnect
+        // away. Timed out while apparently online is the stuck-upload case:
+        // the apiClient interceptor flips the singleton offline on transport
+        // failures it sees, but the S3 watchdog's "S3 upload timeout" never
+        // passes through it, so isOnline() still reporting true means the
+        // link is up but a photo can't finish inside the watchdog. That
+        // burns a persisted strike; at the budget the entry parks as failed
+        // with lastErrorKind "server" (a better connection can self-heal it,
+        // and "server" is the kind Retry exists for).
+        const code = (err as { code?: string })?.code;
+        const msg = String(
+          (err as { message?: string })?.message ?? "",
+        ).toLowerCase();
+        const timedOutWhileOnline =
+          (code === "ECONNABORTED" || msg.includes("timeout")) && isOnline();
+        if (timedOutWhileOnline) {
+          const strikes = (item.timeoutStrikes ?? 0) + 1;
+          await updateEntry(userId, item.id, (entry) => {
+            entry.timeoutStrikes = strikes;
+            if (strikes >= MAX_TIMEOUT_STRIKES) {
+              entry.status = "failed";
+              entry.failedAt = Date.now();
+              entry.lastErrorKind = "server";
+            }
+          });
+        }
+        // Either way stop the pass; there's no point hammering the next
+        // entry over a link that is down or this degraded.
         break;
       }
       const status = (err as { response?: { status?: number } })?.response

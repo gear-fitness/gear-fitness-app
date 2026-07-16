@@ -31,13 +31,14 @@ import { searchUsers } from "../../api/userService";
 import { notificationService } from "../../api/notificationService";
 import { FeedPostCard } from "../../components/FeedPostCard";
 import {
-  PostUploadBar,
+  SocialUploadPill,
   usePostUploadHeadline,
-} from "../../components/PostUploadBar";
+} from "../../components/UploadStatusPill";
 import { SearchBar } from "../../components/SearchBar";
 import { UserSearchCard } from "../../components/UserSearchCard";
 import { useAuth } from "../../context/AuthContext";
 import { FeedKey, useSocialFeed } from "../../context/SocialFeedContext";
+import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
 import { useHealthKitForegroundSync } from "../../hooks/useHealthKitSync";
@@ -63,7 +64,6 @@ function FeedList({
   onOpenComments,
   listRef,
   scrollsToTop,
-  listHeader,
 }: {
   feed: Feed;
   variant: FeedKey;
@@ -74,11 +74,6 @@ function FeedList({
   // iOS status-bar-tap scroll-to-top. Only the visible feed may enable it: the
   // gesture is ignored by iOS if more than one on-screen scroll view has it on.
   scrollsToTop?: boolean;
-  // Transient row above the posts (the outbox upload bar). When present it
-  // counts as content: the empty-state centering and the iOS header-inset
-  // math below must treat the list as non-empty or the bar would render
-  // centered mid-screen (or under the header).
-  listHeader?: React.ReactElement | null;
 }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -131,7 +126,7 @@ function FeedList({
     );
   };
 
-  const hasContent = feed.posts.length > 0 || listHeader != null;
+  const hasContent = feed.posts.length > 0;
 
   return (
     <View style={styles.flex1}>
@@ -143,7 +138,6 @@ function FeedList({
           <FeedPostCard post={item} onOpenComments={onOpenComments} />
         )}
         keyExtractor={(item) => String(item.postId)}
-        ListHeaderComponent={listHeader ?? undefined}
         scrollEnabled={hasContent}
         contentContainerStyle={
           !hasContent
@@ -180,16 +174,52 @@ function FeedList({
       />
 
       {/* Empty state as a screen-anchored overlay (not inside the FlatList) so
-          the RefreshControl's inset can't shift its position. Gated on the
-          POSTS being empty, not on hasContent: the upload bar rides the top
-          of an empty feed, and hiding the empty state under it would leave
-          the rest of the screen blank. The two are meant to coexist (bar up
-          top, "follow people" guidance centered below). */}
+          the RefreshControl's inset can't shift its position. The floating
+          upload pill (screen-level overlay, docked above the tab bar) is
+          meant to coexist with this guidance: "follow people" stays centered
+          mid-screen, pill down at the bottom. Neither may hide the other. */}
       {feed.posts.length === 0 && (
         <View style={styles.emptyOverlay} pointerEvents="none">
           {renderEmpty()}
         </View>
       )}
+    </View>
+  );
+}
+
+/**
+ * Floating upload status pill, docked above the tab bar while the feed
+ * scrolls beneath it. Hosts the upload headline subscription so the
+ * per-progress-tick state changes re-render only this overlay, never the
+ * feed screen and its mounted cards. Static position (never translates), so
+ * the rasterize-while-moving glass treatment is not needed.
+ */
+function UploadPillOverlay({ onDelivered }: { onDelivered: () => void }) {
+  const insets = useSafeAreaInsets();
+  const upload = usePostUploadHeadline(onDelivered);
+  const { playerVisible } = useWorkoutTimer();
+
+  if (!upload.headline) return null;
+
+  // iOS 26 native tabs float over full-bleed content, so the pill must clear
+  // the bar itself (WorkoutPlayer's canonical 49 + bottom inset); older iOS
+  // and Android lay the JS tab bar out in flow, so the screen already ends
+  // above it. An active workout's mini player docks in the same corner;
+  // stack the pill above it.
+  const isIOS26 =
+    Platform.OS === "ios" && parseInt(String(Platform.Version), 10) >= 26;
+  const bottom =
+    (isIOS26 ? 49 + insets.bottom : 0) +
+    12 +
+    (playerVisible ? MINI_PLAYER_HEIGHT : 0);
+
+  // box-none so feed touches pass through everywhere except the pill itself.
+  return (
+    <View
+      style={[styles.uploadPillWrap, { bottom }]}
+      pointerEvents="box-none"
+    >
+      <SocialUploadPill headline={upload.headline} fraction={upload.fraction} />
     </View>
   );
 }
@@ -214,24 +244,14 @@ export function Social() {
   const discover = useSocialFeed("discover");
   const pagerRef = useRef<PagerView>(null);
 
-  // Outbox upload bar ("Keep Gear open to finish posting..."), shown at the
-  // top of both feeds while a post is being delivered. When the post lands,
-  // refresh both feeds so the bar resolves into the real post in place. Only
-  // the visible feed's instance animates its fill; the hidden one tracks by
-  // direct set so an upload doesn't run two JS-driver animations.
+  // Outbox upload pill ("Keep Gear open to finish posting..."), floating just
+  // above the tab bar while a post is being delivered. One screen-level
+  // instance covers both feeds. When the post lands, refresh both feeds so
+  // the pill resolves into the real post.
   const handlePostDelivered = useCallback(() => {
     void following.refresh();
     void discover.refresh();
   }, [following.refresh, discover.refresh]);
-  const upload = usePostUploadHeadline(handlePostDelivered);
-  const uploadBarFor = (key: FeedKey) =>
-    upload.headline ? (
-      <PostUploadBar
-        headline={upload.headline}
-        fraction={upload.fraction}
-        animate={activeFeed === key}
-      />
-    ) : null;
 
   // Per-feed list refs so a re-tap of the tab can scroll the *visible* feed to
   // top. Each list keeps its own scroll, so we only ever touch the active one.
@@ -620,7 +640,6 @@ export function Social() {
               onOpenComments={handleOpenComments}
               listRef={followingListRef}
               scrollsToTop={activeFeed === "following" && !searchExpanded}
-              listHeader={uploadBarFor("following")}
             />
           </View>
           <View key="discover" style={styles.flex1} collapsable={false}>
@@ -632,10 +651,11 @@ export function Social() {
               onOpenComments={handleOpenComments}
               listRef={discoverListRef}
               scrollsToTop={activeFeed === "discover" && !searchExpanded}
-              listHeader={uploadBarFor("discover")}
             />
           </View>
         </PagerView>
+
+        <UploadPillOverlay onDelivered={handlePostDelivered} />
 
         {searchExpanded && (
           <View
@@ -729,6 +749,16 @@ const styles = StyleSheet.create({
   searchResults: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 2,
+  },
+  // Above the pager, below searchResults (2) so opening search covers the
+  // pill; the header rows (10/11) stay above everything regardless.
+  uploadPillWrap: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    paddingHorizontal: 24,
+    zIndex: 1,
   },
 
   tabsRow: {

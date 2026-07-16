@@ -52,6 +52,7 @@ import {
   isPendingFeedPost,
 } from "../../utils/pendingPosts";
 import { retryPendingWorkout } from "../../utils/workoutQueue";
+import { subscribePostUploadEvents } from "../../utils/postUploadProgress";
 
 // Accent for Gear Plus UI (sparkle icon + badge).
 const PLUS_ACCENT = "#4F6BF6";
@@ -287,6 +288,25 @@ export function Profile() {
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [profile, isOtherUser]),
   );
+
+  // Resolve the pending card in place when the outbox delivers while this
+  // screen is already up: "Only me" posts land the user here, and without
+  // this the card would sit on "Uploading..." until the next focus. Only
+  // the delivered event triggers a reload; per-write outboxChanged events
+  // fire once per uploaded photo mid-flush and would refetch too often.
+  useEffect(() => {
+    if (isOtherUser) return;
+    return subscribePostUploadEvents((event) => {
+      if (event.type !== "delivered") return;
+      if (profile) {
+        loadUserPosts(profile);
+        loadActivityPosts(profile);
+      }
+    });
+    // loadUserPosts/loadActivityPosts are closures captured at render, same
+    // contract as the focus effect above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile, isOtherUser]);
 
   const handleFollowToggle = async () => {
     if (!profile || followLoading) return;
@@ -908,6 +928,7 @@ export function Profile() {
               onOpenComments={handleOpenComments}
               isPending={headlinePending != null}
               pendingFailed={headlinePending?.pendingStatus === "failed"}
+              pendingQueueId={headlinePending?.pendingQueueId}
               onRetryPending={
                 headlinePending
                   ? () => {
