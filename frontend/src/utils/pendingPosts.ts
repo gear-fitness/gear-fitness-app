@@ -1,10 +1,45 @@
+import { Alert } from "react-native";
 import { FeedPost } from "../api/socialFeedApi";
 import { UserProfile } from "../api/types";
 import {
+  discardPendingWorkout,
   getPendingWorkouts,
   isEntryFailed,
   PendingWorkout,
 } from "./workoutQueue";
+
+/**
+ * Confirm-then-discard for a pending outbox post. The single source of the
+ * discard dialog (title, warning copy, destructive action) shared by every
+ * surface that offers Discard on a pending post (Profile card, feed upload
+ * bar), so the copy and behavior can't drift apart. onDone runs after the
+ * discard attempt, success or failure, for callers that reload their own
+ * view of the queue.
+ */
+export function confirmDiscardPendingPost(
+  queueId: string,
+  onDone?: () => void,
+): void {
+  Alert.alert(
+    "Discard workout?",
+    "It was never posted and will be permanently deleted.",
+    [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Discard",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await discardPendingWorkout(queueId);
+          } catch (err) {
+            console.error("Error discarding pending post:", err);
+          }
+          onDone?.();
+        },
+      },
+    ],
+  );
+}
 
 /**
  * Marker prefix that identifies a `FeedPost.postId` as a synthesized pending

@@ -5,6 +5,12 @@ import { Workout } from "../api/types";
 import { isNetworkError } from "./network";
 import { mintIdempotencyKey } from "./idempotency";
 import {
+  clearUploadProgress,
+  publishOutboxChanged,
+  publishPostDelivered,
+  publishUploadProgress,
+} from "./postUploadProgress";
+import {
   CACHE_KEYS,
   getActiveUserId,
   readCache,
@@ -130,6 +136,10 @@ async function saveQueue(
   queue: PendingWorkout[],
 ): Promise<void> {
   await writeCache(CACHE_KEYS.pendingWorkouts(userId), queue);
+  // Every persisted queue mutation flows through here, so this is the one
+  // place the feed's upload bar needs to hear about enqueues, per-photo
+  // progress persists, failures, retries, discards, and deliveries.
+  publishOutboxChanged();
 }
 
 /**
@@ -347,6 +357,13 @@ async function flushOnce(): Promise<number> {
 
   for (const item of snapshot) {
     if (isEntryFailed(item)) continue;
+    // Progress model for the feed's upload bar (post-producing entries only;
+    // save-without-posting workouts render no bar and must not publish): each
+    // photo is one step, the final submission is one more. Photo steps
+    // advance smoothly on S3 byte progress; the submit leg parks the bar
+    // near-full, and delivery unmounts it rather than filling to 100%.
+    const isPost = item.submission.createPost === true;
+    const totalSteps = item.pendingPhotoUris.length + 1;
     try {
       // Compress and upload photos that haven't made it to S3 yet. Each
       // uploaded key is persisted immediately so a later retry resumes
@@ -355,6 +372,8 @@ async function flushOnce(): Promise<number> {
         ...(item.uploadedPhotoKeys ??
           new Array<string | null>(item.pendingPhotoUris.length).fill(null)),
       ];
+      let doneSteps = uploadedKeys.filter((k) => k !== null).length;
+      if (isPost) publishUploadProgress(item.id, doneSteps / totalSteps);
       for (let i = 0; i < item.pendingPhotoUris.length; i++) {
         if (uploadedKeys[i]) continue;
         const compressed = await ImageManipulator.manipulateAsync(
@@ -362,7 +381,28 @@ async function flushOnce(): Promise<number> {
           [{ resize: { width: 1600 } }],
           { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG },
         );
-        uploadedKeys[i] = await uploadPostImage(compressed.uri);
+        // Byte callbacks that land after this upload settles must be dropped:
+        // the 60s watchdog cancel can leave one queued, and a late publish
+        // would resurrect progress for an entry the pass already gave up on.
+        let uploadSettled = false;
+        try {
+          uploadedKeys[i] = await uploadPostImage(
+            compressed.uri,
+            isPost
+              ? (fraction) => {
+                  if (uploadSettled) return;
+                  publishUploadProgress(
+                    item.id,
+                    (doneSteps + fraction) / totalSteps,
+                  );
+                }
+              : undefined,
+          );
+        } finally {
+          uploadSettled = true;
+        }
+        doneSteps += 1;
+        if (isPost) publishUploadProgress(item.id, doneSteps / totalSteps);
         await updateEntry(userId, item.id, (entry) => {
           entry.uploadedPhotoKeys = [...uploadedKeys];
         });
@@ -377,13 +417,20 @@ async function flushOnce(): Promise<number> {
           item.submission.imageUrl ??
           (photoKeys.length > 0 ? photoKeys[0] : undefined),
       };
+      // Park the bar near-full for the submit leg so it never sits dead at
+      // 0% (a zero-photo post's only step is this one) and reads as "almost
+      // done" while the POST is in flight.
+      if (isPost)
+        publishUploadProgress(item.id, (doneSteps + 0.9) / totalSteps);
       await submitWorkout(submission);
       // Remove the delivered entry. The enqueue tombstone is deliberately
       // left in place so a ghost blob killed after this flush (but before
       // reset()) is still rejected on restore.
       await removeEntry(userId, item.id);
+      if (isPost) publishPostDelivered(item.id);
       posted += 1;
     } catch (err) {
+      clearUploadProgress();
       if (isNetworkError(err)) {
         // Offline (or timed out): keep the entry pending and stop the pass;
         // there's no point hammering further calls when the network is down.

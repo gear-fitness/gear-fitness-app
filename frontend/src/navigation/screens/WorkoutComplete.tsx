@@ -227,8 +227,8 @@ export function WorkoutComplete() {
   };
 
   // Fire-and-forget delivery kick. The outbox owns the post from here;
-  // refresh the feeds when a pass lands something so the pending card on
-  // Profile resolves into the real post. invalidateFeeds is a context
+  // refresh the feeds when a pass lands something so the upload bar on the
+  // social feed resolves into the real post. invalidateFeeds is a context
   // function, safe to call after this screen unmounts.
   const kickFlush = () => {
     flushWorkoutQueue()
@@ -317,9 +317,24 @@ export function WorkoutComplete() {
       await reset();
 
       kickFlush();
-      // Instant close: no confirmation alert. The post shows on Profile with
-      // the pending "Uploading..." treatment until the flush lands it.
+      // Instant close: no confirmation alert. Land where the post will
+      // actually surface: the social feed (whose upload bar shows delivery
+      // progress) for PUBLIC/FRIENDS, but Profile for PRIVATE ("Only me"),
+      // which never appears in the public feeds; its pending card shows the
+      // same delivery state there. Dismiss the flow first, then switch tabs
+      // on the navigator underneath. popTo (not navigate) reaches the
+      // EXISTING HomeTabs instance even if another route (e.g. a PostDetail
+      // pushed above the modal) survived the targeted pop; navigate would
+      // only reuse HomeTabs when it is already on top and would otherwise
+      // push a second instance, presented modally. Tabs must never open that
+      // way. Dispatched on the root navigator (like dismissWorkoutFlow)
+      // because this screen's own navigator is being unmounted by the pop
+      // and can't be trusted to bubble the action.
+      const rootNavigation = navigation.getParent();
       popOutOfFlow();
+      (rootNavigation ?? navigation).popTo("HomeTabs", {
+        screen: visibility === "PRIVATE" ? "Profile" : "Explore",
+      });
     } catch (error) {
       // Only the enqueue itself can land here (storage failure, no active
       // user). Nothing was committed; keep the composer so the user can try

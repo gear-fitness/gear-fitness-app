@@ -179,12 +179,24 @@ export async function uploadImageToS3(
   uploadUrl: string,
   fileUri: string,
   contentType: string,
+  onProgress?: (fraction: number) => void,
 ): Promise<void> {
-  const task = FileSystem.createUploadTask(uploadUrl, fileUri, {
-    httpMethod: "PUT",
-    uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
-    headers: { "Content-Type": contentType },
-  });
+  const task = FileSystem.createUploadTask(
+    uploadUrl,
+    fileUri,
+    {
+      httpMethod: "PUT",
+      uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+      headers: { "Content-Type": contentType },
+    },
+    onProgress
+      ? ({ totalBytesSent, totalBytesExpectedToSend }) => {
+          if (totalBytesExpectedToSend > 0) {
+            onProgress(Math.min(1, totalBytesSent / totalBytesExpectedToSend));
+          }
+        }
+      : undefined,
+  );
 
   let timedOut = false;
   const watchdog = setTimeout(() => {
@@ -212,9 +224,12 @@ export async function uploadImageToS3(
   }
 }
 
-export async function uploadPostImage(fileUri: string): Promise<string> {
+export async function uploadPostImage(
+  fileUri: string,
+  onProgress?: (fraction: number) => void,
+): Promise<string> {
   const contentType = "image/jpeg";
   const { key, uploadUrl } = await requestPostImageUploadUrl(contentType);
-  await uploadImageToS3(uploadUrl, fileUri, contentType);
+  await uploadImageToS3(uploadUrl, fileUri, contentType, onProgress);
   return key;
 }

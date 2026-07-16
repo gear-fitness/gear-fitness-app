@@ -46,11 +46,12 @@ import { Avatar } from "../../components/Avatar";
 import { StreakIcon } from "../../components/StreakIcon";
 import { getStreakAccentColor } from "../../utils/streak";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
-import { getPendingPosts, isPendingFeedPost } from "../../utils/pendingPosts";
 import {
-  discardPendingWorkout,
-  retryPendingWorkout,
-} from "../../utils/workoutQueue";
+  confirmDiscardPendingPost,
+  getPendingPosts,
+  isPendingFeedPost,
+} from "../../utils/pendingPosts";
+import { retryPendingWorkout } from "../../utils/workoutQueue";
 
 // Accent for Gear Plus UI (sparkle icon + badge).
 const PLUS_ACCENT = "#4F6BF6";
@@ -271,9 +272,9 @@ export function Profile() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Re-pull pending posts whenever the screen regains focus. Posting offline
-  // from WorkoutComplete navigates back to this screen, so the synthesized
-  // "in-progress" card needs to appear without a manual refresh.
+  // Re-pull pending posts whenever the screen regains focus. Posting lands
+  // the user on the social feed, so the synthesized "in-progress" card must
+  // appear without a manual refresh whenever Profile is next opened.
   useFocusEffect(
     React.useCallback(() => {
       if (isOtherUser) return;
@@ -437,25 +438,9 @@ export function Profile() {
   };
 
   const handleDiscardPendingPost = (queueId: string) => {
-    Alert.alert(
-      "Discard workout?",
-      "It was never posted and will be permanently deleted.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Discard",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await discardPendingWorkout(queueId);
-            } catch (err) {
-              console.error("Error discarding pending post:", err);
-            }
-            await loadUserPosts();
-          },
-        },
-      ],
-    );
+    confirmDiscardPendingPost(queueId, () => {
+      void loadUserPosts();
+    });
   };
 
   const loadUserPosts = async (profileData?: UserProfile) => {

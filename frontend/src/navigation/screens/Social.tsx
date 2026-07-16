@@ -30,6 +30,10 @@ import { SearchUserResult } from "../../api/types";
 import { searchUsers } from "../../api/userService";
 import { notificationService } from "../../api/notificationService";
 import { FeedPostCard } from "../../components/FeedPostCard";
+import {
+  PostUploadBar,
+  usePostUploadHeadline,
+} from "../../components/PostUploadBar";
 import { SearchBar } from "../../components/SearchBar";
 import { UserSearchCard } from "../../components/UserSearchCard";
 import { useAuth } from "../../context/AuthContext";
@@ -59,6 +63,7 @@ function FeedList({
   onOpenComments,
   listRef,
   scrollsToTop,
+  listHeader,
 }: {
   feed: Feed;
   variant: FeedKey;
@@ -69,6 +74,11 @@ function FeedList({
   // iOS status-bar-tap scroll-to-top. Only the visible feed may enable it: the
   // gesture is ignored by iOS if more than one on-screen scroll view has it on.
   scrollsToTop?: boolean;
+  // Transient row above the posts (the outbox upload bar). When present it
+  // counts as content: the empty-state centering and the iOS header-inset
+  // math below must treat the list as non-empty or the bar would render
+  // centered mid-screen (or under the header).
+  listHeader?: React.ReactElement | null;
 }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -121,6 +131,8 @@ function FeedList({
     );
   };
 
+  const hasContent = feed.posts.length > 0 || listHeader != null;
+
   return (
     <View style={styles.flex1}>
       <FlatList
@@ -131,9 +143,10 @@ function FeedList({
           <FeedPostCard post={item} onOpenComments={onOpenComments} />
         )}
         keyExtractor={(item) => String(item.postId)}
-        scrollEnabled={feed.posts.length > 0}
+        ListHeaderComponent={listHeader ?? undefined}
+        scrollEnabled={hasContent}
         contentContainerStyle={
-          feed.posts.length === 0
+          !hasContent
             ? { flexGrow: 1, justifyContent: "center" }
             : {
                 paddingTop: isIOS ? 0 : HEADER_HEIGHT - insets.top,
@@ -146,13 +159,9 @@ function FeedList({
         // ourselves so the first post clears the header instead of slipping
         // under it.
         contentInsetAdjustmentBehavior="never"
-        contentInset={
-          isIOS && feed.posts.length > 0 ? { top: HEADER_HEIGHT } : undefined
-        }
+        contentInset={isIOS && hasContent ? { top: HEADER_HEIGHT } : undefined}
         contentOffset={
-          isIOS && feed.posts.length > 0
-            ? { x: 0, y: -HEADER_HEIGHT }
-            : undefined
+          isIOS && hasContent ? { x: 0, y: -HEADER_HEIGHT } : undefined
         }
         scrollIndicatorInsets={{ top: HEADER_HEIGHT }}
         ListFooterComponent={renderFooter}
@@ -171,7 +180,11 @@ function FeedList({
       />
 
       {/* Empty state as a screen-anchored overlay (not inside the FlatList) so
-          the RefreshControl's inset can't shift its position. */}
+          the RefreshControl's inset can't shift its position. Gated on the
+          POSTS being empty, not on hasContent: the upload bar rides the top
+          of an empty feed, and hiding the empty state under it would leave
+          the rest of the screen blank. The two are meant to coexist (bar up
+          top, "follow people" guidance centered below). */}
       {feed.posts.length === 0 && (
         <View style={styles.emptyOverlay} pointerEvents="none">
           {renderEmpty()}
@@ -200,6 +213,25 @@ export function Social() {
   const following = useSocialFeed("following");
   const discover = useSocialFeed("discover");
   const pagerRef = useRef<PagerView>(null);
+
+  // Outbox upload bar ("Keep Gear open to finish posting..."), shown at the
+  // top of both feeds while a post is being delivered. When the post lands,
+  // refresh both feeds so the bar resolves into the real post in place. Only
+  // the visible feed's instance animates its fill; the hidden one tracks by
+  // direct set so an upload doesn't run two JS-driver animations.
+  const handlePostDelivered = useCallback(() => {
+    void following.refresh();
+    void discover.refresh();
+  }, [following.refresh, discover.refresh]);
+  const upload = usePostUploadHeadline(handlePostDelivered);
+  const uploadBarFor = (key: FeedKey) =>
+    upload.headline ? (
+      <PostUploadBar
+        headline={upload.headline}
+        fraction={upload.fraction}
+        animate={activeFeed === key}
+      />
+    ) : null;
 
   // Per-feed list refs so a re-tap of the tab can scroll the *visible* feed to
   // top. Each list keeps its own scroll, so we only ever touch the active one.
@@ -588,6 +620,7 @@ export function Social() {
               onOpenComments={handleOpenComments}
               listRef={followingListRef}
               scrollsToTop={activeFeed === "following" && !searchExpanded}
+              listHeader={uploadBarFor("following")}
             />
           </View>
           <View key="discover" style={styles.flex1} collapsable={false}>
@@ -599,6 +632,7 @@ export function Social() {
               onOpenComments={handleOpenComments}
               listRef={discoverListRef}
               scrollsToTop={activeFeed === "discover" && !searchExpanded}
+              listHeader={uploadBarFor("discover")}
             />
           </View>
         </PagerView>
