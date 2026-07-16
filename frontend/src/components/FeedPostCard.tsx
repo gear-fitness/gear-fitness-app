@@ -1,40 +1,64 @@
-import React, { useState } from "react";
+import React, {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import {
-  View,
-  StyleSheet,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  ScrollView,
+  ColorValue,
+  Dimensions,
+  LayoutChangeEvent,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  LayoutChangeEvent,
+  ScrollView,
   StyleProp,
+  StyleSheet,
   TextStyle,
-  Dimensions,
+  TouchableOpacity,
+  View,
+  ViewStyle,
 } from "react-native";
-import { FontScaleProvider, Text } from "./Text";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useTheme } from "@react-navigation/native";
+import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
+import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withSequence,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 import { FeedPost } from "../api/socialFeedApi";
-import { parseLocalDate, formatTimeAgo } from "../utils/date";
-import { formatTag } from "../utils/formatTag";
 import { useAuth } from "../context/AuthContext";
 import { useLikeState } from "../context/LikesContext";
 import { usePostMenu } from "../hooks/usePostMenu";
+import { formatTimeAgo } from "../utils/date";
 import { Avatar } from "./Avatar";
+import { FontScaleProvider, Text } from "./Text";
 import { MentionableText } from "./MentionableText";
-import { PostVisibilitySheet } from "./PostVisibilitySheet";
 import { PostActionsSheet } from "./PostActionsSheet";
-import { ReportPostSheet } from "./ReportPostSheet";
+import { PostVisibilitySheet } from "./PostVisibilitySheet";
 import { PresignedImage } from "./PresignedImage";
+import { ReportPostSheet } from "./ReportPostSheet";
 
-// Horizontal margins between the screen edge and the photo. Kept as named
-// constants so the seeded scrollWidth (used to size photos before onLayout
-// fires) can never drift from the actual `card` / `carouselWrap` styles.
+// Keep the seeded carousel width aligned with the card's screen margins. This
+// prevents iOS from initially decoding a photo into a zero-width image while
+// onLayout catches up after rotation, split-view changes, or first mount.
 const CARD_MARGIN_HORIZONTAL = 16;
-const CAROUSEL_MARGIN_HORIZONTAL = 14;
-const PAGE_HORIZONTAL_INSET =
-  (CARD_MARGIN_HORIZONTAL + CAROUSEL_MARGIN_HORIZONTAL) * 2;
+const CARD_RADIUS = 24;
+const PAGE_HORIZONTAL_INSET = CARD_MARGIN_HORIZONTAL * 2;
+const DOUBLE_TAP_HEART_SIZE = 80;
+const GOLD_MILESTONE_HEART_SIZE = 170;
+const BLUE_MILESTONE_HEART_SIZE = 220;
+const PURPLE_MILESTONE_HEART_SIZE = 280;
+const HEART_STREAK_TIMEOUT_MS = 1200;
 
 interface Props {
   post: FeedPost;
@@ -63,26 +87,22 @@ export function FeedPostCard({
   onRetryPending,
   onDiscardPending,
 }: Props) {
-  const { colors } = useTheme();
-  const cardBg = colors.card;
-  const innerBg = colors.card;
+  const { colors, dark } = useTheme();
   const { user } = useAuth();
+  const navigation = useNavigation() as any;
+  const glassAvailable = isLiquidGlassAvailable();
   const {
     liked: likedByUser,
     count: likeCount,
     toggle: handleLike,
+    like: handleImageLike,
   } = useLikeState(post.postId, post);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
-  // Seed with the real page width (full screen minus the card + carousel
-  // horizontal margins) so a photo never mounts into a 0-width box. Mounting an
-  // <Image> at width 0 makes iOS decode it to a ~1px bitmap that then gets
-  // stretched to fill once layout settles, rendering a flat block of the
-  // photo's average color. onLayout below still refines this for rotation /
-  // iPad / split-view. See PAGE_HORIZONTAL_INSET.
-  const [scrollWidth, setScrollWidth] = useState(
-    () => Dimensions.get("window").width - PAGE_HORIZONTAL_INSET,
+  const carouselRef = useRef<ScrollView>(null);
+  const heartLayerRef = useRef<DoubleTapHeartLayerHandle>(null);
+  const [scrollWidth, setScrollWidth] = useState(() =>
+    Math.max(1, Dimensions.get("window").width - PAGE_HORIZONTAL_INSET),
   );
-  const navigation = useNavigation();
   const {
     onPress: onMenuPress,
     actions: menuActions,
@@ -111,53 +131,10 @@ export function FeedPostCard({
       : post.imageUrl
         ? [post.imageUrl]
         : [];
-
-  const handlePhotoScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (scrollWidth === 0) return;
-    const index = Math.round(e.nativeEvent.contentOffset.x / scrollWidth);
-    if (index !== activePhotoIndex) setActivePhotoIndex(index);
-  };
-
-  const handleScrollLayout = (e: LayoutChangeEvent) => {
-    setScrollWidth(e.nativeEvent.layout.width);
-  };
-
-  const openImageViewer = () => {
-    if (photos.length === 0) return;
-    navigation.navigate("ImageViewer", {
-      photos,
-      initialIndex: activePhotoIndex,
-    });
-  };
-
+  const hasPhotos = photos.length > 0;
   const isOwnPost = post.username === user?.username;
-
-  const formatOverlineDate = (dateString: string) => {
-    return parseLocalDate(dateString)
-      .toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      })
-      .toUpperCase();
-  };
-
-  const formatBodyTag = (tag: string) => {
-    return tag
-      .split("_")
-      .map((word) => word.charAt(0) + word.slice(1).toLowerCase())
-      .join(" ");
-  };
-
-  const formatDuration = (minutes: number) => {
-    if (minutes < 60) return `${minutes}m`;
-    const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
-    return m === 0 ? `${h}h` : `${h}h ${m}m`;
-  };
-
-  const textMuted: StyleProp<TextStyle> = { color: colors.text, opacity: 0.5 };
-  const textFaint: StyleProp<TextStyle> = { color: colors.text, opacity: 0.4 };
+  const textMuted: StyleProp<TextStyle> = { color: colors.text, opacity: 0.55 };
+  const textFaint: StyleProp<TextStyle> = { color: colors.text, opacity: 0.45 };
 
   const visibility = post.visibility ?? "PUBLIC";
   const visibilityIcon =
@@ -167,56 +144,191 @@ export function FeedPostCard({
         ? "lock-closed-outline"
         : null;
 
+  const handlePhotoScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const index = Math.round(event.nativeEvent.contentOffset.x / scrollWidth);
+    if (index !== activePhotoIndex) setActivePhotoIndex(index);
+  };
+
+  const handleMediaLayout = (event: LayoutChangeEvent) => {
+    const width = event.nativeEvent.layout.width;
+    if (width <= 0 || width === scrollWidth) return;
+    setScrollWidth(width);
+    requestAnimationFrame(() => {
+      carouselRef.current?.scrollTo({
+        x: activePhotoIndex * width,
+        animated: false,
+      });
+    });
+  };
+
+  const openImageViewer = (initialIndex = activePhotoIndex) => {
+    if (photos.length === 0) return;
+    navigation.navigate("ImageViewer", {
+      photos,
+      initialIndex,
+    });
+  };
+
+  const handleImageDoubleTap = (x: number, y: number) => {
+    if (isPending) return;
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    heartLayerRef.current?.show(x, y);
+
+    // Unlike the action button, a double tap expresses only positive intent.
+    // The shared store applies this atomically so another mounted post surface
+    // cannot turn a concurrent double tap into an accidental unlike.
+    handleImageLike();
+  };
+
+  const openWorkoutDetails = () => {
+    if (isPending) return;
+    const targetNavigator = navigation.getParent() || navigation;
+    targetNavigator.navigate("DetailedHistory", {
+      workoutId: post.workoutId,
+      caption: post.caption,
+      workoutName: post.workoutName,
+      postId: post.postId,
+      ownerUserId: post.userId,
+      ownerUsername: post.username,
+      viewerFollowsAuthor: post.viewerFollowsAuthor,
+      initialLikeCount: likeCount,
+      initialLikedByUser: likedByUser,
+    });
+  };
+
+  const openComments = () => {
+    if (isPending) return;
+    navigation.navigate("Comments", {
+      postId: post.postId,
+      postOwnerId: post.userId,
+    });
+  };
+
+  const foreground = hasPhotos ? "#FFFFFF" : colors.text;
+  const timestampStyle = hasPhotos ? styles.photoSecondaryText : textFaint;
+
   const userHeader = (
     <View style={styles.userInfo}>
       <Avatar
         username={post.username}
         profilePictureUrl={post.userProfilePictureUrl}
-        size={40}
+        size={34}
       />
-      <View style={styles.userNameRow}>
+      <View style={styles.userNameBlock}>
         <View style={styles.userNameLine}>
-          <Text style={[styles.username, { color: colors.text }]}>
+          <Text
+            numberOfLines={1}
+            style={[
+              styles.username,
+              { color: foreground },
+              hasPhotos && styles.photoTextShadow,
+            ]}
+          >
             {post.username}
           </Text>
           {visibilityIcon && (
             <Ionicons
               name={visibilityIcon}
               size={13}
-              color={colors.text}
-              style={styles.visIcon}
+              color={foreground}
+              style={styles.visibilityIcon}
             />
           )}
         </View>
-        <Text style={[styles.timestamp, textFaint]}>
+        <Text
+          numberOfLines={1}
+          style={[
+            styles.timestamp,
+            timestampStyle,
+            hasPhotos && styles.photoTextShadow,
+          ]}
+        >
           {formatTimeAgo(post.createdAt)}
         </Text>
       </View>
     </View>
   );
 
-  const hasDuration = post.durationMin != null && post.durationMin > 0;
-  const hasMuscles = Array.isArray(post.bodyTags) && post.bodyTags.length > 0;
-  const hasPhotos = photos.length > 0;
-  const contentPaddingHorizontal = 16;
+  const header = (
+    <View style={[styles.header, hasPhotos && styles.photoHeader]}>
+      {isOwnPost ? (
+        <View style={styles.userInfoWrap}>{userHeader}</View>
+      ) : (
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() =>
+            (navigation as any).push("UserProfile", {
+              username: post.username,
+            })
+          }
+          style={styles.userInfoWrap}
+          accessibilityRole="button"
+          accessibilityLabel={`View ${post.username}'s profile`}
+        >
+          {userHeader}
+        </TouchableOpacity>
+      )}
+      <TouchableOpacity
+        onPress={isPending ? undefined : onMenuPress}
+        disabled={isPending}
+        hitSlop={10}
+        accessibilityRole="button"
+        accessibilityLabel="More options"
+        accessibilityState={{ disabled: isPending }}
+        style={[styles.menuButton, isPending && styles.menuDisabled]}
+      >
+        <Ionicons name="ellipsis-vertical" size={20} color={foreground} />
+      </TouchableOpacity>
+    </View>
+  );
+
+  const actionBar = (
+    <PostActionBar
+      glassAvailable={glassAvailable}
+      fallbackBackground={
+        hasPhotos
+          ? dark
+            ? "rgba(20,20,20,0.72)"
+            : "rgba(255,255,255,0.82)"
+          : colors.card
+      }
+      fallbackBorder={
+        hasPhotos
+          ? dark
+            ? "rgba(255,255,255,0.24)"
+            : "rgba(0,0,0,0.12)"
+          : colors.border
+      }
+      foreground={hasPhotos && glassAvailable ? "#FFFFFF" : colors.text}
+      liked={likedByUser}
+      likeCount={likeCount}
+      commentCount={post.commentCount}
+      isPending={isPending}
+      onLike={handleLike}
+      onComment={openComments}
+    />
+  );
 
   return (
     <FontScaleProvider max={1}>
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: cardBg, borderColor: colors.border },
-        ]}
-      >
-        {isPending &&
-          (pendingFailed ? (
-            <FailedPostBar
-              onRetry={onRetryPending}
-              onDiscard={onDiscardPending}
-            />
-          ) : (
-            <PendingProgressBar color={colors.text} />
-          ))}
+      <View style={styles.cardShadow}>
+        <View
+          style={[
+            styles.card,
+            !hasPhotos && styles.textCard,
+            {
+              backgroundColor: glassAvailable ? "transparent" : colors.card,
+            },
+          ]}
+        >
+        {glassAvailable && (
+          <GlassView
+            style={[StyleSheet.absoluteFillObject, styles.cardGlass]}
+            glassEffectStyle="regular"
+          />
+        )}
+
         <PostActionsSheet
           visible={showActionsSheet}
           actions={menuActions}
@@ -234,270 +346,486 @@ export function FeedPostCard({
           onSubmit={submitReport}
           onClose={closeReportSheet}
         />
-        <View style={styles.header}>
-          {isOwnPost ? (
-            <View style={styles.userInfoWrap}>{userHeader}</View>
-          ) : (
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() =>
-                (navigation as any).push("UserProfile", {
-                  username: post.username,
-                })
-              }
-              style={styles.userInfoWrap}
-            >
-              {userHeader}
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity
-            onPress={onMenuPress}
-            hitSlop={10}
-            accessibilityLabel="More options"
-          >
-            <Ionicons
-              name="ellipsis-horizontal"
-              size={20}
-              color={colors.text}
+
+        {isPending &&
+          (pendingFailed ? (
+            <FailedPostBar
+              onRetry={onRetryPending}
+              onDiscard={onDiscardPending}
             />
-          </TouchableOpacity>
-        </View>
+          ) : (
+            <PendingProgressBar color={colors.text} />
+          ))}
 
-        {photos.length === 1 && (
-          // Single photo (the common case): render directly so its width comes
-          // from the flex-laid-out carouselWrap. This has a real width on the
-          // very first render, so the <Image> can never mount into a 0-width box
-          // (the cause of the flat-gray "average color" bug) regardless of
-          // whether the presigned url is resolved synchronously from cache.
-          <View style={styles.carouselWrap}>
-            <TouchableWithoutFeedback onPress={openImageViewer}>
-              <View>
-                <PresignedImage
-                  imageKey={photos[0]}
-                  style={[styles.image, { borderColor: colors.border }]}
-                  resizeMode="cover"
-                />
-              </View>
-            </TouchableWithoutFeedback>
-          </View>
-        )}
-
-        {photos.length > 1 && (
-          <View style={styles.carouselWrap}>
-            <ScrollView
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              onLayout={handleScrollLayout}
-              onMomentumScrollEnd={handlePhotoScroll}
-            >
-              {photos.map((url, i) => (
-                <TouchableWithoutFeedback
-                  key={`${url}-${i}`}
-                  onPress={openImageViewer}
+        {hasPhotos ? (
+          <>
+            <View style={styles.media} onLayout={handleMediaLayout}>
+              {photos.length === 1 ? (
+                <PostImageTapTarget
+                  onSingleTap={() => openImageViewer(0)}
+                  onDoubleTap={handleImageDoubleTap}
+                  doubleTapEnabled={!isPending}
+                  accessibilityLabel="Open workout photo"
+                  style={StyleSheet.absoluteFillObject}
                 >
-                  <View style={{ width: scrollWidth }}>
+                  <View style={StyleSheet.absoluteFillObject}>
                     <PresignedImage
-                      imageKey={url}
-                      style={[styles.image, { borderColor: colors.border }]}
+                      imageKey={photos[0]}
+                      style={styles.mediaImage}
                       resizeMode="cover"
                     />
                   </View>
-                </TouchableWithoutFeedback>
-              ))}
-            </ScrollView>
-            <View style={styles.dotsRow}>
-              {photos.map((_, i) => (
-                <View
-                  key={i}
-                  style={[
-                    styles.dot,
-                    {
-                      backgroundColor:
-                        i === activePhotoIndex ? colors.text : colors.border,
-                      opacity: i === activePhotoIndex ? 0.9 : 0.5,
-                    },
-                  ]}
+                </PostImageTapTarget>
+              ) : (
+                <ScrollView
+                  ref={carouselRef}
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
+                  onMomentumScrollEnd={handlePhotoScroll}
+                  style={StyleSheet.absoluteFillObject}
+                  contentContainerStyle={styles.carouselContent}
+                >
+                  {photos.map((url, index) => (
+                    <PostImageTapTarget
+                      key={`${url}-${index}`}
+                      onSingleTap={() => openImageViewer(index)}
+                      onDoubleTap={handleImageDoubleTap}
+                      doubleTapEnabled={!isPending}
+                      accessibilityLabel={`Open workout photo ${index + 1} of ${photos.length}`}
+                      style={[styles.carouselPage, { width: scrollWidth }]}
+                    >
+                      <View style={StyleSheet.absoluteFillObject}>
+                        <PresignedImage
+                          imageKey={url}
+                          style={styles.mediaImage}
+                          resizeMode="cover"
+                        />
+                      </View>
+                    </PostImageTapTarget>
+                  ))}
+                </ScrollView>
+              )}
+
+              <LinearGradient
+                pointerEvents="none"
+                colors={[
+                  "rgba(0,0,0,0.58)",
+                  "rgba(0,0,0,0.03)",
+                  "rgba(0,0,0,0.42)",
+                ]}
+                locations={[0, 0.48, 1]}
+                style={StyleSheet.absoluteFillObject}
+              />
+
+              <DoubleTapHeartLayer ref={heartLayerRef} />
+
+              {header}
+
+              {photos.length > 1 && (
+                <View style={styles.dotsRow} pointerEvents="none">
+                  {photos.map((_, index) => (
+                    <View
+                      key={index}
+                      style={[
+                        styles.dot,
+                        index === activePhotoIndex
+                          ? styles.activeDot
+                          : styles.inactiveDot,
+                      ]}
+                    />
+                  ))}
+                </View>
+              )}
+
+              <View style={styles.photoActions}>{actionBar}</View>
+            </View>
+
+            <TouchableOpacity
+              activeOpacity={isPending ? 1 : 0.72}
+              disabled={isPending}
+              onPress={openWorkoutDetails}
+              style={styles.photoDetails}
+              accessibilityRole="button"
+            >
+              <Text
+                numberOfLines={2}
+                style={[styles.workoutName, { color: colors.text }]}
+              >
+                {post.workoutName}
+              </Text>
+              {post.caption ? (
+                <MentionableText
+                  text={post.caption}
+                  style={[styles.caption, textMuted]}
                 />
-              ))}
-            </View>
-          </View>
+              ) : null}
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            {header}
+            <TouchableOpacity
+              activeOpacity={isPending ? 1 : 0.72}
+              disabled={isPending}
+              onPress={openWorkoutDetails}
+              style={styles.textDetails}
+              accessibilityRole="button"
+            >
+              <Text
+                numberOfLines={3}
+                style={[styles.workoutName, { color: colors.text }]}
+              >
+                {post.workoutName}
+              </Text>
+              {post.caption ? (
+                <MentionableText
+                  text={post.caption}
+                  style={[styles.caption, textMuted]}
+                />
+              ) : null}
+            </TouchableOpacity>
+            <View style={styles.textActions}>{actionBar}</View>
+          </>
         )}
-
-        <TouchableOpacity
-          activeOpacity={isPending ? 1 : 0.7}
-          disabled={isPending}
-          onPress={() => {
-            if (isPending) return;
-            const targetNavigator = navigation.getParent() || navigation;
-            targetNavigator.navigate("DetailedHistory", {
-              workoutId: post.workoutId,
-              caption: post.caption,
-              workoutName: post.workoutName,
-              postId: post.postId,
-              ownerUserId: post.userId,
-              ownerUsername: post.username,
-              viewerFollowsAuthor: post.viewerFollowsAuthor,
-              initialLikeCount: likeCount,
-              initialLikedByUser: likedByUser,
-            });
-          }}
-        >
-          <View
-            style={[
-              styles.titleBlock,
-              hasPhotos && { paddingHorizontal: contentPaddingHorizontal },
-            ]}
-          >
-            <Text style={[styles.dateOverline, textMuted]}>
-              {formatOverlineDate(post.datePerformed)}
-            </Text>
-            <Text style={[styles.workoutName, { color: colors.text }]}>
-              {post.workoutName}
-            </Text>
-          </View>
-
-          <View
-            style={[
-              styles.metricsRow,
-              hasPhotos && { paddingHorizontal: contentPaddingHorizontal },
-            ]}
-          >
-            {hasDuration && (
-              <View style={styles.metric}>
-                <Text style={[styles.metricLabel, textMuted]}>Time</Text>
-                <Text style={[styles.metricValue, { color: colors.text }]}>
-                  {formatDuration(post.durationMin!)}
-                </Text>
-              </View>
-            )}
-            <View style={styles.metric}>
-              <Text style={[styles.metricLabel, textMuted]}>Exercises</Text>
-              <Text style={[styles.metricValue, { color: colors.text }]}>
-                {post.exerciseCount}
-              </Text>
-            </View>
-            {!hasPhotos && hasMuscles && (
-              <View style={styles.metric}>
-                <Text style={[styles.metricLabel, textMuted]}>Muscles</Text>
-                <Text style={[styles.musclesText, { color: colors.text }]}>
-                  {post.bodyTags.map(formatTag).join(", ")}
-                </Text>
-              </View>
-            )}
-          </View>
-
-          {hasPhotos && hasMuscles && (
-            <View
-              style={[
-                styles.musclesRow,
-                { paddingHorizontal: contentPaddingHorizontal },
-              ]}
-            >
-              <Text style={[styles.metricLabel, textMuted]}>Muscles</Text>
-              <Text style={[styles.musclesText, { color: colors.text }]}>
-                {post.bodyTags.map(formatTag).join(", ")}
-              </Text>
-            </View>
-          )}
-
-          {post.caption && (
-            <MentionableText
-              text={post.caption}
-              style={[
-                styles.caption,
-                { color: colors.text },
-                hasPhotos && { paddingHorizontal: contentPaddingHorizontal },
-              ]}
-            />
-          )}
-        </TouchableOpacity>
-
-        <View
-          style={[
-            styles.engagement,
-            {
-              backgroundColor: innerBg,
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <TouchableOpacity
-            style={styles.engagementItem}
-            onPress={isPending ? undefined : handleLike}
-            disabled={isPending}
-            activeOpacity={isPending ? 1 : 0.7}
-          >
-            <Ionicons
-              name={likedByUser ? "heart" : "heart-outline"}
-              size={24}
-              color={likedByUser ? "#e74c3c" : colors.text}
-              style={isPending ? styles.engagementDisabled : undefined}
-            />
-            <Text
-              style={[
-                styles.engagementText,
-                { color: likedByUser ? "#e74c3c" : colors.text },
-                isPending && styles.engagementDisabled,
-              ]}
-            >
-              {likeCount}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.engagementItem}
-            onPress={
-              isPending
-                ? undefined
-                : () =>
-                    navigation.navigate("Comments", {
-                      postId: post.postId,
-                      postOwnerId: post.userId,
-                    })
-            }
-            disabled={isPending}
-            activeOpacity={isPending ? 1 : 0.7}
-          >
-            <Ionicons
-              name="chatbubble-outline"
-              size={24}
-              color={colors.text}
-              style={isPending ? styles.engagementDisabled : undefined}
-            />
-            <Text
-              style={[
-                styles.engagementText,
-                { color: colors.text },
-                isPending && styles.engagementDisabled,
-              ]}
-            >
-              {post.commentCount}
-            </Text>
-          </TouchableOpacity>
         </View>
       </View>
     </FontScaleProvider>
   );
 }
 
-/**
- * Thin "almost done" progress bar drawn at the very top of a pending offline
- * post card. The filled portion is anchored to the left and stops short of
- * the right edge so the card reads as nearly-but-not-finished. A helper
- * line beneath the bar tells the user how to complete the upload.
- */
-function PendingProgressBar({ color }: { color: string }) {
+type HeartTier = "red" | "gold" | "blue" | "purple";
+type TapHeart = {
+  id: number;
+  x: number;
+  y: number;
+  tier: HeartTier;
+  milestone: boolean;
+};
+type DoubleTapHeartLayerHandle = { show: (x: number, y: number) => void };
+
+const DoubleTapHeartLayer = forwardRef<DoubleTapHeartLayerHandle>(
+  function DoubleTapHeartLayer(_props, ref) {
+    const nextId = useRef(0);
+    const streak = useRef(0);
+    const lastTapAt = useRef(0);
+    const [hearts, setHearts] = useState<TapHeart[]>([]);
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        show: (x, y) => {
+          const now = Date.now();
+          streak.current =
+            now - lastTapAt.current <= HEART_STREAK_TIMEOUT_MS
+              ? streak.current + 1
+              : 1;
+          lastTapAt.current = now;
+
+          const tier: HeartTier =
+            streak.current >= 100
+              ? "purple"
+              : streak.current >= 50
+                ? "blue"
+                : streak.current >= 20
+                  ? "gold"
+                  : "red";
+          const milestone =
+            streak.current === 20 ||
+            streak.current === 50 ||
+            streak.current === 100;
+
+          const heart = { id: ++nextId.current, x, y, tier, milestone };
+          setHearts((current) => [...current, heart]);
+        },
+      }),
+      [],
+    );
+
+    const removeHeart = useCallback((id: number) => {
+      setHearts((current) => current.filter((heart) => heart.id !== id));
+    }, []);
+
+    return (
+      <View pointerEvents="none" style={styles.doubleTapHeartLayer}>
+        {hearts.map((heart) => (
+          <FloatingTapHeart
+            key={heart.id}
+            heart={heart}
+            onComplete={removeHeart}
+          />
+        ))}
+      </View>
+    );
+  },
+);
+
+function FloatingTapHeart({
+  heart,
+  onComplete,
+}: {
+  heart: TapHeart;
+  onComplete: (id: number) => void;
+}) {
+  const size = heart.milestone
+    ? heart.tier === "purple"
+      ? PURPLE_MILESTONE_HEART_SIZE
+      : heart.tier === "blue"
+        ? BLUE_MILESTONE_HEART_SIZE
+        : GOLD_MILESTONE_HEART_SIZE
+    : DOUBLE_TAP_HEART_SIZE;
+  const color =
+    heart.tier === "gold"
+      ? "#FFD84D"
+      : heart.tier === "blue"
+        ? "#00B7FF"
+        : heart.tier === "purple"
+          ? "#A855F7"
+          : "#F04452";
+  const opacity = useSharedValue(0);
+  const scale = useSharedValue(heart.milestone ? 0.45 : 0.65);
+  const lift = useSharedValue(0);
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateY: lift.value }, { scale: scale.value }],
+  }));
+
+  useEffect(() => {
+    const fadeDelay = heart.milestone ? 450 : 250;
+    const fadeDuration = heart.milestone ? 300 : 190;
+    const totalDuration = 55 + fadeDelay + fadeDuration;
+
+    opacity.value = withSequence(
+      withTiming(1, { duration: 55 }),
+      withDelay(
+        fadeDelay,
+        withTiming(0, { duration: fadeDuration }, (finished) => {
+          if (finished) runOnJS(onComplete)(heart.id);
+        }),
+      ),
+    );
+    scale.value = withSequence(
+      withSpring(heart.milestone ? 1.12 : 1.08, {
+        damping: heart.milestone ? 8 : 9,
+        stiffness: heart.milestone ? 210 : 260,
+      }),
+      withDelay(
+        heart.milestone ? 350 : 190,
+        withTiming(heart.milestone ? 0.95 : 0.9, { duration: 180 }),
+      ),
+    );
+    lift.value = withTiming(heart.milestone ? -105 : -64, {
+      duration: totalDuration,
+    });
+  }, [heart.id, heart.milestone, lift, onComplete, opacity, scale]);
+
+  return (
+    <Animated.View
+      style={[
+        styles.doubleTapHeart,
+        {
+          left: heart.x - size / 2,
+          top: heart.y - size / 2,
+          width: size,
+          height: size,
+        },
+        animatedStyle,
+      ]}
+    >
+      <Ionicons
+        name="heart"
+        size={size}
+        color={color}
+        style={[
+          styles.doubleTapHeartIcon,
+          heart.tier !== "red" && [styles.tierHeartIcon, { shadowColor: color }],
+        ]}
+      />
+    </Animated.View>
+  );
+}
+
+function PostImageTapTarget({
+  onSingleTap,
+  onDoubleTap,
+  doubleTapEnabled,
+  accessibilityLabel,
+  style,
+  children,
+}: {
+  onSingleTap: () => void;
+  onDoubleTap: (x: number, y: number) => void;
+  doubleTapEnabled: boolean;
+  accessibilityLabel: string;
+  style: StyleProp<ViewStyle>;
+  children: React.ReactNode;
+}) {
+  const doubleTap = Gesture.Tap()
+    .enabled(doubleTapEnabled)
+    .numberOfTaps(2)
+    .maxDelay(250)
+    .maxDistance(30)
+    .onEnd((event, success) => {
+      if (success) runOnJS(onDoubleTap)(event.x, event.y);
+    });
+  const singleTap = Gesture.Tap()
+    .numberOfTaps(1)
+    .onEnd((_event, success) => {
+      if (success) runOnJS(onSingleTap)();
+    });
+
+  return (
+    <GestureDetector gesture={Gesture.Exclusive(doubleTap, singleTap)}>
+      <View
+        style={style}
+        accessible
+        accessibilityRole="imagebutton"
+        accessibilityLabel={accessibilityLabel}
+        onAccessibilityTap={onSingleTap}
+        accessibilityActions={[{ name: "activate" }]}
+        onAccessibilityAction={(event) => {
+          if (event.nativeEvent.actionName === "activate") onSingleTap();
+        }}
+      >
+        {children}
+      </View>
+    </GestureDetector>
+  );
+}
+
+function PostActionBar({
+  glassAvailable,
+  fallbackBackground,
+  fallbackBorder,
+  foreground,
+  liked,
+  likeCount,
+  commentCount,
+  isPending,
+  onLike,
+  onComment,
+}: {
+  glassAvailable: boolean;
+  fallbackBackground: ColorValue;
+  fallbackBorder: ColorValue;
+  foreground: ColorValue;
+  liked: boolean;
+  likeCount: number;
+  commentCount: number;
+  isPending: boolean;
+  onLike: () => void;
+  onComment: () => void;
+}) {
+  const content = (
+    <>
+      <TouchableOpacity
+        style={styles.actionButton}
+        onPress={isPending ? undefined : onLike}
+        disabled={isPending}
+        activeOpacity={isPending ? 1 : 0.65}
+        accessibilityRole="button"
+        accessibilityLabel={`${liked ? "Unlike" : "Like"} post, ${likeCount} likes`}
+        accessibilityState={{ disabled: isPending, selected: liked }}
+      >
+        <Ionicons
+          name={liked ? "heart" : "heart-outline"}
+          size={21}
+          color={liked ? "#F04452" : foreground}
+          style={isPending ? styles.actionDisabled : undefined}
+        />
+        <Text
+          numberOfLines={1}
+          style={[
+            styles.actionCount,
+            { color: liked ? "#F04452" : foreground },
+            isPending && styles.actionDisabled,
+          ]}
+        >
+          {likeCount}
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.actionButton}
+        onPress={isPending ? undefined : onComment}
+        disabled={isPending}
+        activeOpacity={isPending ? 1 : 0.65}
+        accessibilityRole="button"
+        accessibilityLabel={`View comments, ${commentCount} comments`}
+        accessibilityState={{ disabled: isPending }}
+      >
+        <Ionicons
+          name="chatbubble-outline"
+          size={20}
+          color={foreground}
+          style={isPending ? styles.actionDisabled : undefined}
+        />
+        <Text
+          numberOfLines={1}
+          style={[
+            styles.actionCount,
+            { color: foreground },
+            isPending && styles.actionDisabled,
+          ]}
+        >
+          {commentCount}
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.actionButton}
+        onPress={() => undefined}
+        activeOpacity={0.65}
+        accessibilityRole="button"
+        accessibilityLabel="Share post"
+        accessibilityHint="Sharing is coming soon"
+      >
+        <Ionicons name="share-outline" size={21} color={foreground} />
+      </TouchableOpacity>
+    </>
+  );
+
+  if (glassAvailable) {
+    return (
+      <GlassView
+        style={styles.actionBar}
+        glassEffectStyle="regular"
+        isInteractive
+      >
+        {content}
+      </GlassView>
+    );
+  }
+
+  return (
+    <View
+      style={[
+        styles.actionBar,
+        {
+          backgroundColor: fallbackBackground,
+          borderColor: fallbackBorder,
+          borderWidth: StyleSheet.hairlineWidth,
+        },
+      ]}
+    >
+      {content}
+    </View>
+  );
+}
+
+function PendingProgressBar({ color }: { color: ColorValue }) {
   const { dark } = useTheme();
   const backdropColor = dark ? "#616161" : "#E5E5E5";
+  const trackColor = dark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.12)";
   return (
     <View>
       <View
         style={[styles.progressBackdrop, { backgroundColor: backdropColor }]}
       />
-      <View style={[styles.progressTrack, { backgroundColor: `${color}33` }]}>
+      <View style={[styles.progressTrack, { backgroundColor: trackColor }]}>
         <View style={[styles.progressFill, { backgroundColor: color }]} />
       </View>
-      <Text style={[styles.progressHint, { color, opacity: 0.55 }]}>
+      <Text style={[styles.progressHint, { color, opacity: 0.6 }]}>
         Uploading...
       </Text>
     </View>
@@ -554,20 +882,39 @@ function FailedPostBar({
 }
 
 const styles = StyleSheet.create({
-  card: {
+  cardShadow: {
     marginHorizontal: CARD_MARGIN_HORIZONTAL,
-    marginBottom: 14,
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
+    marginBottom: 16,
+    borderRadius: CARD_RADIUS,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+  },
+  card: {
+    borderRadius: CARD_RADIUS,
     overflow: "hidden",
   },
+  cardGlass: {
+    borderRadius: CARD_RADIUS,
+  },
+  textCard: {
+    minHeight: 250,
+  },
   header: {
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 12,
+    paddingHorizontal: 15,
+    paddingTop: 13,
+    paddingBottom: 6,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    zIndex: 3,
+  },
+  photoHeader: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
   },
   userInfoWrap: {
     flex: 1,
@@ -576,127 +923,169 @@ const styles = StyleSheet.create({
   userInfo: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 9,
   },
-  userNameRow: {
-    flexShrink: 1,
+  userNameBlock: {
+    flex: 1,
+    minWidth: 0,
   },
   userNameLine: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
   },
-  visIcon: {
-    opacity: 0.5,
+  visibilityIcon: {
+    opacity: 0.72,
   },
   username: {
-    fontSize: 15,
-    fontWeight: "600",
-    letterSpacing: -0.2,
+    flexShrink: 1,
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: -0.25,
   },
   timestamp: {
-    fontSize: 12,
+    fontSize: 11,
+    fontWeight: "500",
     marginTop: 2,
     fontVariant: ["tabular-nums"],
   },
-  carouselWrap: {
-    marginHorizontal: CAROUSEL_MARGIN_HORIZONTAL,
-    marginBottom: 12,
+  photoSecondaryText: {
+    color: "rgba(255,255,255,0.76)",
   },
-  image: {
+  photoTextShadow: {
+    textShadowColor: "rgba(0,0,0,0.35)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  menuButton: {
+    width: 36,
+    height: 40,
+    alignItems: "flex-end",
+    justifyContent: "center",
+  },
+  menuDisabled: {
+    opacity: 0.4,
+  },
+  media: {
     width: "100%",
     aspectRatio: 3 / 4,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderTopLeftRadius: CARD_RADIUS,
+    borderTopRightRadius: CARD_RADIUS,
+    overflow: "hidden",
+    backgroundColor: "#222222",
+  },
+  mediaImage: {
+    width: "100%",
+    height: "100%",
+  },
+  carouselContent: {
+    height: "100%",
+  },
+  carouselPage: {
+    height: "100%",
+  },
+  doubleTapHeartLayer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 2,
+  },
+  doubleTapHeart: {
+    position: "absolute",
+  },
+  doubleTapHeartIcon: {
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.28,
+    shadowRadius: 5,
+  },
+  tierHeartIcon: {
+    shadowOpacity: 0.7,
+    shadowRadius: 10,
   },
   dotsRow: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 5,
     flexDirection: "row",
     justifyContent: "center",
+    alignItems: "center",
     gap: 6,
-    marginTop: 8,
+    zIndex: 2,
   },
   dot: {
-    width: 6,
     height: 6,
     borderRadius: 3,
   },
-  titleBlock: {
-    paddingHorizontal: 16,
+  activeDot: {
+    width: 16,
+    backgroundColor: "#FFFFFF",
   },
-  dateOverline: {
-    fontSize: 12,
-    fontWeight: "600",
-    letterSpacing: 1.2,
-    marginBottom: 6,
+  inactiveDot: {
+    width: 6,
+    backgroundColor: "rgba(255,255,255,0.5)",
   },
-  workoutName: {
-    fontSize: 26,
-    fontWeight: "700",
-    letterSpacing: -0.8,
-    lineHeight: 28,
+  photoActions: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 17,
+    alignItems: "center",
+    zIndex: 3,
   },
-  metricsRow: {
+  actionBar: {
+    width: 216,
+    height: 48,
+    borderRadius: 24,
+    overflow: "hidden",
     flexDirection: "row",
-    paddingHorizontal: 16,
-    paddingTop: 18,
-    paddingBottom: 16,
-    gap: 12,
+    alignItems: "center",
   },
-  metric: {
+  actionButton: {
     flex: 1,
-  },
-  metricLabel: {
-    fontSize: 13,
-    fontWeight: "500",
-  },
-  metricValue: {
-    fontSize: 22,
-    fontWeight: "700",
-    letterSpacing: -0.5,
-    marginTop: 2,
-    fontVariant: ["tabular-nums"],
-  },
-  musclesRow: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  musclesText: {
-    fontSize: 18,
-    fontWeight: "600",
-    letterSpacing: -0.3,
-    lineHeight: 24,
-    marginTop: 2,
-  },
-  caption: {
-    paddingHorizontal: 16,
-    paddingBottom: 14,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  engagement: {
-    marginHorizontal: 12,
-    marginBottom: 12,
-    padding: 4,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: "row",
-  },
-  engagementItem: {
-    flex: 1,
-    height: 42,
+    height: "100%",
+    minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
+    gap: 6,
   },
-  engagementText: {
-    fontSize: 14,
-    fontWeight: "600",
+  actionCount: {
+    maxWidth: 34,
+    fontSize: 13,
+    fontWeight: "700",
     letterSpacing: -0.2,
     fontVariant: ["tabular-nums"],
   },
-  engagementDisabled: {
+  actionDisabled: {
     opacity: 0.35,
+  },
+  photoDetails: {
+    paddingHorizontal: 20,
+    paddingTop: 15,
+    paddingBottom: 18,
+  },
+  textDetails: {
+    flexGrow: 1,
+    paddingHorizontal: 20,
+    paddingTop: 21,
+    paddingBottom: 10,
+  },
+  workoutName: {
+    fontSize: 25,
+    lineHeight: 29,
+    fontWeight: "700",
+    letterSpacing: -0.65,
+  },
+  caption: {
+    marginTop: 7,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  textActions: {
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 16,
   },
   progressBackdrop: {
     position: "absolute",
