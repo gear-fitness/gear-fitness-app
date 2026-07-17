@@ -19,6 +19,9 @@ import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 import { notificationService } from "../api/notificationService";
+import { cancelUnfinishedWorkoutReminder } from "../utils/unfinishedWorkoutReminder";
+import { markExplicitLogout } from "../utils/logoutSignal";
+import { WORKOUT_STATE_STORAGE_KEY } from "../constants/workoutState";
 import { setForceLogoutCallback } from "../api/apiClient";
 import { logoutFromServer } from "../api/authService";
 import {
@@ -92,8 +95,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Flush any workouts that were saved while offline. Run once on mount for
   // the case where the device was already online at launch, and again on
-  // every offline→online transition. Sign-out drops the queue, so this is a
-  // no-op when there's no active user.
+  // every offline→online transition. Sign-out nulls the active user id (the
+  // queue itself survives logout), so this is a no-op while signed out.
   useEffect(() => {
     const tryFlush = async () => {
       try {
@@ -284,6 +287,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       await writeCache(CACHE_KEYS.userProfile(userProfile.userId), userProfile);
       await registerPushToken();
       prewarmOfflineCaches(userProfile.userId, userProfile.profilePictureUrl);
+      // Deliver any posts preserved across a logout. The queue survives
+      // sign-out (see logout below), and the mount-time flush effect only
+      // fires on launch and reconnect, so a same-session re-login needs its
+      // own kick. Fire-and-forget: login must not block on the flush.
+      void flushWorkoutQueue();
     } catch (error) {
       console.error("Login failed:", error);
       await clearAuthTokens();
@@ -299,7 +307,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
    */
   const logout = async () => {
     const currentUserId = user?.userId ?? null;
+    // Tell WorkoutTimerProvider's auth watcher that the coming
+    // authenticated-to-unauthenticated transition is user-initiated, so it
+    // fully resets the in-progress workout. A forced logout (token refresh
+    // rejected) does not mark this and the workout survives for re-login.
+    markExplicitLogout();
     try {
+      // Null the active user id FIRST. An in-flight workout-queue flush
+      // re-checks it before every photo presign and before submit, so this
+      // aborts the pass before the token teardown below can turn its next
+      // request into a spurious 401 (which would burn an attempt or park the
+      // entry). It also means a kill anywhere in this teardown leaves no
+      // stale id pointing at a populated queue. Nothing below needs the
+      // active id: cache clears use the captured currentUserId and the
+      // server calls use tokens.
+      await setActiveUserId(null);
       await notificationService.unregisterToken();
       const refreshToken = await getRefreshToken();
       if (refreshToken) {
@@ -307,16 +329,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
       await clearAuthTokens();
       setUser(null);
-      // Clear any in-progress workout
-      await AsyncStorage.removeItem("@workout_state");
+      // Clear any in-progress workout. WorkoutTimerProvider's auth watcher
+      // performs the full in-memory reset; this direct cleanup is kept so
+      // storage and the scheduled reminder are cleared even if the app dies
+      // before that effect gets to run.
+      await AsyncStorage.removeItem(WORKOUT_STATE_STORAGE_KEY);
+      await cancelUnfinishedWorkoutReminder();
       // Drop the per-user offline caches so the next sign-in starts clean.
+      // The pending-workouts queue is deliberately NOT cleared: every post
+      // rides that queue (enqueue-first), so it can hold workouts the user
+      // already committed that haven't reached the server yet, and clearing
+      // it here would silently destroy them. The key is per-user and every
+      // queue read scopes to the active user id (nulled at the top of this
+      // teardown), so preserving it leaks nothing to another account; the
+      // entries deliver on the same user's next sign-in.
       if (currentUserId) {
         await clearCache(CACHE_KEYS.userProfile(currentUserId));
         await clearCache(CACHE_KEYS.routines(currentUserId));
-        await clearCache(CACHE_KEYS.pendingWorkouts(currentUserId));
         await clearCache(CACHE_KEYS.pendingRoutines(currentUserId));
       }
-      await setActiveUserId(null);
     } catch (error) {
       console.error("Logout failed:", error);
       // Still clear local state even if server call fails

@@ -66,6 +66,11 @@ public class Workout {
   @Column(name = "created_at", nullable = false, updatable = false)
   private LocalDateTime createdAt;
 
+  // Client-minted key; UNIQUE (user_id, idempotency_key) dedupes resubmits of
+  // the same workout session (retries after a lost response).
+  @Column(name = "idempotency_key", length = 64, updatable = false)
+  private String idempotencyKey;
+
   // Relationships
   // CHANGED: fetch = FetchType.EAGER to load exercises when workout is loaded
   // CHANGED: Using List instead of Set to maintain order

@@ -119,7 +119,8 @@ export function Workout() {
     } else {
       // Starting a fresh workout — explicitly clear any leftover state
       // (timer, exercises, persisted storage) before navigating. The
-      // ExerciseDetail mount-effect's start() will release the barrier.
+      // explicit start() in ExerciseSelect's press handler releases the
+      // barrier when the user picks an exercise.
       reset();
       navigation.navigate("WorkoutFlow", { screen: "ExerciseSelect" });
     }

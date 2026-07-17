@@ -1,6 +1,45 @@
+import { Alert } from "react-native";
 import { FeedPost } from "../api/socialFeedApi";
 import { UserProfile } from "../api/types";
-import { getPendingWorkouts, PendingWorkout } from "./workoutQueue";
+import {
+  discardPendingWorkout,
+  getPendingWorkouts,
+  isEntryFailed,
+  PendingWorkout,
+} from "./workoutQueue";
+
+/**
+ * Confirm-then-discard for a pending outbox post. The single source of the
+ * discard dialog (title, warning copy, destructive action) shared by every
+ * surface that offers Discard on a pending post (Profile card, feed upload
+ * bar), so the copy and behavior can't drift apart. onDone runs after the
+ * discard attempt, success or failure, for callers that reload their own
+ * view of the queue.
+ */
+export function confirmDiscardPendingPost(
+  queueId: string,
+  onDone?: () => void,
+): void {
+  Alert.alert(
+    "Discard workout?",
+    "It was never posted and will be permanently deleted.",
+    [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Discard",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await discardPendingWorkout(queueId);
+          } catch (err) {
+            console.error("Error discarding pending post:", err);
+          }
+          onDone?.();
+        },
+      },
+    ],
+  );
+}
 
 /**
  * Marker prefix that identifies a `FeedPost.postId` as a synthesized pending
@@ -14,10 +53,25 @@ export function isPendingPostId(postId: string): boolean {
   return postId.startsWith(PENDING_POST_PREFIX);
 }
 
+/**
+ * A synthetic post backed by a queue entry, carrying enough of the entry's
+ * state for the Profile card to show delivery status and offer Retry/Discard
+ * on a failed one.
+ */
+export interface PendingFeedPost extends FeedPost {
+  pendingStatus: "pending" | "failed";
+  /** The backing queue entry's id, for retryPendingWorkout/discardPendingWorkout. */
+  pendingQueueId: string;
+}
+
+export function isPendingFeedPost(post: FeedPost): post is PendingFeedPost {
+  return isPendingPostId(post.postId);
+}
+
 function buildSyntheticPost(
   pending: PendingWorkout,
   user: Pick<UserProfile, "userId" | "username" | "profilePictureUrl">,
-): FeedPost | null {
+): PendingFeedPost | null {
   const sub = pending.submission;
   if (!sub.createPost) return null;
   const photoUrls = [...(sub.photoUrls ?? []), ...pending.pendingPhotoUris];
@@ -42,23 +96,31 @@ function buildSyntheticPost(
     likeCount: 0,
     commentCount: 0,
     likedByCurrentUser: false,
+    pendingStatus: isEntryFailed(pending) ? "failed" : "pending",
+    pendingQueueId: pending.id,
   };
 }
 
 /**
- * Return the pending workout queue rendered as synthetic FeedPosts, newest
- * first. Only queue entries with `createPost = true` produce a post; offline
- * "save without posting" submissions stay invisible until they flush.
+ * Return the pending workout queue rendered as synthetic FeedPosts. Failed
+ * entries sort first (Profile renders only the newest card, and a failed
+ * post needs its Retry/Discard controls visible), then newest first within
+ * each group. Only queue entries with `createPost = true` produce a post;
+ * offline "save without posting" submissions stay invisible until they
+ * flush.
  */
 export async function getPendingPosts(
   user: Pick<UserProfile, "userId" | "username" | "profilePictureUrl"> | null,
-): Promise<FeedPost[]> {
+): Promise<PendingFeedPost[]> {
   if (!user) return [];
   const pending = await getPendingWorkouts();
   const synthesized = pending
     .map((p) => buildSyntheticPost(p, user))
-    .filter((p): p is FeedPost => p != null);
-  return synthesized.sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-  );
+    .filter((p): p is PendingFeedPost => p != null);
+  return synthesized.sort((a, b) => {
+    if (a.pendingStatus !== b.pendingStatus) {
+      return a.pendingStatus === "failed" ? -1 : 1;
+    }
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
 }

@@ -46,7 +46,13 @@ import { Avatar } from "../../components/Avatar";
 import { StreakIcon } from "../../components/StreakIcon";
 import { getStreakAccentColor } from "../../utils/streak";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
-import { getPendingPosts, isPendingPostId } from "../../utils/pendingPosts";
+import {
+  confirmDiscardPendingPost,
+  getPendingPosts,
+  isPendingFeedPost,
+} from "../../utils/pendingPosts";
+import { retryPendingWorkout } from "../../utils/workoutQueue";
+import { subscribePostUploadEvents } from "../../utils/postUploadProgress";
 
 // Accent for Gear Plus UI (sparkle icon + badge).
 const PLUS_ACCENT = "#4F6BF6";
@@ -267,9 +273,9 @@ export function Profile() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Re-pull pending posts whenever the screen regains focus. Posting offline
-  // from WorkoutComplete navigates back to this screen, so the synthesized
-  // "in-progress" card needs to appear without a manual refresh.
+  // Re-pull pending posts whenever the screen regains focus. Posting lands
+  // the user on the social feed, so the synthesized "in-progress" card must
+  // appear without a manual refresh whenever Profile is next opened.
   useFocusEffect(
     React.useCallback(() => {
       if (isOtherUser) return;
@@ -282,6 +288,25 @@ export function Profile() {
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [profile, isOtherUser]),
   );
+
+  // Resolve the pending card in place when the outbox delivers while this
+  // screen is already up: "Only me" posts land the user here, and without
+  // this the card would sit on "Uploading..." until the next focus. Only
+  // the delivered event triggers a reload; per-write outboxChanged events
+  // fire once per uploaded photo mid-flush and would refetch too often.
+  useEffect(() => {
+    if (isOtherUser) return;
+    return subscribePostUploadEvents((event) => {
+      if (event.type !== "delivered") return;
+      if (profile) {
+        loadUserPosts(profile);
+        loadActivityPosts(profile);
+      }
+    });
+    // loadUserPosts/loadActivityPosts are closures captured at render, same
+    // contract as the focus effect above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile, isOtherUser]);
 
   const handleFollowToggle = async () => {
     if (!profile || followLoading) return;
@@ -418,6 +443,24 @@ export function Profile() {
       console.error("Error loading pending posts:", err);
       return [];
     }
+  };
+
+  // Retry/Discard for a failed outbox post (surfaced on the pending card).
+  // Retry resolves when the queue drain finishes, so the reload reflects the
+  // outcome: entry gone (posted) or still failed.
+  const handleRetryPendingPost = async (queueId: string) => {
+    try {
+      await retryPendingWorkout(queueId);
+    } catch (err) {
+      console.error("Error retrying pending post:", err);
+    }
+    await loadUserPosts();
+  };
+
+  const handleDiscardPendingPost = (queueId: string) => {
+    confirmDiscardPendingPost(queueId, () => {
+      void loadUserPosts();
+    });
   };
 
   const loadUserPosts = async (profileData?: UserProfile) => {
@@ -823,6 +866,12 @@ export function Profile() {
     );
   }
 
+  // Narrow the headline card's post once, here, because the type guard's
+  // narrowing would not survive into the JSX callbacks below.
+  const headlinePost = posts.length > 0 ? posts[0] : null;
+  const headlinePending =
+    headlinePost && isPendingFeedPost(headlinePost) ? headlinePost : null;
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.bg }} edges={["top"]}>
       {isOtherUser && (
@@ -873,11 +922,28 @@ export function Profile() {
                 Follow this account to see their posts.
               </Text>
             </View>
-          ) : posts.length > 0 ? (
+          ) : headlinePost ? (
             <FeedPostCard
-              post={posts[0]}
+              post={headlinePost}
               onOpenComments={handleOpenComments}
-              isPending={isPendingPostId(posts[0].postId)}
+              isPending={headlinePending != null}
+              pendingFailed={headlinePending?.pendingStatus === "failed"}
+              pendingQueueId={headlinePending?.pendingQueueId}
+              onRetryPending={
+                headlinePending
+                  ? () => {
+                      void handleRetryPendingPost(
+                        headlinePending.pendingQueueId,
+                      );
+                    }
+                  : undefined
+              }
+              onDiscardPending={
+                headlinePending
+                  ? () =>
+                      handleDiscardPendingPost(headlinePending.pendingQueueId)
+                  : undefined
+              }
             />
           ) : postsLoading ? (
             <PostCardSkeleton t={t} />
