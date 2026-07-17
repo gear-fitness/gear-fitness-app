@@ -4,6 +4,7 @@ import { useNavigation } from "@react-navigation/native";
 
 import { followUser, unfollowUser } from "../api/userService";
 import { blockUser } from "../api/followService";
+import { deleteWorkout } from "../api/workoutService";
 import { socialFeedApi } from "../api/socialFeedApi";
 import { reportService, ReportReason } from "../api/reportService";
 import { PostAction } from "../components/PostActionsSheet";
@@ -16,7 +17,7 @@ type Visibility = "PUBLIC" | "FRIENDS" | "PRIVATE";
  * Shared 3-dot menu handler for post surfaces. Both variants render the same
  * PostActionsSheet, differing only in the actions it is given:
  *
- * Own post:    Share, Edit Visibility.
+ * Own post:    Share, Edit Visibility, Delete (Delete keeps a native confirm).
  * Others' post: Follow/Unfollow, Report, Block (Block keeps a native confirm).
  *
  * Follow state (`viewerFollowsAuthor`) comes precomputed on the post payload,
@@ -31,6 +32,12 @@ export function usePostMenu(args: {
   viewerFollowsAuthor?: boolean;
   currentVisibility?: Visibility;
   onVisibilityChanged?: (v: Visibility) => void;
+  /**
+   * Called after the workout behind this post is deleted. Surfaces that show
+   * only this workout (the detail screen) pass a goBack here; feed surfaces
+   * rely on the invalidateAll the hook already performs.
+   */
+  onDeleted?: () => void;
 }) {
   const { user } = useAuth();
   const navigation = useNavigation();
@@ -129,6 +136,32 @@ export function usePostMenu(args: {
     );
   };
 
+  // Native alerts can present over the RN sheet, so no closeActionsThen here
+  // (same as handleBlock).
+  const handleDelete = () => {
+    setShowActionsSheet(false);
+    Alert.alert(
+      "Delete Workout",
+      "Are you sure you want to delete this workout? This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteWorkout(args.workoutId);
+              invalidateAll();
+              args.onDeleted?.();
+            } catch (e: any) {
+              Alert.alert("Couldn't delete", e?.message ?? "Unknown error");
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const handleVisibilitySelect = (v: Visibility) => setPendingVisibility(v);
 
   const saveVisibility = async (v: Visibility) => {
@@ -185,6 +218,13 @@ export function usePostMenu(args: {
               } as PostAction,
             ]
           : []),
+        {
+          key: "delete",
+          icon: "trash-outline",
+          label: "Delete",
+          destructive: true,
+          onPress: handleDelete,
+        },
       ]
     : [
         {
@@ -212,11 +252,9 @@ export function usePostMenu(args: {
 
   const onPress = () => {
     if (isOwn) {
-      if (args.postId) {
-        setShowActionsSheet(true);
-      } else {
-        navigateToShare();
-      }
+      // Even without a postId (own workout that was never posted) the sheet
+      // still offers Share and Delete, so always open it.
+      setShowActionsSheet(true);
       return;
     }
 

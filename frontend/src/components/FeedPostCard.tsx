@@ -791,17 +791,6 @@ function PostActionBar({
           {commentCount}
         </Text>
       </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.actionButton}
-        onPress={() => undefined}
-        activeOpacity={0.65}
-        accessibilityRole="button"
-        accessibilityLabel="Share post"
-        accessibilityHint="Sharing is coming soon"
-      >
-        <Ionicons name="share-outline" size={21} color={foreground} />
-      </TouchableOpacity>
     </>
   );
 
@@ -985,7 +974,7 @@ const styles = StyleSheet.create({
     zIndex: 3,
   },
   actionBar: {
-    width: 216,
+    width: 144,
     height: 48,
     borderRadius: 24,
     overflow: "hidden",
