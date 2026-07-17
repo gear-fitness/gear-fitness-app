@@ -439,6 +439,43 @@ export function WorkoutComplete() {
           />
         </Section>
 
+        {/* Location — optional gym tag */}
+        <Section label="Location" hint="Optional" t={t}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => setLocationPickerVisible(true)}
+            style={[
+              styles.locationRow,
+              { backgroundColor: t.surface, borderColor: t.border },
+            ]}
+          >
+            <Ionicons
+              name="location-outline"
+              size={18}
+              color={location ? t.text : t.textMuted}
+            />
+            <Text
+              style={[
+                styles.locationText,
+                { color: location ? t.text : t.textMuted },
+              ]}
+              numberOfLines={1}
+            >
+              {location ? location.name : "Add location"}
+            </Text>
+            {location && (
+              <TouchableOpacity
+                accessibilityLabel="Remove location"
+                activeOpacity={0.7}
+                onPress={() => setLocation(null)}
+                hitSlop={8}
+              >
+                <Ionicons name="close-circle" size={18} color={t.textMuted} />
+              </TouchableOpacity>
+            )}
+          </TouchableOpacity>
+        </Section>
+
         {/* Body tag */}
         <Section label="Body tag" required t={t}>
           <View style={styles.tagWrap}>
@@ -606,43 +643,6 @@ export function WorkoutComplete() {
               </PhotoSourceMenu>
             )}
           </View>
-        </Section>
-
-        {/* Location — optional gym tag */}
-        <Section label="Location" hint="Optional" t={t}>
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() => setLocationPickerVisible(true)}
-            style={[
-              styles.locationRow,
-              { backgroundColor: t.surface, borderColor: t.border },
-            ]}
-          >
-            <Ionicons
-              name="location-outline"
-              size={18}
-              color={location ? t.text : t.textMuted}
-            />
-            <Text
-              style={[
-                styles.locationText,
-                { color: location ? t.text : t.textMuted },
-              ]}
-              numberOfLines={1}
-            >
-              {location ? location.name : "Add location"}
-            </Text>
-            {location && (
-              <TouchableOpacity
-                accessibilityLabel="Remove location"
-                activeOpacity={0.7}
-                onPress={() => setLocation(null)}
-                hitSlop={8}
-              >
-                <Ionicons name="close-circle" size={18} color={t.textMuted} />
-              </TouchableOpacity>
-            )}
-          </TouchableOpacity>
         </Section>
 
         {/* Discard — tertiary destructive link */}
