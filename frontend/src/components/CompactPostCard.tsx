@@ -170,129 +170,132 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
     </View>
   );
 
+  // Card body shared by the glass and fallback containers below. All tap
+  // targets (header, photo, details) must be CHILDREN of the glass, not
+  // siblings above an absolute-fill glass: children mount into the effect
+  // view's contentView, which UIKit routes touches through, while touchables
+  // layered over a sibling glass intermittently lose taps.
+  const cardBody = (
+    <>
+      <PostActionsSheet
+        visible={showActionsSheet}
+        actions={menuActions}
+        onClose={closeActionsSheet}
+        onClosed={onActionsSheetClosed}
+      />
+      <PostVisibilitySheet
+        visible={showVisibilitySheet}
+        current={pendingVisibility}
+        onSelect={handleVisibilitySelect}
+        onClose={closeVisibilitySheet}
+      />
+      <ReportPostSheet
+        visible={showReportSheet}
+        onSubmit={submitReport}
+        onClose={closeReportSheet}
+      />
+
+      {hasPhoto ? (
+        <>
+          <View style={styles.media}>
+            <TouchableOpacity
+              activeOpacity={0.94}
+              onPress={openImageViewer}
+              style={StyleSheet.absoluteFillObject}
+              accessibilityRole="imagebutton"
+              accessibilityLabel={
+                photos.length > 1
+                  ? `Open ${photos.length} workout photos`
+                  : "Open workout photo"
+              }
+            >
+              <PresignedImage
+                imageKey={photos[0]}
+                style={styles.image}
+                resizeMode="cover"
+              />
+            </TouchableOpacity>
+            <LinearGradient
+              pointerEvents="none"
+              colors={[
+                "rgba(0,0,0,0.58)",
+                "rgba(0,0,0,0.02)",
+                "rgba(0,0,0,0.4)",
+              ]}
+              locations={[0, 0.5, 1]}
+              style={StyleSheet.absoluteFillObject}
+            />
+            {header}
+            {photos.length > 1 && (
+              <View style={styles.photoCount} pointerEvents="none">
+                <Ionicons name="images-outline" size={11} color="#FFFFFF" />
+                <Text style={styles.photoCountText}>{photos.length}</Text>
+              </View>
+            )}
+          </View>
+          <View style={styles.photoDetails}>
+            <TouchableOpacity
+              activeOpacity={0.72}
+              onPress={openDetail}
+              accessibilityRole="button"
+            >
+              <Text
+                numberOfLines={2}
+                style={[styles.workoutName, { color: t.text }]}
+              >
+                {post.workoutName}
+              </Text>
+            </TouchableOpacity>
+            {post.caption ? (
+              <MentionableText
+                text={post.caption}
+                numberOfLines={2}
+                style={[styles.caption, { color: t.textMuted }]}
+              />
+            ) : null}
+          </View>
+        </>
+      ) : (
+        <>
+          {header}
+          <View style={styles.textDetails}>
+            <TouchableOpacity
+              activeOpacity={0.72}
+              onPress={openDetail}
+              accessibilityRole="button"
+            >
+              <Text
+                numberOfLines={3}
+                style={[styles.workoutName, { color: t.text }]}
+              >
+                {post.workoutName}
+              </Text>
+            </TouchableOpacity>
+            {post.caption ? (
+              <MentionableText
+                text={post.caption}
+                numberOfLines={2}
+                style={[styles.caption, { color: t.textMuted }]}
+              />
+            ) : null}
+          </View>
+        </>
+      )}
+    </>
+  );
+
   return (
     <FontScaleProvider max={1}>
       <View style={[styles.shadow, { width }]}>
-        <View
-          style={[
-            styles.card,
-            {
-              backgroundColor: glassAvailable ? "transparent" : t.surface,
-            },
-          ]}
-        >
-          {glassAvailable && (
-            <GlassView
-              style={[StyleSheet.absoluteFillObject, styles.cardGlass]}
-              glassEffectStyle="regular"
-            />
-          )}
-
-          <PostActionsSheet
-            visible={showActionsSheet}
-            actions={menuActions}
-            onClose={closeActionsSheet}
-            onClosed={onActionsSheetClosed}
-          />
-          <PostVisibilitySheet
-            visible={showVisibilitySheet}
-            current={pendingVisibility}
-            onSelect={handleVisibilitySelect}
-            onClose={closeVisibilitySheet}
-          />
-          <ReportPostSheet
-            visible={showReportSheet}
-            onSubmit={submitReport}
-            onClose={closeReportSheet}
-          />
-
-          {hasPhoto ? (
-            <>
-              <View style={styles.media}>
-                <TouchableOpacity
-                  activeOpacity={0.94}
-                  onPress={openImageViewer}
-                  style={StyleSheet.absoluteFillObject}
-                  accessibilityRole="imagebutton"
-                  accessibilityLabel={
-                    photos.length > 1
-                      ? `Open ${photos.length} workout photos`
-                      : "Open workout photo"
-                  }
-                >
-                  <PresignedImage
-                    imageKey={photos[0]}
-                    style={styles.image}
-                    resizeMode="cover"
-                  />
-                </TouchableOpacity>
-                <LinearGradient
-                  pointerEvents="none"
-                  colors={[
-                    "rgba(0,0,0,0.58)",
-                    "rgba(0,0,0,0.02)",
-                    "rgba(0,0,0,0.4)",
-                  ]}
-                  locations={[0, 0.5, 1]}
-                  style={StyleSheet.absoluteFillObject}
-                />
-                {header}
-                {photos.length > 1 && (
-                  <View style={styles.photoCount} pointerEvents="none">
-                    <Ionicons name="images-outline" size={11} color="#FFFFFF" />
-                    <Text style={styles.photoCountText}>{photos.length}</Text>
-                  </View>
-                )}
-              </View>
-              <View style={styles.photoDetails}>
-                <TouchableOpacity
-                  activeOpacity={0.72}
-                  onPress={openDetail}
-                  accessibilityRole="button"
-                >
-                  <Text
-                    numberOfLines={2}
-                    style={[styles.workoutName, { color: t.text }]}
-                  >
-                    {post.workoutName}
-                  </Text>
-                </TouchableOpacity>
-                {post.caption ? (
-                  <MentionableText
-                    text={post.caption}
-                    numberOfLines={2}
-                    style={[styles.caption, { color: t.textMuted }]}
-                  />
-                ) : null}
-              </View>
-            </>
-          ) : (
-            <>
-              {header}
-              <View style={styles.textDetails}>
-                <TouchableOpacity
-                  activeOpacity={0.72}
-                  onPress={openDetail}
-                  accessibilityRole="button"
-                >
-                  <Text
-                    numberOfLines={3}
-                    style={[styles.workoutName, { color: t.text }]}
-                  >
-                    {post.workoutName}
-                  </Text>
-                </TouchableOpacity>
-                {post.caption ? (
-                  <MentionableText
-                    text={post.caption}
-                    numberOfLines={2}
-                    style={[styles.caption, { color: t.textMuted }]}
-                  />
-                ) : null}
-              </View>
-            </>
-          )}
-        </View>
+        {glassAvailable ? (
+          <GlassView style={styles.card} glassEffectStyle="regular">
+            {cardBody}
+          </GlassView>
+        ) : (
+          <View style={[styles.card, { backgroundColor: t.surface }]}>
+            {cardBody}
+          </View>
+        )}
       </View>
     </FontScaleProvider>
   );
@@ -309,9 +312,6 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: CARD_RADIUS,
     overflow: "hidden",
-  },
-  cardGlass: {
-    borderRadius: CARD_RADIUS,
   },
   media: {
     width: "100%",
