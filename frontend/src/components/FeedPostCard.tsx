@@ -55,6 +55,10 @@ import { CardUploadPill } from "./UploadStatusPill";
 const CARD_MARGIN_HORIZONTAL = 16;
 const CARD_RADIUS = 24;
 const PAGE_HORIZONTAL_INSET = CARD_MARGIN_HORIZONTAL * 2;
+// Text-only posts get the tall statement card only when the title and
+// caption together measure at least this many rendered lines; anything
+// shorter hugs its content instead of framing dead space under the text.
+const TEXT_CARD_MIN_TOTAL_LINES = 3;
 const DOUBLE_TAP_HEART_SIZE = 80;
 const GOLD_MILESTONE_HEART_SIZE = 170;
 const BLUE_MILESTONE_HEART_SIZE = 220;
@@ -110,6 +114,13 @@ export function FeedPostCard({
   const [scrollWidth, setScrollWidth] = useState(() =>
     Math.max(1, Dimensions.get("window").width - PAGE_HORIZONTAL_INSET),
   );
+  // Rendered line counts for the text-only variant, reported by onTextLayout.
+  // Caption presence alone can't drive the tall treatment: a one-line title
+  // with a one-line caption would reserve the full min height mostly empty.
+  const [titleLineCount, setTitleLineCount] = useState(0);
+  const [captionLineCount, setCaptionLineCount] = useState(0);
+  const totalDetailLines =
+    titleLineCount + (post.caption ? captionLineCount : 0);
   const {
     onPress: onMenuPress,
     actions: menuActions,
@@ -339,7 +350,9 @@ export function FeedPostCard({
         <View
           style={[
             styles.card,
-            !hasPhotos && styles.textCard,
+            !hasPhotos &&
+              totalDetailLines >= TEXT_CARD_MIN_TOTAL_LINES &&
+              styles.textCard,
             {
               backgroundColor: glassAvailable ? "transparent" : colors.card,
             },
@@ -489,6 +502,9 @@ export function FeedPostCard({
               >
                 <Text
                   numberOfLines={3}
+                  onTextLayout={(event) =>
+                    setTitleLineCount(event.nativeEvent.lines.length)
+                  }
                   style={[styles.workoutName, { color: colors.text }]}
                 >
                   {post.workoutName}
@@ -496,6 +512,9 @@ export function FeedPostCard({
                 {post.caption ? (
                   <MentionableText
                     text={post.caption}
+                    onTextLayout={(event) =>
+                      setCaptionLineCount(event.nativeEvent.lines.length)
+                    }
                     style={[styles.caption, textMuted]}
                   />
                 ) : null}

@@ -19,6 +19,11 @@ import { PresignedImage } from "./PresignedImage";
 import { ReportPostSheet } from "./ReportPostSheet";
 
 const CARD_RADIUS = 20;
+// Both card variants must show the same gap above the title: measured from
+// the image bottom on photo posts, and from the avatar bottom on text posts
+// (where the header's own bottom padding contributes to it).
+const TITLE_GAP = 11;
+const HEADER_PADDING_BOTTOM = 5;
 
 export type CompactPostCardTheme = {
   surface: string;
@@ -155,7 +160,7 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
       </TouchableOpacity>
       <TouchableOpacity
         onPress={onMenuPress}
-        hitSlop={8}
+        hitSlop={10}
         style={styles.menuButton}
         accessibilityRole="button"
         accessibilityLabel="More options"
@@ -323,7 +328,7 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 11,
     paddingTop: 11,
-    paddingBottom: 5,
+    paddingBottom: HEADER_PADDING_BOTTOM,
     flexDirection: "row",
     alignItems: "center",
     zIndex: 3,
@@ -372,7 +377,7 @@ const styles = StyleSheet.create({
   },
   menuButton: {
     width: 32,
-    height: 36,
+    height: 26,
     alignItems: "flex-end",
     justifyContent: "center",
   },
@@ -397,12 +402,12 @@ const styles = StyleSheet.create({
   },
   photoDetails: {
     paddingHorizontal: 13,
-    paddingTop: 11,
+    paddingTop: TITLE_GAP,
     paddingBottom: 13,
   },
   textDetails: {
     paddingHorizontal: 13,
-    paddingTop: 18,
+    paddingTop: TITLE_GAP - HEADER_PADDING_BOTTOM,
     paddingBottom: 8,
   },
   workoutName: {
