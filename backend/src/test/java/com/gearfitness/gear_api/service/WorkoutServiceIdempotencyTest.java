@@ -131,13 +131,11 @@ class WorkoutServiceIdempotencyTest {
       workoutRepository.findFirstByUser_UserIdAndIdempotencyKey(userId, key)
     ).thenReturn(Optional.empty());
     when(appUserRepository.findById(userId)).thenReturn(Optional.of(user()));
-    when(workoutRepository.saveAndFlush(any(Workout.class))).thenAnswer(
-      inv -> {
-        Workout w = inv.getArgument(0);
-        w.setWorkoutId(UUID.randomUUID());
-        return w;
-      }
-    );
+    when(workoutRepository.saveAndFlush(any(Workout.class))).thenAnswer(inv -> {
+      Workout w = inv.getArgument(0);
+      w.setWorkoutId(UUID.randomUUID());
+      return w;
+    });
     when(workoutRepository.save(any(Workout.class))).thenAnswer(inv ->
       inv.getArgument(0)
     );
@@ -155,13 +153,11 @@ class WorkoutServiceIdempotencyTest {
   @Test
   void blankKeyIsTreatedAsAbsent() {
     when(appUserRepository.findById(userId)).thenReturn(Optional.of(user()));
-    when(workoutRepository.saveAndFlush(any(Workout.class))).thenAnswer(
-      inv -> {
-        Workout w = inv.getArgument(0);
-        w.setWorkoutId(UUID.randomUUID());
-        return w;
-      }
-    );
+    when(workoutRepository.saveAndFlush(any(Workout.class))).thenAnswer(inv -> {
+      Workout w = inv.getArgument(0);
+      w.setWorkoutId(UUID.randomUUID());
+      return w;
+    });
     when(workoutRepository.save(any(Workout.class))).thenAnswer(inv ->
       inv.getArgument(0)
     );

@@ -378,8 +378,7 @@ async function flushOnce(): Promise<number> {
   // stays pending under the captured user's own key and delivers on their
   // next login. Re-checked before each entry and, load-bearingly, right
   // before submitWorkout.
-  const activeUserUnchanged = async () =>
-    (await getActiveUserId()) === userId;
+  const activeUserUnchanged = async () => (await getActiveUserId()) === userId;
 
   for (const item of snapshot) {
     if (isEntryFailed(item)) continue;

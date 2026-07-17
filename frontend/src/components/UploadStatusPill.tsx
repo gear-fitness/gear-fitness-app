@@ -273,9 +273,7 @@ export function SocialUploadPill({
         <PillSurface
           borderRadius={26}
           fallbackBackground={dark ? "#141414" : "#ffffff"}
-          fallbackBorder={
-            dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"
-          }
+          fallbackBorder={dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}
           interactive={failed}
           style={styles.socialPill}
         >

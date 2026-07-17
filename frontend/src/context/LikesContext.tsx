@@ -214,8 +214,7 @@ export function useLikeState(
 
   const liked = intent ?? serverLiked;
   const count =
-    serverCount +
-    (intent === null ? 0 : Number(intent) - Number(serverLiked));
+    serverCount + (intent === null ? 0 : Number(intent) - Number(serverLiked));
 
   const toggle = useCallback(() => ctx.toggleLike(postId), [ctx, postId]);
   const like = useCallback(() => ctx.setLiked(postId, true), [ctx, postId]);

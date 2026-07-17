@@ -61,8 +61,10 @@ class WorkoutControllerIdempotencyTest {
       workoutService.getWorkoutDetailsByIdempotencyKey(userId, key)
     ).thenReturn(existing);
 
-    ResponseEntity<WorkoutDetailDTO> response =
-      workoutController.submitWorkout(submission(key), AUTH_HEADER);
+    ResponseEntity<WorkoutDetailDTO> response = workoutController.submitWorkout(
+      submission(key),
+      AUTH_HEADER
+    );
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getBody()).isNotNull();
@@ -81,8 +83,10 @@ class WorkoutControllerIdempotencyTest {
       workoutService.getWorkoutDetailsByIdempotencyKey(userId, null)
     ).thenReturn(null);
 
-    ResponseEntity<WorkoutDetailDTO> response =
-      workoutController.submitWorkout(submission(null), AUTH_HEADER);
+    ResponseEntity<WorkoutDetailDTO> response = workoutController.submitWorkout(
+      submission(null),
+      AUTH_HEADER
+    );
 
     assertThat(response.getStatusCode()).isEqualTo(
       HttpStatus.INTERNAL_SERVER_ERROR

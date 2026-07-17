@@ -1,9 +1,5 @@
 import React from "react";
-import {
-  StyleSheet,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
@@ -43,10 +39,10 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
   const navigation = useNavigation() as any;
   const glassAvailable = isLiquidGlassAvailable();
   const { user } = useAuth();
-  const {
-    liked: likedByUser,
-    count: likeCount,
-  } = useLikeState(post.postId, post);
+  const { liked: likedByUser, count: likeCount } = useLikeState(
+    post.postId,
+    post,
+  );
   const {
     onPress: onMenuPress,
     actions: menuActions,
@@ -238,11 +234,7 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
                 {header}
                 {photos.length > 1 && (
                   <View style={styles.photoCount} pointerEvents="none">
-                    <Ionicons
-                      name="images-outline"
-                      size={11}
-                      color="#FFFFFF"
-                    />
+                    <Ionicons name="images-outline" size={11} color="#FFFFFF" />
                     <Text style={styles.photoCountText}>{photos.length}</Text>
                   </View>
                 )}

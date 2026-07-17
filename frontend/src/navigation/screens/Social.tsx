@@ -215,10 +215,7 @@ function UploadPillOverlay({ onDelivered }: { onDelivered: () => void }) {
 
   // box-none so feed touches pass through everywhere except the pill itself.
   return (
-    <View
-      style={[styles.uploadPillWrap, { bottom }]}
-      pointerEvents="box-none"
-    >
+    <View style={[styles.uploadPillWrap, { bottom }]} pointerEvents="box-none">
       <SocialUploadPill headline={upload.headline} fraction={upload.fraction} />
     </View>
   );

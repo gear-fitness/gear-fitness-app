@@ -151,7 +151,9 @@ export function FeedPostCard({
         ? "lock-closed-outline"
         : null;
 
-  const handlePhotoScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+  const handlePhotoScroll = (
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+  ) => {
     const index = Math.round(event.nativeEvent.contentOffset.x / scrollWidth);
     if (index !== activePhotoIndex) setActivePhotoIndex(index);
   };
@@ -343,166 +345,166 @@ export function FeedPostCard({
             },
           ]}
         >
-        {glassAvailable && (
-          <GlassView
-            style={[StyleSheet.absoluteFillObject, styles.cardGlass]}
-            glassEffectStyle="regular"
+          {glassAvailable && (
+            <GlassView
+              style={[StyleSheet.absoluteFillObject, styles.cardGlass]}
+              glassEffectStyle="regular"
+            />
+          )}
+
+          <PostActionsSheet
+            visible={showActionsSheet}
+            actions={menuActions}
+            onClose={closeActionsSheet}
+            onClosed={onActionsSheetClosed}
           />
-        )}
+          <PostVisibilitySheet
+            visible={showVisibilitySheet}
+            current={pendingVisibility}
+            onSelect={handleVisibilitySelect}
+            onClose={closeVisibilitySheet}
+          />
+          <ReportPostSheet
+            visible={showReportSheet}
+            onSubmit={submitReport}
+            onClose={closeReportSheet}
+          />
 
-        <PostActionsSheet
-          visible={showActionsSheet}
-          actions={menuActions}
-          onClose={closeActionsSheet}
-          onClosed={onActionsSheetClosed}
-        />
-        <PostVisibilitySheet
-          visible={showVisibilitySheet}
-          current={pendingVisibility}
-          onSelect={handleVisibilitySelect}
-          onClose={closeVisibilitySheet}
-        />
-        <ReportPostSheet
-          visible={showReportSheet}
-          onSubmit={submitReport}
-          onClose={closeReportSheet}
-        />
+          {hasPhotos ? (
+            <>
+              <View style={styles.media} onLayout={handleMediaLayout}>
+                {photos.length === 1 ? (
+                  <PostImageTapTarget
+                    onSingleTap={() => openImageViewer(0)}
+                    onDoubleTap={handleImageDoubleTap}
+                    doubleTapEnabled={!isPending}
+                    accessibilityLabel="Open workout photo"
+                    style={StyleSheet.absoluteFillObject}
+                  >
+                    <View style={StyleSheet.absoluteFillObject}>
+                      <PresignedImage
+                        imageKey={photos[0]}
+                        style={styles.mediaImage}
+                        resizeMode="cover"
+                      />
+                    </View>
+                  </PostImageTapTarget>
+                ) : (
+                  <ScrollView
+                    ref={carouselRef}
+                    horizontal
+                    pagingEnabled
+                    showsHorizontalScrollIndicator={false}
+                    onMomentumScrollEnd={handlePhotoScroll}
+                    style={StyleSheet.absoluteFillObject}
+                    contentContainerStyle={styles.carouselContent}
+                  >
+                    {photos.map((url, index) => (
+                      <PostImageTapTarget
+                        key={`${url}-${index}`}
+                        onSingleTap={() => openImageViewer(index)}
+                        onDoubleTap={handleImageDoubleTap}
+                        doubleTapEnabled={!isPending}
+                        accessibilityLabel={`Open workout photo ${index + 1} of ${photos.length}`}
+                        style={[styles.carouselPage, { width: scrollWidth }]}
+                      >
+                        <View style={StyleSheet.absoluteFillObject}>
+                          <PresignedImage
+                            imageKey={url}
+                            style={styles.mediaImage}
+                            resizeMode="cover"
+                          />
+                        </View>
+                      </PostImageTapTarget>
+                    ))}
+                  </ScrollView>
+                )}
 
-        {hasPhotos ? (
-          <>
-            <View style={styles.media} onLayout={handleMediaLayout}>
-              {photos.length === 1 ? (
-                <PostImageTapTarget
-                  onSingleTap={() => openImageViewer(0)}
-                  onDoubleTap={handleImageDoubleTap}
-                  doubleTapEnabled={!isPending}
-                  accessibilityLabel="Open workout photo"
+                <LinearGradient
+                  pointerEvents="none"
+                  colors={[
+                    "rgba(0,0,0,0.58)",
+                    "rgba(0,0,0,0.03)",
+                    "rgba(0,0,0,0.42)",
+                  ]}
+                  locations={[0, 0.48, 1]}
                   style={StyleSheet.absoluteFillObject}
-                >
-                  <View style={StyleSheet.absoluteFillObject}>
-                    <PresignedImage
-                      imageKey={photos[0]}
-                      style={styles.mediaImage}
-                      resizeMode="cover"
-                    />
+                />
+
+                <DoubleTapHeartLayer ref={heartLayerRef} />
+
+                {header}
+
+                {photos.length > 1 && (
+                  <View style={styles.dotsRow} pointerEvents="none">
+                    {photos.map((_, index) => (
+                      <View
+                        key={index}
+                        style={[
+                          styles.dot,
+                          index === activePhotoIndex
+                            ? styles.activeDot
+                            : styles.inactiveDot,
+                        ]}
+                      />
+                    ))}
                   </View>
-                </PostImageTapTarget>
-              ) : (
-                <ScrollView
-                  ref={carouselRef}
-                  horizontal
-                  pagingEnabled
-                  showsHorizontalScrollIndicator={false}
-                  onMomentumScrollEnd={handlePhotoScroll}
-                  style={StyleSheet.absoluteFillObject}
-                  contentContainerStyle={styles.carouselContent}
+                )}
+
+                <View style={styles.photoActions}>{actionBar}</View>
+
+                {pendingPill}
+              </View>
+
+              <TouchableOpacity
+                activeOpacity={isPending ? 1 : 0.72}
+                disabled={isPending}
+                onPress={openWorkoutDetails}
+                style={styles.photoDetails}
+                accessibilityRole="button"
+              >
+                <Text
+                  numberOfLines={2}
+                  style={[styles.workoutName, { color: colors.text }]}
                 >
-                  {photos.map((url, index) => (
-                    <PostImageTapTarget
-                      key={`${url}-${index}`}
-                      onSingleTap={() => openImageViewer(index)}
-                      onDoubleTap={handleImageDoubleTap}
-                      doubleTapEnabled={!isPending}
-                      accessibilityLabel={`Open workout photo ${index + 1} of ${photos.length}`}
-                      style={[styles.carouselPage, { width: scrollWidth }]}
-                    >
-                      <View style={StyleSheet.absoluteFillObject}>
-                        <PresignedImage
-                          imageKey={url}
-                          style={styles.mediaImage}
-                          resizeMode="cover"
-                        />
-                      </View>
-                    </PostImageTapTarget>
-                  ))}
-                </ScrollView>
-              )}
-
-              <LinearGradient
-                pointerEvents="none"
-                colors={[
-                  "rgba(0,0,0,0.58)",
-                  "rgba(0,0,0,0.03)",
-                  "rgba(0,0,0,0.42)",
-                ]}
-                locations={[0, 0.48, 1]}
-                style={StyleSheet.absoluteFillObject}
-              />
-
-              <DoubleTapHeartLayer ref={heartLayerRef} />
-
+                  {post.workoutName}
+                </Text>
+                {post.caption ? (
+                  <MentionableText
+                    text={post.caption}
+                    style={[styles.caption, textMuted]}
+                  />
+                ) : null}
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
               {header}
-
-              {photos.length > 1 && (
-                <View style={styles.dotsRow} pointerEvents="none">
-                  {photos.map((_, index) => (
-                    <View
-                      key={index}
-                      style={[
-                        styles.dot,
-                        index === activePhotoIndex
-                          ? styles.activeDot
-                          : styles.inactiveDot,
-                      ]}
-                    />
-                  ))}
-                </View>
-              )}
-
-              <View style={styles.photoActions}>{actionBar}</View>
+              <TouchableOpacity
+                activeOpacity={isPending ? 1 : 0.72}
+                disabled={isPending}
+                onPress={openWorkoutDetails}
+                style={styles.textDetails}
+                accessibilityRole="button"
+              >
+                <Text
+                  numberOfLines={3}
+                  style={[styles.workoutName, { color: colors.text }]}
+                >
+                  {post.workoutName}
+                </Text>
+                {post.caption ? (
+                  <MentionableText
+                    text={post.caption}
+                    style={[styles.caption, textMuted]}
+                  />
+                ) : null}
+              </TouchableOpacity>
+              <View style={styles.textActions}>{actionBar}</View>
 
               {pendingPill}
-            </View>
-
-            <TouchableOpacity
-              activeOpacity={isPending ? 1 : 0.72}
-              disabled={isPending}
-              onPress={openWorkoutDetails}
-              style={styles.photoDetails}
-              accessibilityRole="button"
-            >
-              <Text
-                numberOfLines={2}
-                style={[styles.workoutName, { color: colors.text }]}
-              >
-                {post.workoutName}
-              </Text>
-              {post.caption ? (
-                <MentionableText
-                  text={post.caption}
-                  style={[styles.caption, textMuted]}
-                />
-              ) : null}
-            </TouchableOpacity>
-          </>
-        ) : (
-          <>
-            {header}
-            <TouchableOpacity
-              activeOpacity={isPending ? 1 : 0.72}
-              disabled={isPending}
-              onPress={openWorkoutDetails}
-              style={styles.textDetails}
-              accessibilityRole="button"
-            >
-              <Text
-                numberOfLines={3}
-                style={[styles.workoutName, { color: colors.text }]}
-              >
-                {post.workoutName}
-              </Text>
-              {post.caption ? (
-                <MentionableText
-                  text={post.caption}
-                  style={[styles.caption, textMuted]}
-                />
-              ) : null}
-            </TouchableOpacity>
-            <View style={styles.textActions}>{actionBar}</View>
-
-            {pendingPill}
-          </>
-        )}
+            </>
+          )}
         </View>
       </View>
     </FontScaleProvider>
@@ -653,7 +655,10 @@ function FloatingTapHeart({
         color={color}
         style={[
           styles.doubleTapHeartIcon,
-          heart.tier !== "red" && [styles.tierHeartIcon, { shadowColor: color }],
+          heart.tier !== "red" && [
+            styles.tierHeartIcon,
+            { shadowColor: color },
+          ],
         ]}
       />
     </Animated.View>
