@@ -106,6 +106,8 @@ export function DetailedHistory({ route }: Props) {
     ownerUserId,
     ownerUsername,
     viewerFollowsAuthor,
+    // The screen is showing the workout that was just deleted, so leave it.
+    onDeleted: () => navigation.goBack(),
   });
 
   const { user } = useAuth();

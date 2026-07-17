@@ -18,8 +18,9 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import {
   WorkoutTimerProvider,
   WORKOUT_STATE_STORAGE_KEY,
-  UNFINISHED_WORKOUT_NOTIFICATION_ID,
+  describesActiveWorkout,
 } from "./context/WorkoutContext";
+import { cancelUnfinishedWorkoutReminder } from "./utils/unfinishedWorkoutReminder";
 import { LikesProvider } from "./context/LikesContext";
 import { SocialFeedProvider } from "./context/SocialFeedContext";
 import { FollowStatusProvider } from "./context/FollowStatusContext";
@@ -170,23 +171,19 @@ function AppContent({
         // in-progress workout — otherwise the notification is stale and
         // jerking the user to an empty Summary screen is worse UX.
         (async () => {
-          try {
-            await Notifications.dismissNotificationAsync(
-              UNFINISHED_WORKOUT_NOTIFICATION_ID,
-            );
-          } catch {
-            // Already cleared.
-          }
+          // Serialized through the reminder module (its promise chain), so
+          // this cannot interleave with an in-flight schedule op. Also
+          // cancels any still-pending duplicate, not just the tray copy.
+          await cancelUnfinishedWorkoutReminder();
           try {
             const stored = await AsyncStorage.getItem(
               WORKOUT_STATE_STORAGE_KEY,
             );
             const parsed = stored ? JSON.parse(stored) : null;
-            const hasActive =
-              parsed &&
-              ((Array.isArray(parsed.exercises) &&
-                parsed.exercises.length > 0) ||
-                parsed.running === true);
+            // Route only when the blob describes a real workout (shared
+            // liveness rule with WorkoutContext's restore). A zombie blob
+            // would land the user in an empty summary.
+            const hasActive = describesActiveWorkout(parsed);
             if (hasActive) {
               navigationRef.current?.navigate("WorkoutFlow", {
                 screen: "WorkoutSummary",

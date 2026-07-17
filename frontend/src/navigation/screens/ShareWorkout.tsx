@@ -16,11 +16,10 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import * as MediaLibrary from "expo-media-library";
 import * as Sharing from "expo-sharing";
-import { useNavigation } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { captureRef } from "react-native-view-shot";
 
-import { getWorkoutDetails, deleteWorkout } from "../../api/workoutService";
+import { getWorkoutDetails } from "../../api/workoutService";
 import type { WorkoutDetail } from "../../api/types";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -42,7 +41,6 @@ type Props = NativeStackScreenProps<RootStackParamList, "ShareWorkout">;
 const THEMES: ShareCardTheme[] = ["transparent", "dark", "light"];
 
 export function ShareWorkout({ route }: Props) {
-  const navigation = useNavigation();
   const scheme = useColorScheme();
   const isDarkScreen = scheme === "dark";
   const { workoutId, ownerUserId } = route.params;
@@ -183,29 +181,6 @@ export function ShareWorkout({ route }: Props) {
     }
   }
 
-  function onDelete() {
-    if (!isOwn) return;
-    Alert.alert(
-      "Delete Workout",
-      "Are you sure you want to delete this workout? This action cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteWorkout(workoutId);
-              navigation.goBack();
-            } catch (e: any) {
-              Alert.alert("Couldn't delete", e?.message ?? "Unknown error");
-            }
-          },
-        },
-      ],
-    );
-  }
-
   function onPageScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
     const w = scrollWidth.current;
     if (w <= 0) return;
@@ -331,20 +306,6 @@ export function ShareWorkout({ route }: Props) {
                 theme={screenTheme}
               />
             </View>
-            {isOwn && (
-              <TouchableOpacity
-                onPress={onDelete}
-                activeOpacity={0.7}
-                style={[
-                  styles.deleteBtn,
-                  { borderTopColor: screenTheme.divider },
-                ]}
-                accessibilityLabel="Delete workout"
-              >
-                <Ionicons name="trash-outline" size={18} color="#e74c3c" />
-                <Text style={styles.deleteText}>Delete workout</Text>
-              </TouchableOpacity>
-            )}
           </View>
         </>
       )}
@@ -458,20 +419,5 @@ const styles = StyleSheet.create({
   actionLabel: {
     fontSize: 12,
     fontWeight: "500",
-  },
-  deleteBtn: {
-    marginTop: 18,
-    paddingTop: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  deleteText: {
-    color: "#e74c3c",
-    fontSize: 15,
-    fontWeight: "600",
-    letterSpacing: -0.2,
   },
 });

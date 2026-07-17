@@ -16,7 +16,11 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import {
+  useNavigation,
+  useRoute,
+  StackActions,
+} from "@react-navigation/native";
 import { BodyPartDTO, createExercise } from "../../api/exerciseService";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -135,18 +139,43 @@ export function CreateExerciseScreen() {
         const workoutExerciseId = Date.now().toString();
         showPlayer(workoutExerciseId);
 
-        (navigation as any).replace("WorkoutFlow", {
-          screen: "ExerciseDetail",
-          params: {
-            exercise: {
-              workoutExerciseId,
-              exerciseId: created.exerciseId,
-              name: created.name,
-              bodyParts: created.bodyParts,
-              sets: [],
-            },
+        const detailParams = {
+          exercise: {
+            workoutExerciseId,
+            exerciseId: created.exerciseId,
+            name: created.name,
+            bodyParts: created.bodyParts,
+            sets: [],
           },
-        });
+        };
+
+        // This screen is a root-level modal pushed above the existing
+        // WorkoutFlow modal (user came from ExerciseSelect inside it).
+        // Replacing "WorkoutFlow" at root would leave the original flow
+        // buried and reveal it dead once the new one is dismissed, so
+        // instead we replace the existing flow's focused inner screen
+        // (ExerciseSelect) with ExerciseDetail and dismiss this screen.
+        const nav = navigation as any;
+        const rootState = nav.getState?.();
+        const workoutFlowRoute = rootState?.routes?.find(
+          (r: any) => r.name === "WorkoutFlow",
+        );
+        const innerStackKey = workoutFlowRoute?.state?.key;
+
+        if (innerStackKey) {
+          nav.dispatch({
+            ...StackActions.replace("ExerciseDetail", detailParams),
+            target: innerStackKey,
+          });
+          nav.goBack();
+        } else {
+          // Fallback for any entry where no WorkoutFlow exists beneath us:
+          // open a fresh flow the way we always have.
+          nav.replace("WorkoutFlow", {
+            screen: "ExerciseDetail",
+            params: detailParams,
+          });
+        }
       } else {
         goBack();
       }

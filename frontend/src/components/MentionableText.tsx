@@ -5,6 +5,7 @@ import { useNavigation } from "@react-navigation/native";
 interface Props {
   text: string;
   style?: StyleProp<TextStyle>;
+  numberOfLines?: number;
   /** Color for @mention segments. */
   mentionColor?: string;
   /** Override mention tap behavior; defaults to navigating to the profile. */
@@ -44,10 +45,11 @@ export function parseMentions(text: string): Segment[] {
 export function MentionableText({
   text,
   style,
+  numberOfLines,
   mentionColor = "#3b82f6",
   onPressMention,
 }: Props) {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation() as any;
 
   const handlePress = (username: string) => {
     // Usernames are canonically lowercase; normalize so a manually-typed
@@ -60,7 +62,7 @@ export function MentionableText({
   const segments = parseMentions(text);
 
   return (
-    <Text style={style}>
+    <Text style={style} numberOfLines={numberOfLines}>
       {segments.map((seg, i) =>
         seg.type === "mention" ? (
           <Text
