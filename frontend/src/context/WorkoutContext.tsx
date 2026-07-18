@@ -130,6 +130,12 @@ interface WorkoutContextValue {
   addExercise: (ex: WorkoutExercise) => void;
   updateExercise: (id: string, fields: Partial<WorkoutExercise>) => void;
   removeExercise: (id: string) => void;
+  // Reorder the exercise list to match `orderedIds`. Key-based against the
+  // current state (not a wholesale array replacement) so a reorder committed
+  // from a drag gesture can never clobber a concurrent exercise mutation
+  // with stale copies. Ids not present are ignored; items missing from the
+  // list keep their relative order at the end.
+  reorderExercises: (orderedIds: string[]) => void;
   // Replace the exercise at `workoutExerciseId` in place. Wipes per-exercise
   // data (sets, note, drafts, duration) — matches the "All current exercise
   // data will be lost" confirmation in the swap UI.
@@ -603,6 +609,21 @@ export function WorkoutTimerProvider({
     );
   };
 
+  const reorderExercises = (orderedIds: string[]) => {
+    if (suppressWritesRef.current) return;
+    setImmediateSaveCounter((c) => c + 1);
+    setExercises((prev) => {
+      const byId = new Map(prev.map((ex) => [ex.workoutExerciseId, ex]));
+      const next = orderedIds
+        .map((id) => byId.get(id))
+        .filter((ex): ex is WorkoutExercise => ex !== undefined);
+      for (const ex of prev) {
+        if (!orderedIds.includes(ex.workoutExerciseId)) next.push(ex);
+      }
+      return next;
+    });
+  };
+
   // Replace the exercise at `workoutExerciseId` in place. Per-exercise data
   // (sets, note, drafts, duration) is wiped to match the swap-confirmation
   // UI. The total workout timer is unaffected — it lives outside `exercises`.
@@ -867,6 +888,7 @@ export function WorkoutTimerProvider({
         addExercise,
         updateExercise,
         removeExercise,
+        reorderExercises,
         swapExercise,
         hasActiveWorkout,
         playerVisible,

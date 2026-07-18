@@ -50,13 +50,6 @@ type RootStackParamList = {
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-function formatBodyTag(tag: string): string {
-  return tag
-    .split("_")
-    .map((p) => p.charAt(0) + p.slice(1).toLowerCase())
-    .join(" ");
-}
-
 function formatDuration(minutes: number): string {
   if (minutes < 60) return `${minutes}m`;
   const h = Math.floor(minutes / 60);
@@ -219,8 +212,7 @@ export function History() {
       .toUpperCase();
 
     const hasDuration = item.durationMin != null && item.durationMin > 0;
-    const hasMuscles = Array.isArray(item.bodyTags) && item.bodyTags.length > 0;
-    const hasMetrics = hasDuration || item.exerciseCount > 0 || hasMuscles;
+    const hasMetrics = hasDuration || item.exerciseCount > 0;
 
     // The pressable is a child of the glass, not a sibling under it: children
     // mount into the effect view's contentView, the surface UIKit routes
@@ -289,17 +281,7 @@ export function History() {
               >
                 {item.exerciseCount}
               </Text>
-            </View>
-            {hasMuscles && (
-              <View style={styles.metricCell}>
-                <Text style={[styles.metricLabel, { color: t.textMuted }]}>
-                  Muscles
-                </Text>
-                <Text style={[styles.musclesText, { color: t.text }]}>
-                  {item.bodyTags.map(formatBodyTag).join(", ")}
-                </Text>
-              </View>
-            )}
+            </View>{" "}
           </View>
         )}
       </TouchableOpacity>
@@ -519,12 +501,5 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     marginTop: 2,
     fontVariant: ["tabular-nums"],
-  },
-  musclesText: {
-    fontSize: 18,
-    fontWeight: "600",
-    letterSpacing: -0.3,
-    lineHeight: 24,
-    marginTop: 2,
   },
 });

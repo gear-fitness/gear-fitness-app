@@ -19,11 +19,15 @@ import { PresignedImage } from "./PresignedImage";
 import { ReportPostSheet } from "./ReportPostSheet";
 
 const CARD_RADIUS = 20;
-// Both card variants must show the same gap above the title: measured from
-// the image bottom on photo posts, and from the avatar bottom on text posts
-// (where the header's own bottom padding contributes to it).
 const TITLE_GAP = 11;
 const HEADER_PADDING_BOTTOM = 5;
+
+function formatDuration(minutes: number): string {
+  if (minutes < 60) return `${minutes}m`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
 
 export type CompactPostCardTheme = {
   surface: string;
@@ -196,81 +200,54 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
       />
 
       {hasPhoto ? (
-        <>
-          <View style={styles.media}>
-            <TouchableOpacity
-              activeOpacity={0.94}
-              onPress={openImageViewer}
-              style={StyleSheet.absoluteFillObject}
-              accessibilityRole="imagebutton"
-              accessibilityLabel={
-                photos.length > 1
-                  ? `Open ${photos.length} workout photos`
-                  : "Open workout photo"
-              }
-            >
-              <PresignedImage
-                imageKey={photos[0]}
-                style={styles.image}
-                resizeMode="cover"
-              />
-            </TouchableOpacity>
-            <LinearGradient
-              pointerEvents="none"
-              colors={[
-                "rgba(0,0,0,0.58)",
-                "rgba(0,0,0,0.02)",
-                "rgba(0,0,0,0.4)",
-              ]}
-              locations={[0, 0.5, 1]}
-              style={StyleSheet.absoluteFillObject}
+        <View style={styles.media}>
+          <TouchableOpacity
+            activeOpacity={0.94}
+            onPress={openImageViewer}
+            style={StyleSheet.absoluteFillObject}
+            accessibilityRole="imagebutton"
+            accessibilityLabel={
+              photos.length > 1
+                ? `Open ${photos.length} workout photos`
+                : "Open workout photo"
+            }
+          >
+            <PresignedImage
+              imageKey={photos[0]}
+              style={styles.image}
+              resizeMode="cover"
             />
-            {header}
-            {photos.length > 1 && (
-              <View style={styles.photoCount} pointerEvents="none">
-                <Ionicons name="images-outline" size={11} color="#FFFFFF" />
-                <Text style={styles.photoCountText}>{photos.length}</Text>
-              </View>
-            )}
-          </View>
-          <View style={styles.photoDetails}>
-            <TouchableOpacity
-              activeOpacity={0.72}
-              onPress={openDetail}
-              accessibilityRole="button"
-            >
-              <Text
-                numberOfLines={2}
-                style={[styles.workoutName, { color: t.text }]}
-              >
-                {post.workoutName}
-              </Text>
-            </TouchableOpacity>
-            {post.caption ? (
-              <MentionableText
-                text={post.caption}
-                numberOfLines={2}
-                style={[styles.caption, { color: t.textMuted }]}
-              />
-            ) : null}
-          </View>
-        </>
-      ) : (
-        <>
+          </TouchableOpacity>
+          <LinearGradient
+            pointerEvents="none"
+            colors={["rgba(0,0,0,0.58)", "rgba(0,0,0,0.02)", "rgba(0,0,0,0.4)"]}
+            locations={[0, 0.5, 1]}
+            style={StyleSheet.absoluteFillObject}
+          />
           {header}
-          <View style={styles.textDetails}>
-            <TouchableOpacity
-              activeOpacity={0.72}
-              onPress={openDetail}
-              accessibilityRole="button"
+          {photos.length > 1 && (
+            <View style={styles.photoCount} pointerEvents="none">
+              <Ionicons name="images-outline" size={11} color="#FFFFFF" />
+              <Text style={styles.photoCountText}>{photos.length}</Text>
+            </View>
+          )}
+        </View>
+      ) : (
+        <TouchableOpacity
+          activeOpacity={0.72}
+          onPress={openDetail}
+          style={styles.textHero}
+          accessibilityRole="button"
+          accessibilityLabel={`Open ${post.workoutName}`}
+        >
+          {header}
+          <View style={styles.textBody}>
+            <Text
+              numberOfLines={2}
+              style={[styles.workoutName, { color: t.text }]}
             >
-              <Text
-                numberOfLines={3}
-                style={[styles.workoutName, { color: t.text }]}
-              >
-                {post.workoutName}
-              </Text>
-            </TouchableOpacity>
+              {post.workoutName}
+            </Text>
             {post.caption ? (
               <MentionableText
                 text={post.caption}
@@ -278,8 +255,51 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
                 style={[styles.caption, { color: t.textMuted }]}
               />
             ) : null}
+            <View style={styles.metricsRow}>
+              {post.durationMin != null && post.durationMin > 0 && (
+                <View style={styles.metricCell}>
+                  <Text style={[styles.metricLabel, { color: t.textMuted }]}>
+                    Time
+                  </Text>
+                  <Text style={[styles.metricValue, { color: t.text }]}>
+                    {formatDuration(post.durationMin)}
+                  </Text>
+                </View>
+              )}
+              <View style={styles.metricCell}>
+                <Text style={[styles.metricLabel, { color: t.textMuted }]}>
+                  Exercises
+                </Text>
+                <Text style={[styles.metricValue, { color: t.text }]}>
+                  {post.exerciseCount}
+                </Text>
+              </View>
+            </View>
           </View>
-        </>
+        </TouchableOpacity>
+      )}
+      {hasPhoto && (
+        <View style={styles.details}>
+          <TouchableOpacity
+            activeOpacity={0.72}
+            onPress={openDetail}
+            accessibilityRole="button"
+          >
+            <Text
+              numberOfLines={2}
+              style={[styles.workoutName, { color: t.text }]}
+            >
+              {post.workoutName}
+            </Text>
+          </TouchableOpacity>
+          {post.caption ? (
+            <MentionableText
+              text={post.caption}
+              numberOfLines={2}
+              style={[styles.caption, { color: t.textMuted }]}
+            />
+          ) : null}
+        </View>
       )}
     </>
   );
@@ -320,6 +340,39 @@ const styles = StyleSheet.create({
     borderTopRightRadius: CARD_RADIUS,
     overflow: "hidden",
     backgroundColor: "#222222",
+  },
+  // Photo-less cards fill the same square the photo occupies so both card
+  // variants come out the same height.
+  textHero: {
+    width: "100%",
+    aspectRatio: 1,
+  },
+  // Same vertical order as a History card: title, caption, then the metrics
+  // row beneath them. Centered as a group in the space under the header.
+  textBody: {
+    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: 13,
+    paddingBottom: HEADER_PADDING_BOTTOM + 6,
+  },
+  metricsRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 14,
+  },
+  metricCell: {
+    flex: 1,
+  },
+  metricLabel: {
+    fontSize: 11,
+    fontWeight: "500",
+  },
+  metricValue: {
+    fontSize: 24,
+    fontWeight: "700",
+    letterSpacing: -0.5,
+    marginTop: 2,
+    fontVariant: ["tabular-nums"],
   },
   image: {
     width: "100%",
@@ -400,15 +453,10 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontVariant: ["tabular-nums"],
   },
-  photoDetails: {
+  details: {
     paddingHorizontal: 13,
     paddingTop: TITLE_GAP,
     paddingBottom: 13,
-  },
-  textDetails: {
-    paddingHorizontal: 13,
-    paddingTop: TITLE_GAP - HEADER_PADDING_BOTTOM,
-    paddingBottom: 8,
   },
   workoutName: {
     fontSize: 16,
