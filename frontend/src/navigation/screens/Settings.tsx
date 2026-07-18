@@ -3,7 +3,6 @@ import {
   Appearance,
   ColorValue,
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
   Alert,
@@ -11,16 +10,25 @@ import {
   Linking,
   Platform,
 } from "react-native";
+import { Text } from "../../components/Text";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Purchases from "react-native-purchases";
 import { useAuth } from "../../context/AuthContext";
+import { usePurchases } from "../../context/PurchasesContext";
+import { useTier } from "../../hooks/useTier";
 import { useThemeColors } from "../../hooks/useThemeColors";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { useProfilePhoto } from "../../hooks/useProfilePhoto";
 import { useOnlineStatus } from "../../hooks/useOnlineStatus";
 import { Avatar } from "../../components/Avatar";
 import { AvatarWithCameraOverlay } from "../../components/AvatarWithCameraOverlay";
+import { PhotoSourceMenu } from "../../components/PhotoSourceMenu";
+import {
+  getSavePhotosOnPost,
+  setSavePhotosOnPost,
+} from "../../utils/photoPrefs";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 import { OfflineNotice } from "../../components/OfflineNotice";
 import {
@@ -41,10 +49,12 @@ import { Height, Weight } from "../onboarding/types";
 import { useUnitPreference } from "../../context/UnitPreferenceContext";
 import { formatWeight as formatWeightWithUnit } from "../../utils/weight";
 import * as Notifications from "expo-notifications";
+import { openTerms, openPrivacy } from "../../constants/legal";
 
 const GENDER_LABELS: Record<string, string> = {
   male: "Male",
   female: "Female",
+  other: "Other",
   non_binary: "Non-binary",
   prefer_not_to_say: "Prefer not to say",
 };
@@ -107,9 +117,12 @@ export function Settings() {
   const navigation = useNavigation<any>();
   const themeColors = useThemeColors();
   const insets = useSafeAreaInsets();
-  const { pickAndUpload, uploading } = useProfilePhoto();
+  const { takePhotoAndUpload, chooseFromLibraryAndUpload, uploading } =
+    useProfilePhoto();
   const online = useOnlineStatus();
   const { weightUnit, setWeightUnit } = useUnitPreference();
+  const { restore } = usePurchases();
+  const { tier } = useTier();
 
   const [isPrivate, setIsPrivate] = useState(user?.isPrivate ?? false);
 
@@ -137,6 +150,18 @@ export function Settings() {
       }
     });
   }, []);
+
+  // Save in-app camera photos to the library when posting. Defaults to on.
+  const [savePhotosOnPost, setSavePhotosOnPostState] = useState(true);
+
+  useEffect(() => {
+    getSavePhotosOnPost().then(setSavePhotosOnPostState);
+  }, []);
+
+  const handleSavePhotosToggle = (next: boolean) => {
+    setSavePhotosOnPostState(next);
+    setSavePhotosOnPost(next);
+  };
 
   const setThemeMode = async (mode: "system" | "light" | "dark") => {
     setThemeModeState(mode);
@@ -329,6 +354,49 @@ export function Settings() {
     ]);
   };
 
+  const handleManageSubscription = async () => {
+    try {
+      await Purchases.showManageSubscriptions();
+    } catch {
+      // Fallback to the App Store subscriptions page.
+      Linking.openURL("https://apps.apple.com/account/subscriptions").catch(
+        () => {},
+      );
+    }
+  };
+
+  const handleRestorePurchases = async () => {
+    try {
+      const info = await restore();
+      const active = Object.keys(info.entitlements.active);
+      Alert.alert(
+        active.length ? "Purchases restored" : "Nothing to restore",
+        active.length
+          ? "Your subscription has been restored."
+          : "No active subscription was found for this Apple ID.",
+      );
+    } catch {
+      Alert.alert("Restore failed", "Please try again.");
+    }
+  };
+
+  const handleContactSupport = async () => {
+    const url =
+      "mailto:support@gearfitness.app?subject=Gear%20Fitness%20Support";
+    try {
+      if (await Linking.canOpenURL(url)) {
+        await Linking.openURL(url);
+        return;
+      }
+    } catch {
+      // fall through to the manual prompt
+    }
+    // No mail app configured — show the address so the user can still reach us.
+    Alert.alert("Contact Support", "Email us at support@gearfitness.app");
+  };
+
+  const tierLabel = tier === "PLUS" ? "Gear Plus" : "Basic";
+
   const formatHeight = (h: number | null | undefined) => {
     if (!h) return "Not set";
     return `${Math.floor(h / 12)}' ${h % 12}"`;
@@ -405,6 +473,21 @@ export function Settings() {
             },
           ],
         },
+        {
+          key: "nutrition",
+          title: "Nutrition",
+          data: [
+            {
+              id: "calorie_goals",
+              type: "value",
+              label: "Calorie & Macro Goals",
+              onPress: () => navigation.navigate("NutritionGoals"),
+              showArrow: true,
+            },
+          ],
+          footer:
+            "Set your daily calorie target and protein, carb, and fat goals.",
+        },
         // ── Integrations ──────────────────────────────────────
         ...(!healthUnavailable
           ? [
@@ -429,6 +512,33 @@ export function Settings() {
               },
             ]
           : []),
+        {
+          key: "subscription",
+          title: "Subscription",
+          data: [
+            {
+              id: "plan",
+              type: "value",
+              label: "Plan",
+              value: tierLabel,
+              showArrow: false,
+            },
+            {
+              id: "manage_subscription",
+              type: "value",
+              label: "Manage Subscription",
+              onPress: handleManageSubscription,
+              showArrow: true,
+            },
+            {
+              id: "restore_purchases",
+              type: "value",
+              label: "Restore Purchases",
+              onPress: handleRestorePurchases,
+              showArrow: true,
+            },
+          ],
+        },
         {
           key: "notifications",
           title: "Notifications",
@@ -492,6 +602,21 @@ export function Settings() {
               : "Choose a fixed appearance that overrides your device setting.",
         },
         {
+          key: "photos",
+          title: "Photos",
+          data: [
+            {
+              id: "save_photos_on_post",
+              type: "toggle" as const,
+              label: "Save Camera Photos",
+              value: savePhotosOnPost,
+              onValueChange: handleSavePhotosToggle,
+            },
+          ],
+          footer:
+            "Photos taken with the in-app camera are saved to your photo library when you post a workout.",
+        },
+        {
           key: "units",
           title: "Units",
           data: [
@@ -516,6 +641,41 @@ export function Settings() {
             "Weights across the app are shown and entered in your chosen unit.",
         },
         {
+          key: "support",
+          title: "Support",
+          data: [
+            {
+              id: "contact_support",
+              type: "value" as const,
+              label: "Contact Support",
+              onPress: handleContactSupport,
+              showArrow: true,
+            },
+          ],
+          footer:
+            "Questions, bug reports, or to report objectionable content or abusive users — email support@gearfitness.app.",
+        },
+        {
+          key: "legal",
+          title: "Legal",
+          data: [
+            {
+              id: "terms_of_service",
+              type: "value" as const,
+              label: "Terms of Service",
+              onPress: openTerms,
+              showArrow: true,
+            },
+            {
+              id: "privacy_policy",
+              type: "value" as const,
+              label: "Privacy Policy",
+              onPress: openPrivacy,
+              showArrow: true,
+            },
+          ],
+        },
+        {
           key: "privacy",
           title: "Privacy",
           data: [
@@ -534,20 +694,21 @@ export function Settings() {
               onPress: () => navigation.navigate("BlockedUsers"),
               showArrow: true,
             },
+            {
+              id: "delete_account",
+              type: "value" as const,
+              label: "Delete Account",
+              onPress: () => navigation.navigate("DeleteAccount"),
+              showArrow: true,
+            },
           ],
           footer: isPrivate
             ? "Only approved followers can see your posts and profile."
             : "Anyone can see your posts and follow you.",
         },
         {
-          key: "account",
+          key: "logout",
           data: [
-            {
-              id: "delete_account",
-              type: "destructive",
-              title: "Delete Account",
-              onPress: () => navigation.navigate("DeleteAccount"),
-            },
             {
               id: "logout",
               type: "destructive",
@@ -572,30 +733,34 @@ export function Settings() {
   const renderAvatarHeader = () => {
     if (!user) return null;
     return (
-      <TouchableOpacity
-        style={styles.avatarSection}
-        onPress={pickAndUpload}
-        disabled={uploading}
-        activeOpacity={0.8}
-      >
-        <AvatarWithCameraOverlay
-          size={88}
-          uploading={uploading}
-          style={styles.avatarWrap}
+      <View style={styles.avatarSection}>
+        <PhotoSourceMenu
+          width={88}
+          height={88}
+          accessibilityLabel="Change profile photo"
+          disabled={uploading}
+          onTakePhoto={takePhotoAndUpload}
+          onChooseFromLibrary={chooseFromLibraryAndUpload}
         >
-          <Avatar
-            username={user.username}
-            profilePictureUrl={user.profilePictureUrl}
+          <AvatarWithCameraOverlay
             size={88}
-          />
-        </AvatarWithCameraOverlay>
+            uploading={uploading}
+            style={styles.avatarWrap}
+          >
+            <Avatar
+              username={user.username}
+              profilePictureUrl={user.profilePictureUrl}
+              size={88}
+            />
+          </AvatarWithCameraOverlay>
+        </PhotoSourceMenu>
         <Text style={[styles.avatarName, { color: themeColors.text }]}>
           {user.displayName || user.username}
         </Text>
         <Text style={[styles.avatarHandle, { color: themeColors.secondary }]}>
           @{user.username}
         </Text>
-      </TouchableOpacity>
+      </View>
     );
   };
 
@@ -629,7 +794,7 @@ export function Settings() {
     }
     if (item.type === "destructive") {
       return (
-        <View style={styles.logoutSectionWrap}>
+        <View style={styles.destructiveSectionWrap}>
           <SettingsDestructiveCell
             cardColor={themeColors.cardBg as ColorValue}
             separatorColor={themeColors.separator as ColorValue}
@@ -748,7 +913,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     opacity: 0.6,
   },
-  logoutSectionWrap: {
+  destructiveSectionWrap: {
     marginTop: 24,
   },
 });

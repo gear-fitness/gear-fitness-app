@@ -1,12 +1,6 @@
 import React, { useRef, useEffect } from "react";
-import {
-  Modal,
-  View,
-  Animated,
-  Pressable,
-  Text,
-  StyleSheet,
-} from "react-native";
+import { Modal, View, Animated, Pressable, StyleSheet } from "react-native";
+import { Text } from "../../../components/Text";
 import { useThemeColors } from "../../../hooks/useThemeColors";
 
 const SHEET_TRANSLATE_CLOSED = 500;
@@ -158,7 +152,7 @@ function makeStyles(c: ReturnType<typeof useThemeColors>) {
       marginHorizontal: 16,
       marginTop: 10,
       height: 56,
-      borderRadius: 999,
+      borderRadius: 14,
       backgroundColor: c.accent,
       alignItems: "center",
       justifyContent: "center",

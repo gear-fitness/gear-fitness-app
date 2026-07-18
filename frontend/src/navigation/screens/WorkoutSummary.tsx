@@ -1,23 +1,37 @@
 import {
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
   useColorScheme,
 } from "react-native";
+import { Text } from "../../components/Text";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Swipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 import { useNavigation } from "@react-navigation/native";
 import Svg, { Path } from "react-native-svg";
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import Animated, {
+  Easing,
+  cancelAnimation,
+  useAnimatedRef,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
+import Sortable, { useItemContext } from "react-native-sortables";
+import type { SortableGridRenderItem } from "react-native-sortables";
+import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 
-import { useWorkoutTimer } from "../../context/WorkoutContext";
+import { useWorkoutTimer, WorkoutExercise } from "../../context/WorkoutContext";
 import { useUnitPreference } from "../../context/UnitPreferenceContext";
 import { toDisplayWeight } from "../../utils/weight";
 import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
+import { dismissWorkoutFlow } from "../../utils/dismissWorkoutFlow";
 
 const DESTRUCTIVE = "#C93838";
 const LIVE = "#22B574";
@@ -32,6 +46,40 @@ type Theme = {
   textFaint: string;
   border: string;
   chipBorder: string;
+  badgeBg: string;
+  badgeGlyph: string;
+};
+
+// Edit-mode wobble: rotation amplitude in degrees and half-cycle duration.
+// Cards are near full-width, so the amplitude stays well under the ~2deg the
+// home screen uses on small icons.
+const WOBBLE_DEG = 0.5;
+const WOBBLE_MS = 130;
+
+// Module-scope so the theme object is referentially stable across renders:
+// the timer re-renders this screen every ~100ms, and the memoized exercise
+// rows below depend on stable props to skip those ticks.
+const DARK_THEME: Theme = {
+  bg: "#0a0a0a",
+  surface: "#141414",
+  text: "#fff",
+  textMuted: "rgba(255,255,255,0.55)",
+  textFaint: "rgba(255,255,255,0.4)",
+  border: "rgba(255,255,255,0.08)",
+  chipBorder: "rgba(255,255,255,0.22)",
+  badgeBg: "#3a3a3c",
+  badgeGlyph: "#f2f2f7",
+};
+const LIGHT_THEME: Theme = {
+  bg: "#fafafa",
+  surface: "#ffffff",
+  text: "#000",
+  textMuted: "rgba(0,0,0,0.5)",
+  textFaint: "rgba(0,0,0,0.4)",
+  border: "rgba(0,0,0,0.08)",
+  chipBorder: "rgba(0,0,0,0.18)",
+  badgeBg: "#e3e3e8",
+  badgeGlyph: "#48484a",
 };
 
 export function WorkoutSummary() {
@@ -50,38 +98,87 @@ export function WorkoutSummary() {
     pause,
     exercises,
     removeExercise,
+    reorderExercises,
     setCurrentExercise,
   } = useWorkoutTimer();
 
-  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(
-    null,
-  );
+  const scrollRef = useAnimatedRef<Animated.ScrollView>();
 
-  const { getSwipeableProps } = useSwipeableDelete({
+  // Apple-home-screen edit mode: entered by long-pressing a card (with or
+  // without dragging), exited via the Done button. While editing, cards
+  // wobble, minus badges appear, and card taps stop navigating.
+  const [isEditing, setIsEditing] = useState(false);
+  const isEditingRef = useRef(isEditing);
+  isEditingRef.current = isEditing;
+
+  // Nothing left to edit; leave the mode rather than stranding the Done
+  // button next to an empty list.
+  useEffect(() => {
+    if (isEditing && exercises.length === 0) setIsEditing(false);
+  }, [isEditing, exercises.length]);
+
+  const { getSwipeableProps, confirmDelete } = useSwipeableDelete({
     onDelete: (id) => removeExercise(id),
     deleteTitle: "Delete Exercise",
     deleteMessage: "Are you sure you want to remove this exercise?",
   });
 
-  const t: Theme = isDark
-    ? {
-        bg: "#0a0a0a",
-        surface: "#141414",
-        text: "#fff",
-        textMuted: "rgba(255,255,255,0.55)",
-        textFaint: "rgba(255,255,255,0.4)",
-        border: "rgba(255,255,255,0.08)",
-        chipBorder: "rgba(255,255,255,0.22)",
-      }
-    : {
-        bg: "#fafafa",
-        surface: "#ffffff",
-        text: "#000",
-        textMuted: "rgba(0,0,0,0.5)",
-        textFaint: "rgba(0,0,0,0.4)",
-        border: "rgba(0,0,0,0.08)",
-        chipBorder: "rgba(0,0,0,0.18)",
-      };
+  // The hook recreates these functions every render; route them through refs
+  // so the memoized rows can depend on stable identities.
+  const getSwipeablePropsRef = useRef(getSwipeableProps);
+  getSwipeablePropsRef.current = getSwipeableProps;
+  const getSwipeablePropsStable = useCallback(
+    (id: string) => getSwipeablePropsRef.current(id),
+    [],
+  );
+  const confirmDeleteRef = useRef(confirmDelete);
+  confirmDeleteRef.current = confirmDelete;
+  const confirmDeleteStable = useCallback(
+    (id: string) => confirmDeleteRef.current(id),
+    [],
+  );
+
+  const enterEditMode = useCallback(() => setIsEditing(true), []);
+
+  const openExercise = useCallback(
+    (ex: WorkoutExercise) => {
+      // In edit mode a tap on the card body does nothing, matching the home
+      // screen (icons don't launch mid-jiggle).
+      if (isEditingRef.current) return;
+      setCurrentExercise(ex.workoutExerciseId);
+      navigation.replace("ExerciseDetail", { exercise: ex });
+    },
+    [navigation, setCurrentExercise],
+  );
+
+  const t: Theme = isDark ? DARK_THEME : LIGHT_THEME;
+
+  const renderExerciseCard = useCallback<
+    SortableGridRenderItem<WorkoutExercise>
+  >(
+    ({ item, index }) => (
+      <ExerciseRow
+        ex={item}
+        index={index}
+        t={isDark ? DARK_THEME : LIGHT_THEME}
+        globalUnit={globalUnit}
+        isEditing={isEditing}
+        onTap={openExercise}
+        onLongPress={enterEditMode}
+        onDeleteTap={confirmDeleteStable}
+        getSwipeableProps={getSwipeablePropsStable}
+      />
+    ),
+    [
+      isDark,
+      globalUnit,
+      isEditing,
+      openExercise,
+      enterEditMode,
+      confirmDeleteStable,
+      getSwipeablePropsStable,
+    ],
+  );
 
   const formatTime = (s: number) =>
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(
@@ -111,10 +208,20 @@ export function WorkoutSummary() {
       };
 
   return (
-    <View style={[styles.container, { backgroundColor: t.bg }]}>
-      <FloatingCloseButton />
+    // Tapping anywhere outside the cards exits edit mode, like tapping the
+    // wallpaper on the home screen. The root only claims touches that no
+    // descendant wants: buttons claim their own, and each exercise row
+    // claims its touches below, so only "background" taps land here. A
+    // scroll steals the responder mid-gesture, so scrolling never exits.
+    <View
+      style={[styles.container, { backgroundColor: t.bg }]}
+      onStartShouldSetResponder={() => isEditing}
+      onResponderRelease={() => setIsEditing(false)}
+    >
+      <FloatingCloseButton onPress={() => dismissWorkoutFlow(navigation)} />
 
-      <ScrollView
+      <Animated.ScrollView
+        ref={scrollRef}
         contentContainerStyle={{
           paddingTop: insets.top + 68,
           paddingBottom: 20,
@@ -136,6 +243,7 @@ export function WorkoutSummary() {
           </View>
           <Text
             style={[styles.heroTitle, { color: t.text, fontFamily: SERIF }]}
+            maxFontSizeMultiplier={1}
           >
             {today}
           </Text>
@@ -149,125 +257,34 @@ export function WorkoutSummary() {
 
         {/* Exercises */}
         <View style={styles.exercisesSection}>
-          <Text style={[styles.sectionLabel, { color: t.textMuted }]}>
-            EXERCISES
-          </Text>
-
-          <View style={styles.exerciseList}>
-            {exercises.map((ex) => {
-              const last =
-                [...ex.sets]
-                  .reverse()
-                  .find((s) => s.reps !== "" && s.weight !== "") || null;
-              const rowUnit = ex.weightUnit ?? globalUnit;
-
-              return (
-                <View
-                  key={ex.workoutExerciseId}
-                  style={styles.exerciseCardWrapper}
-                >
-                  <Swipeable {...getSwipeableProps(ex.workoutExerciseId)}>
-                    <View
-                      onTouchStart={(e) => {
-                        setTouchStart({
-                          x: e.nativeEvent.pageX,
-                          y: e.nativeEvent.pageY,
-                        });
-                      }}
-                      onTouchEnd={(e) => {
-                        if (!touchStart) return;
-                        const dx = Math.abs(e.nativeEvent.pageX - touchStart.x);
-                        const dy = Math.abs(e.nativeEvent.pageY - touchStart.y);
-                        if (dx < 5 && dy < 5) {
-                          setCurrentExercise(ex.workoutExerciseId);
-                          navigation.replace("ExerciseDetail", {
-                            exercise: ex,
-                          });
-                        }
-                        setTouchStart(null);
-                      }}
-                    >
-                      <View
-                        style={[
-                          styles.exerciseCard,
-                          {
-                            backgroundColor: t.surface,
-                            borderColor: t.border,
-                          },
-                        ]}
-                      >
-                        <View style={styles.exerciseNameCol}>
-                          <Text
-                            style={[styles.exerciseName, { color: t.text }]}
-                            numberOfLines={1}
-                          >
-                            {ex.name}
-                          </Text>
-                        </View>
-
-                        <View style={styles.lastSetCol}>
-                          {last ? (
-                            <>
-                              <Text
-                                style={[
-                                  styles.lastSetLabel,
-                                  { color: t.textMuted },
-                                ]}
-                              >
-                                LAST SET
-                              </Text>
-                              <Text
-                                style={[styles.lastSetValue, { color: t.text }]}
-                              >
-                                {last.reps}×
-                                {toDisplayWeight(
-                                  Number(last.weight) || 0,
-                                  rowUnit,
-                                )}
-                                <Text
-                                  style={[
-                                    styles.lastSetUnit,
-                                    { color: t.textFaint },
-                                  ]}
-                                >
-                                  {" "}
-                                  {rowUnit}
-                                </Text>
-                              </Text>
-                            </>
-                          ) : (
-                            <Text
-                              style={[
-                                styles.notStarted,
-                                { color: t.textFaint },
-                              ]}
-                            >
-                              Not started
-                            </Text>
-                          )}
-                        </View>
-
-                        <Svg
-                          width={12}
-                          height={12}
-                          viewBox="0 0 16 16"
-                          fill="none"
-                        >
-                          <Path
-                            d="M6 3l5 5-5 5"
-                            stroke={t.textFaint}
-                            strokeWidth={1.6}
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </Svg>
-                      </View>
-                    </View>
-                  </Swipeable>
-                </View>
-              );
-            })}
+          <View style={styles.sectionLabelRow}>
+            <Text style={[styles.sectionLabel, { color: t.textMuted }]}>
+              EXERCISES
+            </Text>
+            {isEditing && (
+              <TouchableOpacity
+                onPress={() => setIsEditing(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.doneButton, { color: ACCENT }]}>Done</Text>
+              </TouchableOpacity>
+            )}
           </View>
+
+          <Sortable.Grid
+            data={exercises}
+            keyExtractor={(ex) => ex.workoutExerciseId}
+            renderItem={renderExerciseCard}
+            rowGap={6}
+            activeItemScale={1.04}
+            inactiveItemOpacity={0.7}
+            overDrag="none"
+            hapticsEnabled
+            scrollableRef={scrollRef}
+            onDragStart={enterEditMode}
+            onDragEnd={({ indexToKey }) => reorderExercises([...indexToKey])}
+          />
 
           <TouchableOpacity
             activeOpacity={0.7}
@@ -291,7 +308,7 @@ export function WorkoutSummary() {
             </Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* Footer */}
       <View
@@ -352,6 +369,199 @@ export function WorkoutSummary() {
   );
 }
 
+// Memoized row: every prop is referentially stable across the ~100ms timer
+// ticks, so rows only re-render when their exercise, the theme, or edit mode
+// changes. Sortable.Touchable replaces the old manual onTouchStart/onTouchEnd
+// tap check: it is coordinated with the drag gesture, so a long-press that
+// lifts the card (or a swipe) can never fire onTap on release.
+const ExerciseRow = React.memo(function ExerciseRow({
+  ex,
+  index,
+  t,
+  globalUnit,
+  isEditing,
+  onTap,
+  onLongPress,
+  onDeleteTap,
+  getSwipeableProps,
+}: {
+  ex: WorkoutExercise;
+  index: number;
+  t: Theme;
+  globalUnit: ReturnType<typeof useUnitPreference>["weightUnit"];
+  isEditing: boolean;
+  onTap: (ex: WorkoutExercise) => void;
+  onLongPress: () => void;
+  onDeleteTap: (id: string) => void;
+  getSwipeableProps: (
+    id: string,
+  ) => React.ComponentProps<typeof Swipeable> & { ref?: unknown };
+}) {
+  const { activationAnimationProgress } = useItemContext();
+
+  const wobble = useSharedValue(0);
+  const badgeProgress = useSharedValue(0);
+
+  useEffect(() => {
+    if (isEditing) {
+      // Alternate direction and stagger the phase by index so the cards
+      // don't wobble in lockstep.
+      const dir = index % 2 === 0 ? 1 : -1;
+      wobble.value = withDelay(
+        (index % 3) * 45,
+        withRepeat(
+          withSequence(
+            withTiming(dir * WOBBLE_DEG, {
+              duration: WOBBLE_MS,
+              easing: Easing.inOut(Easing.sin),
+            }),
+            withTiming(-dir * WOBBLE_DEG, {
+              duration: WOBBLE_MS,
+              easing: Easing.inOut(Easing.sin),
+            }),
+          ),
+          -1,
+          false,
+        ),
+      );
+      badgeProgress.value = withTiming(1, { duration: 160 });
+    } else {
+      cancelAnimation(wobble);
+      wobble.value = withTiming(0, { duration: 120 });
+      badgeProgress.value = withTiming(0, { duration: 120 });
+    }
+  }, [isEditing, index, wobble, badgeProgress]);
+
+  // The lifted card stops wobbling, like the home screen: blend the rotation
+  // out with the lift animation instead of snapping it to zero.
+  const wobbleStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        rotateZ: `${wobble.value * (1 - activationAnimationProgress.value)}deg`,
+      },
+    ],
+  }));
+
+  // Scale-only pop (no opacity): a glass effect under an alpha-animating
+  // ancestor renders as nothing, so the badge must never animate opacity.
+  const badgeStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: Math.max(0.01, badgeProgress.value) }],
+  }));
+
+  const last =
+    [...ex.sets].reverse().find((s) => s.reps !== "" && s.weight !== "") ||
+    null;
+  const rowUnit = ex.weightUnit ?? globalUnit;
+
+  return (
+    // While editing, the row claims its touches so card taps don't bubble to
+    // the screen root's tap-outside-exits responder (the card's own gestures
+    // are gesture-handler based and ignore the JS responder system).
+    <Animated.View
+      style={wobbleStyle}
+      onStartShouldSetResponder={() => isEditing}
+    >
+      <View style={styles.exerciseCardWrapper}>
+        <Swipeable {...getSwipeableProps(ex.workoutExerciseId)}>
+          <Sortable.Touchable onTap={() => onTap(ex)} onLongPress={onLongPress}>
+            <View
+              style={[
+                styles.exerciseCard,
+                {
+                  backgroundColor: t.surface,
+                  borderColor: t.border,
+                },
+              ]}
+            >
+              <View style={styles.exerciseNameCol}>
+                <Text
+                  style={[styles.exerciseName, { color: t.text }]}
+                  numberOfLines={1}
+                >
+                  {ex.name}
+                </Text>
+              </View>
+
+              <View style={styles.lastSetCol}>
+                {last ? (
+                  <>
+                    <Text style={[styles.lastSetLabel, { color: t.textMuted }]}>
+                      LAST SET
+                    </Text>
+                    <Text style={[styles.lastSetValue, { color: t.text }]}>
+                      {last.reps}×
+                      {toDisplayWeight(Number(last.weight) || 0, rowUnit)}
+                      <Text
+                        style={[styles.lastSetUnit, { color: t.textFaint }]}
+                      >
+                        {" "}
+                        {rowUnit}
+                      </Text>
+                    </Text>
+                  </>
+                ) : (
+                  <Text style={[styles.notStarted, { color: t.textFaint }]}>
+                    Not started
+                  </Text>
+                )}
+              </View>
+
+              <Svg width={12} height={12} viewBox="0 0 16 16" fill="none">
+                <Path
+                  d="M6 3l5 5-5 5"
+                  stroke={t.textFaint}
+                  strokeWidth={1.6}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </Svg>
+            </View>
+          </Sortable.Touchable>
+        </Swipeable>
+      </View>
+
+      <Animated.View
+        style={[styles.deleteBadgeWrap, badgeStyle]}
+        pointerEvents={isEditing ? "auto" : "none"}
+        // Rasterize the glass badge while the wobble runs: live glass
+        // re-refracts its backdrop every frame it moves, which drops frames
+        // with one badge per card. Off at rest so the glass stays live.
+        shouldRasterizeIOS={isEditing}
+      >
+        <Sortable.Touchable onTap={() => onDeleteTap(ex.workoutExerciseId)}>
+          <View style={styles.deleteBadgeHit}>
+            {isLiquidGlassAvailable() ? (
+              <GlassView style={styles.deleteBadge} glassEffectStyle="regular">
+                <View
+                  style={[
+                    styles.deleteBadgeMinus,
+                    { backgroundColor: t.badgeGlyph },
+                  ]}
+                />
+              </GlassView>
+            ) : (
+              <View
+                style={[
+                  styles.deleteBadge,
+                  styles.deleteBadgeFallback,
+                  { backgroundColor: t.badgeBg, borderColor: t.border },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.deleteBadgeMinus,
+                    { backgroundColor: t.badgeGlyph },
+                  ]}
+                />
+              </View>
+            )}
+          </View>
+        </Sortable.Touchable>
+      </Animated.View>
+    </Animated.View>
+  );
+});
+
 function Metric({
   label,
   value,
@@ -364,7 +574,12 @@ function Metric({
   return (
     <View>
       <Text style={[styles.metricLabel, { color: t.textMuted }]}>{label}</Text>
-      <Text style={[styles.metricValue, { color: t.text }]}>{value}</Text>
+      <Text
+        style={[styles.metricValue, { color: t.text }]}
+        maxFontSizeMultiplier={1}
+      >
+        {value}
+      </Text>
     </View>
   );
 }
@@ -420,18 +635,56 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
   },
+  sectionLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
   sectionLabel: {
     fontSize: 12,
     fontWeight: "600",
     letterSpacing: 1.2,
-    marginBottom: 10,
   },
-  exerciseList: {
-    gap: 6,
+  doneButton: {
+    fontSize: 13,
+    fontWeight: "700",
+    letterSpacing: -0.1,
   },
   exerciseCardWrapper: {
     borderRadius: 12,
     overflow: "hidden",
+  },
+  // Badge sits outside exerciseCardWrapper (which clips for the swipe
+  // background) so it can overlap the card's top-left corner uncropped. The
+  // 34pt hit target is transparent; the visible 22pt circle protrudes 5pt
+  // past the corner, staying inside the 6pt row gap.
+  deleteBadgeWrap: {
+    position: "absolute",
+    top: -11,
+    left: -11,
+  },
+  deleteBadgeHit: {
+    width: 34,
+    height: 34,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deleteBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  deleteBadgeFallback: {
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  deleteBadgeMinus: {
+    width: 10,
+    height: 2,
+    borderRadius: 1,
   },
   exerciseCard: {
     flexDirection: "row",

@@ -195,9 +195,22 @@ public class AuthService {
     String email,
     AppleLoginRequest request
   ) {
+    // username is NOT NULL + UNIQUE. The onboarding client supplies one, but
+    // older builds and the Sign-In screen's Apple path (which can create a
+    // brand-new account) never do — so derive a unique one rather than
+    // inserting null. Apple's email may be a relay address or absent, so fall
+    // back to the display name, then the email local-part, then a generic base.
+    String username = isBlank(request.getUsername())
+      ? generateUniqueUsername(
+          !isBlank(request.getDisplayName())
+            ? request.getDisplayName()
+            : (email != null ? email.split("@")[0] : "user")
+        )
+      : request.getUsername();
+
     AppUser newUser = AppUser.builder()
       .email(email) // may be a relay address — that's fine
-      .username(request.getUsername())
+      .username(username)
       .appleUserId(appleUserId)
       .displayName(request.getDisplayName())
       .gender(request.getGender())
@@ -458,6 +471,8 @@ public class AuthService {
       .weightLbs(user.getWeightLbs())
       .heightInches(user.getHeightInches())
       .age(user.getAge())
+      .activityLevel(user.getActivityLevel())
+      .goalWeightLbs(user.getGoalWeightLbs())
       .isPrivate(user.getIsPrivate())
       .createdAt(user.getCreatedAt())
       .build();

@@ -9,6 +9,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -70,8 +71,45 @@ public class PostInteractionController {
     CommentDTO comment = postInteractionService.addComment(
       userId,
       postId,
-      request.getBody()
+      request.getBody(),
+      request.getParentCommentId()
     );
     return ResponseEntity.ok(comment);
+  }
+
+  @GetMapping("/{postId}/comments/{commentId}/replies")
+  public ResponseEntity<Page<CommentDTO>> getReplies(
+    @PathVariable UUID postId,
+    @PathVariable UUID commentId,
+    @RequestHeader(value = "Authorization", required = false) String authHeader,
+    @RequestParam(defaultValue = "0") int page,
+    @RequestParam(defaultValue = "20") int size
+  ) {
+    UUID viewingUserId = null;
+    if (authHeader != null && authHeader.startsWith("Bearer ")) {
+      try {
+        viewingUserId = jwtService.extractUserId(authHeader.substring(7));
+      } catch (Exception ignored) {}
+    }
+    Page<CommentDTO> replies = postInteractionService.getReplies(
+      postId,
+      commentId,
+      viewingUserId,
+      page,
+      size
+    );
+    return ResponseEntity.ok(replies);
+  }
+
+  @DeleteMapping("/{postId}/comments/{commentId}")
+  public ResponseEntity<Void> deleteComment(
+    @RequestHeader("Authorization") String authHeader,
+    @PathVariable UUID postId,
+    @PathVariable UUID commentId
+  ) {
+    String token = authHeader.substring(7);
+    UUID userId = jwtService.extractUserId(token);
+    postInteractionService.deleteComment(userId, commentId);
+    return ResponseEntity.noContent().build();
   }
 }

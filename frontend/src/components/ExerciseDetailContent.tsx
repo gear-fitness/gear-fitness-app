@@ -1,17 +1,16 @@
 import {
   StyleSheet,
   View,
-  TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
   Image,
-  Text,
   Keyboard,
   Modal,
   Animated,
   Alert,
   useColorScheme,
 } from "react-native";
+import { Text, TextInput } from "./Text";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import {
   useState,
@@ -36,6 +35,7 @@ import { useSwipeableDelete } from "../hooks/useSwipeableDelete";
 import { BodyPartDTO } from "../api/exerciseService";
 import { FloatingCloseButton } from "./FloatingCloseButton";
 import { FloatingKeyboardDismiss } from "./FloatingKeyboardDismiss";
+import { dismissWorkoutFlow } from "../utils/dismissWorkoutFlow";
 
 interface ExerciseDetailContentProps {
   exercise: {
@@ -148,7 +148,7 @@ function roundToPlateWeight(
 
 function formatWeight(n: number): string {
   if (!isFinite(n)) return "0";
-  return n % 1 === 0 ? String(n) : Number(n.toFixed(1)).toString();
+  return n % 1 === 0 ? String(n) : Number(n.toFixed(2)).toString();
 }
 
 function plateMath(bar: number, sideTotal: number, mode: PlateMode): string {
@@ -583,13 +583,7 @@ export const ExerciseDetailContent = forwardRef<
             { backgroundColor: colors.bg, paddingTop: insets.top },
           ]}
         >
-          <FloatingCloseButton
-            onPress={() => {
-              const parent = navigation.getParent();
-              if (parent) parent.goBack();
-              else navigation.goBack();
-            }}
-          />
+          <FloatingCloseButton onPress={() => dismissWorkoutFlow(navigation)} />
           <View style={styles.topBar}>
             <TouchableOpacity
               activeOpacity={0.7}

@@ -1,7 +1,6 @@
 import {
   StyleSheet,
   View,
-  Text,
   FlatList,
   TouchableOpacity,
   useColorScheme,
@@ -9,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { Text } from "../../components/Text";
 import { Calendar } from "react-native-calendars";
 import React, { useMemo, useState, useEffect } from "react";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -27,6 +27,10 @@ import { useTrackTab } from "../../hooks/useTrackTab";
 import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
 import { SearchBar } from "../../components/SearchBar";
 import { Ionicons } from "@expo/vector-icons";
+import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
+
+// Match the feed cards' corner radius so both surfaces read as one family.
+const CARD_RADIUS = 24;
 
 type RootStackParamList = {
   HomeTabs: undefined;
@@ -46,13 +50,6 @@ type RootStackParamList = {
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-function formatBodyTag(tag: string): string {
-  return tag
-    .split("_")
-    .map((p) => p.charAt(0) + p.slice(1).toLowerCase())
-    .join(" ");
-}
-
 function formatDuration(minutes: number): string {
   if (minutes < 60) return `${minutes}m`;
   const h = Math.floor(minutes / 60);
@@ -67,6 +64,7 @@ export function History() {
   const { user } = useAuth();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+  const glassAvailable = isLiquidGlassAvailable();
 
   const t = isDark
     ? {
@@ -214,82 +212,98 @@ export function History() {
       .toUpperCase();
 
     const hasDuration = item.durationMin != null && item.durationMin > 0;
-    const hasMuscles = Array.isArray(item.bodyTags) && item.bodyTags.length > 0;
-    const hasMetrics = hasDuration || item.exerciseCount > 0 || hasMuscles;
+    const hasMetrics = hasDuration || item.exerciseCount > 0;
+
+    // The pressable is a child of the glass, not a sibling under it: children
+    // mount into the effect view's contentView, the surface UIKit routes
+    // touches through (how MiniPlayer and the feed action bar stay tappable).
+    // An absolute-fill glass behind the pressable intermittently ate taps.
+    // The pressable also must not wrap the glass: a glass effect under an
+    // ancestor whose alpha animates below 1 renders as nothing, so
+    // activeOpacity may only dim the content layer.
+    const cardInner = (
+      <TouchableOpacity
+        style={styles.cardContent}
+        activeOpacity={0.7}
+        onPress={() =>
+          navigation.getParent()?.navigate("DetailedHistory", {
+            workoutId: item.workoutId,
+          })
+        }
+      >
+        <TouchableOpacity
+          onPress={() =>
+            navigation
+              .getParent()
+              ?.navigate("ShareWorkout", { workoutId: item.workoutId })
+          }
+          hitSlop={10}
+          style={styles.dotsBtn}
+          accessibilityLabel="More options"
+        >
+          <Ionicons name="ellipsis-horizontal" size={20} color={t.textMuted} />
+        </TouchableOpacity>
+        <Text
+          style={[styles.workoutDate, { color: t.textMuted }]}
+          numberOfLines={1}
+        >
+          {dateLabel}
+        </Text>
+        <Text
+          style={[styles.workoutTitle, { color: t.text }]}
+          maxFontSizeMultiplier={1}
+        >
+          {item.name}
+        </Text>
+
+        {hasMetrics && (
+          <View style={styles.metricsRow}>
+            {hasDuration && (
+              <View style={styles.metricCell}>
+                <Text style={[styles.metricLabel, { color: t.textMuted }]}>
+                  Time
+                </Text>
+                <Text
+                  style={[styles.metricValue, { color: t.text }]}
+                  maxFontSizeMultiplier={1}
+                >
+                  {formatDuration(item.durationMin!)}
+                </Text>
+              </View>
+            )}
+            <View style={styles.metricCell}>
+              <Text style={[styles.metricLabel, { color: t.textMuted }]}>
+                Exercises
+              </Text>
+              <Text
+                style={[styles.metricValue, { color: t.text }]}
+                maxFontSizeMultiplier={1}
+              >
+                {item.exerciseCount}
+              </Text>
+            </View>{" "}
+          </View>
+        )}
+      </TouchableOpacity>
+    );
 
     return (
       <View style={styles.rowWrapper}>
-        <TouchableOpacity
-          style={[
-            styles.workoutCard,
-            { backgroundColor: t.surface, borderColor: t.border },
-          ]}
-          activeOpacity={0.7}
-          onPress={() =>
-            navigation.getParent()?.navigate("DetailedHistory", {
-              workoutId: item.workoutId,
-            })
-          }
-        >
-          <TouchableOpacity
-            onPress={() =>
-              navigation
-                .getParent()
-                ?.navigate("ShareWorkout", { workoutId: item.workoutId })
-            }
-            hitSlop={10}
-            style={styles.dotsBtn}
-            accessibilityLabel="More options"
+        {glassAvailable ? (
+          <GlassView style={styles.workoutCard} glassEffectStyle="regular">
+            {cardInner}
+          </GlassView>
+        ) : (
+          <View
+            style={[
+              styles.workoutCard,
+              styles.workoutCardFallback,
+              { backgroundColor: t.surface, borderColor: t.border },
+            ]}
           >
-            <Ionicons
-              name="ellipsis-horizontal"
-              size={20}
-              color={t.textMuted}
-            />
-          </TouchableOpacity>
-          <Text
-            style={[styles.workoutDate, { color: t.textMuted }]}
-            numberOfLines={1}
-          >
-            {dateLabel}
-          </Text>
-          <Text style={[styles.workoutTitle, { color: t.text }]}>
-            {item.name}
-          </Text>
-
-          {hasMetrics && (
-            <View style={styles.metricsRow}>
-              {hasDuration && (
-                <View style={styles.metricCell}>
-                  <Text style={[styles.metricLabel, { color: t.textMuted }]}>
-                    Time
-                  </Text>
-                  <Text style={[styles.metricValue, { color: t.text }]}>
-                    {formatDuration(item.durationMin!)}
-                  </Text>
-                </View>
-              )}
-              <View style={styles.metricCell}>
-                <Text style={[styles.metricLabel, { color: t.textMuted }]}>
-                  Exercises
-                </Text>
-                <Text style={[styles.metricValue, { color: t.text }]}>
-                  {item.exerciseCount}
-                </Text>
-              </View>
-              {hasMuscles && (
-                <View style={styles.metricCell}>
-                  <Text style={[styles.metricLabel, { color: t.textMuted }]}>
-                    Muscles
-                  </Text>
-                  <Text style={[styles.musclesText, { color: t.text }]}>
-                    {item.bodyTags.map(formatBodyTag).join(", ")}
-                  </Text>
-                </View>
-              )}
-            </View>
-          )}
-        </TouchableOpacity>
+            {cardInner}
+          </View>
+        )}
       </View>
     );
   };
@@ -433,13 +447,21 @@ const styles = StyleSheet.create({
   rowWrapper: {
     marginHorizontal: 20,
     marginBottom: 10,
-    borderRadius: 16,
-    overflow: "hidden",
+    borderRadius: CARD_RADIUS,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
   },
   workoutCard: {
-    padding: 16,
-    borderRadius: 16,
+    borderRadius: CARD_RADIUS,
+    overflow: "hidden",
+  },
+  workoutCardFallback: {
     borderWidth: StyleSheet.hairlineWidth,
+  },
+  cardContent: {
+    padding: 16,
   },
   dotsBtn: {
     position: "absolute",
@@ -479,12 +501,5 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     marginTop: 2,
     fontVariant: ["tabular-nums"],
-  },
-  musclesText: {
-    fontSize: 18,
-    fontWeight: "600",
-    letterSpacing: -0.3,
-    lineHeight: 24,
-    marginTop: 2,
   },
 });

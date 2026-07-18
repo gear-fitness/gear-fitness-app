@@ -48,6 +48,14 @@ public class AppUser {
   @Column
   private Integer age;
 
+  // Calorie-calculator inputs, collected during onboarding and editable from
+  // the nutrition setup wizard. Values: sedentary | light | moderate | very_active.
+  @Column(name = "activity_level", length = 20)
+  private String activityLevel;
+
+  @Column(name = "goal_weight_lbs")
+  private Integer goalWeightLbs;
+
   @Column(nullable = false, unique = true)
   private String email;
 
@@ -79,6 +87,21 @@ public class AppUser {
 
   @Column(name = "last_streak_date")
   private LocalDate lastStreakDate;
+
+  // Subscription tier, authoritative source written by the RevenueCat webhook.
+  @Enumerated(EnumType.STRING)
+  @Column(name = "tier", nullable = false, length = 20)
+  @Builder.Default
+  private Tier tier = Tier.BASIC;
+
+  @Column(name = "tier_expires_at")
+  private LocalDateTime tierExpiresAt;
+
+  @Column(name = "tier_product_id")
+  private String tierProductId;
+
+  @Column(name = "tier_store", length = 40)
+  private String tierStore;
 
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)

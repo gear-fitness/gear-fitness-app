@@ -8,6 +8,8 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
@@ -31,6 +33,10 @@ public class S3StorageService {
   // legacy prefix; "posts/" is used for new presigned-PUT uploads.
   public static final String WORKOUT_PHOTOS_PREFIX = "workout-photos/";
   public static final String POSTS_PREFIX = "posts/";
+  // Ephemeral AI meal-photo keys (gear-fitness-images). Uploaded via presigned
+  // PUT, analyzed, then deleted immediately; a lifecycle rule on this prefix
+  // sweeps any a client uploads but never submits for analysis.
+  public static final String AI_FOOD_PREFIX = "ai-food/";
 
   public static final Duration VIEW_URL_TTL = Duration.ofMinutes(10);
   private static final Duration UPLOAD_URL_TTL = Duration.ofMinutes(5);
@@ -55,9 +61,10 @@ public class S3StorageService {
   /**
    * Resolve which bucket a key belongs to from its prefix. Throws for any key
    * that is not under a known prefix — this is the guard that prevents a client
-   * from presigning arbitrary objects.
+   * from presigning arbitrary objects. Public so moderation can point
+   * Rekognition at the right bucket for a stored key.
    */
-  private String bucketForKey(String key) {
+  public String bucketForKey(String key) {
     if (key == null || key.isBlank()) {
       throw new IllegalArgumentException("Image key is required");
     }
@@ -66,7 +73,11 @@ public class S3StorageService {
     ) {
       return profileBucket;
     }
-    if (key.startsWith(WORKOUT_PHOTOS_PREFIX) || key.startsWith(POSTS_PREFIX)) {
+    if (
+      key.startsWith(WORKOUT_PHOTOS_PREFIX) ||
+      key.startsWith(POSTS_PREFIX) ||
+      key.startsWith(AI_FOOD_PREFIX)
+    ) {
       return imagesBucket;
     }
     throw new IllegalArgumentException("Unrecognized image key: " + key);
@@ -101,7 +112,7 @@ public class S3StorageService {
     byte[] imageBytes,
     String contentType
   ) {
-    String key = PROFILE_PICTURES_PREFIX + userId + ".jpg";
+    String key = profilePictureKey(userId);
 
     PutObjectRequest putRequest = PutObjectRequest.builder()
       .bucket(profileBucket)
@@ -112,6 +123,46 @@ public class S3StorageService {
     s3Client.putObject(putRequest, RequestBody.fromBytes(imageBytes));
 
     return key;
+  }
+
+  /**
+   * The deterministic S3 key for a user's profile picture. Stable across
+   * re-uploads so a new picture overwrites the old object in place.
+   */
+  public String profilePictureKey(UUID userId) {
+    return PROFILE_PICTURES_PREFIX + userId + ".jpg";
+  }
+
+  /**
+   * Generate a presigned PUT url for the caller's profile picture (direct
+   * client-to-S3 upload, mirroring the post-image flow). The key is
+   * deterministic per user so re-uploads overwrite in place. The client must PUT
+   * with a Content-Type matching {@code contentType} exactly or S3 returns
+   * SignatureDoesNotMatch.
+   *
+   * Preferred over {@link #uploadProfilePicture} (proxy/multipart) because the
+   * image bytes never traverse the backend — avoiding WAF/proxy rules that 403
+   * a multipart body.
+   */
+  public PresignedUpload generateProfilePictureUploadUrl(
+    UUID userId,
+    String contentType
+  ) {
+    String key = profilePictureKey(userId);
+
+    PutObjectRequest putRequest = PutObjectRequest.builder()
+      .bucket(profileBucket)
+      .key(key)
+      .contentType(contentType)
+      .build();
+
+    PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
+      .signatureDuration(UPLOAD_URL_TTL)
+      .putObjectRequest(putRequest)
+      .build();
+
+    String url = s3Presigner.presignPutObject(presignRequest).url().toString();
+    return new PresignedUpload(key, url);
   }
 
   public void deleteProfilePicture(UUID userId) {
@@ -190,6 +241,76 @@ public class S3StorageService {
     return key;
   }
 
+  // --- Ephemeral AI meal photos (presigned PUT, deleted after analysis) -----
+
+  /**
+   * Generate a server-side key and presigned PUT url for an ephemeral AI meal
+   * photo. The object lives in the images bucket under {@code ai-food/} and is
+   * deleted right after the vision call; the client PUTs the compressed JPEG
+   * directly so the bytes never traverse the backend (or its WAF). The client
+   * must PUT with a Content-Type matching {@code contentType} exactly.
+   */
+  public PresignedUpload generateAiFoodUploadUrl(
+    UUID userId,
+    String contentType
+  ) {
+    String extension = "image/png".equalsIgnoreCase(contentType)
+      ? "png"
+      : "jpg";
+    String key =
+      AI_FOOD_PREFIX + userId + "/" + UUID.randomUUID() + "." + extension;
+
+    PutObjectRequest putRequest = PutObjectRequest.builder()
+      .bucket(imagesBucket)
+      .key(key)
+      .contentType(contentType)
+      .build();
+
+    PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
+      .signatureDuration(UPLOAD_URL_TTL)
+      .putObjectRequest(putRequest)
+      .build();
+
+    String url = s3Presigner.presignPutObject(presignRequest).url().toString();
+    return new PresignedUpload(key, url);
+  }
+
+  /**
+   * Read an object's content type and length without downloading its body. A
+   * presigned PUT is size-unbounded, so callers guard on this before pulling
+   * bytes into memory.
+   */
+  public ObjectMetadata headObject(String key) {
+    HeadObjectResponse head = s3Client.headObject(
+      HeadObjectRequest.builder().bucket(bucketForKey(key)).key(key).build()
+    );
+    long length = head.contentLength() == null ? -1L : head.contentLength();
+    return new ObjectMetadata(head.contentType(), length);
+  }
+
+  /** Download an object's bytes. Size-check via {@link #headObject} first. */
+  public byte[] getObjectBytes(String key) {
+    return s3Client
+      .getObjectAsBytes(
+        GetObjectRequest.builder().bucket(bucketForKey(key)).key(key).build()
+      )
+      .asByteArray();
+  }
+
+  /** Delete an ephemeral AI meal photo by key. Best-effort; never throws. */
+  public void deleteAiFoodImage(String key) {
+    try {
+      if (key == null || !key.startsWith(AI_FOOD_PREFIX)) {
+        return;
+      }
+      deleteByKey(key);
+    } catch (Exception e) {
+      System.err.println(
+        "Failed to delete AI food image from S3: " + e.getMessage()
+      );
+    }
+  }
+
   /** Delete a post/workout image by its stored key. */
   public void deleteImageByKey(String key) {
     try {
@@ -214,4 +335,6 @@ public class S3StorageService {
   }
 
   public record PresignedUpload(String key, String url) {}
+
+  public record ObjectMetadata(String contentType, long contentLength) {}
 }

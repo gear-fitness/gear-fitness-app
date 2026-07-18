@@ -1,5 +1,6 @@
 import React from "react";
-import { useColorScheme, View, Text, StyleSheet } from "react-native";
+import { useColorScheme, View, StyleSheet } from "react-native";
+import { Text } from "../../components/Text";
 import {
   SafeAreaView,
   useSafeAreaInsets,

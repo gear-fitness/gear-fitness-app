@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/routines")
@@ -35,6 +36,11 @@ public class RoutineController {
 
       RoutineDTO routine = routineService.createRoutine(dto, userId);
       return ResponseEntity.status(HttpStatus.CREATED).body(routine);
+    } catch (ResponseStatusException e) {
+      // Deliberate status (e.g. 403 ROUTINE_LIMIT for a BASIC user at the free
+      // routine cap). Re-throw so Spring returns the real status instead of the
+      // generic 500 below, letting the client show the Plus upsell.
+      throw e;
     } catch (IllegalArgumentException e) {
       return ResponseEntity.badRequest().build();
     } catch (Exception e) {
@@ -57,6 +63,11 @@ public class RoutineController {
 
       RoutineDTO routine = routineService.createFromWorkout(dto, userId);
       return ResponseEntity.status(HttpStatus.CREATED).body(routine);
+    } catch (ResponseStatusException e) {
+      // Deliberate status (e.g. 403 ROUTINE_LIMIT for a BASIC user at the free
+      // routine cap). Re-throw so Spring returns the real status instead of the
+      // generic 500 below, letting the client show the Plus upsell.
+      throw e;
     } catch (IllegalArgumentException e) {
       return ResponseEntity.badRequest().build();
     } catch (Exception e) {

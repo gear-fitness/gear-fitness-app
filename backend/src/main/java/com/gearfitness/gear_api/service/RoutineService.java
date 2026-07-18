@@ -10,6 +10,7 @@ import com.gearfitness.gear_api.entity.AppUser;
 import com.gearfitness.gear_api.entity.Exercise;
 import com.gearfitness.gear_api.entity.Routine;
 import com.gearfitness.gear_api.entity.RoutineExercise;
+import com.gearfitness.gear_api.entity.Tier;
 import com.gearfitness.gear_api.entity.Workout;
 import com.gearfitness.gear_api.entity.WorkoutExercise;
 import com.gearfitness.gear_api.repository.AppUserRepository;
@@ -19,12 +20,15 @@ import com.gearfitness.gear_api.repository.WorkoutRepository;
 import jakarta.transaction.Transactional;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
@@ -44,18 +48,25 @@ public class RoutineService {
       .findById(userId)
       .orElseThrow(() -> new RuntimeException("User not found"));
 
+    if (
+      !user.getTier().atLeast(Tier.PLUS) &&
+      routineRepository.countByUser_UserId(userId) >= 3
+    ) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "ROUTINE_LIMIT");
+    }
+
     Workout workout = workoutRepository
       .findByIdWithDetails(dto.getWorkoutId())
       .orElseThrow(() -> new RuntimeException("Workout not found"));
 
-    List<Routine.ScheduledDay> mappedDays =
+    Set<Routine.ScheduledDay> mappedDays =
       (dto.getScheduledDays()) == null || dto.getScheduledDays().isEmpty()
-        ? new ArrayList<>()
+        ? new LinkedHashSet<>()
         : dto
             .getScheduledDays()
             .stream()
             .map(s -> Routine.ScheduledDay.valueOf(s.toUpperCase()))
-            .toList();
+            .collect(Collectors.toCollection(LinkedHashSet::new));
 
     Routine routine = Routine.builder()
       .user(user)
@@ -83,14 +94,21 @@ public class RoutineService {
       .findById(userId)
       .orElseThrow(() -> new RuntimeException("User not found"));
 
-    List<Routine.ScheduledDay> mappedDays = (dto.getScheduledDays() == null ||
+    if (
+      !user.getTier().atLeast(Tier.PLUS) &&
+      routineRepository.countByUser_UserId(userId) >= 3
+    ) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "ROUTINE_LIMIT");
+    }
+
+    Set<Routine.ScheduledDay> mappedDays = (dto.getScheduledDays() == null ||
       dto.getScheduledDays().isEmpty())
-      ? new ArrayList<>()
+      ? new LinkedHashSet<>()
       : dto
           .getScheduledDays()
           .stream()
           .map(s -> Routine.ScheduledDay.valueOf(s.toUpperCase()))
-          .toList();
+          .collect(Collectors.toCollection(LinkedHashSet::new));
 
     Routine routine = Routine.builder()
       .user(user)
@@ -179,11 +197,11 @@ public class RoutineService {
       routine.setName(dto.getName());
     }
     if (dto.getScheduledDays() != null) {
-      List<Routine.ScheduledDay> mapped = dto
+      Set<Routine.ScheduledDay> mapped = dto
         .getScheduledDays()
         .stream()
         .map(d -> Routine.ScheduledDay.valueOf(d.toUpperCase()))
-        .collect(Collectors.toList());
+        .collect(Collectors.toCollection(LinkedHashSet::new));
       routine.setScheduledDays(mapped);
     }
     if (dto.getExerciseIds() != null) {

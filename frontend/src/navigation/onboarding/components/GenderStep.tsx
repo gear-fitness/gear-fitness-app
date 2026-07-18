@@ -1,47 +1,65 @@
 import React, { useMemo } from "react";
-import { View, Text, Pressable } from "react-native";
-import { Gender } from "../types";
-import { OnboardingTopBar } from "./OnboardingTopBar";
+import { View, StyleSheet } from "react-native";
+import { Text } from "../../../components/Text";
+import { StepProps } from "../stepProps";
+import { StepScaffold } from "./StepScaffold";
+import { OptionCardList } from "./OptionCardList";
 import { useOnboardingColors } from "./useOnboardingColors";
 import { makeOnboardingStyles } from "./makeOnboardingStyles";
-import { GenderCardList } from "./GenderCardList";
+import { Gender } from "../types";
 
-interface GenderStepProps {
-  selected?: Gender;
-  onSelect: (g: Gender) => void;
-  onBack: () => void;
-  onContinue: () => void;
-}
+const GENDER_OPTIONS: {
+  value: Gender;
+  label: string;
+  emoji?: string;
+  icon?: string;
+}[] = [
+  { value: "male", label: "Male", emoji: "♂" },
+  { value: "female", label: "Female", emoji: "♀" },
+  { value: "other", label: "Other", icon: "square.grid.2x2.fill" },
+  {
+    value: "prefer_not_to_say",
+    label: "Prefer not to say",
+    icon: "hand.raised.fill",
+  },
+];
 
 export function GenderStep({
-  selected,
-  onSelect,
+  draft,
+  updateDraft,
+  onNext,
   onBack,
-  onContinue,
-}: GenderStepProps) {
+  progress,
+}: StepProps) {
   const colors = useOnboardingColors();
   const shared = useMemo(() => makeOnboardingStyles(colors), [colors]);
 
   return (
-    <View style={shared.screen}>
-      <OnboardingTopBar progress={0.2} onBack={onBack} />
-      <View style={shared.body}>
-        <Text style={shared.heading}>What's your gender?</Text>
-        <GenderCardList
-          selected={selected}
-          onSelect={onSelect}
-          colors={colors}
+    <StepScaffold
+      progress={progress}
+      onBack={onBack}
+      onContinue={onNext}
+      continueDisabled={!draft.gender}
+    >
+      <View style={styles.center}>
+        <Text style={shared.heading}>Choose your sex</Text>
+        <Text style={shared.subheading}>
+          This helps personalize your experience.
+        </Text>
+        <OptionCardList
+          minimal
+          options={GENDER_OPTIONS}
+          selected={draft.gender}
+          onSelect={(gender: Gender) => updateDraft({ gender })}
         />
       </View>
-      <View style={shared.footer}>
-        <Pressable
-          onPress={onContinue}
-          disabled={!selected}
-          style={[shared.continueBtn, !selected && shared.continueBtnDisabled]}
-        >
-          <Text style={shared.continueBtnText}>Continue</Text>
-        </Pressable>
-      </View>
-    </View>
+    </StepScaffold>
   );
 }
+
+const styles = StyleSheet.create({
+  center: {
+    flex: 1,
+    justifyContent: "center",
+  },
+});

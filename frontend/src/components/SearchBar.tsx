@@ -1,11 +1,12 @@
+import { forwardRef } from "react";
 import {
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   View,
   type StyleProp,
   type ViewStyle,
 } from "react-native";
+import { TextInput } from "./Text";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@react-navigation/native";
 
@@ -19,52 +20,61 @@ interface SearchBarProps {
   style?: StyleProp<ViewStyle>;
 }
 
-export function SearchBar({
-  value,
-  onChangeText,
-  placeholder = "Search",
-  autoFocus,
-  returnKeyType,
-  onSubmitEditing,
-  style,
-}: SearchBarProps) {
-  const { colors } = useTheme();
+// Forwards a ref to the inner TextInput so callers can focus/blur imperatively
+// (e.g. the collapsible search on the social screen).
+export const SearchBar = forwardRef<TextInput, SearchBarProps>(
+  function SearchBar(
+    {
+      value,
+      onChangeText,
+      placeholder = "Search",
+      autoFocus,
+      returnKeyType,
+      onSubmitEditing,
+      style,
+    },
+    ref,
+  ) {
+    const { colors } = useTheme();
 
-  return (
-    <View
-      style={[
-        styles.container,
-        { backgroundColor: colors.card, borderColor: colors.border },
-        style,
-      ]}
-    >
-      <Ionicons
-        name="search"
-        size={20}
-        color={colors.text}
-        style={styles.icon}
-      />
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={colors.border}
-        autoCorrect={false}
-        autoCapitalize="none"
-        autoComplete="off"
-        autoFocus={autoFocus}
-        returnKeyType={returnKeyType}
-        onSubmitEditing={onSubmitEditing}
-        style={[styles.input, { color: colors.text }]}
-      />
-      {value.length > 0 && (
-        <TouchableOpacity onPress={() => onChangeText("")}>
-          <Ionicons name="close-circle" size={20} color={colors.border} />
-        </TouchableOpacity>
-      )}
-    </View>
-  );
-}
+    return (
+      <View
+        style={[
+          styles.container,
+          { backgroundColor: colors.card, borderColor: colors.border },
+          style,
+        ]}
+      >
+        <Ionicons
+          name="search"
+          size={20}
+          color={colors.text}
+          style={styles.icon}
+        />
+        <TextInput
+          ref={ref}
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={colors.border}
+          autoCorrect={false}
+          autoCapitalize="none"
+          autoComplete="off"
+          autoFocus={autoFocus}
+          returnKeyType={returnKeyType}
+          onSubmitEditing={onSubmitEditing}
+          maxFontSizeMultiplier={1.2}
+          style={[styles.input, { color: colors.text }]}
+        />
+        {value.length > 0 && (
+          <TouchableOpacity onPress={() => onChangeText("")}>
+            <Ionicons name="close-circle" size={20} color={colors.border} />
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  },
+);
 
 const styles = StyleSheet.create({
   container: {

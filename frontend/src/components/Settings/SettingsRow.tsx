@@ -3,10 +3,10 @@ import {
   ColorValue,
   StyleSheet,
   Switch,
-  Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text } from "../Text";
 
 export type SettingsCellPosition = "single" | "first" | "middle" | "last";
 

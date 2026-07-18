@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from "react";
-import { View, Text, Alert, Pressable, StyleSheet } from "react-native";
+import { View, Alert, Pressable, StyleSheet } from "react-native";
+import { Text } from "../../../components/Text";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Picker } from "@react-native-picker/picker";
 import { useAuth } from "../../../context/AuthContext";
 import { useUnitPreference } from "../../../context/UnitPreferenceContext";
-import { toDisplayWeight } from "../../../utils/weight";
+import { toDisplayWeight, LBS_PER_KG } from "../../../utils/weight";
 import { updateUserProfile } from "../../../api/userService";
 import { Weight } from "../../onboarding/types";
 import { LB_VALUES, KG_VALUES } from "../../onboarding/pickerConstants";
@@ -17,7 +18,7 @@ import { syncOnboardingDataToHealthKit } from "../../../utils/healthKitSync";
 
 function toWeightLbs(w: Weight): number {
   if (w.unit === "lbs") return w.value;
-  return Math.round(w.value * 2.205);
+  return Math.round(w.value * LBS_PER_KG);
 }
 
 function formatWeight(w?: Weight): string {

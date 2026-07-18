@@ -113,6 +113,14 @@ public class AppUserService {
       user.setAge(request.getAge());
     }
 
+    if (request.getActivityLevel() != null) {
+      user.setActivityLevel(request.getActivityLevel());
+    }
+
+    if (request.getGoalWeightLbs() != null) {
+      user.setGoalWeightLbs(request.getGoalWeightLbs());
+    }
+
     if (request.getIsPrivate() != null) {
       user.setIsPrivate(request.getIsPrivate());
     }
@@ -214,9 +222,12 @@ public class AppUserService {
       .weightLbs(user.getWeightLbs())
       .heightInches(user.getHeightInches())
       .age(user.getAge())
+      .activityLevel(user.getActivityLevel())
+      .goalWeightLbs(user.getGoalWeightLbs())
       .isPrivate(user.getIsPrivate())
       .profilePictureUrl(user.getProfilePictureUrl())
       .createdAt(user.getCreatedAt())
+      .tier(user.getTier().name())
       .workoutStats(workoutStats)
       .followersCount(followersCount)
       .followingCount(followingCount)
@@ -419,6 +430,8 @@ public class AppUserService {
       .weightLbs(user.getWeightLbs())
       .heightInches(user.getHeightInches())
       .age(user.getAge())
+      .activityLevel(user.getActivityLevel())
+      .goalWeightLbs(user.getGoalWeightLbs())
       .isPrivate(user.getIsPrivate())
       .profilePictureUrl(user.getProfilePictureUrl())
       .createdAt(user.getCreatedAt())

@@ -7,11 +7,11 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
-  Text,
   useColorScheme,
   Animated,
   Easing,
 } from "react-native";
+import { Text } from "../../components/Text";
 import { Button } from "@react-navigation/elements";
 import {
   useNavigation,
@@ -31,6 +31,9 @@ import {
 import { blockUser } from "../../api/followService";
 import { UserProfile } from "../../api/types";
 import { useAuth } from "../../context/AuthContext";
+import { useTier } from "../../hooks/useTier";
+import { usePurchases } from "../../context/PurchasesContext";
+import { SymbolView } from "expo-symbols";
 import { subscribeOnlineStatus } from "../../utils/network";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { socialFeedApi, FeedPost } from "../../api/socialFeedApi";
@@ -40,9 +43,19 @@ import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
 import { useSocialFeed } from "../../context/SocialFeedContext";
 import { useFollowStatus } from "../../context/FollowStatusContext";
 import { Avatar } from "../../components/Avatar";
+import { StreakIcon } from "../../components/StreakIcon";
+import { getStreakAccentColor } from "../../utils/streak";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
-import { getPendingPosts, isPendingPostId } from "../../utils/pendingPosts";
+import {
+  confirmDiscardPendingPost,
+  getPendingPosts,
+  isPendingFeedPost,
+} from "../../utils/pendingPosts";
+import { retryPendingWorkout } from "../../utils/workoutQueue";
+import { subscribePostUploadEvents } from "../../utils/postUploadProgress";
 
+// Accent for Gear Plus UI (sparkle icon + badge).
+const PLUS_ACCENT = "#4F6BF6";
 const WEEK_LABELS = ["S", "M", "T", "W", "T", "F", "S"] as const;
 const GRID_ROWS = 5;
 const GRID_COLS = 7;
@@ -80,6 +93,16 @@ function formatDayLabel(dateStr: string): string {
     month: "short",
     day: "numeric",
   });
+}
+
+// Expand a #RRGGBB hex to an rgba() string. The activity-grid dots derive their
+// lower-intensity steps as translucent shades of the streak accent, so one tier
+// color yields the whole ramp and composites correctly over either theme bg.
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 // Shared pulse animation hook for all skeleton blocks on the screen.
@@ -122,6 +145,11 @@ export function Profile() {
   useTrackTab(isOtherUser ? "UserProfile" : "Profile");
 
   const { user: authUser } = useAuth();
+  const { atLeast } = useTier();
+  const { trialEligible } = usePurchases();
+  // Own profile only: non-Plus members see the upsell, Plus members the badge.
+  const isOwnProfile = !isOtherUser;
+  const isPlus = atLeast("PLUS");
   // Seed the own-profile view with the cached auth user so the screen has
   // content immediately and stays usable while offline. The network fetch
   // below replaces it as soon as it lands. Other-user profiles aren't
@@ -142,7 +170,7 @@ export function Profile() {
   >({});
   const [followLoading, setFollowLoading] = useState(false);
   const normalizeFeedPosts = useNormalizeFeedPosts();
-  const { invalidate: invalidateFeed } = useSocialFeed();
+  const { invalidateAll: invalidateFeeds } = useSocialFeed();
   const { setFollowStatus: publishFollowStatus } = useFollowStatus();
 
   // Mirror this profile's follow status into the shared store on every change
@@ -174,9 +202,6 @@ export function Profile() {
         primaryText: "#000",
         skeleton: "rgba(255,255,255,0.08)",
         dotEmpty: "rgba(255,255,255,0.06)",
-        dotLow: "#4a2a12",
-        dotMid: "#8a4716",
-        dotHigh: "#ff6a1f",
       }
     : {
         bg: "#fafafa",
@@ -189,9 +214,6 @@ export function Profile() {
         primaryText: "#fff",
         skeleton: "rgba(0,0,0,0.08)",
         dotEmpty: "rgba(0,0,0,0.06)",
-        dotLow: "#ffd2a8",
-        dotMid: "#ff9d5c",
-        dotHigh: "#e56a1f",
       };
 
   const loadProfile = async () => {
@@ -251,9 +273,9 @@ export function Profile() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Re-pull pending posts whenever the screen regains focus. Posting offline
-  // from WorkoutComplete navigates back to this screen, so the synthesized
-  // "in-progress" card needs to appear without a manual refresh.
+  // Re-pull pending posts whenever the screen regains focus. Posting lands
+  // the user on the social feed, so the synthesized "in-progress" card must
+  // appear without a manual refresh whenever Profile is next opened.
   useFocusEffect(
     React.useCallback(() => {
       if (isOtherUser) return;
@@ -266,6 +288,25 @@ export function Profile() {
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [profile, isOtherUser]),
   );
+
+  // Resolve the pending card in place when the outbox delivers while this
+  // screen is already up: "Only me" posts land the user here, and without
+  // this the card would sit on "Uploading..." until the next focus. Only
+  // the delivered event triggers a reload; per-write outboxChanged events
+  // fire once per uploaded photo mid-flush and would refetch too often.
+  useEffect(() => {
+    if (isOtherUser) return;
+    return subscribePostUploadEvents((event) => {
+      if (event.type !== "delivered") return;
+      if (profile) {
+        loadUserPosts(profile);
+        loadActivityPosts(profile);
+      }
+    });
+    // loadUserPosts/loadActivityPosts are closures captured at render, same
+    // contract as the focus effect above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile, isOtherUser]);
 
   const handleFollowToggle = async () => {
     if (!profile || followLoading) return;
@@ -291,7 +332,7 @@ export function Profile() {
               );
               try {
                 await unfollowUser(profile.userId);
-                invalidateFeed();
+                invalidateFeeds();
                 loadProfile();
               } catch {
                 setProfile((prev) =>
@@ -346,7 +387,7 @@ export function Profile() {
               }
             : prev,
         );
-        if (response.status === "ACCEPTED") invalidateFeed();
+        if (response.status === "ACCEPTED") invalidateFeeds();
         loadProfile();
       } catch {
         setProfile((prev) =>
@@ -402,6 +443,24 @@ export function Profile() {
       console.error("Error loading pending posts:", err);
       return [];
     }
+  };
+
+  // Retry/Discard for a failed outbox post (surfaced on the pending card).
+  // Retry resolves when the queue drain finishes, so the reload reflects the
+  // outcome: entry gone (posted) or still failed.
+  const handleRetryPendingPost = async (queueId: string) => {
+    try {
+      await retryPendingWorkout(queueId);
+    } catch (err) {
+      console.error("Error retrying pending post:", err);
+    }
+    await loadUserPosts();
+  };
+
+  const handleDiscardPendingPost = (queueId: string) => {
+    confirmDiscardPendingPost(queueId, () => {
+      void loadUserPosts();
+    });
   };
 
   const loadUserPosts = async (profileData?: UserProfile) => {
@@ -507,14 +566,18 @@ export function Profile() {
       profile.workoutStats?.dailyActivity ??
       Array<number>(GRID_ROWS * GRID_COLS).fill(0);
 
+    // The grid accent tracks the user's current streak tier, so the heatmap
+    // "levels up" with the flame (orange → red → magenta → purple). Lower
+    // intensities are translucent shades of that accent.
+    const accent = getStreakAccentColor(streak);
     const dotColor = (level: number) =>
       level === 0
         ? t.dotEmpty
         : level === 1
-          ? t.dotLow
+          ? hexToRgba(accent, 0.28)
           : level === 2
-            ? t.dotMid
-            : t.dotHigh;
+            ? hexToRgba(accent, 0.6)
+            : accent;
 
     return (
       <View>
@@ -537,6 +600,7 @@ export function Profile() {
             <Text
               style={[styles.displayName, { color: t.text }]}
               numberOfLines={1}
+              maxFontSizeMultiplier={1}
             >
               {primaryName}
             </Text>
@@ -644,23 +708,57 @@ export function Profile() {
           )}
         </View>
 
+        {isOwnProfile && !isPlus && (
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate("Paywall")}
+            style={[
+              styles.plusPromo,
+              { backgroundColor: t.surface, borderColor: t.border },
+            ]}
+          >
+            <SymbolView
+              name="sparkle"
+              size={24}
+              tintColor={PLUS_ACCENT}
+              resizeMode="scaleAspectFit"
+              style={styles.plusPromoIcon}
+            />
+            <View style={styles.plusPromoTextWrap}>
+              <Text style={[styles.plusPromoTitle, { color: t.text }]}>
+                {trialEligible
+                  ? "Try Plus free for 3 days"
+                  : "Upgrade to Gear Plus"}
+              </Text>
+              <Text style={[styles.plusPromoSub, { color: t.textMuted }]}>
+                Routines, full history, and more
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={t.textMuted} />
+          </TouchableOpacity>
+        )}
+
         {!isPrivateAndLocked && (
           <View style={styles.activitySection}>
             <View style={styles.sectionHeader}>
-              <Text style={[styles.overline, { color: t.textMuted }]}>
-                ACTIVITY
-              </Text>
+              <View>
+                {isOwnProfile && isPlus && (
+                  <View
+                    style={[styles.plusBadge, { backgroundColor: PLUS_ACCENT }]}
+                  >
+                    <Text style={styles.plusBadgeText}>PLUS</Text>
+                  </View>
+                )}
+                <Text style={[styles.overline, { color: t.textMuted }]}>
+                  ACTIVITY
+                </Text>
+              </View>
               <View style={styles.streakInline}>
-                <Svg width={22} height={25} viewBox="0 0 16 18" fill="none">
-                  <Path
-                    d="M8 1.5c.8 2.6 3 3.8 3 6.8 0 1.4-.7 2.6-1.8 3.3.4-.6.5-1.4.2-2.3-.3-1-1.1-1.6-1.4-2.6C7.2 9 6 10 6 11.7c0 .6.2 1.2.4 1.7C5.3 12.7 4.5 11.4 4.5 10c0-2.5 1.6-3.8 2.6-5.8.4-.8.7-1.8.9-2.7Z"
-                    stroke="#FF6A1F"
-                    strokeWidth={1.3}
-                    strokeLinejoin="round"
-                    fill="none"
-                  />
-                </Svg>
-                <Text style={[styles.streakNumber, { color: t.text }]}>
+                <StreakIcon streak={streak} size={25} isDark={isDark} />
+                <Text
+                  style={[styles.streakNumber, { color: t.text }]}
+                  maxFontSizeMultiplier={1}
+                >
                   {streak}
                 </Text>
               </View>
@@ -768,6 +866,12 @@ export function Profile() {
     );
   }
 
+  // Narrow the headline card's post once, here, because the type guard's
+  // narrowing would not survive into the JSX callbacks below.
+  const headlinePost = posts.length > 0 ? posts[0] : null;
+  const headlinePending =
+    headlinePost && isPendingFeedPost(headlinePost) ? headlinePost : null;
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.bg }} edges={["top"]}>
       {isOtherUser && (
@@ -818,11 +922,28 @@ export function Profile() {
                 Follow this account to see their posts.
               </Text>
             </View>
-          ) : posts.length > 0 ? (
+          ) : headlinePost ? (
             <FeedPostCard
-              post={posts[0]}
+              post={headlinePost}
               onOpenComments={handleOpenComments}
-              isPending={isPendingPostId(posts[0].postId)}
+              isPending={headlinePending != null}
+              pendingFailed={headlinePending?.pendingStatus === "failed"}
+              pendingQueueId={headlinePending?.pendingQueueId}
+              onRetryPending={
+                headlinePending
+                  ? () => {
+                      void handleRetryPendingPost(
+                        headlinePending.pendingQueueId,
+                      );
+                    }
+                  : undefined
+              }
+              onDiscardPending={
+                headlinePending
+                  ? () =>
+                      handleDiscardPendingPost(headlinePending.pendingQueueId)
+                  : undefined
+              }
             />
           ) : postsLoading ? (
             <PostCardSkeleton t={t} />
@@ -855,7 +976,12 @@ function Stat({
       <Text style={[styles.statLabel, { color: theme.textMuted }]}>
         {label}
       </Text>
-      <Text style={[styles.statValue, { color: theme.text }]}>{value}</Text>
+      <Text
+        style={[styles.statValue, { color: theme.text }]}
+        maxFontSizeMultiplier={1}
+      >
+        {value}
+      </Text>
     </View>
   );
 }
@@ -1079,6 +1205,47 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
 
+  plusPromo: {
+    marginHorizontal: 20,
+    marginBottom: 4,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  plusPromoIcon: {
+    width: 24,
+    height: 24,
+  },
+  plusPromoTextWrap: {
+    flex: 1,
+  },
+  plusPromoTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: -0.2,
+  },
+  plusPromoSub: {
+    fontSize: 12.5,
+    marginTop: 2,
+  },
+  plusBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 7,
+    marginBottom: 7,
+  },
+  plusBadgeText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
+
   activitySection: {
     paddingHorizontal: 20,
     paddingTop: 20,
@@ -1097,7 +1264,9 @@ const styles = StyleSheet.create({
   },
   streakInline: {
     flexDirection: "row",
-    alignItems: "center",
+    // Bottom-align so the number's baseline sits on the flame's base rather than
+    // floating at the geometric center of the taller full-size flame.
+    alignItems: "flex-end",
     gap: 6,
   },
   streakNumber: {
@@ -1106,6 +1275,9 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
     lineHeight: 24,
     fontVariant: ["tabular-nums"],
+    // Drop the number so its baseline lands on the flame's base (digits sit on
+    // the baseline with empty descent space below them). Scaled to this font size.
+    transform: [{ translateY: 4 }],
   },
 
   weekLabels: {

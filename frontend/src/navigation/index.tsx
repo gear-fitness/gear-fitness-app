@@ -7,10 +7,14 @@ import {
   StaticParamList,
 } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { View, Text } from "react-native";
+import { View } from "react-native";
+import { Text } from "../components/Text";
 
 /* SCREENS */
 import { Profile } from "./screens/Profile";
+import { PaywallScreen } from "./screens/PaywallScreen";
+import { PlusUpsellSheet } from "./screens/PlusUpsellSheet";
+import { WhatsNewPopup } from "./screens/WhatsNewPopup";
 import { SettingsNavigator } from "./SettingsNavigator";
 import { Social } from "./screens/Social";
 import { Workout } from "./screens/Workout";
@@ -22,7 +26,6 @@ import { ShareWorkout } from "./screens/ShareWorkout";
 import { PostDetail } from "./screens/PostDetail";
 import { WorkoutFlowNavigator } from "./WorkoutFlowNavigator";
 import { OnboardingScreen } from "./screens/Onboarding";
-import { WorkoutChat } from "./screens/WorkoutChat";
 import { AuthLoadingScreen } from "./screens/AuthLoading";
 import { CommentsScreen } from "../components/CommentsScreen";
 import { ExerciseList } from "./screens/ExerciseList";
@@ -37,6 +40,13 @@ import { DayPosts } from "./screens/DayPosts";
 import { Activity } from "./screens/Activity";
 import FollowScreen from "./screens/FollowScreen";
 import { ImageViewer } from "./screens/ImageViewer";
+import { CameraScreen } from "./screens/CameraScreen";
+import { BarcodeScannerScreen } from "./screens/BarcodeScannerScreen";
+import { BarcodeReview } from "./screens/nutrition/BarcodeReview";
+import { CalorieTracker } from "./screens/nutrition/CalorieTracker";
+import { AddFood } from "./screens/nutrition/AddFood";
+import { NutritionGoals } from "./screens/nutrition/NutritionGoals";
+import { NutritionSetup } from "./screens/nutrition/NutritionSetup";
 import { Platform } from "react-native";
 
 /* ---------------------- TABS ---------------------- */
@@ -93,11 +103,19 @@ const HomeTabs = createBottomTabNavigator({
         tabBarIcon: { type: "sfSymbol", name: "person.fill" },
       },
     },
-    AiChat: {
-      screen: WorkoutChat,
+    // Restored 5th tab (formerly the orphaned AI-chat "AiChat" slot),
+    // repurposed to open the calorie & macro tracker.
+    Nutrition: {
+      screen: CalorieTracker,
       options: {
+        // iOS 26+ native tab bar renders this slot as the system Search item
+        // (the distinct search affordance), matching how the AI tool was
+        // presented on older builds. `fork.knife` is the pre-26 fallback icon.
         ...(majorVersionIOS >= 26 && { tabBarSystemItem: "search" }),
-        tabBarIcon: { type: "sfSymbol", name: "sparkle" },
+        // A plain, static food icon. Adding food is handled by the in-screen
+        // "+" button on the calorie tracker (see CalorieTracker), so the tab no
+        // longer morphs into a "+" FAB when focused.
+        tabBarIcon: { type: "sfSymbol", name: "fork.knife" },
       },
     },
   },
@@ -251,6 +269,32 @@ const RootStack = createNativeStackNavigator({
         gestureEnabled: false,
       },
     },
+
+    /* IN-APP CAMERA — registered on the root stack so it can be presented
+       from anywhere (workout complete, settings avatar, onboarding). Consumers
+       go through openCamera() in utils/inAppCamera rather than navigating
+       here directly. */
+    Camera: {
+      screen: CameraScreen,
+      options: {
+        presentation: "fullScreenModal",
+        headerShown: false,
+        gestureEnabled: true,
+        gestureDirection: "vertical",
+      },
+    },
+
+    /* BARCODE SCANNER: same contract as Camera; consumers go through
+       openBarcodeScanner() in utils/barcodeScanner and await the code. */
+    BarcodeScanner: {
+      screen: BarcodeScannerScreen,
+      options: {
+        presentation: "fullScreenModal",
+        headerShown: false,
+        gestureEnabled: true,
+        gestureDirection: "vertical",
+      },
+    },
     ExerciseList: {
       screen: ExerciseList,
       options: { headerShown: false },
@@ -265,6 +309,36 @@ const RootStack = createNativeStackNavigator({
       options: { headerShown: false },
     },
 
+    Paywall: {
+      screen: PaywallScreen,
+      options: {
+        presentation: "fullScreenModal",
+        headerShown: false,
+        gestureEnabled: true,
+        gestureDirection: "vertical",
+      },
+    },
+
+    PlusUpsell: {
+      screen: PlusUpsellSheet,
+      options: {
+        presentation: "transparentModal",
+        headerShown: false,
+        animation: "none",
+        gestureEnabled: false,
+      },
+    },
+
+    WhatsNew: {
+      screen: WhatsNewPopup,
+      options: {
+        presentation: "transparentModal",
+        headerShown: false,
+        animation: "none",
+        gestureEnabled: false,
+      },
+    },
+
     EditRoutine: {
       screen: EditRoutine,
       options: { headerShown: false },
@@ -277,6 +351,35 @@ const RootStack = createNativeStackNavigator({
 
     RoutineDetail: {
       screen: RoutineDetail,
+      options: { headerShown: false },
+    },
+
+    AddFood: {
+      screen: AddFood,
+      options: { headerShown: false },
+    },
+
+    // Barcode-scan result review: pageSheet-style modal where the user picks
+    // the serving and quantity before the product is logged.
+    BarcodeReview: {
+      screen: BarcodeReview,
+      options: {
+        presentation: "modal",
+        headerShown: false,
+        gestureEnabled: true,
+      },
+    },
+
+    NutritionGoals: {
+      screen: NutritionGoals,
+      options: { headerShown: false },
+    },
+
+    // The calorie-calculator wizard: pushed forced (inescapable until
+    // completed) on visiting the Nutrition tab before setup is done, and
+    // reachable dismissibly from Daily Goals.
+    NutritionSetup: {
+      screen: NutritionSetup,
       options: { headerShown: false },
     },
   },
@@ -303,7 +406,13 @@ declare global {
         dateLabel: string;
       };
       Activity: undefined;
-      ExerciseChat: undefined;
+      Nutrition: undefined;
+      AddFood: undefined;
+      NutritionGoals: undefined;
+      // forced: pushed by the tracker when setup is required; the wizard
+      // blocks every way back until it's completed. Daily Goals opens it
+      // without the param, where swipe-back dismisses.
+      NutritionSetup: { forced?: boolean } | undefined;
 
       FollowScreen: {
         initialTab: "followers" | "following";
@@ -336,6 +445,8 @@ declare global {
 
       Comments: {
         postId: string;
+        postOwnerId?: string;
+        focusCommentId?: string;
       };
 
       ImageViewer: {
@@ -343,9 +454,17 @@ declare global {
         initialIndex: number;
       };
 
+      Camera: undefined;
+      BarcodeScanner: undefined;
+      BarcodeReview: { food: import("../api/types").FoodItem };
+
       PostDetail: {
         postId: string;
         openCommentsOnMount?: boolean;
+      };
+
+      WhatsNew: {
+        announcement: import("../api/announcementService").Announcement;
       };
 
       CreateRoutine: { prefilledWorkoutId?: string } | undefined;

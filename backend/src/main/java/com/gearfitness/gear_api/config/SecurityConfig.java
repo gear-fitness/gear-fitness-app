@@ -1,6 +1,7 @@
 package com.gearfitness.gear_api.config;
 
 import com.gearfitness.gear_api.security.JwtAuthenticationFilter;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -30,6 +31,13 @@ public class SecurityConfig {
       )
       .authorizeHttpRequests(auth ->
         auth
+          // Permit the container's ERROR dispatch so Boot's /error rendering
+          // runs. Without this, anyRequest().authenticated() applies to the
+          // error dispatch too (the JWT filter skips it, so it is always
+          // anonymous) and the entry point rewrites every error status,
+          // including ResponseStatusException 403/400/502/503, as a 401.
+          .dispatcherTypeMatchers(DispatcherType.ERROR)
+          .permitAll()
           .requestMatchers("/health")
           .permitAll()
           .requestMatchers("/actuator/health")
@@ -39,6 +47,8 @@ public class SecurityConfig {
           .requestMatchers("/api/public/**")
           .permitAll()
           .requestMatchers("/api/users/username-availability")
+          .permitAll()
+          .requestMatchers("/api/webhooks/revenuecat")
           .permitAll()
           .anyRequest()
           .authenticated()

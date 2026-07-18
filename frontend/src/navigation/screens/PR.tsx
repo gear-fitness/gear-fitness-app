@@ -1,5 +1,4 @@
 import {
-  Text,
   Image,
   StyleSheet,
   View,
@@ -7,6 +6,7 @@ import {
   useColorScheme,
   ActivityIndicator,
 } from "react-native";
+import { Text } from "../../components/Text";
 import React, { useState, useEffect } from "react";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -94,7 +94,8 @@ export function PR({ route }: Props) {
     }
 
     // maxWeight is canonical lbs from the backend — convert to the user's unit.
-    const weight = Math.round(toDisplayWeight(pr.maxWeight, weightUnit));
+    // No extra rounding: set weights can be half-pounds (e.g. 22.5).
+    const weight = toDisplayWeight(pr.maxWeight, weightUnit);
 
     return `${pr.exerciseName.toUpperCase()}\n${weight} ${weightUnit.toUpperCase()} x ${
       pr.repsAtMaxWeight

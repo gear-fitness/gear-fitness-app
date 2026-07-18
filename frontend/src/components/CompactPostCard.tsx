@@ -1,18 +1,33 @@
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
+import { LinearGradient } from "expo-linear-gradient";
 
 import { FeedPost } from "../api/socialFeedApi";
-import { Avatar } from "./Avatar";
-import { PresignedImage } from "./PresignedImage";
-import { formatDurationShort, formatTimeAgo } from "../utils/date";
+import { useAuth } from "../context/AuthContext";
 import { useLikeState } from "../context/LikesContext";
 import { usePostMenu } from "../hooks/usePostMenu";
-import { useAuth } from "../context/AuthContext";
-import { PostVisibilitySheet } from "./PostVisibilitySheet";
+import { formatTimeAgo } from "../utils/date";
+import { Avatar } from "./Avatar";
+import { FontScaleProvider, Text } from "./Text";
+import { MentionableText } from "./MentionableText";
 import { PostActionsSheet } from "./PostActionsSheet";
+import { PostVisibilitySheet } from "./PostVisibilitySheet";
+import { PresignedImage } from "./PresignedImage";
 import { ReportPostSheet } from "./ReportPostSheet";
+
+const CARD_RADIUS = 20;
+const TITLE_GAP = 11;
+const HEADER_PADDING_BOTTOM = 5;
+
+function formatDuration(minutes: number): string {
+  if (minutes < 60) return `${minutes}m`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
 
 export type CompactPostCardTheme = {
   surface: string;
@@ -30,13 +45,13 @@ type Props = {
 };
 
 export function CompactPostCard({ post, theme: t, width }: Props) {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation() as any;
+  const glassAvailable = isLiquidGlassAvailable();
   const { user } = useAuth();
-  const {
-    liked: likedByUser,
-    count: likeCount,
-    toggle: handleLike,
-  } = useLikeState(post.postId, post);
+  const { liked: likedByUser, count: likeCount } = useLikeState(
+    post.postId,
+    post,
+  );
   const {
     onPress: onMenuPress,
     actions: menuActions,
@@ -58,6 +73,14 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
     viewerFollowsAuthor: post.viewerFollowsAuthor,
     currentVisibility: post.visibility ?? "PUBLIC",
   });
+
+  const photos =
+    post.photoUrls && post.photoUrls.length > 0
+      ? post.photoUrls
+      : post.imageUrl
+        ? [post.imageUrl]
+        : [];
+  const hasPhoto = photos.length > 0;
   const isOwnPost =
     post.userId === user?.userId || post.username === user?.username;
   const visibility = post.visibility ?? "PUBLIC";
@@ -67,17 +90,9 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
       : isOwnPost && visibility === "PRIVATE"
         ? "lock-closed-outline"
         : null;
-  const time = post.durationMin ? formatDurationShort(post.durationMin) : "—";
-
-  const photos =
-    post.photoUrls && post.photoUrls.length > 0
-      ? post.photoUrls
-      : post.imageUrl
-        ? [post.imageUrl]
-        : [];
 
   const openImageViewer = () => {
-    if (photos.length === 0) return;
+    if (!hasPhoto) return;
     navigation.navigate("ImageViewer", {
       photos,
       initialIndex: 0,
@@ -99,15 +114,73 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
     });
   };
 
-  return (
-    <TouchableOpacity
-      activeOpacity={0.85}
-      onPress={openDetail}
-      style={[
-        styles.card,
-        { backgroundColor: t.surface, borderColor: t.border, width },
-      ]}
-    >
+  const foreground = hasPhoto ? "#FFFFFF" : t.text;
+  const header = (
+    <View style={[styles.header, hasPhoto && styles.photoHeader]}>
+      <TouchableOpacity
+        activeOpacity={0.72}
+        onPress={openDetail}
+        style={styles.headerIdentity}
+        accessibilityRole="button"
+        accessibilityLabel={`Open ${post.workoutName}`}
+      >
+        <Avatar
+          username={post.username}
+          profilePictureUrl={post.userProfilePictureUrl}
+          size={26}
+        />
+        <View style={styles.identity}>
+          <View style={styles.usernameRow}>
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.username,
+                { color: foreground },
+                hasPhoto && styles.photoTextShadow,
+              ]}
+            >
+              {post.username}
+            </Text>
+            {visibilityIcon && (
+              <Ionicons
+                name={visibilityIcon}
+                size={10}
+                color={foreground}
+                style={styles.visibilityIcon}
+              />
+            )}
+          </View>
+          <Text
+            numberOfLines={1}
+            style={[
+              styles.timestamp,
+              { color: hasPhoto ? "rgba(255,255,255,0.76)" : t.textFaint },
+              hasPhoto && styles.photoTextShadow,
+            ]}
+          >
+            {formatTimeAgo(post.createdAt)}
+          </Text>
+        </View>
+      </TouchableOpacity>
+      <TouchableOpacity
+        onPress={onMenuPress}
+        hitSlop={10}
+        style={styles.menuButton}
+        accessibilityRole="button"
+        accessibilityLabel="More options"
+      >
+        <Ionicons name="ellipsis-vertical" size={16} color={foreground} />
+      </TouchableOpacity>
+    </View>
+  );
+
+  // Card body shared by the glass and fallback containers below. All tap
+  // targets (header, photo, details) must be CHILDREN of the glass, not
+  // siblings above an absolute-fill glass: children mount into the effect
+  // view's contentView, which UIKit routes touches through, while touchables
+  // layered over a sibling glass intermittently lose taps.
+  const cardBody = (
+    <>
       <PostActionsSheet
         visible={showActionsSheet}
         actions={menuActions}
@@ -125,246 +198,275 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
         onSubmit={submitReport}
         onClose={closeReportSheet}
       />
-      <View style={styles.cardHeader}>
-        <Avatar
-          username={post.username}
-          profilePictureUrl={post.userProfilePictureUrl}
-          size={24}
-        />
-        <Text
-          style={[styles.timeAgo, { color: t.textFaint }]}
-          numberOfLines={1}
-        >
-          {formatTimeAgo(post.createdAt)}
-        </Text>
-        {visibilityIcon && (
-          <Ionicons
-            name={visibilityIcon}
-            size={12}
-            color={t.text}
-            style={{ opacity: 0.5 }}
-          />
-        )}
-        <View style={{ flex: 1 }} />
-        <TouchableOpacity
-          onPress={(e) => {
-            e.stopPropagation?.();
-            onMenuPress();
-          }}
-          hitSlop={10}
-          accessibilityLabel="More options"
-        >
-          <Ionicons name="ellipsis-horizontal" size={16} color={t.text} />
-        </TouchableOpacity>
-      </View>
 
-      <Text style={[styles.workoutName, { color: t.text }]} numberOfLines={2}>
-        {post.workoutName}
-      </Text>
-
-      <View style={styles.metricsRow}>
-        <View>
-          <Text style={[styles.metricValue, { color: t.text }]}>{time}</Text>
-          <Text style={[styles.metricLabel, { color: t.textFaint }]}>TIME</Text>
-        </View>
-        <View>
-          <Text style={[styles.metricValue, { color: t.text }]}>
-            {post.exerciseCount}
-          </Text>
-          <Text style={[styles.metricLabel, { color: t.textFaint }]}>EX.</Text>
-        </View>
-        {photos.length > 0 && (
+      {hasPhoto ? (
+        <View style={styles.media}>
           <TouchableOpacity
-            activeOpacity={0.85}
+            activeOpacity={0.94}
             onPress={openImageViewer}
-            style={styles.thumbStackWrap}
+            style={StyleSheet.absoluteFillObject}
+            accessibilityRole="imagebutton"
+            accessibilityLabel={
+              photos.length > 1
+                ? `Open ${photos.length} workout photos`
+                : "Open workout photo"
+            }
           >
-            {photos[2] && (
-              <View
-                shouldRasterizeIOS
-                renderToHardwareTextureAndroid
-                style={[
-                  styles.thumbLayer,
-                  styles.thumbLayerThird,
-                  { backgroundColor: t.surface, borderColor: t.surface },
-                ]}
-              >
-                <PresignedImage
-                  imageKey={photos[2]}
-                  style={[styles.thumbImage, { borderColor: t.border }]}
-                  resizeMode="cover"
-                  showLoader={false}
-                />
-              </View>
-            )}
-            {photos[1] && (
-              <View
-                shouldRasterizeIOS
-                renderToHardwareTextureAndroid
-                style={[
-                  styles.thumbLayer,
-                  styles.thumbLayerSecond,
-                  { backgroundColor: t.surface, borderColor: t.surface },
-                ]}
-              >
-                <PresignedImage
-                  imageKey={photos[1]}
-                  style={[styles.thumbImage, { borderColor: t.border }]}
-                  resizeMode="cover"
-                  showLoader={false}
-                />
-              </View>
-            )}
-            <View
-              style={[
-                styles.thumbLayer,
-                { backgroundColor: t.surface, borderColor: t.surface },
-              ]}
-            >
-              <PresignedImage
-                imageKey={photos[0]}
-                style={[styles.thumbImage, { borderColor: t.border }]}
-                resizeMode="cover"
-                showLoader={false}
-              />
-            </View>
+            <PresignedImage
+              imageKey={photos[0]}
+              style={styles.image}
+              resizeMode="cover"
+            />
           </TouchableOpacity>
+          <LinearGradient
+            pointerEvents="none"
+            colors={["rgba(0,0,0,0.58)", "rgba(0,0,0,0.02)", "rgba(0,0,0,0.4)"]}
+            locations={[0, 0.5, 1]}
+            style={StyleSheet.absoluteFillObject}
+          />
+          {header}
+          {photos.length > 1 && (
+            <View style={styles.photoCount} pointerEvents="none">
+              <Ionicons name="images-outline" size={11} color="#FFFFFF" />
+              <Text style={styles.photoCountText}>{photos.length}</Text>
+            </View>
+          )}
+        </View>
+      ) : (
+        <TouchableOpacity
+          activeOpacity={0.72}
+          onPress={openDetail}
+          style={styles.textHero}
+          accessibilityRole="button"
+          accessibilityLabel={`Open ${post.workoutName}`}
+        >
+          {header}
+          <View style={styles.textBody}>
+            <Text
+              numberOfLines={2}
+              style={[styles.workoutName, { color: t.text }]}
+            >
+              {post.workoutName}
+            </Text>
+            {post.caption ? (
+              <MentionableText
+                text={post.caption}
+                numberOfLines={2}
+                style={[styles.caption, { color: t.textMuted }]}
+              />
+            ) : null}
+            <View style={styles.metricsRow}>
+              {post.durationMin != null && post.durationMin > 0 && (
+                <View style={styles.metricCell}>
+                  <Text style={[styles.metricLabel, { color: t.textMuted }]}>
+                    Time
+                  </Text>
+                  <Text style={[styles.metricValue, { color: t.text }]}>
+                    {formatDuration(post.durationMin)}
+                  </Text>
+                </View>
+              )}
+              <View style={styles.metricCell}>
+                <Text style={[styles.metricLabel, { color: t.textMuted }]}>
+                  Exercises
+                </Text>
+                <Text style={[styles.metricValue, { color: t.text }]}>
+                  {post.exerciseCount}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </TouchableOpacity>
+      )}
+      {hasPhoto && (
+        <View style={styles.details}>
+          <TouchableOpacity
+            activeOpacity={0.72}
+            onPress={openDetail}
+            accessibilityRole="button"
+          >
+            <Text
+              numberOfLines={2}
+              style={[styles.workoutName, { color: t.text }]}
+            >
+              {post.workoutName}
+            </Text>
+          </TouchableOpacity>
+          {post.caption ? (
+            <MentionableText
+              text={post.caption}
+              numberOfLines={2}
+              style={[styles.caption, { color: t.textMuted }]}
+            />
+          ) : null}
+        </View>
+      )}
+    </>
+  );
+
+  return (
+    <FontScaleProvider max={1}>
+      <View style={[styles.shadow, { width }]}>
+        {glassAvailable ? (
+          <GlassView style={styles.card} glassEffectStyle="regular">
+            {cardBody}
+          </GlassView>
+        ) : (
+          <View style={[styles.card, { backgroundColor: t.surface }]}>
+            {cardBody}
+          </View>
         )}
       </View>
-
-      <View style={[styles.cardFooter, { borderTopColor: t.border }]}>
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={handleLike}
-          hitSlop={8}
-          style={styles.footerItem}
-        >
-          <Ionicons
-            name={likedByUser ? "heart" : "heart-outline"}
-            size={16}
-            color={likedByUser ? "#e74c3c" : t.text}
-          />
-          <Text
-            style={[
-              styles.footerText,
-              { color: likedByUser ? "#e74c3c" : t.text },
-            ]}
-          >
-            {likeCount}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={() =>
-            navigation.navigate("Comments", { postId: post.postId })
-          }
-          hitSlop={8}
-          style={styles.footerItem}
-        >
-          <Ionicons name="chatbubble-outline" size={16} color={t.text} />
-          <Text style={[styles.footerText, { color: t.text }]}>
-            {post.commentCount}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
+    </FontScaleProvider>
   );
 }
 
 const styles = StyleSheet.create({
+  shadow: {
+    borderRadius: CARD_RADIUS,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+  },
   card: {
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: 12,
-    gap: 8,
-    minHeight: 156,
+    borderRadius: CARD_RADIUS,
+    overflow: "hidden",
   },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+  media: {
+    width: "100%",
+    aspectRatio: 1,
+    borderTopLeftRadius: CARD_RADIUS,
+    borderTopRightRadius: CARD_RADIUS,
+    overflow: "hidden",
+    backgroundColor: "#222222",
   },
-  timeAgo: {
-    fontSize: 11,
-    fontVariant: ["tabular-nums"],
+  // Photo-less cards fill the same square the photo occupies so both card
+  // variants come out the same height.
+  textHero: {
+    width: "100%",
+    aspectRatio: 1,
   },
-  workoutName: {
-    fontSize: 15,
-    fontWeight: "600",
-    letterSpacing: -0.3,
-    lineHeight: 18,
+  // Same vertical order as a History card: title, caption, then the metrics
+  // row beneath them. Centered as a group in the space under the header.
+  textBody: {
+    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: 13,
+    paddingBottom: HEADER_PADDING_BOTTOM + 6,
   },
   metricsRow: {
     flexDirection: "row",
-    gap: 16,
-    marginTop: "auto",
-    alignItems: "flex-end",
-    position: "relative",
-    minHeight: 48,
+    gap: 12,
+    marginTop: 14,
   },
-  metricValue: {
-    fontSize: 16,
-    fontWeight: "700",
-    letterSpacing: -0.3,
-    lineHeight: 16,
-    fontVariant: ["tabular-nums"],
+  metricCell: {
+    flex: 1,
   },
   metricLabel: {
-    fontSize: 9,
-    marginTop: 3,
-    letterSpacing: 0.8,
-    fontWeight: "600",
-  },
-  cardFooter: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 20,
-    paddingTop: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  footerItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  footerText: {
-    fontSize: 13,
-    fontVariant: ["tabular-nums"],
+    fontSize: 11,
     fontWeight: "500",
   },
-  thumbStackWrap: {
-    position: "absolute",
-    right: -4,
-    bottom: -4,
-    width: 56,
-    height: 56,
+  metricValue: {
+    fontSize: 24,
+    fontWeight: "700",
+    letterSpacing: -0.5,
+    marginTop: 2,
+    fontVariant: ["tabular-nums"],
   },
-  thumbLayer: {
+  image: {
+    width: "100%",
+    height: "100%",
+  },
+  header: {
+    paddingHorizontal: 11,
+    paddingTop: 11,
+    paddingBottom: HEADER_PADDING_BOTTOM,
+    flexDirection: "row",
+    alignItems: "center",
+    zIndex: 3,
+  },
+  photoHeader: {
     position: "absolute",
     top: 0,
     left: 0,
-    width: 52,
-    height: 52,
-    borderWidth: 1.5,
-    borderRadius: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.18,
-    shadowRadius: 3,
-    elevation: 2,
+    right: 0,
   },
-  thumbLayerSecond: {
-    transform: [{ translateX: 2 }, { translateY: 2 }, { rotate: "-3deg" }],
-    opacity: 0.85,
+  identity: {
+    flex: 1,
+    minWidth: 0,
   },
-  thumbLayerThird: {
-    transform: [{ translateX: 4 }, { translateY: 4 }, { rotate: "4deg" }],
+  headerIdentity: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+  },
+  usernameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+  },
+  username: {
+    flexShrink: 1,
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: -0.15,
+  },
+  timestamp: {
+    fontSize: 9,
+    fontWeight: "500",
+    marginTop: 1,
+    fontVariant: ["tabular-nums"],
+  },
+  visibilityIcon: {
     opacity: 0.72,
   },
-  thumbImage: {
-    width: "100%",
-    height: "100%",
-    borderWidth: 1,
-    borderRadius: 8.5,
+  photoTextShadow: {
+    textShadowColor: "rgba(0,0,0,0.4)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  menuButton: {
+    width: 32,
+    height: 26,
+    alignItems: "flex-end",
+    justifyContent: "center",
+  },
+  photoCount: {
+    position: "absolute",
+    right: 10,
+    bottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 7,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "rgba(0,0,0,0.38)",
+    zIndex: 2,
+  },
+  photoCountText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "700",
+    fontVariant: ["tabular-nums"],
+  },
+  details: {
+    paddingHorizontal: 13,
+    paddingTop: TITLE_GAP,
+    paddingBottom: 13,
+  },
+  workoutName: {
+    fontSize: 16,
+    lineHeight: 19,
+    fontWeight: "700",
+    letterSpacing: -0.4,
+  },
+  caption: {
+    marginTop: 4,
+    fontSize: 11,
+    lineHeight: 15,
   },
 });

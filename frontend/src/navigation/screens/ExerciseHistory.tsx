@@ -1,4 +1,4 @@
-import { Text } from "@react-navigation/elements";
+import { Text } from "../../components/Text";
 import {
   StyleSheet,
   View,
@@ -16,6 +16,7 @@ import {
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
 import Svg, { Polyline, Circle, Line, Text as SvgText } from "react-native-svg";
+import { Ionicons } from "@expo/vector-icons";
 
 import {
   getExerciseHistory,
@@ -40,19 +41,24 @@ import {
   formatWeight,
   type WeightUnit,
 } from "../../utils/weight";
+import { useTier } from "../../hooks/useTier";
+import { PlusLockOverlay } from "../../components/PlusLockOverlay";
 
 const CHART_HEIGHT = 200;
 const CHART_PADDING = { top: 24, right: 20, bottom: 30, left: 50 };
 
-type TimeScope = "1m" | "3m" | "1y" | "all";
+type TimeScope = "1m" | "3m" | "6m" | "1y";
 type ChartType = "pr" | "volume" | "session_max";
 
 const TIME_SCOPES: { key: TimeScope; label: string }[] = [
   { key: "1m", label: "1M" },
   { key: "3m", label: "3M" },
+  { key: "6m", label: "6M" },
   { key: "1y", label: "1Y" },
-  { key: "all", label: "ALL" },
 ];
+
+// Scopes Basic users may not view; they resolve to "1m" for charts.
+const LOCKED_SCOPES = new Set<TimeScope>(["3m", "6m", "1y"]);
 
 const CHART_TITLES: Record<ChartType, string> = {
   pr: "PR Over Time",
@@ -64,7 +70,7 @@ const chartUnitLabel = (type: ChartType, unit: WeightUnit): string =>
   type === "volume" ? `total ${unit}` : unit;
 
 export function ExerciseHistory() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation() as any;
   const route = useRoute<any>();
   const exercise = route.params?.exercise;
   const isDark = useColorScheme() === "dark";
@@ -104,13 +110,15 @@ export function ExerciseHistory() {
   const [history, setHistory] = useState<ExerciseHistoryType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [timeScope, setTimeScope] = useState<TimeScope>("all");
+  const [timeScope, setTimeScope] = useState<TimeScope>("1m");
   const [activeChartIndex, setActiveChartIndex] = useState(0);
   const [historyExpanded, setHistoryExpanded] = useState(false);
 
   const screenWidth = Dimensions.get("window").width;
   const chartWidth = screenWidth - 70;
   const { user } = useAuth();
+  const { atLeast } = useTier();
+  const isPlus = atLeast("PLUS");
   const { weightUnit: globalUnit } = useUnitPreference();
   // Match the unit this exercise is being logged in this workout (its override,
   // or the app-wide default) so the charts/history align with the logging
@@ -118,7 +126,7 @@ export function ExerciseHistory() {
   const weightUnit = exercise?.weightUnit ?? globalUnit;
   const bodyVariant: BodyVariant = resolveBodyVariant(user?.gender);
 
-  const chartTypes: ChartType[] = ["pr", "session_max", "volume"];
+  const chartTypes: ChartType[] = ["volume", "pr", "session_max"];
   const activeChart = chartTypes[activeChartIndex];
 
   useEffect(() => {
@@ -136,19 +144,31 @@ export function ExerciseHistory() {
     load();
   }, [exercise.exerciseId]);
 
+  // Guard the effective scope so a Basic user never charts beyond 1 month.
+  // (Default state is "1m", an unlocked scope for all tiers, so effectiveScope
+  // leaves it as "1m".)
+  const effectiveScope: TimeScope = isPlus
+    ? timeScope
+    : LOCKED_SCOPES.has(timeScope)
+      ? "1m"
+      : timeScope;
+
   // Filter sessions by time scope
   const scopedSessions = useMemo(() => {
     if (!history) return [];
     const now = new Date();
     let cutoff: Date | null = null;
 
-    if (timeScope === "1m") {
+    if (effectiveScope === "1m") {
       cutoff = new Date(now);
       cutoff.setMonth(cutoff.getMonth() - 1);
-    } else if (timeScope === "3m") {
+    } else if (effectiveScope === "3m") {
       cutoff = new Date(now);
       cutoff.setMonth(cutoff.getMonth() - 3);
-    } else if (timeScope === "1y") {
+    } else if (effectiveScope === "6m") {
+      cutoff = new Date(now);
+      cutoff.setMonth(cutoff.getMonth() - 6);
+    } else if (effectiveScope === "1y") {
       cutoff = new Date(now);
       cutoff.setFullYear(cutoff.getFullYear() - 1);
     }
@@ -160,7 +180,7 @@ export function ExerciseHistory() {
       }
       return true;
     });
-  }, [history, timeScope]);
+  }, [history, effectiveScope]);
 
   // Helper: get max weight from a session
   const getSessionMax = (session: ExerciseSession): number => {
@@ -260,6 +280,36 @@ export function ExerciseHistory() {
     data: { date: string; value: number }[],
     type: ChartType,
   ) => {
+    // Basic users only get the Volume chart. PR and session_max render a
+    // locked placeholder (kept at full chart size so paging stays correct).
+    if (!isPlus && (type === "pr" || type === "session_max")) {
+      return (
+        <View
+          style={{
+            width: chartWidth,
+            height: CHART_HEIGHT,
+            position: "relative",
+            backgroundColor: colors.card,
+            borderRadius: 8,
+            overflow: "hidden",
+          }}
+        >
+          <PlusLockOverlay
+            onPress={() =>
+              navigation.navigate("PlusUpsell", {
+                feature: "Unlock all progress charts",
+              })
+            }
+            label="Plus"
+            // The wrapper already paints the grey chart-card background; keep the
+            // overlay itself transparent so the locked slot blends with the chart
+            // instead of the overlay's default near-white translucent fill.
+            style={{ backgroundColor: "transparent" }}
+          />
+        </View>
+      );
+    }
+
     if (data.length < 2) {
       return (
         <View
@@ -401,6 +451,7 @@ export function ExerciseHistory() {
                 styles.setNumCol,
                 { color: colors.subtle },
               ]}
+              maxFontSizeMultiplier={1}
             >
               SET
             </Text>
@@ -410,6 +461,7 @@ export function ExerciseHistory() {
                 styles.weightCol,
                 { color: colors.subtle },
               ]}
+              maxFontSizeMultiplier={1}
             >
               WEIGHT
             </Text>
@@ -419,6 +471,7 @@ export function ExerciseHistory() {
                 styles.xCol,
                 { color: colors.subtle },
               ]}
+              maxFontSizeMultiplier={1}
             >
               X
             </Text>
@@ -428,6 +481,7 @@ export function ExerciseHistory() {
                 styles.repsCol,
                 { color: colors.subtle },
               ]}
+              maxFontSizeMultiplier={1}
             >
               REPS
             </Text>
@@ -441,6 +495,7 @@ export function ExerciseHistory() {
                   styles.setNumCol,
                   { color: colors.subtle },
                 ]}
+                maxFontSizeMultiplier={1}
               >
                 {set.setNumber}
               </Text>
@@ -450,6 +505,7 @@ export function ExerciseHistory() {
                   styles.weightCol,
                   { color: colors.text },
                 ]}
+                maxFontSizeMultiplier={1}
               >
                 {set.weightLbs != null
                   ? formatWeight(set.weightLbs, weightUnit, { allowZero: true })
@@ -457,11 +513,15 @@ export function ExerciseHistory() {
               </Text>
               <Text
                 style={[styles.setCell, styles.xCol, { color: colors.text }]}
+                maxFontSizeMultiplier={1}
               >
                 x
               </Text>
               <View style={[styles.repsContainer, styles.repsCol]}>
-                <Text style={[styles.setCell, { color: colors.text }]}>
+                <Text
+                  style={[styles.setCell, { color: colors.text }]}
+                  maxFontSizeMultiplier={1}
+                >
                   {set.reps}
                 </Text>
                 {set.isPr && <Text style={styles.prDot}>🏆</Text>}
@@ -517,10 +577,23 @@ export function ExerciseHistory() {
     key: ChartType;
     data: { date: string; value: number }[];
   }[] = [
+    { key: "volume", data: toUnit(volumeChartData) },
     { key: "pr", data: toUnit(prChartData) },
     { key: "session_max", data: toUnit(sessionMaxChartData) },
-    { key: "volume", data: toUnit(volumeChartData) },
   ];
+
+  // History list: Basic users are capped to the last 1 month (display only —
+  // the fetched data is untouched). Basic's effectiveScope is already ≤1m so
+  // this is usually a no-op, but enforce it explicitly.
+  const historySessions = isPlus
+    ? scopedSessions
+    : (() => {
+        const cutoff = new Date();
+        cutoff.setMonth(cutoff.getMonth() - 1);
+        return scopedSessions.filter(
+          (s) => new Date(s.datePerformed + "T00:00:00") >= cutoff,
+        );
+      })();
 
   return (
     <SafeAreaView
@@ -537,7 +610,10 @@ export function ExerciseHistory() {
       >
         {/* Exercise Title */}
         <View style={styles.titleSection}>
-          <Text style={[styles.exerciseName, { color: colors.text }]}>
+          <Text
+            style={[styles.exerciseName, { color: colors.text }]}
+            maxFontSizeMultiplier={1}
+          >
             {history?.exerciseName || exercise.name}
           </Text>
           <Text style={[styles.bodyPart, { color: colors.accent }]}>
@@ -565,7 +641,10 @@ export function ExerciseHistory() {
         {/* Stats Row */}
         <View style={styles.statsRow}>
           <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-            <Text style={[styles.statValue, { color: colors.text }]}>
+            <Text
+              style={[styles.statValue, { color: colors.text }]}
+              maxFontSizeMultiplier={1}
+            >
               {history?.totalSessions || 0}
             </Text>
             <Text style={[styles.statLabel, { color: colors.subtle }]}>
@@ -574,7 +653,10 @@ export function ExerciseHistory() {
           </View>
 
           <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-            <Text style={[styles.statValue, { color: colors.text }]}>
+            <Text
+              style={[styles.statValue, { color: colors.text }]}
+              maxFontSizeMultiplier={1}
+            >
               {history?.personalRecordLbs
                 ? `${toDisplayWeight(history.personalRecordLbs, weightUnit)}`
                 : "—"}
@@ -585,7 +667,10 @@ export function ExerciseHistory() {
           </View>
 
           <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-            <Text style={[styles.statValue, { color: colors.text }]}>
+            <Text
+              style={[styles.statValue, { color: colors.text }]}
+              maxFontSizeMultiplier={1}
+            >
               {bestVolume
                 ? Math.round(
                     toDisplayWeight(bestVolume, weightUnit),
@@ -600,35 +685,54 @@ export function ExerciseHistory() {
 
         {/* Time Scope Buttons */}
         <View style={styles.scopeRow}>
-          {TIME_SCOPES.map((scope) => (
-            <TouchableOpacity
-              key={scope.key}
-              style={[
-                styles.scopeButton,
-                {
-                  backgroundColor:
-                    timeScope === scope.key
+          {TIME_SCOPES.map((scope) => {
+            const locked = !isPlus && LOCKED_SCOPES.has(scope.key);
+            const isActive = effectiveScope === scope.key;
+            return (
+              <TouchableOpacity
+                key={scope.key}
+                style={[
+                  styles.scopeButton,
+                  {
+                    backgroundColor: isActive
                       ? colors.scopeActive
                       : colors.scopeInactive,
-                },
-              ]}
-              onPress={() => setTimeScope(scope.key)}
-            >
-              <Text
-                style={[
-                  styles.scopeButtonText,
-                  {
-                    color:
-                      timeScope === scope.key
-                        ? colors.scopeTextActive
-                        : colors.scopeTextInactive,
                   },
                 ]}
+                onPress={() => {
+                  if (locked) {
+                    navigation.navigate("PlusUpsell", {
+                      feature: "See your full exercise history",
+                    });
+                    return;
+                  }
+                  setTimeScope(scope.key);
+                }}
               >
-                {scope.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <View style={styles.scopeButtonContent}>
+                  <Text
+                    style={[
+                      styles.scopeButtonText,
+                      {
+                        color: isActive
+                          ? colors.scopeTextActive
+                          : colors.scopeTextInactive,
+                      },
+                    ]}
+                  >
+                    {scope.label}
+                  </Text>
+                  {locked && (
+                    <Ionicons
+                      name="lock-closed"
+                      size={11}
+                      color={colors.scopeTextInactive}
+                    />
+                  )}
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {/* Chart Card */}
@@ -683,25 +787,26 @@ export function ExerciseHistory() {
           <TouchableOpacity
             style={styles.historyHeader}
             onPress={() => setHistoryExpanded((prev) => !prev)}
-            activeOpacity={scopedSessions.length > 1 ? 0.6 : 1}
-            disabled={scopedSessions.length <= 1}
+            activeOpacity={historySessions.length > 1 ? 0.6 : 1}
+            disabled={historySessions.length <= 1}
           >
             <Text style={[styles.sectionTitle, { color: colors.text }]}>
               History
             </Text>
-            {scopedSessions.length > 1 && (
+            {historySessions.length > 1 && (
               <Text style={[styles.historyToggle, { color: colors.subtle }]}>
                 {historyExpanded
                   ? "Show less ▲"
-                  : `Show all ${scopedSessions.length} ▼`}
+                  : `Show all ${historySessions.length} ▼`}
               </Text>
             )}
           </TouchableOpacity>
 
-          {scopedSessions.length > 0 ? (
-            (historyExpanded ? scopedSessions : scopedSessions.slice(0, 1)).map(
-              (session, i) => renderSession(session, i),
-            )
+          {historySessions.length > 0 ? (
+            (historyExpanded
+              ? historySessions
+              : historySessions.slice(0, 1)
+            ).map((session, i) => renderSession(session, i))
           ) : (
             <View style={styles.emptyState}>
               <Text style={[styles.emptyText, { color: colors.subtle }]}>
@@ -765,6 +870,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "700",
     marginBottom: 4,
+    fontVariant: ["tabular-nums"],
   },
 
   statLabel: {
@@ -784,6 +890,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
     alignItems: "center",
+  },
+
+  scopeButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
   },
 
   scopeButtonText: {
@@ -919,6 +1032,7 @@ const styles = StyleSheet.create({
 
   setCell: {
     fontSize: 16,
+    fontVariant: ["tabular-nums"],
   },
 
   setNumCol: {

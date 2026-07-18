@@ -62,6 +62,15 @@ public interface WorkoutRepository extends JpaRepository<Workout, UUID> {
   boolean existsByUserAndDatePerformed(AppUser user, LocalDate datePerformed);
 
   /**
+   * Look up a workout by its submission idempotency key. The unique
+   * constraint guarantees at most one row; findFirst is defensive.
+   */
+  Optional<Workout> findFirstByUser_UserIdAndIdempotencyKey(
+    UUID userId,
+    String idempotencyKey
+  );
+
+  /**
    * Find distinct workout dates for a user within a date range
    */
   @Query(

@@ -23,12 +23,10 @@ export function toDisplayWeight(lbs: number, unit: WeightUnit): number {
   return lbs;
 }
 
-/** A value typed in the user's unit → canonical pounds (nearest lb). */
+/** A value typed in the user's unit → canonical pounds (nearest 0.25 lb). */
 export function toLbs(value: number, unit: WeightUnit): number {
-  if (unit === "kg") {
-    return Math.round(value * LBS_PER_KG);
-  }
-  return Math.round(value);
+  const lbs = unit === "kg" ? value * LBS_PER_KG : value;
+  return Math.round(lbs * 4) / 4;
 }
 
 /** "lbs" | "kg" — the short label shown next to a weight value. */

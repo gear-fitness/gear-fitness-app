@@ -1,3 +1,4 @@
+import "./src/utils/silenceConsole"; // Mutes non-error console output in production; must run first
 import "@expo/metro-runtime"; // Necessary for Fast Refresh on Web
 import { registerRootComponent } from "expo";
 

@@ -1,5 +1,4 @@
 import {
-  Text,
   StyleSheet,
   View,
   ScrollView,
@@ -10,6 +9,7 @@ import {
   TextStyle,
   ColorValue,
 } from "react-native";
+import { Text } from "../../components/Text";
 import Svg, { Path } from "react-native-svg";
 import React, { useState, useEffect } from "react";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -34,6 +34,7 @@ import { usePostMenu } from "../../hooks/usePostMenu";
 import { PostVisibilitySheet } from "../../components/PostVisibilitySheet";
 import { PostActionsSheet } from "../../components/PostActionsSheet";
 import { ReportPostSheet } from "../../components/ReportPostSheet";
+import { MentionableText } from "../../components/MentionableText";
 import {
   computeActivations,
   defaultDiagramPalette,
@@ -105,6 +106,8 @@ export function DetailedHistory({ route }: Props) {
     ownerUserId,
     ownerUsername,
     viewerFollowsAuthor,
+    // The screen is showing the workout that was just deleted, so leave it.
+    onDeleted: () => navigation.goBack(),
   });
 
   const { user } = useAuth();
@@ -220,7 +223,9 @@ export function DetailedHistory({ route }: Props) {
 
       <TouchableOpacity
         accessibilityLabel="Comments"
-        onPress={() => navigation.navigate("Comments", { postId })}
+        onPress={() =>
+          navigation.navigate("Comments", { postId, postOwnerId: ownerUserId })
+        }
         activeOpacity={0.7}
         style={[
           styles.floatingButton,
@@ -376,9 +381,10 @@ export function DetailedHistory({ route }: Props) {
           </View>
 
           {caption && (
-            <Text style={[styles.caption, { color: colors.text }]}>
-              {caption}
-            </Text>
+            <MentionableText
+              text={caption}
+              style={[styles.caption, { color: colors.text }]}
+            />
           )}
 
           <TouchableOpacity

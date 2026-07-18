@@ -3,7 +3,7 @@
  */
 
 import { BodyPartDTO } from "../api/exerciseService";
-import { Text } from "react-native";
+import { Text } from "../components/Text";
 
 /** Get the first PRIMARY body part name (for section grouping) */
 export function getPrimaryBodyPart(bodyParts: BodyPartDTO[]): string {

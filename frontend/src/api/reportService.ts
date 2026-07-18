@@ -19,4 +19,16 @@ export const reportService = {
       note: note?.trim() ? note.trim() : null,
     });
   },
+
+  reportComment: async (
+    commentId: string,
+    reason: ReportReason,
+    note?: string,
+  ): Promise<void> => {
+    await apiClient.post("/comment-reports", {
+      commentId,
+      reason,
+      note: note?.trim() ? note.trim() : null,
+    });
+  },
 };

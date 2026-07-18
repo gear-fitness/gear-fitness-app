@@ -1,6 +1,8 @@
 package com.gearfitness.gear_api.controller;
 
 import com.gearfitness.gear_api.dto.DeleteAccountRequest;
+import com.gearfitness.gear_api.dto.ImageUploadUrlRequest;
+import com.gearfitness.gear_api.dto.ProfilePictureKeyRequest;
 import com.gearfitness.gear_api.dto.UpdateUserProfileRequest;
 import com.gearfitness.gear_api.dto.UserDTO;
 import com.gearfitness.gear_api.dto.UserProfileDTO;
@@ -12,8 +14,10 @@ import com.gearfitness.gear_api.repository.FollowRepository;
 import com.gearfitness.gear_api.security.JwtService;
 import com.gearfitness.gear_api.service.AppUserService;
 import com.gearfitness.gear_api.service.FollowService;
+import com.gearfitness.gear_api.service.ModerationService;
 import com.gearfitness.gear_api.service.S3StorageService;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -27,11 +31,17 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class AppUserController {
 
+  private static final Set<String> PROFILE_PICTURE_UPLOAD_TYPES = Set.of(
+    "image/jpeg",
+    "image/png"
+  );
+
   private final AppUserService userService;
   private final JwtService jwtService;
   private final S3StorageService s3StorageService;
   private final AppUserRepository userRepository;
   private final FollowService followService;
+  private final ModerationService moderationService;
 
   /**
    * GET /api/users/me
@@ -222,8 +232,84 @@ public class AppUserController {
   }
 
   /**
+   * POST /api/users/me/profile-picture/upload-url
+   * Returns a deterministic key and a presigned PUT url so the client uploads
+   * the image directly to S3 (mirrors the post-image flow). Preferred over the
+   * multipart endpoint below: the bytes never traverse the backend, so a WAF or
+   * proxy can't 403 the multipart body. After PUTting to S3, the client calls
+   * PUT /me/profile-picture to persist the key on its profile.
+   */
+  @PostMapping("/me/profile-picture/upload-url")
+  public ResponseEntity<?> createProfilePictureUploadUrl(
+    @RequestHeader("Authorization") String authHeader,
+    @RequestBody ImageUploadUrlRequest request
+  ) {
+    UUID userId;
+    try {
+      userId = jwtService.extractUserId(authHeader.substring(7));
+    } catch (Exception e) {
+      return ResponseEntity.status(401).build();
+    }
+
+    String contentType = request.contentType();
+    if (
+      contentType == null || !PROFILE_PICTURE_UPLOAD_TYPES.contains(contentType)
+    ) {
+      return ResponseEntity.badRequest().body(
+        "Only JPEG and PNG images are allowed"
+      );
+    }
+
+    S3StorageService.PresignedUpload upload =
+      s3StorageService.generateProfilePictureUploadUrl(userId, contentType);
+
+    return ResponseEntity.ok(
+      Map.of("key", upload.key(), "uploadUrl", upload.url())
+    );
+  }
+
+  /**
+   * PUT /api/users/me/profile-picture
+   * Persist a profile-picture key on the caller's profile after a direct-to-S3
+   * upload. The key must be the caller's own deterministic profile key, so a
+   * user can't point their avatar at someone else's object.
+   */
+  @PutMapping("/me/profile-picture")
+  public ResponseEntity<?> setProfilePicture(
+    @RequestHeader("Authorization") String authHeader,
+    @RequestBody ProfilePictureKeyRequest request
+  ) {
+    try {
+      UUID userId = jwtService.extractUserId(authHeader.substring(7));
+
+      String expectedKey = s3StorageService.profilePictureKey(userId);
+      if (request.key() == null || !expectedKey.equals(request.key())) {
+        return ResponseEntity.badRequest().body("Invalid profile picture key");
+      }
+
+      AppUser user = userRepository
+        .findById(userId)
+        .orElseThrow(() -> new RuntimeException("User not found"));
+      user.setProfilePictureUrl(expectedKey);
+      userRepository.save(user);
+
+      // save() committed in its own transaction, so the async worker will see
+      // the persisted key. The image is already in S3 (client PUT it first).
+      moderationService.moderateProfileImage(userId, expectedKey);
+
+      UserDTO updatedUser = userService.getUserProfile(userId);
+      return ResponseEntity.ok(updatedUser);
+    } catch (Exception e) {
+      System.err.println("Set profile picture error: " + e.getMessage());
+      return ResponseEntity.badRequest().body("Failed to set profile picture");
+    }
+  }
+
+  /**
    * POST /api/users/me/profile-picture
-   * Upload a profile picture (JPEG or PNG, max 5MB)
+   * LEGACY proxy/multipart upload (JPEG or PNG, max 5MB). Kept for already-
+   * installed app clients; new clients use the presigned-PUT flow above
+   * (/me/profile-picture/upload-url + PUT /me/profile-picture).
    */
   @PostMapping(
     value = "/me/profile-picture",
@@ -264,6 +350,8 @@ public class AppUserController {
         .orElseThrow(() -> new RuntimeException("User not found"));
       user.setProfilePictureUrl(key);
       userRepository.save(user);
+
+      moderationService.moderateProfileImage(userId, key);
 
       UserDTO updatedUser = userService.getUserProfile(userId);
       return ResponseEntity.ok(updatedUser);

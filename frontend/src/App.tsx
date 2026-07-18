@@ -13,17 +13,22 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { useEffect } from "react";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { PurchasesProvider } from "./context/PurchasesContext";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import {
   WorkoutTimerProvider,
   WORKOUT_STATE_STORAGE_KEY,
-  UNFINISHED_WORKOUT_NOTIFICATION_ID,
+  describesActiveWorkout,
 } from "./context/WorkoutContext";
+import { cancelUnfinishedWorkoutReminder } from "./utils/unfinishedWorkoutReminder";
 import { LikesProvider } from "./context/LikesContext";
 import { SocialFeedProvider } from "./context/SocialFeedContext";
 import { FollowStatusProvider } from "./context/FollowStatusContext";
 import { UnitPreferenceProvider } from "./context/UnitPreferenceContext";
+import { NutritionProvider } from "./context/NutritionContext";
 import { WorkoutPlayer } from "./components/WorkoutPlayer";
+import { getPendingAnnouncement } from "./api/announcementService";
+import { hasSeenAnnouncement } from "./utils/announcementStorage";
 import * as Notifications from "expo-notifications";
 import {
   useFonts,
@@ -90,7 +95,9 @@ export function App() {
 
   return (
     <AuthProvider>
-      <AppContent theme={theme} />
+      <PurchasesProvider>
+        <AppContent theme={theme} />
+      </PurchasesProvider>
     </AuthProvider>
   );
 }
@@ -101,7 +108,8 @@ function AppContent({
   theme: typeof DarkTheme | typeof DefaultTheme;
 }) {
   const [isNavigationReady, setIsNavigationReady] = React.useState(false);
-  const { isLoading } = useAuth();
+  const { isLoading, isAuthenticated } = useAuth();
+  const whatsNewAttempted = React.useRef(false);
 
   const [fontsLoaded] = useFonts({
     LibreCaslonText_400Regular,
@@ -146,29 +154,36 @@ function AppContent({
           });
         }
         break;
+      case "REPLY":
+      case "MENTION":
+        if (data.params?.postId) {
+          navigationRef.current.navigate("PostDetail", {
+            postId: data.params.postId,
+            // Caption mentions omit these → just open the post.
+            openCommentsOnMount: data.params?.openCommentsOnMount === true,
+            focusCommentId: data.params?.focusCommentId,
+          });
+        }
+        break;
       case "UNFINISHED_WORKOUT":
         // Always dismiss the tapped notification, regardless of whether we
         // navigate. Only route to WorkoutSummary if storage actually has an
         // in-progress workout — otherwise the notification is stale and
         // jerking the user to an empty Summary screen is worse UX.
         (async () => {
-          try {
-            await Notifications.dismissNotificationAsync(
-              UNFINISHED_WORKOUT_NOTIFICATION_ID,
-            );
-          } catch {
-            // Already cleared.
-          }
+          // Serialized through the reminder module (its promise chain), so
+          // this cannot interleave with an in-flight schedule op. Also
+          // cancels any still-pending duplicate, not just the tray copy.
+          await cancelUnfinishedWorkoutReminder();
           try {
             const stored = await AsyncStorage.getItem(
               WORKOUT_STATE_STORAGE_KEY,
             );
             const parsed = stored ? JSON.parse(stored) : null;
-            const hasActive =
-              parsed &&
-              ((Array.isArray(parsed.exercises) &&
-                parsed.exercises.length > 0) ||
-                parsed.running === true);
+            // Route only when the blob describes a real workout (shared
+            // liveness rule with WorkoutContext's restore). A zombie blob
+            // would land the user in an empty summary.
+            const hasActive = describesActiveWorkout(parsed);
             if (hasActive) {
               navigationRef.current?.navigate("WorkoutFlow", {
                 screen: "WorkoutSummary",
@@ -191,6 +206,56 @@ function AppContent({
     }
   }, [isNavigationReady, isLoading, fontsLoaded]);
 
+  useEffect(() => {
+    // What's New popup: at most one attempt per app session, and only once
+    // the user has actually landed on HomeTabs. AuthLoading holds the root
+    // route on its launch video well after auth resolves, so a one-shot
+    // route check here would race it and lose; instead listen for
+    // navigation-state changes and fire when HomeTabs becomes focused.
+    if (isLoading || !isAuthenticated || !isNavigationReady) return;
+    if (whatsNewAttempted.current) return;
+
+    // Focused top-level route, not getCurrentRoute(): that returns the
+    // deepest route (a tab name), and routes[0] would still say HomeTabs
+    // while a notification deep link sits on top.
+    const isOnHomeTabs = () => {
+      const state = navigationRef.current?.getRootState();
+      if (!state || state.index == null) return false;
+      return state.routes[state.index]?.name === "HomeTabs";
+    };
+
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let unsubscribe: (() => void) | undefined;
+
+    const attempt = () => {
+      if (cancelled || whatsNewAttempted.current || !isOnHomeTabs()) return;
+      whatsNewAttempted.current = true;
+      unsubscribe?.();
+      (async () => {
+        const announcement = await getPendingAnnouncement();
+        if (!announcement || cancelled) return;
+        if (await hasSeenAnnouncement(announcement.id)) return;
+        // Let the arrival transition settle, then re-check the route in
+        // case a slow notification deep link landed during the delay.
+        timer = setTimeout(() => {
+          if (!cancelled && isOnHomeTabs()) {
+            navigationRef.current?.navigate("WhatsNew", { announcement });
+          }
+        }, 800);
+      })();
+    };
+
+    unsubscribe = navigationRef.current?.addListener("state", attempt);
+    attempt();
+
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+      if (timer) clearTimeout(timer);
+    };
+  }, [isLoading, isAuthenticated, isNavigationReady]);
+
   return (
     <GestureHandlerRootView
       style={{ flex: 1, backgroundColor: theme.colors.background }}
@@ -201,16 +266,18 @@ function AppContent({
             <SocialFeedProvider>
               <FollowStatusProvider>
                 <UnitPreferenceProvider>
-                  <Navigation
-                    ref={navigationRef}
-                    theme={theme}
-                    linking={{
-                      enabled: "auto",
-                      prefixes: [prefix],
-                    }}
-                    onReady={() => setIsNavigationReady(true)}
-                  />
-                  <WorkoutPlayer />
+                  <NutritionProvider>
+                    <Navigation
+                      ref={navigationRef}
+                      theme={theme}
+                      linking={{
+                        enabled: "auto",
+                        prefixes: [prefix],
+                      }}
+                      onReady={() => setIsNavigationReady(true)}
+                    />
+                    <WorkoutPlayer />
+                  </NutritionProvider>
                 </UnitPreferenceProvider>
               </FollowStatusProvider>
             </SocialFeedProvider>

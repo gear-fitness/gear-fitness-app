@@ -1,4 +1,5 @@
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { Text } from "./Text";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@react-navigation/native";
 import { BottomSheet } from "./BottomSheet";
@@ -25,7 +26,6 @@ export function PostVisibilitySheet({
   onClose,
 }: Props) {
   const { colors } = useTheme();
-  const accent = "#ff4d2e";
 
   return (
     <BottomSheet visible={visible} onClose={onClose}>
@@ -61,12 +61,16 @@ export function PostVisibilitySheet({
               style={[
                 styles.radio,
                 {
-                  borderColor: isSelected ? accent : colors.text + "40",
-                  backgroundColor: isSelected ? accent : "transparent",
+                  borderColor: isSelected ? colors.text : colors.text + "40",
+                  backgroundColor: isSelected ? colors.text : "transparent",
                 },
               ]}
             >
-              {isSelected && <View style={styles.radioInner} />}
+              {isSelected && (
+                <View
+                  style={[styles.radioInner, { backgroundColor: colors.card }]}
+                />
+              )}
             </View>
           </TouchableOpacity>
         );
@@ -119,6 +123,5 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#fff",
   },
 });

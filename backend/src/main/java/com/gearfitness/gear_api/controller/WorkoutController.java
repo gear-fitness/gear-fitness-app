@@ -16,6 +16,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -175,10 +176,23 @@ public class WorkoutController {
       String token = authHeader.substring(7); // Remove "Bearer "
       UUID userId = jwtService.extractUserId(token);
 
-      WorkoutDetailDTO workout = workoutService.submitWorkout(
-        submission,
-        userId
-      );
+      WorkoutDetailDTO workout;
+      try {
+        workout = workoutService.submitWorkout(submission, userId);
+      } catch (DataIntegrityViolationException e) {
+        // Two submissions with the same idempotency key raced; this one lost
+        // and its transaction is rollback-only, so recovery must run out here
+        // in a fresh transaction. Return the winner's workout.
+        WorkoutDetailDTO existing =
+          workoutService.getWorkoutDetailsByIdempotencyKey(
+            userId,
+            submission.getIdempotencyKey()
+          );
+        if (existing == null) {
+          throw e; // some other constraint violation; keep the 500 behavior
+        }
+        workout = existing;
+      }
       return ResponseEntity.ok(workout);
     } catch (IllegalArgumentException e) {
       return ResponseEntity.badRequest().build();
