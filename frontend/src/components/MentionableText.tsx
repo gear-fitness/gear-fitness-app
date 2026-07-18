@@ -1,4 +1,4 @@
-import { StyleProp, TextStyle } from "react-native";
+import { StyleProp, TextProps, TextStyle } from "react-native";
 import { Text } from "./Text";
 import { useNavigation } from "@react-navigation/native";
 
@@ -6,6 +6,7 @@ interface Props {
   text: string;
   style?: StyleProp<TextStyle>;
   numberOfLines?: number;
+  onTextLayout?: TextProps["onTextLayout"];
   /** Color for @mention segments. */
   mentionColor?: string;
   /** Override mention tap behavior; defaults to navigating to the profile. */
@@ -46,6 +47,7 @@ export function MentionableText({
   text,
   style,
   numberOfLines,
+  onTextLayout,
   mentionColor = "#3b82f6",
   onPressMention,
 }: Props) {
@@ -62,7 +64,11 @@ export function MentionableText({
   const segments = parseMentions(text);
 
   return (
-    <Text style={style} numberOfLines={numberOfLines}>
+    <Text
+      style={style}
+      numberOfLines={numberOfLines}
+      onTextLayout={onTextLayout}
+    >
       {segments.map((seg, i) =>
         seg.type === "mention" ? (
           <Text

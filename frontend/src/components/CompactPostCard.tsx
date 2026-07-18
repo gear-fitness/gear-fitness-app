@@ -19,6 +19,15 @@ import { PresignedImage } from "./PresignedImage";
 import { ReportPostSheet } from "./ReportPostSheet";
 
 const CARD_RADIUS = 20;
+const TITLE_GAP = 11;
+const HEADER_PADDING_BOTTOM = 5;
+
+function formatDuration(minutes: number): string {
+  if (minutes < 60) return `${minutes}m`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
 
 export type CompactPostCardTheme = {
   surface: string;
@@ -155,7 +164,7 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
       </TouchableOpacity>
       <TouchableOpacity
         onPress={onMenuPress}
-        hitSlop={8}
+        hitSlop={10}
         style={styles.menuButton}
         accessibilityRole="button"
         accessibilityLabel="More options"
@@ -165,129 +174,148 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
     </View>
   );
 
+  // Card body shared by the glass and fallback containers below. All tap
+  // targets (header, photo, details) must be CHILDREN of the glass, not
+  // siblings above an absolute-fill glass: children mount into the effect
+  // view's contentView, which UIKit routes touches through, while touchables
+  // layered over a sibling glass intermittently lose taps.
+  const cardBody = (
+    <>
+      <PostActionsSheet
+        visible={showActionsSheet}
+        actions={menuActions}
+        onClose={closeActionsSheet}
+        onClosed={onActionsSheetClosed}
+      />
+      <PostVisibilitySheet
+        visible={showVisibilitySheet}
+        current={pendingVisibility}
+        onSelect={handleVisibilitySelect}
+        onClose={closeVisibilitySheet}
+      />
+      <ReportPostSheet
+        visible={showReportSheet}
+        onSubmit={submitReport}
+        onClose={closeReportSheet}
+      />
+
+      {hasPhoto ? (
+        <View style={styles.media}>
+          <TouchableOpacity
+            activeOpacity={0.94}
+            onPress={openImageViewer}
+            style={StyleSheet.absoluteFillObject}
+            accessibilityRole="imagebutton"
+            accessibilityLabel={
+              photos.length > 1
+                ? `Open ${photos.length} workout photos`
+                : "Open workout photo"
+            }
+          >
+            <PresignedImage
+              imageKey={photos[0]}
+              style={styles.image}
+              resizeMode="cover"
+            />
+          </TouchableOpacity>
+          <LinearGradient
+            pointerEvents="none"
+            colors={["rgba(0,0,0,0.58)", "rgba(0,0,0,0.02)", "rgba(0,0,0,0.4)"]}
+            locations={[0, 0.5, 1]}
+            style={StyleSheet.absoluteFillObject}
+          />
+          {header}
+          {photos.length > 1 && (
+            <View style={styles.photoCount} pointerEvents="none">
+              <Ionicons name="images-outline" size={11} color="#FFFFFF" />
+              <Text style={styles.photoCountText}>{photos.length}</Text>
+            </View>
+          )}
+        </View>
+      ) : (
+        <TouchableOpacity
+          activeOpacity={0.72}
+          onPress={openDetail}
+          style={styles.textHero}
+          accessibilityRole="button"
+          accessibilityLabel={`Open ${post.workoutName}`}
+        >
+          {header}
+          <View style={styles.textBody}>
+            <Text
+              numberOfLines={2}
+              style={[styles.workoutName, { color: t.text }]}
+            >
+              {post.workoutName}
+            </Text>
+            {post.caption ? (
+              <MentionableText
+                text={post.caption}
+                numberOfLines={2}
+                style={[styles.caption, { color: t.textMuted }]}
+              />
+            ) : null}
+            <View style={styles.metricsRow}>
+              {post.durationMin != null && post.durationMin > 0 && (
+                <View style={styles.metricCell}>
+                  <Text style={[styles.metricLabel, { color: t.textMuted }]}>
+                    Time
+                  </Text>
+                  <Text style={[styles.metricValue, { color: t.text }]}>
+                    {formatDuration(post.durationMin)}
+                  </Text>
+                </View>
+              )}
+              <View style={styles.metricCell}>
+                <Text style={[styles.metricLabel, { color: t.textMuted }]}>
+                  Exercises
+                </Text>
+                <Text style={[styles.metricValue, { color: t.text }]}>
+                  {post.exerciseCount}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </TouchableOpacity>
+      )}
+      {hasPhoto && (
+        <View style={styles.details}>
+          <TouchableOpacity
+            activeOpacity={0.72}
+            onPress={openDetail}
+            accessibilityRole="button"
+          >
+            <Text
+              numberOfLines={2}
+              style={[styles.workoutName, { color: t.text }]}
+            >
+              {post.workoutName}
+            </Text>
+          </TouchableOpacity>
+          {post.caption ? (
+            <MentionableText
+              text={post.caption}
+              numberOfLines={2}
+              style={[styles.caption, { color: t.textMuted }]}
+            />
+          ) : null}
+        </View>
+      )}
+    </>
+  );
+
   return (
     <FontScaleProvider max={1}>
       <View style={[styles.shadow, { width }]}>
-        <View
-          style={[
-            styles.card,
-            {
-              backgroundColor: glassAvailable ? "transparent" : t.surface,
-            },
-          ]}
-        >
-          {glassAvailable && (
-            <GlassView
-              style={[StyleSheet.absoluteFillObject, styles.cardGlass]}
-              glassEffectStyle="regular"
-            />
-          )}
-
-          <PostActionsSheet
-            visible={showActionsSheet}
-            actions={menuActions}
-            onClose={closeActionsSheet}
-            onClosed={onActionsSheetClosed}
-          />
-          <PostVisibilitySheet
-            visible={showVisibilitySheet}
-            current={pendingVisibility}
-            onSelect={handleVisibilitySelect}
-            onClose={closeVisibilitySheet}
-          />
-          <ReportPostSheet
-            visible={showReportSheet}
-            onSubmit={submitReport}
-            onClose={closeReportSheet}
-          />
-
-          {hasPhoto ? (
-            <>
-              <View style={styles.media}>
-                <TouchableOpacity
-                  activeOpacity={0.94}
-                  onPress={openImageViewer}
-                  style={StyleSheet.absoluteFillObject}
-                  accessibilityRole="imagebutton"
-                  accessibilityLabel={
-                    photos.length > 1
-                      ? `Open ${photos.length} workout photos`
-                      : "Open workout photo"
-                  }
-                >
-                  <PresignedImage
-                    imageKey={photos[0]}
-                    style={styles.image}
-                    resizeMode="cover"
-                  />
-                </TouchableOpacity>
-                <LinearGradient
-                  pointerEvents="none"
-                  colors={[
-                    "rgba(0,0,0,0.58)",
-                    "rgba(0,0,0,0.02)",
-                    "rgba(0,0,0,0.4)",
-                  ]}
-                  locations={[0, 0.5, 1]}
-                  style={StyleSheet.absoluteFillObject}
-                />
-                {header}
-                {photos.length > 1 && (
-                  <View style={styles.photoCount} pointerEvents="none">
-                    <Ionicons name="images-outline" size={11} color="#FFFFFF" />
-                    <Text style={styles.photoCountText}>{photos.length}</Text>
-                  </View>
-                )}
-              </View>
-              <View style={styles.photoDetails}>
-                <TouchableOpacity
-                  activeOpacity={0.72}
-                  onPress={openDetail}
-                  accessibilityRole="button"
-                >
-                  <Text
-                    numberOfLines={2}
-                    style={[styles.workoutName, { color: t.text }]}
-                  >
-                    {post.workoutName}
-                  </Text>
-                </TouchableOpacity>
-                {post.caption ? (
-                  <MentionableText
-                    text={post.caption}
-                    numberOfLines={2}
-                    style={[styles.caption, { color: t.textMuted }]}
-                  />
-                ) : null}
-              </View>
-            </>
-          ) : (
-            <>
-              {header}
-              <View style={styles.textDetails}>
-                <TouchableOpacity
-                  activeOpacity={0.72}
-                  onPress={openDetail}
-                  accessibilityRole="button"
-                >
-                  <Text
-                    numberOfLines={3}
-                    style={[styles.workoutName, { color: t.text }]}
-                  >
-                    {post.workoutName}
-                  </Text>
-                </TouchableOpacity>
-                {post.caption ? (
-                  <MentionableText
-                    text={post.caption}
-                    numberOfLines={2}
-                    style={[styles.caption, { color: t.textMuted }]}
-                  />
-                ) : null}
-              </View>
-            </>
-          )}
-        </View>
+        {glassAvailable ? (
+          <GlassView style={styles.card} glassEffectStyle="regular">
+            {cardBody}
+          </GlassView>
+        ) : (
+          <View style={[styles.card, { backgroundColor: t.surface }]}>
+            {cardBody}
+          </View>
+        )}
       </View>
     </FontScaleProvider>
   );
@@ -305,9 +333,6 @@ const styles = StyleSheet.create({
     borderRadius: CARD_RADIUS,
     overflow: "hidden",
   },
-  cardGlass: {
-    borderRadius: CARD_RADIUS,
-  },
   media: {
     width: "100%",
     aspectRatio: 1,
@@ -316,6 +341,39 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: "#222222",
   },
+  // Photo-less cards fill the same square the photo occupies so both card
+  // variants come out the same height.
+  textHero: {
+    width: "100%",
+    aspectRatio: 1,
+  },
+  // Same vertical order as a History card: title, caption, then the metrics
+  // row beneath them. Centered as a group in the space under the header.
+  textBody: {
+    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: 13,
+    paddingBottom: HEADER_PADDING_BOTTOM + 6,
+  },
+  metricsRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 14,
+  },
+  metricCell: {
+    flex: 1,
+  },
+  metricLabel: {
+    fontSize: 11,
+    fontWeight: "500",
+  },
+  metricValue: {
+    fontSize: 24,
+    fontWeight: "700",
+    letterSpacing: -0.5,
+    marginTop: 2,
+    fontVariant: ["tabular-nums"],
+  },
   image: {
     width: "100%",
     height: "100%",
@@ -323,7 +381,7 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 11,
     paddingTop: 11,
-    paddingBottom: 5,
+    paddingBottom: HEADER_PADDING_BOTTOM,
     flexDirection: "row",
     alignItems: "center",
     zIndex: 3,
@@ -372,7 +430,7 @@ const styles = StyleSheet.create({
   },
   menuButton: {
     width: 32,
-    height: 36,
+    height: 26,
     alignItems: "flex-end",
     justifyContent: "center",
   },
@@ -395,15 +453,10 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontVariant: ["tabular-nums"],
   },
-  photoDetails: {
+  details: {
     paddingHorizontal: 13,
-    paddingTop: 11,
+    paddingTop: TITLE_GAP,
     paddingBottom: 13,
-  },
-  textDetails: {
-    paddingHorizontal: 13,
-    paddingTop: 18,
-    paddingBottom: 8,
   },
   workoutName: {
     fontSize: 16,
