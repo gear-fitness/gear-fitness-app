@@ -64,7 +64,11 @@ export function MentionableText({
   const segments = parseMentions(text);
 
   return (
-    <Text style={style} numberOfLines={numberOfLines} onTextLayout={onTextLayout}>
+    <Text
+      style={style}
+      numberOfLines={numberOfLines}
+      onTextLayout={onTextLayout}
+    >
       {segments.map((seg, i) =>
         seg.type === "mention" ? (
           <Text
