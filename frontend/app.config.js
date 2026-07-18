@@ -1,21 +1,56 @@
-const IS_DEV = process.env.APP_VARIANT === "development";
+const APP_VARIANT = process.env.APP_VARIANT || "production";
+
+const VARIANTS = {
+  development: {
+    name: "Gear (Dev)",
+    bundleIdentifier: "com.gearfitness.dev.build",
+    icon: "./assets/GearLogoInverse.png",
+    scheme: "gearfitness",
+    googleIosUrlScheme:
+      "com.googleusercontent.apps.637676049223-rfl13bv4l2lqs2ncdjvah95g0d01f076",
+  },
+  staging: {
+    name: "Gear (Staging)",
+    bundleIdentifier: "com.gearfitness.staging",
+    icon: "./assets/GearLogoInverse.png",
+    // Distinct scheme so deep links don't open the wrong app when several
+    // variants are installed side by side.
+    scheme: "gearfitness-staging",
+    googleIosUrlScheme:
+      "com.googleusercontent.apps.637676049223-rfl13bv4l2lqs2ncdjvah95g0d01f076",
+  },
+  production: {
+    name: "Gear Fitness",
+    bundleIdentifier: "com.gearfitness",
+    icon: "./assets/GearLogo.png",
+    scheme: "gearfitness",
+    googleIosUrlScheme:
+      "com.googleusercontent.apps.637676049223-rfl13bv4l2lqs2ncdjvah95g0d01f076",
+  },
+};
+
+const variant = VARIANTS[APP_VARIANT];
+if (!variant) {
+  throw new Error(
+    `Unknown APP_VARIANT "${APP_VARIANT}" (expected one of: ${Object.keys(VARIANTS).join(", ")})`,
+  );
+}
+const IS_DEV = APP_VARIANT === "development";
 
 export default {
   expo: {
-    name: IS_DEV ? "Gear (Dev)" : "Gear Fitness",
+    name: variant.name,
     slug: "gear-fitness",
     version: "1.0.0",
     orientation: "portrait",
-    icon: IS_DEV ? "./assets/GearLogoInverse.png" : "./assets/GearLogo.png",
+    icon: variant.icon,
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
-    scheme: "gearfitness",
+    scheme: variant.scheme,
     ios: {
       supportsTablet: true,
       usesAppleSignIn: true,
-      bundleIdentifier: IS_DEV
-        ? "com.gearfitness.dev.build"
-        : "com.gearfitness",
+      bundleIdentifier: variant.bundleIdentifier,
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
         NSPhotoLibraryUsageDescription:
@@ -75,8 +110,7 @@ export default {
       [
         "@react-native-google-signin/google-signin",
         {
-          iosUrlScheme:
-            "com.googleusercontent.apps.637676049223-rfl13bv4l2lqs2ncdjvah95g0d01f076",
+          iosUrlScheme: variant.googleIosUrlScheme,
         },
       ],
       "expo-secure-store",
