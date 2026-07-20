@@ -137,7 +137,21 @@ const RootStack = createNativeStackNavigator({
     },
     HomeTabs: {
       screen: HomeTabs,
-      options: { headerShown: false },
+      options: {
+        headerShown: false,
+        // Keep the whole tab subtree rendered while a pushed screen covers it.
+        // Under the default ("pause") React's Activity API tears down and
+        // replays every effect in every tab when the stack pops back, and that
+        // commit lands in the same frames as the slide animation — the source
+        // of the stutter when returning to the glass-heavy Social feed.
+        //
+        // This belongs on HomeTabs rather than an individual tab: a pushed
+        // RootStack screen covers the HomeTabs route, and a child tab's
+        // inactiveBehavior only governs it relative to its sibling tabs, so it
+        // cannot opt out of an ancestor's Activity boundary. Same rationale as
+        // UserProfile and FollowScreen below.
+        inactiveBehavior: "none",
+      },
     },
 
     Settings: { screen: SettingsNavigator, options: { headerShown: false } },

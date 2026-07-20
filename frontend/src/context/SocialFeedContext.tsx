@@ -384,22 +384,40 @@ export function useSocialFeed(feedKey: FeedKey = "following") {
     [ctx, feedKey],
   );
 
-  return {
-    posts: state.posts,
-    status: state.status,
-    refreshing: state.refreshing,
-    loadingMore: state.loadingMore,
-    hasMore: state.hasMore,
-    error: state.error,
-    isStale: state.isStale,
-    initialLoadIfNeeded,
-    refresh,
-    loadMore,
-    invalidate,
-    invalidateAll: ctx.invalidateAll,
-    refreshIfStaleAndHidden,
-    getScrollOffset,
-    setScrollOffset,
-    clear: ctx.clear,
-  };
+  // Memoized so the returned object keeps a stable identity across renders.
+  // Consumers pass this straight down as a prop (Social's FeedList), and a fresh
+  // literal here would change that prop's identity on every render, defeating
+  // React.memo on the list and its cards.
+  return useMemo(
+    () => ({
+      posts: state.posts,
+      status: state.status,
+      refreshing: state.refreshing,
+      loadingMore: state.loadingMore,
+      hasMore: state.hasMore,
+      error: state.error,
+      isStale: state.isStale,
+      initialLoadIfNeeded,
+      refresh,
+      loadMore,
+      invalidate,
+      invalidateAll: ctx.invalidateAll,
+      refreshIfStaleAndHidden,
+      getScrollOffset,
+      setScrollOffset,
+      clear: ctx.clear,
+    }),
+    [
+      state,
+      initialLoadIfNeeded,
+      refresh,
+      loadMore,
+      invalidate,
+      ctx.invalidateAll,
+      refreshIfStaleAndHidden,
+      getScrollOffset,
+      setScrollOffset,
+      ctx.clear,
+    ],
+  );
 }

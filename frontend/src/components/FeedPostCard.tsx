@@ -1,5 +1,6 @@
 import React, {
   forwardRef,
+  memo,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -91,7 +92,7 @@ interface Props {
   pendingQueueId?: string;
 }
 
-export function FeedPostCard({
+function FeedPostCardInner({
   post,
   isPending = false,
   pendingFailed = false,
@@ -102,6 +103,10 @@ export function FeedPostCard({
   const { colors, dark } = useTheme();
   const { user } = useAuth();
   const navigation = useNavigation() as any;
+  // Left as a per-render call deliberately: expo-glass-effect memoizes the
+  // result in its own module scope after the first read, so this is a cached
+  // lookup rather than a native round trip. Hoisting it to module scope here
+  // would move requireNativeModule() to import time for no real gain.
   const glassAvailable = isLiquidGlassAvailable();
   const {
     liked: likedByUser,
@@ -546,6 +551,18 @@ export function FeedPostCard({
     </FontScaleProvider>
   );
 }
+
+/**
+ * Memoized so a state change on the Social screen (unread dot, search query, or
+ * the focus-effect refetch that runs on every return to the tab) no longer
+ * re-renders every mounted card and its live glass surfaces.
+ *
+ * Default shallow comparison is correct here: `post` comes from the feed store
+ * and the handlers are useCallback'd by the caller. Like state is exempt from
+ * the memo by construction — useLikeState subscribes via useSyncExternalStore
+ * inside the card, so counts update without depending on the `post` identity.
+ */
+export const FeedPostCard = memo(FeedPostCardInner);
 
 type HeartTier = "red" | "gold" | "blue" | "purple";
 type TapHeart = {

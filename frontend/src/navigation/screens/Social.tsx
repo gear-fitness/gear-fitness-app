@@ -1,7 +1,15 @@
-import { useState, useEffect, useCallback, useRef, type Ref } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  memo,
+  type Ref,
+} from "react";
 import {
   View,
   FlatList,
+  Image,
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
@@ -11,6 +19,7 @@ import {
   NativeSyntheticEvent,
   Platform,
   Dimensions,
+  type ViewToken,
 } from "react-native";
 import { Text, TextInput } from "../../components/Text";
 import {
@@ -27,6 +36,8 @@ import {
 } from "@react-navigation/native";
 
 import { SearchUserResult } from "../../api/types";
+import { FeedPost } from "../../api/socialFeedApi";
+import { resolveImageKey } from "../../api/imageService";
 import { searchUsers } from "../../api/userService";
 import { notificationService } from "../../api/notificationService";
 import { FeedPostCard } from "../../components/FeedPostCard";
@@ -50,35 +61,150 @@ const FEED_ORDER: FeedKey[] = ["following", "discover"];
 
 type Feed = ReturnType<typeof useSocialFeed>;
 
+// Render-window sizing. windowSize counts SCREENFULS, and a post card is close
+// to a full screen tall, so FlatList's default of 21 means ~21 mounted cards per
+// feed — times two permanently-mounted pager pages, times two GlassViews each.
+// That ceiling isn't reachable on a fresh feed, which is why the lag only shows
+// up once enough posts have loaded to saturate it.
+//
+// Sized down, but not to the minimum: the render window doubles as the image
+// prefetch runway. A card resolves its presigned URL on mount (usePresignedImage
+// -> resolveImageKey, a network round trip) and only then starts downloading, so
+// too small a window trades scroll jank for placeholder pop-in. 9 screenfuls
+// keeps roughly 4 screens of lead each way. maxToRenderPerBatch is left at its
+// default on purpose — lowering it throttles buffer refill and makes pop-in
+// worse, which is the opposite of what we want here.
+const WINDOW_SIZE_ACTIVE = 9;
+const WINDOW_SIZE_OFFSCREEN = 3;
+
+// How many posts past the last visible one to warm images for. Independent of
+// the render window on purpose: mounting a card is expensive (glass, sheets,
+// gestures) but warming its image is not, so the two no longer have to share a
+// number. This runs ahead of the render window, so a card typically mounts with
+// its url already resolved and its bitmap already in the RN image cache.
+const PREFETCH_AHEAD = 8;
+
+// Keys already warmed. Module-level so it is shared by both feeds and survives
+// unmount, matching the lifetime of the url cache in imageService.
+const prefetchedImageKeys = new Set<string>();
+
+/** The photo a card shows first — the only one worth warming before mount. */
+function firstPhotoKey(post: FeedPost): string | undefined {
+  if (post.photoUrls && post.photoUrls.length > 0) return post.photoUrls[0];
+  return post.imageUrl ?? undefined;
+}
+
+/**
+ * Resolve presigned urls and pull the bitmaps into RN's image cache for the
+ * posts just past the viewport. Card images are lazy in two stages — mount ->
+ * resolveImageKey (a network round trip) -> download — so without this a card
+ * scrolled into view starts from nothing and shows its placeholder. Both stages
+ * are cached module-level, so by the time the card mounts, PresignedImage seeds
+ * synchronously from peekCachedImageUrl and paints without a placeholder frame.
+ */
+function prefetchImagesFrom(posts: FeedPost[], startIndex: number) {
+  const end = Math.min(startIndex + PREFETCH_AHEAD, posts.length);
+  for (let i = Math.max(startIndex, 0); i < end; i++) {
+    const key = firstPhotoKey(posts[i]);
+    if (!key || prefetchedImageKeys.has(key)) continue;
+    prefetchedImageKeys.add(key);
+    void resolveImageKey(key)
+      .then((entry) => {
+        if (entry?.url) return Image.prefetch(entry.url);
+      })
+      // Let a failed warm-up be retried later rather than poisoning the key;
+      // the card's own load path is unaffected either way.
+      .catch(() => prefetchedImageKeys.delete(key));
+  }
+}
+
 /**
  * One feed's scrolling list, filling its pager page. Both feeds stay mounted
  * inside the pager, so each preserves its own native scroll position — swiping
  * or tapping between tabs is instant and never refetches or jumps. onScroll
  * drives the header hide/show (only the on-screen page emits scroll events).
+ *
+ * Memoized (wrapper below the declaration). Every prop is identity-stable
+ * — `feed` via useSocialFeed's useMemo, the handlers via useCallback in Social,
+ * `listRef` via useRef — so header-local state (search query, unread dot) and the
+ * focus-effect refetch on every screen return no longer repaint the cards.
  */
-function FeedList({
+function FeedListInner({
   feed,
   variant,
   onScroll,
   onMomentumScrollEnd,
+  onScrollBeginDrag,
   onOpenComments,
   listRef,
   scrollsToTop,
+  isActivePage,
 }: {
   feed: Feed;
   variant: FeedKey;
-  onScroll: (e: NativeSyntheticEvent<NativeScrollEvent>) => void;
-  onMomentumScrollEnd?: () => void;
+  // All three scroll callbacks report which feed they came from. Both feeds are
+  // mounted and share these handlers, so without the tag the screen cannot tell
+  // whose scroll position it is looking at (see lastYByFeedRef).
+  onScroll: (
+    e: NativeSyntheticEvent<NativeScrollEvent>,
+    variant: FeedKey,
+  ) => void;
+  onMomentumScrollEnd?: (variant: FeedKey) => void;
+  onScrollBeginDrag?: (variant: FeedKey) => void;
   onOpenComments: (postId: string) => void;
   listRef?: Ref<FlatList>;
   // iOS status-bar-tap scroll-to-top. Only the visible feed may enable it: the
   // gesture is ignored by iOS if more than one on-screen scroll view has it on.
   scrollsToTop?: boolean;
+  // Which pager page is showing. Only shrinks the offscreen feed's render
+  // window (see WINDOW_SIZE_*); deliberately NOT gated on search being open, so
+  // opening search doesn't unmount and remount both feeds' cards.
+  isActivePage: boolean;
 }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const isIOS = Platform.OS === "ios";
   const HEADER_HEIGHT = SEARCH_ROW_HEIGHT + insets.top;
+
+  // Stable identities. An inline renderItem makes FlatList re-render every cell
+  // on each parent render regardless of React.memo on the card, which is what
+  // made a single header state change (unread dot, search) repaint the feed.
+  const renderItem = useCallback(
+    ({ item }: { item: FeedPost }) => (
+      <FeedPostCard post={item} onOpenComments={onOpenComments} />
+    ),
+    [onOpenComments],
+  );
+  const keyExtractor = useCallback((item: FeedPost) => String(item.postId), []);
+
+  // Tag each scroll callback with this list's feed key on the way out.
+  const handleScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => onScroll(e, variant),
+    [onScroll, variant],
+  );
+  const handleMomentumScrollEnd = useCallback(
+    () => onMomentumScrollEnd?.(variant),
+    [onMomentumScrollEnd, variant],
+  );
+  const handleScrollBeginDrag = useCallback(
+    () => onScrollBeginDrag?.(variant),
+    [onScrollBeginDrag, variant],
+  );
+
+  // Warm images just past the viewport. FlatList treats onViewableItemsChanged
+  // and viewabilityConfig as immutable after mount (swapping either throws), so
+  // both are held in refs and the handler reads the current posts through a ref
+  // rather than closing over them.
+  const postsRef = useRef(feed.posts);
+  postsRef.current = feed.posts;
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      const last = viewableItems[viewableItems.length - 1];
+      if (!last || last.index == null) return;
+      prefetchImagesFrom(postsRef.current, last.index + 1);
+    },
+  ).current;
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 10 }).current;
 
   const renderFooter = () => {
     if (!feed.loadingMore) return null;
@@ -134,10 +260,8 @@ function FeedList({
         ref={listRef}
         scrollsToTop={scrollsToTop}
         data={feed.posts}
-        renderItem={({ item }) => (
-          <FeedPostCard post={item} onOpenComments={onOpenComments} />
-        )}
-        keyExtractor={(item) => String(item.postId)}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
         scrollEnabled={hasContent}
         contentContainerStyle={
           !hasContent
@@ -166,11 +290,16 @@ function FeedList({
             progressViewOffset={HEADER_HEIGHT}
           />
         }
-        onScroll={onScroll}
-        onMomentumScrollEnd={onMomentumScrollEnd}
+        onScroll={handleScroll}
+        onMomentumScrollEnd={handleMomentumScrollEnd}
+        onScrollBeginDrag={handleScrollBeginDrag}
         scrollEventThrottle={16}
         onEndReached={() => void feed.loadMore()}
         onEndReachedThreshold={0.5}
+        windowSize={isActivePage ? WINDOW_SIZE_ACTIVE : WINDOW_SIZE_OFFSCREEN}
+        initialNumToRender={3}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
       />
 
       {/* Empty state as a screen-anchored overlay (not inside the FlatList) so
@@ -186,6 +315,8 @@ function FeedList({
     </View>
   );
 }
+
+const FeedList = memo(FeedListInner);
 
 /**
  * Floating upload status pill, docked above the tab bar while the feed
@@ -299,9 +430,29 @@ export function Social() {
   );
 
   const HEADER_HEIGHT = SEARCH_ROW_HEIGHT + insets.top;
+  // The lists carry a top contentInset on iOS (HEADER_HEIGHT), so their resting
+  // "top" sits at -HEADER_HEIGHT; Android's top is plain 0.
+  const topOffset = Platform.OS === "ios" ? -HEADER_HEIGHT : 0;
   const headerAnim = useRef(new Animated.Value(0)).current;
   const isHiddenRef = useRef(false);
-  const lastYRef = useRef(0);
+  // Last known scroll offset PER FEED. Both feeds are mounted and share one set
+  // of scroll handlers, and swiping the pager emits no scroll events, so a
+  // single shared value would go stale the moment you switch pages — and the
+  // re-tap handler below branches on it. Reading the wrong feed's offset there
+  // picks the wrong scroll-to-top strategy, which is what made the list park
+  // short of the top (the RefreshControl race described at that branch).
+  const lastYByFeedRef = useRef<Record<FeedKey, number>>({
+    following: 0,
+    discover: 0,
+  });
+  // Mirror of activeFeed for the scroll handlers, so they stay identity-stable
+  // (a dep on activeFeed would re-render both lists on every pager swipe).
+  const activeFeedRef = useRef<FeedKey>("following");
+  activeFeedRef.current = activeFeed;
+  // Set while a re-tap's animated scroll-to-top is in flight, cleared if the
+  // user grabs the list. Gates the landing correction so we never yank someone
+  // who deliberately took over mid-scroll.
+  const pendingScrollTopRef = useRef<FeedKey | null>(null);
 
   // Collapsible search: 0 = collapsed (tabs shown), 1 = expanded (search bar
   // revealed over the tabs). Drives a width animation, so it must use the JS
@@ -356,10 +507,7 @@ export function Social() {
     const isDiscover = activeFeed === "discover";
     const feed = isDiscover ? discover : following;
     const listRef = isDiscover ? discoverListRef : followingListRef;
-    // The lists carry a top contentInset on iOS (HEADER_HEIGHT), so their
-    // resting "top" sits at -HEADER_HEIGHT; Android's top is plain 0.
     const isIOS = Platform.OS === "ios";
-    const topOffset = isIOS ? -(SEARCH_ROW_HEIGHT + insets.top) : 0;
     // When scrolled well away from the top on iOS, the RefreshControl's
     // spinner-reveal animation races an animated scroll-to-top and parks the
     // list short. So defer the refresh until the scroll actually lands
@@ -367,8 +515,13 @@ export function Social() {
     // is an overlay, no race) or already near the top (the scroll is a
     // no-op/negligible, and a no-op animated scroll emits no momentum event that
     // could carry a deferred refresh) — scroll and refresh together.
-    if (isIOS && lastYRef.current > SEARCH_ROW_HEIGHT) {
+    //
+    // This reads THIS feed's offset: a shared value went stale across pager
+    // swipes and sent a deep list down the together-path, straight into the
+    // race above.
+    if (isIOS && lastYByFeedRef.current[activeFeed] > SEARCH_ROW_HEIGHT) {
       pendingRefreshRef.current = activeFeed;
+      pendingScrollTopRef.current = activeFeed;
       listRef.current?.scrollToOffset({ offset: topOffset, animated: true });
     } else {
       // animated:false on iOS so the tiny near-top scroll can't race the
@@ -378,15 +531,18 @@ export function Social() {
     }
   };
 
-  const setHeaderHidden = (hidden: boolean) => {
-    if (isHiddenRef.current === hidden) return;
-    isHiddenRef.current = hidden;
-    Animated.timing(headerAnim, {
-      toValue: hidden ? 1 : 0,
-      duration: 220,
-      useNativeDriver: true,
-    }).start();
-  };
+  const setHeaderHidden = useCallback(
+    (hidden: boolean) => {
+      if (isHiddenRef.current === hidden) return;
+      isHiddenRef.current = hidden;
+      Animated.timing(headerAnim, {
+        toValue: hidden ? 1 : 0,
+        duration: 220,
+        useNativeDriver: true,
+      }).start();
+    },
+    [headerAnim],
+  );
 
   const headerTranslateY = headerAnim.interpolate({
     inputRange: [0, 1],
@@ -406,35 +562,82 @@ export function Social() {
     discover.initialLoadIfNeeded();
   }, [discover.initialLoadIfNeeded]);
 
-  const handleOpenComments = (postId: string) => {
-    navigation.navigate("Comments", { postId });
-  };
+  const handleOpenComments = useCallback(
+    (postId: string) => {
+      navigation.navigate("Comments", { postId });
+    },
+    [navigation],
+  );
 
   // Header hide/show driven by the visible feed's scroll. (Only the visible
   // FeedList forwards onScroll.)
-  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const y = e.nativeEvent.contentOffset.y;
-    const delta = y - lastYRef.current;
-    lastYRef.current = y;
+  const onScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>, variant: FeedKey) => {
+      const y = e.nativeEvent.contentOffset.y;
+      const delta = y - lastYByFeedRef.current[variant];
+      lastYByFeedRef.current[variant] = y;
 
-    if (y <= SEARCH_ROW_HEIGHT) {
-      setHeaderHidden(false);
-      return;
-    }
-    if (delta > 3) setHeaderHidden(true);
-    else if (delta < -3) setHeaderHidden(false);
-  };
+      // Only the feed on screen may drive the header. Normally the offscreen
+      // one emits nothing, but a programmatic scroll on it would.
+      if (variant !== activeFeedRef.current) return;
+
+      if (y <= SEARCH_ROW_HEIGHT) {
+        setHeaderHidden(false);
+        return;
+      }
+      if (delta > 3) setHeaderHidden(true);
+      else if (delta < -3) setHeaderHidden(false);
+    },
+    [setHeaderHidden],
+  );
+
+  // The user taking over an in-flight scroll-to-top cancels its landing
+  // correction, and discharges the deferred refresh immediately. Interrupting
+  // with a drag that comes to rest emits onScrollEndDrag, NOT
+  // onMomentumScrollEnd, so leaving the refresh armed here would either lose it
+  // or fire it much later on an unrelated scroll.
+  const onScrollBeginDrag = useCallback(
+    (variant: FeedKey) => {
+      if (pendingScrollTopRef.current === variant) {
+        pendingScrollTopRef.current = null;
+      }
+      if (pendingRefreshRef.current !== variant) return;
+      pendingRefreshRef.current = null;
+      const feed = variant === "discover" ? discover : following;
+      if (!feed.refreshing) void feed.refresh();
+    },
+    [discover, following],
+  );
 
   // A deferred tab-re-tap refresh fires here, once the scroll-to-top has landed.
   // Only the visible feed emits scroll events, and only a pending re-tap sets
   // the ref — user-driven scrolls leave it null and are ignored.
-  const onMomentumScrollEnd = () => {
-    const key = pendingRefreshRef.current;
-    if (!key) return;
-    pendingRefreshRef.current = null;
-    const feed = key === "discover" ? discover : following;
-    if (!feed.refreshing) void feed.refresh();
-  };
+  const onMomentumScrollEnd = useCallback(
+    (variant: FeedKey) => {
+      const key = pendingRefreshRef.current;
+      if (!key || key !== variant) return;
+      pendingRefreshRef.current = null;
+
+      const uninterrupted = pendingScrollTopRef.current === key;
+      pendingScrollTopRef.current = null;
+
+      // An animated scrollToOffset targets a fixed offset, but card heights are
+      // not final at request time — they settle as text lays out and as cells
+      // mount on the way up — so the content can shift under the animation and
+      // leave it parked short of the top. Snap the remainder once it lands.
+      // Only when the scroll ran uninterrupted, so this can never fight the
+      // user, and only when actually short (never scrolling back down).
+      if (uninterrupted && lastYByFeedRef.current[key] > topOffset) {
+        const listRef = key === "discover" ? discoverListRef : followingListRef;
+        listRef.current?.scrollToOffset({ offset: topOffset, animated: false });
+        lastYByFeedRef.current[key] = topOffset;
+      }
+
+      const feed = key === "discover" ? discover : following;
+      if (!feed.refreshing) void feed.refresh();
+    },
+    [discover, following, topOffset],
+  );
 
   // Search users (debounced so a fast typist doesn't fire a request per keystroke)
   useFocusEffect(
@@ -634,9 +837,11 @@ export function Social() {
               variant="following"
               onScroll={onScroll}
               onMomentumScrollEnd={onMomentumScrollEnd}
+              onScrollBeginDrag={onScrollBeginDrag}
               onOpenComments={handleOpenComments}
               listRef={followingListRef}
               scrollsToTop={activeFeed === "following" && !searchExpanded}
+              isActivePage={activeFeed === "following"}
             />
           </View>
           <View key="discover" style={styles.flex1} collapsable={false}>
@@ -645,9 +850,11 @@ export function Social() {
               variant="discover"
               onScroll={onScroll}
               onMomentumScrollEnd={onMomentumScrollEnd}
+              onScrollBeginDrag={onScrollBeginDrag}
               onOpenComments={handleOpenComments}
               listRef={discoverListRef}
               scrollsToTop={activeFeed === "discover" && !searchExpanded}
+              isActivePage={activeFeed === "discover"}
             />
           </View>
         </PagerView>
