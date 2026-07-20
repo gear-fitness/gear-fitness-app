@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   FlatList,
   StyleSheet,
   TouchableOpacity,
@@ -22,6 +21,7 @@ import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 import { OfflineNotice } from "../../components/OfflineNotice";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { useOnlineStatus } from "../../hooks/useOnlineStatus";
+import { Spinner } from "../../components/Spinner";
 
 const PAGE_SIZE = 20;
 const GRID_PADDING_HORIZONTAL = 12;
@@ -189,7 +189,7 @@ export function UserPosts() {
         onEndReachedThreshold={0.5}
         ListEmptyComponent={
           loading ? (
-            <ActivityIndicator style={styles.loader} color={t.text} />
+            <Spinner style={styles.loader} color={t.text} />
           ) : (
             <View style={styles.empty}>
               <Text style={{ color: t.textMuted, fontSize: 16 }}>
@@ -200,7 +200,7 @@ export function UserPosts() {
         }
         ListFooterComponent={
           loadingMore ? (
-            <ActivityIndicator style={{ paddingVertical: 16 }} color={t.text} />
+            <Spinner style={{ paddingVertical: 16 }} color={t.text} />
           ) : null
         }
       />

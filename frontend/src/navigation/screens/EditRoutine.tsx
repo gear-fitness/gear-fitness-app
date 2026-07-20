@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -27,6 +26,7 @@ import { useExerciseList } from "../../hooks/useExerciseList";
 import { renderBodyParts } from "../../utils/exerciseUtils";
 import { useExerciseFilter } from "../../hooks/useExerciseFilter";
 import { ExerciseFilterBar } from "../../components/ExerciseFilterBar";
+import { Spinner } from "../../components/Spinner";
 
 export function EditRoutine({
   route,
@@ -203,7 +203,7 @@ export function EditRoutine({
         ]}
       >
         {saving ? (
-          <ActivityIndicator size="small" color={colors.text} />
+          <Spinner size="small" color={colors.text} />
         ) : (
           <Text style={[styles.saveText, { color: colors.text }]}>✓</Text>
         )}
@@ -310,7 +310,7 @@ export function EditRoutine({
 
             {loadingExercises ? (
               <View style={styles.loadingWrap}>
-                <ActivityIndicator color={colors.isDark ? "#fff" : "#000"} />
+                <Spinner color={colors.isDark ? "#fff" : "#000"} />
               </View>
             ) : filteredExercises.length === 0 ? null : (
               sections.map((section) => (

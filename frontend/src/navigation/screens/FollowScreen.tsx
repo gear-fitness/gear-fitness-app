@@ -4,7 +4,6 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   Pressable,
   Alert,
   useColorScheme,
@@ -24,6 +23,7 @@ import { Avatar } from "../../components/Avatar";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 import { useFollowStatus } from "../../context/FollowStatusContext";
+import { Spinner } from "../../components/Spinner";
 
 type Tab = "followers" | "following";
 
@@ -212,7 +212,7 @@ export default function FollowScreen() {
             activeOpacity={0.75}
           >
             {isToggling ? (
-              <ActivityIndicator
+              <Spinner
                 size="small"
                 color={isFollowActive ? c.followingText : c.followBtnText}
               />
@@ -300,7 +300,7 @@ export default function FollowScreen() {
       {/* List */}
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={c.text} />
+          <Spinner size="large" color={c.text} />
         </View>
       ) : (
         <FlatList

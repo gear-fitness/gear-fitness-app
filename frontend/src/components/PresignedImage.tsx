@@ -1,13 +1,8 @@
 import { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Image,
-  ImageStyle,
-  StyleProp,
-  View,
-} from "react-native";
+import { Image, ImageStyle, StyleProp, View } from "react-native";
 import { useTheme } from "@react-navigation/native";
 import { usePresignedImage } from "../hooks/usePresignedImage";
+import { Spinner } from "./Spinner";
 
 type Props = {
   imageKey?: string | null;
@@ -45,7 +40,7 @@ export function PresignedImage({
         ]}
       >
         {showLoader && !failed ? (
-          <ActivityIndicator size="small" color={colors.text} />
+          <Spinner size="small" color={colors.text} />
         ) : null}
       </View>
     );

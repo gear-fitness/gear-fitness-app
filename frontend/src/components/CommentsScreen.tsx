@@ -4,7 +4,6 @@ import {
   FlatList,
   StyleSheet,
   TouchableOpacity,
-  ActivityIndicator,
   Platform,
   Keyboard,
   KeyboardEvent,
@@ -27,6 +26,7 @@ import { PostActionsSheet, PostAction } from "./PostActionsSheet";
 import { ReportCommentSheet } from "./ReportCommentSheet";
 import { MentionableText } from "./MentionableText";
 import { MentionTextInput } from "./MentionTextInput";
+import { Spinner } from "./Spinner";
 
 export function CommentsScreen() {
   const { colors } = useTheme();
@@ -507,7 +507,7 @@ export function CommentsScreen() {
               <View key={reply.commentId}>{renderRow(reply, true)}</View>
             ))}
             {isLoading && (
-              <ActivityIndicator
+              <Spinner
                 size="small"
                 color={colors.primary}
                 style={{ marginVertical: 8 }}
@@ -538,7 +538,7 @@ export function CommentsScreen() {
     >
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <Spinner size="large" color={colors.primary} />
         </View>
       ) : (
         <FlatList
@@ -604,7 +604,7 @@ export function CommentsScreen() {
             ]}
           >
             {commenting ? (
-              <ActivityIndicator size="small" color="#000" />
+              <Spinner size="small" color="#000" />
             ) : (
               <Text maxFontSizeMultiplier={1} style={styles.sendArrow}>
                 ↑

@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Animated,
   Modal,
   StyleSheet,
@@ -11,6 +10,7 @@ import { Text } from "./Text";
 import { Ionicons } from "@expo/vector-icons";
 import type { StreakInfo } from "../api/streakService";
 import { StreakIcon } from "./StreakIcon";
+import { Spinner } from "./Spinner";
 
 interface StreakDropdownProps {
   visible: boolean;
@@ -180,7 +180,7 @@ export function StreakDropdown({
                 activeOpacity={0.7}
               >
                 {restLoading ? (
-                  <ActivityIndicator size="small" color={t.text} />
+                  <Spinner size="small" color={t.text} />
                 ) : (
                   <Text style={[styles.outlinedButtonText, { color: t.text }]}>
                     {todayLogged ? "Logged Today" : "Log Rest Day"}
@@ -222,7 +222,7 @@ export function StreakDropdown({
                     activeOpacity={0.85}
                   >
                     {restoreLoading ? (
-                      <ActivityIndicator size="small" color={t.bg} />
+                      <Spinner size="small" color={t.bg} />
                     ) : (
                       <Text style={[styles.filledButtonText, { color: t.bg }]}>
                         Restore Streak

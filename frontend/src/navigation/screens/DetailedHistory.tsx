@@ -3,7 +3,6 @@ import {
   View,
   ScrollView,
   useColorScheme,
-  ActivityIndicator,
   TouchableOpacity,
   StyleProp,
   TextStyle,
@@ -40,6 +39,7 @@ import {
   defaultDiagramPalette,
   resolveBodyVariant,
 } from "../../utils/muscleActivations";
+import { Spinner } from "../../components/Spinner";
 
 type RootStackParamList = {
   DetailedHistory: {
@@ -261,7 +261,7 @@ export function DetailedHistory({ route }: Props) {
         {backButton}
         {dotsButton}
         {floatingActions}
-        <ActivityIndicator size="large" color={colors.text} />
+        <Spinner size="large" color={colors.text} />
         <Text style={[styles.loadingText, { color: colors.text }]}>
           Loading workout...
         </Text>

@@ -11,7 +11,6 @@ import {
   FlatList,
   Image,
   StyleSheet,
-  ActivityIndicator,
   RefreshControl,
   TouchableOpacity,
   Animated,
@@ -53,6 +52,7 @@ import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
 import { useHealthKitForegroundSync } from "../../hooks/useHealthKitSync";
+import { Spinner } from "../../components/Spinner";
 
 const SEARCH_ROW_HEIGHT = 64;
 
@@ -210,7 +210,7 @@ function FeedListInner({
     if (!feed.loadingMore) return null;
     return (
       <View style={styles.footer}>
-        <ActivityIndicator size="small" color={colors.primary} />
+        <Spinner size="small" color={colors.primary} />
         <Text style={[styles.footerText, { color: colors.text }]}>
           Loading more...
         </Text>
@@ -222,7 +222,7 @@ function FeedListInner({
     if (feed.status === "loading" || feed.status === "idle") {
       return (
         <View style={styles.emptyState}>
-          <ActivityIndicator size="small" color={colors.primary} />
+          <Spinner size="small" color={colors.primary} />
         </View>
       );
     }
@@ -288,6 +288,7 @@ function FeedListInner({
             refreshing={feed.refreshing}
             onRefresh={feed.refresh}
             progressViewOffset={HEADER_HEIGHT}
+            tintColor={colors.text}
           />
         }
         onScroll={handleScroll}
@@ -888,9 +889,7 @@ export function Social() {
                 />
               )}
               ListEmptyComponent={
-                searchingUsers ? (
-                  <ActivityIndicator style={{ marginTop: 24 }} />
-                ) : null
+                searchingUsers ? <Spinner style={{ marginTop: 24 }} /> : null
               }
             />
           </View>

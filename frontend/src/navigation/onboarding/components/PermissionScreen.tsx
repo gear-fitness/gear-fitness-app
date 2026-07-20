@@ -1,9 +1,10 @@
 import React, { useMemo } from "react";
-import { View, Pressable, ActivityIndicator, StyleSheet } from "react-native";
+import { View, Pressable, StyleSheet } from "react-native";
 import { Text } from "../../../components/Text";
 import { OnboardingTopBar } from "./OnboardingTopBar";
 import { useOnboardingColors } from "./useOnboardingColors";
 import { makeOnboardingStyles } from "./makeOnboardingStyles";
+import { Spinner } from "../../../components/Spinner";
 
 interface PermissionScreenProps {
   progress: number;
@@ -93,7 +94,7 @@ export function PermissionScreen({
             ]}
           >
             {busy ? (
-              <ActivityIndicator color={colors.accentText} />
+              <Spinner color={colors.accentText} />
             ) : (
               <Text style={shared.continueBtnText}>{primaryLabel}</Text>
             )}
