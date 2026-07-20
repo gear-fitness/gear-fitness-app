@@ -84,9 +84,11 @@ const WINDOW_SIZE_OFFSCREEN = 3;
 // its url already resolved and its bitmap already in the RN image cache.
 const PREFETCH_AHEAD = 8;
 
-// Keys already warmed. Module-level so it is shared by both feeds and survives
-// unmount, matching the lifetime of the url cache in imageService.
-const prefetchedImageKeys = new Set<string>();
+// Shared by both feeds and kept across unmounts. Track the exact warmed URL,
+// not just its key: a renewed presigned URL can then be prefetched again.
+const MAX_PREFETCHED_IMAGES = 200;
+const prefetchingImageKeys = new Set<string>();
+const prefetchedImageUrlsByKey = new Map<string, string>();
 
 /** The photo a card shows first — the only one worth warming before mount. */
 function firstPhotoKey(post: FeedPost): string | undefined {
@@ -106,15 +108,32 @@ function prefetchImagesFrom(posts: FeedPost[], startIndex: number) {
   const end = Math.min(startIndex + PREFETCH_AHEAD, posts.length);
   for (let i = Math.max(startIndex, 0); i < end; i++) {
     const key = firstPhotoKey(posts[i]);
-    if (!key || prefetchedImageKeys.has(key)) continue;
-    prefetchedImageKeys.add(key);
+    if (!key || prefetchingImageKeys.has(key)) continue;
+    prefetchingImageKeys.add(key);
     void resolveImageKey(key)
-      .then((entry) => {
-        if (entry?.url) return Image.prefetch(entry.url);
+      .then(async (entry) => {
+        if (!entry?.url || prefetchedImageUrlsByKey.get(key) === entry.url) {
+          return;
+        }
+
+        const didPrefetch = await Image.prefetch(entry.url);
+        if (!didPrefetch) return;
+
+        // Refresh insertion order when a key receives a renewed URL so the
+        // bounded map evicts the least recently warmed entry.
+        prefetchedImageUrlsByKey.delete(key);
+        prefetchedImageUrlsByKey.set(key, entry.url);
+        if (prefetchedImageUrlsByKey.size > MAX_PREFETCHED_IMAGES) {
+          const oldestKey = prefetchedImageUrlsByKey.keys().next().value;
+          if (oldestKey !== undefined) {
+            prefetchedImageUrlsByKey.delete(oldestKey);
+          }
+        }
       })
-      // Let a failed warm-up be retried later rather than poisoning the key;
-      // the card's own load path is unaffected either way.
-      .catch(() => prefetchedImageKeys.delete(key));
+      // Prefetching is best-effort; the card's normal image path is unaffected.
+      .catch(() => {})
+      // Null resolutions, false prefetches, and errors can all retry later.
+      .finally(() => prefetchingImageKeys.delete(key));
   }
 }
 

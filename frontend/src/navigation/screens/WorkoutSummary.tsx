@@ -111,11 +111,22 @@ export function WorkoutSummary() {
   const isEditingRef = useRef(isEditing);
   isEditingRef.current = isEditing;
 
+  // Keep the imperative tap guard in sync immediately rather than waiting for
+  // React to commit the edit-mode state change after a drag starts or ends.
+  const enterEditMode = useCallback(() => {
+    isEditingRef.current = true;
+    setIsEditing(true);
+  }, []);
+  const exitEditMode = useCallback(() => {
+    isEditingRef.current = false;
+    setIsEditing(false);
+  }, []);
+
   // Nothing left to edit; leave the mode rather than stranding the Done
   // button next to an empty list.
   useEffect(() => {
-    if (isEditing && exercises.length === 0) setIsEditing(false);
-  }, [isEditing, exercises.length]);
+    if (isEditing && exercises.length === 0) exitEditMode();
+  }, [isEditing, exercises.length, exitEditMode]);
 
   // Deletion is edit-mode only now (the minus badge); route removeExercise
   // through a ref so the memoized rows keep a stable callback identity.
@@ -135,8 +146,6 @@ export function WorkoutSummary() {
       ],
     );
   }, []);
-
-  const enterEditMode = useCallback(() => setIsEditing(true), []);
 
   // Drag haptics fired manually with expo-haptics: sortables' hapticsEnabled
   // needs react-native-haptic-feedback's native module, which is not linked
@@ -218,7 +227,7 @@ export function WorkoutSummary() {
     <View
       style={[styles.container, { backgroundColor: t.bg }]}
       onStartShouldSetResponder={() => isEditing}
-      onResponderRelease={() => setIsEditing(false)}
+      onResponderRelease={exitEditMode}
     >
       <FloatingCloseButton onPress={() => dismissWorkoutFlow(navigation)} />
 
@@ -265,7 +274,7 @@ export function WorkoutSummary() {
             </Text>
             {isEditing && (
               <TouchableOpacity
-                onPress={() => setIsEditing(false)}
+                onPress={exitEditMode}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 activeOpacity={0.7}
               >
@@ -351,7 +360,10 @@ export function WorkoutSummary() {
             <TouchableOpacity
               activeOpacity={0.85}
               style={[styles.footerBtn, { backgroundColor: DESTRUCTIVE }]}
-              onPress={() => navigation.navigate("WorkoutComplete")}
+              onPress={() => {
+                exitEditMode();
+                navigation.navigate("WorkoutComplete");
+              }}
             >
               <Text style={[styles.footerBtnText, { color: "#fff" }]}>
                 Finish
@@ -379,8 +391,8 @@ export function WorkoutSummary() {
 // Memoized row: every prop is referentially stable across the ~100ms timer
 // ticks, so rows only re-render when their exercise, the theme, or edit mode
 // changes. Sortable.Touchable replaces the old manual onTouchStart/onTouchEnd
-// tap check: it is coordinated with the drag gesture, so a long-press that
-// lifts the card can never fire onTap on release.
+// tap check. Its tap and drag gestures may both recognize, so openExercise also
+// checks the synchronously updated edit-mode ref before navigating.
 const ExerciseRow = React.memo(function ExerciseRow({
   ex,
   index,
