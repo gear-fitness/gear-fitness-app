@@ -12,6 +12,7 @@ import {
   LayoutChangeEvent,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Pressable,
   ScrollView,
   StyleProp,
   StyleSheet,
@@ -271,7 +272,10 @@ export function FeedPostCard({
   );
 
   const header = (
-    <View style={[styles.header, hasPhotos && styles.photoHeader]}>
+    <View
+      style={[styles.header, hasPhotos && styles.photoHeader]}
+      pointerEvents="box-none"
+    >
       {isOwnPost ? (
         <View style={styles.userInfoWrap}>{userHeader}</View>
       ) : (
@@ -464,7 +468,9 @@ export function FeedPostCard({
                   </View>
                 )}
 
-                <View style={styles.photoActions}>{actionBar}</View>
+                <View style={styles.photoActions} pointerEvents="box-none">
+                  {actionBar}
+                </View>
 
                 {pendingPill}
               </View>
@@ -492,6 +498,15 @@ export function FeedPostCard({
             </>
           ) : (
             <>
+              {/* Catches taps in the gaps the text block and pill do not cover,
+                  so the whole card opens details like the photo variant does. */}
+              <Pressable
+                style={StyleSheet.absoluteFill}
+                disabled={isPending}
+                onPress={openWorkoutDetails}
+                accessible={false}
+                importantForAccessibility="no"
+              />
               {header}
               <TouchableOpacity
                 activeOpacity={isPending ? 1 : 0.72}
@@ -519,7 +534,9 @@ export function FeedPostCard({
                   />
                 ) : null}
               </TouchableOpacity>
-              <View style={styles.textActions}>{actionBar}</View>
+              <View style={styles.textActions} pointerEvents="box-none">
+                {actionBar}
+              </View>
 
               {pendingPill}
             </>

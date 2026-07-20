@@ -1,4 +1,5 @@
 import {
+  Alert,
   View,
   StyleSheet,
   TouchableOpacity,
@@ -6,7 +7,6 @@ import {
 } from "react-native";
 import { Text } from "../../components/Text";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Swipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 import { useNavigation } from "@react-navigation/native";
 import Svg, { Path } from "react-native-svg";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -22,13 +22,13 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import Sortable, { useItemContext } from "react-native-sortables";
+import * as Haptics from "expo-haptics";
 import type { SortableGridRenderItem } from "react-native-sortables";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 
 import { useWorkoutTimer, WorkoutExercise } from "../../context/WorkoutContext";
 import { useUnitPreference } from "../../context/UnitPreferenceContext";
 import { toDisplayWeight } from "../../utils/weight";
-import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 import { dismissWorkoutFlow } from "../../utils/dismissWorkoutFlow";
@@ -117,28 +117,39 @@ export function WorkoutSummary() {
     if (isEditing && exercises.length === 0) setIsEditing(false);
   }, [isEditing, exercises.length]);
 
-  const { getSwipeableProps, confirmDelete } = useSwipeableDelete({
-    onDelete: (id) => removeExercise(id),
-    deleteTitle: "Delete Exercise",
-    deleteMessage: "Are you sure you want to remove this exercise?",
-  });
-
-  // The hook recreates these functions every render; route them through refs
-  // so the memoized rows can depend on stable identities.
-  const getSwipeablePropsRef = useRef(getSwipeableProps);
-  getSwipeablePropsRef.current = getSwipeableProps;
-  const getSwipeablePropsStable = useCallback(
-    (id: string) => getSwipeablePropsRef.current(id),
-    [],
-  );
-  const confirmDeleteRef = useRef(confirmDelete);
-  confirmDeleteRef.current = confirmDelete;
-  const confirmDeleteStable = useCallback(
-    (id: string) => confirmDeleteRef.current(id),
-    [],
-  );
+  // Deletion is edit-mode only now (the minus badge); route removeExercise
+  // through a ref so the memoized rows keep a stable callback identity.
+  const removeExerciseRef = useRef(removeExercise);
+  removeExerciseRef.current = removeExercise;
+  const confirmDelete = useCallback((id: string) => {
+    Alert.alert(
+      "Delete Exercise",
+      "Are you sure you want to remove this exercise?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => removeExerciseRef.current(id),
+        },
+      ],
+    );
+  }, []);
 
   const enterEditMode = useCallback(() => setIsEditing(true), []);
+
+  // Drag haptics fired manually with expo-haptics: sortables' hapticsEnabled
+  // needs react-native-haptic-feedback's native module, which is not linked
+  // into our build. Mirrors its pattern: medium on lift, light per swap,
+  // medium on release.
+  const handleDragStart = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    enterEditMode();
+  }, [enterEditMode]);
+
+  const handleOrderChange = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  }, []);
 
   const openExercise = useCallback(
     (ex: WorkoutExercise) => {
@@ -165,19 +176,10 @@ export function WorkoutSummary() {
         isEditing={isEditing}
         onTap={openExercise}
         onLongPress={enterEditMode}
-        onDeleteTap={confirmDeleteStable}
-        getSwipeableProps={getSwipeablePropsStable}
+        onDeleteTap={confirmDelete}
       />
     ),
-    [
-      isDark,
-      globalUnit,
-      isEditing,
-      openExercise,
-      enterEditMode,
-      confirmDeleteStable,
-      getSwipeablePropsStable,
-    ],
+    [isDark, globalUnit, isEditing, openExercise, enterEditMode, confirmDelete],
   );
 
   const formatTime = (s: number) =>
@@ -280,10 +282,15 @@ export function WorkoutSummary() {
             activeItemScale={1.04}
             inactiveItemOpacity={0.7}
             overDrag="none"
-            hapticsEnabled
             scrollableRef={scrollRef}
-            onDragStart={enterEditMode}
-            onDragEnd={({ indexToKey }) => reorderExercises([...indexToKey])}
+            onDragStart={handleDragStart}
+            onOrderChange={handleOrderChange}
+            onDragEnd={({ indexToKey }) => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(
+                () => {},
+              );
+              reorderExercises([...indexToKey]);
+            }}
           />
 
           <TouchableOpacity
@@ -373,7 +380,7 @@ export function WorkoutSummary() {
 // ticks, so rows only re-render when their exercise, the theme, or edit mode
 // changes. Sortable.Touchable replaces the old manual onTouchStart/onTouchEnd
 // tap check: it is coordinated with the drag gesture, so a long-press that
-// lifts the card (or a swipe) can never fire onTap on release.
+// lifts the card can never fire onTap on release.
 const ExerciseRow = React.memo(function ExerciseRow({
   ex,
   index,
@@ -383,7 +390,6 @@ const ExerciseRow = React.memo(function ExerciseRow({
   onTap,
   onLongPress,
   onDeleteTap,
-  getSwipeableProps,
 }: {
   ex: WorkoutExercise;
   index: number;
@@ -393,9 +399,6 @@ const ExerciseRow = React.memo(function ExerciseRow({
   onTap: (ex: WorkoutExercise) => void;
   onLongPress: () => void;
   onDeleteTap: (id: string) => void;
-  getSwipeableProps: (
-    id: string,
-  ) => React.ComponentProps<typeof Swipeable> & { ref?: unknown };
 }) {
   const { activationAnimationProgress } = useItemContext();
 
@@ -462,62 +465,58 @@ const ExerciseRow = React.memo(function ExerciseRow({
       onStartShouldSetResponder={() => isEditing}
     >
       <View style={styles.exerciseCardWrapper}>
-        <Swipeable {...getSwipeableProps(ex.workoutExerciseId)}>
-          <Sortable.Touchable onTap={() => onTap(ex)} onLongPress={onLongPress}>
-            <View
-              style={[
-                styles.exerciseCard,
-                {
-                  backgroundColor: t.surface,
-                  borderColor: t.border,
-                },
-              ]}
-            >
-              <View style={styles.exerciseNameCol}>
-                <Text
-                  style={[styles.exerciseName, { color: t.text }]}
-                  numberOfLines={1}
-                >
-                  {ex.name}
-                </Text>
-              </View>
-
-              <View style={styles.lastSetCol}>
-                {last ? (
-                  <>
-                    <Text style={[styles.lastSetLabel, { color: t.textMuted }]}>
-                      LAST SET
-                    </Text>
-                    <Text style={[styles.lastSetValue, { color: t.text }]}>
-                      {last.reps}×
-                      {toDisplayWeight(Number(last.weight) || 0, rowUnit)}
-                      <Text
-                        style={[styles.lastSetUnit, { color: t.textFaint }]}
-                      >
-                        {" "}
-                        {rowUnit}
-                      </Text>
-                    </Text>
-                  </>
-                ) : (
-                  <Text style={[styles.notStarted, { color: t.textFaint }]}>
-                    Not started
-                  </Text>
-                )}
-              </View>
-
-              <Svg width={12} height={12} viewBox="0 0 16 16" fill="none">
-                <Path
-                  d="M6 3l5 5-5 5"
-                  stroke={t.textFaint}
-                  strokeWidth={1.6}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </Svg>
+        <Sortable.Touchable onTap={() => onTap(ex)} onLongPress={onLongPress}>
+          <View
+            style={[
+              styles.exerciseCard,
+              {
+                backgroundColor: t.surface,
+                borderColor: t.border,
+              },
+            ]}
+          >
+            <View style={styles.exerciseNameCol}>
+              <Text
+                style={[styles.exerciseName, { color: t.text }]}
+                numberOfLines={1}
+              >
+                {ex.name}
+              </Text>
             </View>
-          </Sortable.Touchable>
-        </Swipeable>
+
+            <View style={styles.lastSetCol}>
+              {last ? (
+                <>
+                  <Text style={[styles.lastSetLabel, { color: t.textMuted }]}>
+                    LAST SET
+                  </Text>
+                  <Text style={[styles.lastSetValue, { color: t.text }]}>
+                    {last.reps}×
+                    {toDisplayWeight(Number(last.weight) || 0, rowUnit)}
+                    <Text style={[styles.lastSetUnit, { color: t.textFaint }]}>
+                      {" "}
+                      {rowUnit}
+                    </Text>
+                  </Text>
+                </>
+              ) : (
+                <Text style={[styles.notStarted, { color: t.textFaint }]}>
+                  Not started
+                </Text>
+              )}
+            </View>
+
+            <Svg width={12} height={12} viewBox="0 0 16 16" fill="none">
+              <Path
+                d="M6 3l5 5-5 5"
+                stroke={t.textFaint}
+                strokeWidth={1.6}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </Svg>
+          </View>
+        </Sortable.Touchable>
       </View>
 
       <Animated.View
@@ -655,8 +654,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
   },
-  // Badge sits outside exerciseCardWrapper (which clips for the swipe
-  // background) so it can overlap the card's top-left corner uncropped. The
+  // Badge sits outside exerciseCardWrapper (which clips to the rounded
+  // corners) so it can overlap the card's top-left corner uncropped. The
   // 34pt hit target is transparent; the visible 22pt circle protrudes 5pt
   // past the corner, staying inside the 6pt row gap.
   deleteBadgeWrap: {
