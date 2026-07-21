@@ -30,10 +30,12 @@ import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
@@ -577,6 +579,44 @@ public class WorkoutService {
           .build()
       )
     );
+  }
+
+  /**
+   * Change or clear the gym tag on an existing workout — and therefore on its
+   * post, which reads the tag through the workout. A null submission clears
+   * the tag; a non-null one goes through the same find-or-create dedupe as
+   * submit-time tagging, so re-tagging a gym we already know never mints a
+   * duplicate row. The location row itself is never deleted here: it's shared,
+   * and other workouts may reference it.
+   *
+   * @return the workout's new location, or null when the tag was removed
+   */
+  @Transactional
+  public Location updateWorkoutLocation(
+    UUID workoutId,
+    UUID userId,
+    WorkoutSubmissionDTO.LocationSubmissionDTO dto
+  ) {
+    Workout workout = workoutRepository
+      .findById(workoutId)
+      .orElseThrow(() ->
+        new ResponseStatusException(
+          HttpStatus.NOT_FOUND,
+          "Workout not found with id: " + workoutId
+        )
+      );
+
+    if (!workout.getUser().getUserId().equals(userId)) {
+      throw new ResponseStatusException(
+        HttpStatus.FORBIDDEN,
+        "Only the owner can edit a workout's location"
+      );
+    }
+
+    Location resolved = resolveLocation(dto, workout.getUser());
+    workout.setLocation(resolved);
+    workoutRepository.save(workout);
+    return resolved;
   }
 
   @Transactional

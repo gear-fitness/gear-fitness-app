@@ -12,6 +12,7 @@ import { usePostMenu } from "../hooks/usePostMenu";
 import { formatTimeAgo } from "../utils/date";
 import { Avatar } from "./Avatar";
 import { FontScaleProvider, Text } from "./Text";
+import { LocationPicker } from "./LocationPicker";
 import { MentionableText } from "./MentionableText";
 import { PostActionsSheet } from "./PostActionsSheet";
 import { PostVisibilitySheet } from "./PostVisibilitySheet";
@@ -65,6 +66,10 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
     showReportSheet,
     closeReportSheet,
     submitReport,
+    showLocationPicker,
+    closeLocationPicker,
+    locationPickerSelected,
+    handleLocationSelect,
   } = usePostMenu({
     workoutId: post.workoutId,
     postId: post.postId,
@@ -72,6 +77,9 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
     ownerUsername: post.username,
     viewerFollowsAuthor: post.viewerFollowsAuthor,
     currentVisibility: post.visibility ?? "PUBLIC",
+    canEditLocation: true,
+    locationId: post.locationId,
+    locationName: post.locationName,
   });
 
   const photos =
@@ -197,6 +205,12 @@ export function CompactPostCard({ post, theme: t, width }: Props) {
         visible={showReportSheet}
         onSubmit={submitReport}
         onClose={closeReportSheet}
+      />
+      <LocationPicker
+        visible={showLocationPicker}
+        onClose={closeLocationPicker}
+        selected={locationPickerSelected}
+        onSelect={handleLocationSelect}
       />
 
       {hasPhoto ? (

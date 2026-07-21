@@ -5,6 +5,7 @@ import com.gearfitness.gear_api.dto.WeeklyVolumeDTO;
 import com.gearfitness.gear_api.dto.WorkoutDTO;
 import com.gearfitness.gear_api.dto.WorkoutDetailDTO;
 import com.gearfitness.gear_api.dto.WorkoutSubmissionDTO;
+import com.gearfitness.gear_api.entity.Location;
 import com.gearfitness.gear_api.entity.Workout;
 import com.gearfitness.gear_api.security.JwtService;
 import com.gearfitness.gear_api.service.S3StorageService;
@@ -243,6 +244,56 @@ public class WorkoutController {
       e.printStackTrace();
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
     }
+  }
+
+  /**
+   * Re-tag the workout (and its post) with a gym. Ownership violations and
+   * missing workouts surface as ResponseStatusException (403/404) from the
+   * service — deliberately not caught here so Spring maps the status through.
+   * Removal is its own DELETE below, so a blank name here is a client bug.
+   */
+  @PatchMapping("/{workoutId}/location")
+  public ResponseEntity<?> updateWorkoutLocation(
+    @PathVariable UUID workoutId,
+    @RequestHeader("Authorization") String authHeader,
+    @RequestBody(
+      required = false
+    ) WorkoutSubmissionDTO.LocationSubmissionDTO body
+  ) {
+    String token = authHeader.substring(7);
+    UUID userId = jwtService.extractUserId(token);
+
+    if (body == null || body.getName() == null || body.getName().isBlank()) {
+      return ResponseEntity.badRequest().body(
+        "location name required; use DELETE to remove the tag"
+      );
+    }
+
+    Location location = workoutService.updateWorkoutLocation(
+      workoutId,
+      userId,
+      body
+    );
+    return ResponseEntity.ok(
+      Map.of(
+        "locationId",
+        location.getLocationId(),
+        "locationName",
+        location.getName()
+      )
+    );
+  }
+
+  /** Remove the workout's gym tag. The shared location row is untouched. */
+  @DeleteMapping("/{workoutId}/location")
+  public ResponseEntity<Void> removeWorkoutLocation(
+    @PathVariable UUID workoutId,
+    @RequestHeader("Authorization") String authHeader
+  ) {
+    String token = authHeader.substring(7);
+    UUID userId = jwtService.extractUserId(token);
+    workoutService.updateWorkoutLocation(workoutId, userId, null);
+    return ResponseEntity.noContent().build();
   }
 
   @DeleteMapping("/{workoutId}")

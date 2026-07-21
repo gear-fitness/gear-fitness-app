@@ -70,6 +70,7 @@ type SocialFeedContextValue = {
   loadMore: (key: FeedKey) => Promise<void>;
   invalidate: (key: FeedKey) => void;
   invalidateAll: () => void;
+  patchPost: (postId: string, patch: Partial<FeedPost>) => void;
   refreshIfStaleAndHidden: (key: FeedKey) => void;
   getScrollOffset: (key: FeedKey) => number;
   setScrollOffset: (key: FeedKey, offset: number) => void;
@@ -256,6 +257,26 @@ export function SocialFeedProvider({
     });
   }, [notify]);
 
+  // Surgically update one post in every cached feed that contains it, so an
+  // in-place edit (e.g. re-tagging a gym) shows up immediately on all mounted
+  // surfaces. Complements — not replaces — invalidation: callers still mark
+  // feeds stale afterwards so the next focus refetch picks up server truth.
+  const patchPost = useCallback(
+    (postId: string, patch: Partial<FeedPost>) => {
+      feedsRef.current.forEach((entry, key) => {
+        if (!entry.state.posts.some((p) => p.postId === postId)) return;
+        entry.state = {
+          ...entry.state,
+          posts: entry.state.posts.map((p) =>
+            p.postId === postId ? { ...p, ...patch } : p,
+          ),
+        };
+        notify(key);
+      });
+    },
+    [notify],
+  );
+
   const refreshIfStaleAndHidden = useCallback(
     (key: FeedKey) => {
       const s = ensure(key).state;
@@ -309,6 +330,7 @@ export function SocialFeedProvider({
       loadMore,
       invalidate,
       invalidateAll,
+      patchPost,
       refreshIfStaleAndHidden,
       getScrollOffset,
       setScrollOffset,
@@ -322,6 +344,7 @@ export function SocialFeedProvider({
       loadMore,
       invalidate,
       invalidateAll,
+      patchPost,
       refreshIfStaleAndHidden,
       getScrollOffset,
       setScrollOffset,
@@ -397,6 +420,7 @@ export function useSocialFeed(feedKey: FeedKey = "following") {
     loadMore,
     invalidate,
     invalidateAll: ctx.invalidateAll,
+    patchPost: ctx.patchPost,
     refreshIfStaleAndHidden,
     getScrollOffset,
     setScrollOffset,

@@ -4,7 +4,12 @@ import { useNavigation } from "@react-navigation/native";
 
 import { followUser, unfollowUser } from "../api/userService";
 import { blockUser } from "../api/followService";
-import { deleteWorkout } from "../api/workoutService";
+import { GymLocation } from "../api/locationService";
+import {
+  deleteWorkout,
+  updateWorkoutLocation,
+  WorkoutLocationUpdate,
+} from "../api/workoutService";
 import { socialFeedApi } from "../api/socialFeedApi";
 import { reportService, ReportReason } from "../api/reportService";
 import { PostAction } from "../components/PostActionsSheet";
@@ -33,6 +38,20 @@ export function usePostMenu(args: {
   currentVisibility?: Visibility;
   onVisibilityChanged?: (v: Visibility) => void;
   /**
+   * Opt-in for the "Edit Location" own-post action. Surfaces that know the
+   * post's current gym tag (the post cards) pass true along with locationId/
+   * locationName and mount a LocationPicker driven by this hook's state;
+   * surfaces without that data (DetailedHistory) leave it off.
+   */
+  canEditLocation?: boolean;
+  locationId?: string | null;
+  locationName?: string | null;
+  /**
+   * Called after the gym tag is changed or removed (null = untagged), so the
+   * surface can update its own copy of the post before feeds refetch.
+   */
+  onLocationChanged?: (location: WorkoutLocationUpdate | null) => void;
+  /**
    * Called after the workout behind this post is deleted. Surfaces that show
    * only this workout (the detail screen) pass a goBack here; feed surfaces
    * rely on the invalidateAll the hook already performs.
@@ -41,7 +60,7 @@ export function usePostMenu(args: {
 }) {
   const { user } = useAuth();
   const navigation = useNavigation();
-  const { invalidateAll } = useSocialFeed();
+  const { invalidateAll, patchPost } = useSocialFeed();
 
   const isOwn =
     args.ownerUserId === undefined || args.ownerUserId === user?.userId;
@@ -58,6 +77,16 @@ export function usePostMenu(args: {
   const savedVisibilityRef = useRef<Visibility>(
     args.currentVisibility ?? "PUBLIC",
   );
+
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  // The gym tag as last persisted to the server. Seeds the picker's
+  // "currently selected" row and the remove-confirmation copy.
+  const [savedLocation, setSavedLocation] =
+    useState<WorkoutLocationUpdate | null>(
+      args.locationId && args.locationName
+        ? { locationId: args.locationId, locationName: args.locationName }
+        : null,
+    );
 
   const navigateToShare = () => {
     const target = (navigation as any).getParent?.() ?? (navigation as any);
@@ -92,6 +121,49 @@ export function usePostMenu(args: {
     });
 
   const handleReport = () => closeActionsThen(() => setShowReportSheet(true));
+
+  const handleEditLocation = () =>
+    closeActionsThen(() => setShowLocationPicker(true));
+
+  const applyLocation = async (gym: GymLocation | null) => {
+    try {
+      const updated = await updateWorkoutLocation(args.workoutId, gym);
+      setSavedLocation(updated);
+      if (args.postId) {
+        patchPost(args.postId, {
+          locationId: updated?.locationId ?? null,
+          locationName: updated?.locationName ?? null,
+        });
+      }
+      args.onLocationChanged?.(updated);
+      invalidateAll();
+    } catch {
+      Alert.alert("Couldn't update", "Failed to update the location.");
+    }
+  };
+
+  // The picker's own "Remove location" row fires with null; a removal is
+  // destructive-ish (the tag is gone from the post) so it gets a native
+  // confirm, which can present over the closing sheet (same as handleDelete).
+  const handleLocationSelect = (gym: GymLocation | null) => {
+    if (gym) {
+      void applyLocation(gym);
+      return;
+    }
+    if (!savedLocation) return;
+    Alert.alert(
+      "Remove location?",
+      `This post will no longer be tagged at ${savedLocation.locationName}.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: () => void applyLocation(null),
+        },
+      ],
+    );
+  };
 
   const handleToggleFollow = async () => {
     setShowActionsSheet(false);
@@ -218,6 +290,16 @@ export function usePostMenu(args: {
               } as PostAction,
             ]
           : []),
+        ...(args.postId && args.canEditLocation
+          ? [
+              {
+                key: "location",
+                icon: "location-outline",
+                label: savedLocation ? "Edit Location" : "Add Location",
+                onPress: handleEditLocation,
+              } as PostAction,
+            ]
+          : []),
         {
           key: "delete",
           icon: "trash-outline",
@@ -279,5 +361,12 @@ export function usePostMenu(args: {
     showReportSheet,
     closeReportSheet: () => setShowReportSheet(false),
     submitReport,
+    showLocationPicker,
+    closeLocationPicker: () => setShowLocationPicker(false),
+    /** Seed for LocationPicker's `selected` — enables its remove row. */
+    locationPickerSelected: savedLocation
+      ? ({ name: savedLocation.locationName } as GymLocation)
+      : null,
+    handleLocationSelect,
   };
 }

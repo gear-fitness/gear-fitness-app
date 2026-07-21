@@ -162,7 +162,7 @@ export function LocationPage() {
             {info?.athleteCount ?? "–"}
           </Text>
           <Text style={[styles.statLabel, { color: t.textMuted }]}>
-            {info?.athleteCount === 1 ? "Athlete" : "Athletes"}
+            {info?.athleteCount === 1 ? "Lifter" : "Lifters"}
           </Text>
         </View>
       </View>

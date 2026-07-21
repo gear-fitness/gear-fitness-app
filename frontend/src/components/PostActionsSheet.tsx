@@ -1,13 +1,21 @@
-import { Dimensions, StyleSheet, TouchableOpacity, View } from "react-native";
+import {
+  Dimensions,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { Text } from "./Text";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@react-navigation/native";
 import { BottomSheet } from "./BottomSheet";
 
-// Fixed square tile sized to the 3-up layout so the 2-action (own post) menu
-// uses the same tile size as the 3-action (others' post) menu instead of
-// stretching to fill the row. 32 = row padding (16 x2), 24 = two 12px gaps.
-const TILE_SIZE = (Dimensions.get("window").width - 32 - 24) / 3;
+const TILE_GAP = 12;
+// Fixed square tile sized to the 3-up layout so every menu uses the same tile
+// size regardless of action count: 2-3 actions center in the row, 4+ overflow
+// into a horizontal scroll with the next tile peeking at the screen edge.
+// 32 = row padding (16 x2), 24 = two 12px gaps.
+const TILE_SIZE = (Dimensions.get("window").width - 32 - TILE_GAP * 2) / 3;
 
 export interface PostAction {
   key: string;
@@ -35,8 +43,27 @@ export function PostActionsSheet({
   const { colors } = useTheme();
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} onClosed={onClosed}>
-      <View style={styles.row}>
+    // bodyDrag off now that the row scrolls, per BottomSheet's guidance: the
+    // body pan responder must never compete with a ScrollView for touches.
+    // Dismissal stays on the grabber and backdrop.
+    <BottomSheet
+      visible={visible}
+      onClose={onClose}
+      onClosed={onClosed}
+      bodyDrag={false}
+    >
+      <ScrollView
+        horizontal
+        style={styles.scroller}
+        contentContainerStyle={styles.row}
+        showsHorizontalScrollIndicator={false}
+        // Snap to whole tiles: each extra tile overflows by exactly
+        // TILE_SIZE + TILE_GAP (the row padding cancels out), so interval
+        // snapping settles flush at both ends with no half-cut tile at rest.
+        snapToInterval={TILE_SIZE + TILE_GAP}
+        snapToAlignment="start"
+        decelerationRate="fast"
+      >
         {actions.map((action) => {
           const tint = action.destructive ? DESTRUCTIVE_COLOR : colors.text;
           return (
@@ -63,15 +90,22 @@ export function PostActionsSheet({
             </TouchableOpacity>
           );
         })}
-      </View>
+      </ScrollView>
     </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
+  // Hug the tile row's height instead of flexing into the sheet.
+  scroller: {
+    flexGrow: 0,
+  },
+  // flexGrow lets a not-full row (2-3 actions) fill the viewport width so
+  // justifyContent can center it; a full row scrolls normally.
   row: {
+    flexGrow: 1,
     flexDirection: "row",
-    gap: 12,
+    gap: TILE_GAP,
     paddingHorizontal: 16,
     justifyContent: "center",
   },

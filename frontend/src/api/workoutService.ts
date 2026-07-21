@@ -358,3 +358,30 @@ export async function getUserPersonalRecords(
 export async function deleteWorkout(workoutId: string): Promise<void> {
   await apiClient.delete(`/workouts/${workoutId}`);
 }
+
+/** The gym tag a workout ended up with after an edit, as stored server-side. */
+export interface WorkoutLocationUpdate {
+  locationId: string;
+  locationName: string;
+}
+
+/**
+ * Change or clear the gym tag on an existing workout (owner only — the
+ * backend rejects anyone else). Passing a gym re-runs the same find-or-create
+ * dedupe as submit-time tagging; null removes the tag without touching the
+ * shared location row.
+ */
+export async function updateWorkoutLocation(
+  workoutId: string,
+  gym: GymLocation | null,
+): Promise<WorkoutLocationUpdate | null> {
+  if (!gym) {
+    await apiClient.delete(`/workouts/${workoutId}/location`);
+    return null;
+  }
+  const { data } = await apiClient.patch<WorkoutLocationUpdate>(
+    `/workouts/${workoutId}/location`,
+    gym,
+  );
+  return data;
+}

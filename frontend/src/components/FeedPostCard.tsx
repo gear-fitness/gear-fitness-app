@@ -45,6 +45,7 @@ import { usePostMenu } from "../hooks/usePostMenu";
 import { formatTimeAgo } from "../utils/date";
 import { Avatar } from "./Avatar";
 import { FontScaleProvider, Text } from "./Text";
+import { LocationPicker } from "./LocationPicker";
 import { MentionableText } from "./MentionableText";
 import { PostActionsSheet } from "./PostActionsSheet";
 import { PostVisibilitySheet } from "./PostVisibilitySheet";
@@ -254,6 +255,20 @@ export function FeedPostCard({
   const [captionLineCount, setCaptionLineCount] = useState(0);
   const totalDetailLines =
     titleLineCount + (post.caption ? captionLineCount : 0);
+  // Local echo of a gym-tag edit made from this card's menu, so the byline
+  // updates instantly even on surfaces whose post copy lives outside the
+  // social-feed store (PostDetail, profile grids). undefined = never edited
+  // here; null = tag removed.
+  const [locationOverride, setLocationOverride] = useState<
+    { locationId: string; locationName: string } | null | undefined
+  >(undefined);
+  const location =
+    locationOverride !== undefined
+      ? locationOverride
+      : post.locationId && post.locationName
+        ? { locationId: post.locationId, locationName: post.locationName }
+        : null;
+
   const {
     onPress: onMenuPress,
     actions: menuActions,
@@ -267,6 +282,10 @@ export function FeedPostCard({
     showReportSheet,
     closeReportSheet,
     submitReport,
+    showLocationPicker,
+    closeLocationPicker,
+    locationPickerSelected,
+    handleLocationSelect,
   } = usePostMenu({
     workoutId: post.workoutId,
     postId: post.postId,
@@ -274,6 +293,10 @@ export function FeedPostCard({
     ownerUsername: post.username,
     viewerFollowsAuthor: post.viewerFollowsAuthor,
     currentVisibility: post.visibility ?? "PUBLIC",
+    canEditLocation: true,
+    locationId: post.locationId,
+    locationName: post.locationName,
+    onLocationChanged: setLocationOverride,
   });
 
   const photos =
@@ -389,7 +412,7 @@ export function FeedPostCard({
             />
           )}
         </View>
-        {post.locationId && post.locationName ? (
+        {location ? (
           <AlternatingByline
             first={
               <Text
@@ -411,13 +434,13 @@ export function FeedPostCard({
                 hitSlop={6}
                 onPress={() =>
                   (navigation as any).push("LocationPage", {
-                    locationId: post.locationId,
-                    name: post.locationName,
+                    locationId: location.locationId,
+                    name: location.locationName,
                   })
                 }
                 style={styles.locationLink}
                 accessibilityRole="button"
-                accessibilityLabel={`View posts at ${post.locationName}`}
+                accessibilityLabel={`View posts at ${location.locationName}`}
               >
                 <Ionicons
                   name="location-outline"
@@ -437,7 +460,7 @@ export function FeedPostCard({
                     styles.locationName,
                   ]}
                 >
-                  {post.locationName}
+                  {location.locationName}
                 </Text>
               </TouchableOpacity>
             }
@@ -569,6 +592,12 @@ export function FeedPostCard({
             visible={showReportSheet}
             onSubmit={submitReport}
             onClose={closeReportSheet}
+          />
+          <LocationPicker
+            visible={showLocationPicker}
+            onClose={closeLocationPicker}
+            selected={locationPickerSelected}
+            onSelect={handleLocationSelect}
           />
 
           {hasPhotos ? (
