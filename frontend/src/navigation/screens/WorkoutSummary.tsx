@@ -294,7 +294,12 @@ export function WorkoutSummary() {
             scrollableRef={scrollRef}
             onDragStart={handleDragStart}
             onOrderChange={handleOrderChange}
-            onDragEnd={({ indexToKey }) => {
+            onDragEnd={({ fromIndex, toIndex, indexToKey }) => {
+              // A long-press that never moves the card (entering edit mode to
+              // reach the delete badge) still ends a drag. Skip the confirm
+              // haptic (handleDragStart already fired one) and the no-op
+              // reorder commit, which would trigger an immediate draft save.
+              if (fromIndex === toIndex) return;
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(
                 () => {},
               );

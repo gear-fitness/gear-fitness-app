@@ -13,6 +13,15 @@ import { useAuth } from "./AuthContext";
 
 const PAGE_SIZE = 5;
 
+// Refresh replaces the whole posts array, which after several loadMore pages
+// unmounts every mounted card and mounts page one in a single native commit.
+// Landing that mid pull-rebound is what makes the refresh visuals stutter on
+// a session that has loaded a few pages, so fast responses are held until the
+// pull has had time to settle. The refresh progress line independently stays
+// up at least 500ms for the same perceptibility reason, so this adds no
+// visible extra wait.
+const MIN_REFRESH_APPLY_MS = 600;
+
 /**
  * Identifies an independent feed. Each key owns its own state, pagination,
  * scroll position, and staleness. "following" and "discover" exist today;
@@ -136,11 +145,23 @@ export function SocialFeedProvider({
   const refresh = useCallback(
     async (key: FeedKey) => {
       const entry = ensure(key);
+      // RefreshControl stays visually inactive so the branded indicator can
+      // replace it. Guard in the store itself because several native refresh
+      // events can arrive before consumers receive the refreshed snapshot.
+      if (entry.state.refreshing) return;
+
       const generation = ++entry.generation;
       setState(key, (prev) => ({ ...prev, refreshing: true, error: null }));
       try {
+        const startedAt = Date.now();
         const response = await fetcherFor(key)(0, PAGE_SIZE);
         if (entry.generation !== generation) return;
+        const holdMs = MIN_REFRESH_APPLY_MS - (Date.now() - startedAt);
+        if (holdMs > 0) {
+          await new Promise((resolve) => setTimeout(resolve, holdMs));
+          // Re-check: an invalidate/refresh may have superseded us mid-hold.
+          if (entry.generation !== generation) return;
+        }
         normalizeFeedPosts(response.content);
         entry.scrollOffset = 0;
         setState(key, (prev) => ({

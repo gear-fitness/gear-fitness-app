@@ -14,8 +14,6 @@ import {
   RefreshControl,
   TouchableOpacity,
   Animated,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
   Platform,
   Dimensions,
   type ViewToken,
@@ -27,6 +25,8 @@ import {
 } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import PagerView from "react-native-pager-view";
+import Reanimated from "react-native-reanimated";
+import { GestureDetector } from "react-native-gesture-handler";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import {
   useTheme,
@@ -53,8 +53,19 @@ import { useTrackTab } from "../../hooks/useTrackTab";
 import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
 import { useHealthKitForegroundSync } from "../../hooks/useHealthKitSync";
 import { Spinner } from "../../components/Spinner";
+import {
+  BrandedRefreshIndicator,
+  RefreshProgressLine,
+  SCROLL_REST_EPSILON,
+  useRefreshPullTracker,
+} from "../../components/BrandedRefreshIndicator";
 
 const SEARCH_ROW_HEIGHT = 64;
+// Shared with the pull tracker's own at-top tolerance. If this were looser
+// than the tracker's, the re-tap flow could request a programmatic pull off a
+// near-top scroll event that the tracker doesn't yet consider "at top", and
+// the banner would silently skip.
+const SCROLL_TOP_EPSILON = SCROLL_REST_EPSILON;
 
 // Page order for the swipeable pager; index <-> feed key.
 const FEED_ORDER: FeedKey[] = ["following", "discover"];
@@ -152,23 +163,19 @@ function FeedListInner({
   feed,
   variant,
   onScroll,
-  onMomentumScrollEnd,
   onScrollBeginDrag,
   onOpenComments,
   listRef,
   scrollsToTop,
   isActivePage,
+  programmaticRefreshRequest,
 }: {
   feed: Feed;
   variant: FeedKey;
   // All three scroll callbacks report which feed they came from. Both feeds are
   // mounted and share these handlers, so without the tag the screen cannot tell
   // whose scroll position it is looking at (see lastYByFeedRef).
-  onScroll: (
-    e: NativeSyntheticEvent<NativeScrollEvent>,
-    variant: FeedKey,
-  ) => void;
-  onMomentumScrollEnd?: (variant: FeedKey) => void;
+  onScroll: (offsetY: number, variant: FeedKey) => void;
   onScrollBeginDrag?: (variant: FeedKey) => void;
   onOpenComments: (postId: string) => void;
   listRef?: Ref<FlatList>;
@@ -179,11 +186,59 @@ function FeedListInner({
   // window (see WINDOW_SIZE_*); deliberately NOT gated on search being open, so
   // opening search doesn't unmount and remount both feeds' cards.
   isActivePage: boolean;
+  // Incremented only by an active Explore-tab re-tap. User pulls and background
+  // refreshes bypass this and keep their existing animation paths.
+  programmaticRefreshRequest: number;
 }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const isIOS = Platform.OS === "ios";
   const HEADER_HEIGHT = SEARCH_ROW_HEIGHT + insets.top;
+  const handleScrollY = useCallback(
+    (offsetY: number) => onScroll(offsetY, variant),
+    [onScroll, variant],
+  );
+  const feedRef = useRef(feed);
+  feedRef.current = feed;
+  const triggerRefresh = useCallback(() => {
+    const currentFeed = feedRef.current;
+    if (!currentFeed.refreshing) void currentFeed.refresh();
+  }, []);
+  const {
+    pullDistance,
+    contentStyle,
+    overlayContentStyle,
+    gesture,
+    playProgrammaticPull,
+    scrollHandler,
+  } = useRefreshPullTracker({
+    refreshing: feed.refreshing,
+    restingOffset: isIOS ? -HEADER_HEIGHT : 0,
+    onScrollY: handleScrollY,
+    onTriggerRefresh: triggerRefresh,
+  });
+
+  // Track which request counter value was already handled. React Navigation
+  // pauses inactive tabs and replays every effect on resume regardless of the
+  // dependency array, and the counter only ever counts up, so without this a
+  // return to the tab after any past re-tap would replay the pull banner and
+  // fire a phantom refresh. The ref survives the pause; seeding it with the
+  // current prop also makes a remount a no-op. (Same value-keyed-ref pattern
+  // as the react-native-sortables Activity-replay patch.)
+  const handledRefreshRequestRef = useRef(programmaticRefreshRequest);
+  useEffect(() => {
+    if (
+      programmaticRefreshRequest === handledRefreshRequestRef.current ||
+      feedRef.current.refreshing
+    ) {
+      return;
+    }
+    handledRefreshRequestRef.current = programmaticRefreshRequest;
+    playProgrammaticPull(() => {
+      const currentFeed = feedRef.current;
+      if (!currentFeed.refreshing) void currentFeed.refresh();
+    });
+  }, [playProgrammaticPull, programmaticRefreshRequest]);
 
   // Stable identities. An inline renderItem makes FlatList re-render every cell
   // on each parent render regardless of React.memo on the card, which is what
@@ -196,15 +251,6 @@ function FeedListInner({
   );
   const keyExtractor = useCallback((item: FeedPost) => String(item.postId), []);
 
-  // Tag each scroll callback with this list's feed key on the way out.
-  const handleScroll = useCallback(
-    (e: NativeSyntheticEvent<NativeScrollEvent>) => onScroll(e, variant),
-    [onScroll, variant],
-  );
-  const handleMomentumScrollEnd = useCallback(
-    () => onMomentumScrollEnd?.(variant),
-    [onMomentumScrollEnd, variant],
-  );
   const handleScrollBeginDrag = useCallback(
     () => onScrollBeginDrag?.(variant),
     [onScrollBeginDrag, variant],
@@ -275,62 +321,79 @@ function FeedListInner({
 
   return (
     <View style={styles.flex1}>
-      <FlatList
-        ref={listRef}
-        scrollsToTop={scrollsToTop}
-        data={feed.posts}
-        renderItem={renderItem}
-        keyExtractor={keyExtractor}
-        scrollEnabled={hasContent}
-        contentContainerStyle={
-          !hasContent
-            ? { flexGrow: 1, justifyContent: "center" }
-            : {
-                paddingTop: isIOS ? 0 : HEADER_HEIGHT - insets.top,
-                paddingBottom: MINI_PLAYER_HEIGHT + 30,
-              }
-        }
-        // Pin the inset deterministically. The list is nested (not the screen's
-        // direct filling child), so iOS's automatic adjustment no longer adds
-        // the top safe-area inset — disable it and apply the full HEADER_HEIGHT
-        // ourselves so the first post clears the header instead of slipping
-        // under it.
-        contentInsetAdjustmentBehavior="never"
-        contentInset={isIOS && hasContent ? { top: HEADER_HEIGHT } : undefined}
-        contentOffset={
-          isIOS && hasContent ? { x: 0, y: -HEADER_HEIGHT } : undefined
-        }
-        scrollIndicatorInsets={{ top: HEADER_HEIGHT }}
-        ListFooterComponent={renderFooter}
-        refreshControl={
-          <RefreshControl
-            refreshing={feed.refreshing}
-            onRefresh={feed.refresh}
-            progressViewOffset={HEADER_HEIGHT}
-            tintColor={colors.text}
-          />
-        }
-        onScroll={handleScroll}
-        onMomentumScrollEnd={handleMomentumScrollEnd}
-        onScrollBeginDrag={handleScrollBeginDrag}
-        scrollEventThrottle={16}
-        onEndReached={() => void feed.loadMore()}
-        onEndReachedThreshold={0.5}
-        windowSize={isActivePage ? WINDOW_SIZE_ACTIVE : WINDOW_SIZE_OFFSCREEN}
-        initialNumToRender={3}
-        onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={viewabilityConfig}
-      />
+      <GestureDetector gesture={gesture}>
+        <Reanimated.FlatList
+          ref={listRef}
+          style={[styles.flex1, contentStyle]}
+          scrollsToTop={scrollsToTop}
+          data={feed.posts}
+          renderItem={renderItem}
+          keyExtractor={keyExtractor}
+          alwaysBounceVertical
+          contentContainerStyle={
+            !hasContent
+              ? { flexGrow: 1, justifyContent: "center" }
+              : {
+                  paddingTop: (isIOS ? 0 : HEADER_HEIGHT - insets.top) + 4,
+                  paddingBottom: MINI_PLAYER_HEIGHT + 30,
+                }
+          }
+          // Pin the inset deterministically. The list is nested (not the screen's
+          // direct filling child), so iOS's automatic adjustment no longer adds
+          // the top safe-area inset — disable it and apply the full HEADER_HEIGHT
+          // ourselves so the first post clears the header instead of slipping
+          // under it.
+          contentInsetAdjustmentBehavior="never"
+          contentInset={isIOS ? { top: HEADER_HEIGHT } : undefined}
+          contentOffset={isIOS ? { x: 0, y: -HEADER_HEIGHT } : undefined}
+          scrollIndicatorInsets={{ top: HEADER_HEIGHT }}
+          ListFooterComponent={renderFooter}
+          // No native RefreshControl on iOS: the pull tracker triggers the
+          // refresh on release instead (see onTriggerRefresh in the hook).
+          // UIRefreshControl begins/ends refreshing while the finger is still
+          // down and its contentInset churn snaps the offset mid-drag,
+          // resetting the pull visuals.
+          refreshControl={
+            isIOS ? undefined : (
+              <RefreshControl
+                refreshing={false}
+                enabled={!feed.refreshing}
+                onRefresh={triggerRefresh}
+                progressViewOffset={HEADER_HEIGHT}
+                tintColor="transparent"
+                colors={["transparent"]}
+                progressBackgroundColor="transparent"
+              />
+            )
+          }
+          onScroll={scrollHandler}
+          onScrollBeginDrag={handleScrollBeginDrag}
+          scrollEventThrottle={16}
+          onEndReached={() => void feed.loadMore()}
+          onEndReachedThreshold={0.5}
+          windowSize={isActivePage ? WINDOW_SIZE_ACTIVE : WINDOW_SIZE_OFFSCREEN}
+          initialNumToRender={3}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
+        />
+      </GestureDetector>
 
-      {/* Empty state as a screen-anchored overlay (not inside the FlatList) so
-          the RefreshControl's inset can't shift its position. The floating
-          upload pill (screen-level overlay, docked above the tab bar) is
-          meant to coexist with this guidance: "follow people" stays centered
-          mid-screen, pill down at the bottom. Neither may hide the other. */}
+      {/* Empty state stays outside FlatList so its native refresh inset cannot
+          shift it, but uses the same translation as the feed. */}
       {feed.posts.length === 0 && (
-        <View style={styles.emptyOverlay} pointerEvents="none">
+        <Reanimated.View
+          style={[styles.emptyOverlay, overlayContentStyle]}
+          pointerEvents="none"
+        >
           {renderEmpty()}
-        </View>
+        </Reanimated.View>
+      )}
+
+      {isActivePage && (
+        <BrandedRefreshIndicator
+          pullDistance={pullDistance}
+          top={HEADER_HEIGHT}
+        />
       )}
     </View>
   );
@@ -381,6 +444,10 @@ export function Social() {
   const { user } = useAuth();
   const glassAvailable = isLiquidGlassAvailable();
   const insets = useSafeAreaInsets();
+  const HEADER_HEIGHT = SEARCH_ROW_HEIGHT + insets.top;
+  // Social supplies a deterministic iOS content inset, so its native resting
+  // offset is the negative inset. Android rests at zero.
+  const topOffset = Platform.OS === "ios" ? -HEADER_HEIGHT : 0;
 
   // Following is primary/default. Discover shows all public posts so users can
   // find each other. Each feed is an independent store entry (own pagination,
@@ -388,6 +455,8 @@ export function Social() {
   // Both lists stay mounted (see FeedList), so they're always loaded and keep
   // their scroll; switching tabs just toggles which is visible.
   const [activeFeed, setActiveFeed] = useState<FeedKey>("following");
+  const [programmaticRefreshRequests, setProgrammaticRefreshRequests] =
+    useState<Record<FeedKey, number>>({ following: 0, discover: 0 });
   const following = useSocialFeed("following");
   const discover = useSocialFeed("discover");
   const pagerRef = useRef<PagerView>(null);
@@ -406,10 +475,27 @@ export function Social() {
   const followingListRef = useRef<FlatList>(null);
   const discoverListRef = useRef<FlatList>(null);
 
-  // When a tab re-tap scrolls a feed to the top, we defer its refresh until the
-  // scroll lands (onMomentumScrollEnd) so the RefreshControl's spinner-reveal
-  // can't race the scroll. Holds the feed key awaiting that refresh, else null.
-  const pendingRefreshRef = useRef<FeedKey | null>(null);
+  const requestProgrammaticRefresh = useCallback((key: FeedKey) => {
+    setProgrammaticRefreshRequests((current) => ({
+      ...current,
+      [key]: current[key] + 1,
+    }));
+  }, []);
+
+  // A tab re-tap owns no momentum state. It requests one native animated scroll,
+  // then onScroll confirms the actual top position before refresh begins.
+  const pendingTabRefreshRef = useRef<FeedKey | null>(null);
+
+  // A pending re-tap must not outlive the screen: if the user leaves mid
+  // scroll-to-top, a stray near-top scroll event on a later return would
+  // otherwise complete it as a surprise refresh.
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        pendingTabRefreshRef.current = null;
+      };
+    }, []),
+  );
 
   // Tab tap -> page the swiper (which fires onPageSelected -> setActiveFeed).
   const goToFeed = (key: FeedKey) => {
@@ -449,30 +535,27 @@ export function Social() {
     Math.max(0, Dimensions.get("window").width - 132),
   );
 
-  const HEADER_HEIGHT = SEARCH_ROW_HEIGHT + insets.top;
-  // The lists carry a top contentInset on iOS (HEADER_HEIGHT), so their resting
-  // "top" sits at -HEADER_HEIGHT; Android's top is plain 0.
-  const topOffset = Platform.OS === "ios" ? -HEADER_HEIGHT : 0;
   const headerAnim = useRef(new Animated.Value(0)).current;
   const isHiddenRef = useRef(false);
   // Last known scroll offset PER FEED. Both feeds are mounted and share one set
   // of scroll handlers, and swiping the pager emits no scroll events, so a
   // single shared value would go stale the moment you switch pages — and the
   // re-tap handler below branches on it. Reading the wrong feed's offset there
-  // picks the wrong scroll-to-top strategy, which is what made the list park
-  // short of the top (the RefreshControl race described at that branch).
+  // picks the wrong scroll-to-top strategy and can leave the list short of top.
   const lastYByFeedRef = useRef<Record<FeedKey, number>>({
-    following: 0,
-    discover: 0,
+    following: topOffset,
+    discover: topOffset,
   });
   // Mirror of activeFeed for the scroll handlers, so they stay identity-stable
   // (a dep on activeFeed would re-render both lists on every pager swipe).
   const activeFeedRef = useRef<FeedKey>("following");
   activeFeedRef.current = activeFeed;
-  // Set while a re-tap's animated scroll-to-top is in flight, cleared if the
-  // user grabs the list. Gates the landing correction so we never yank someone
-  // who deliberately took over mid-scroll.
-  const pendingScrollTopRef = useRef<FeedKey | null>(null);
+  // Same trick for the feed objects: useSocialFeed returns a new object on
+  // every state change (each loadMore page, refresh, error flip), so closing
+  // over them in onScroll would change its identity and re-render both
+  // FeedLists, including the offscreen one.
+  const feedsRef = useRef({ following, discover });
+  feedsRef.current = { following, discover };
 
   // Collapsible search: 0 = collapsed (tabs shown), 1 = expanded (search bar
   // revealed over the tabs). Drives a width animation, so it must use the JS
@@ -527,27 +610,14 @@ export function Social() {
     const isDiscover = activeFeed === "discover";
     const feed = isDiscover ? discover : following;
     const listRef = isDiscover ? discoverListRef : followingListRef;
-    const isIOS = Platform.OS === "ios";
-    // When scrolled well away from the top on iOS, the RefreshControl's
-    // spinner-reveal animation races an animated scroll-to-top and parks the
-    // list short. So defer the refresh until the scroll actually lands
-    // (onMomentumScrollEnd fires it). Otherwise — Android (its refresh spinner
-    // is an overlay, no race) or already near the top (the scroll is a
-    // no-op/negligible, and a no-op animated scroll emits no momentum event that
-    // could carry a deferred refresh) — scroll and refresh together.
-    //
-    // This reads THIS feed's offset: a shared value went stale across pager
-    // swipes and sent a deep list down the together-path, straight into the
-    // race above.
-    if (isIOS && lastYByFeedRef.current[activeFeed] > SEARCH_ROW_HEIGHT) {
-      pendingRefreshRef.current = activeFeed;
-      pendingScrollTopRef.current = activeFeed;
+    const currentY = lastYByFeedRef.current[activeFeed];
+
+    if (Math.abs(currentY - topOffset) > SCROLL_TOP_EPSILON) {
+      pendingTabRefreshRef.current = feed.refreshing ? null : activeFeed;
       listRef.current?.scrollToOffset({ offset: topOffset, animated: true });
     } else {
-      // animated:false on iOS so the tiny near-top scroll can't race the
-      // immediate refresh; Android keeps its smooth scroll.
-      listRef.current?.scrollToOffset({ offset: topOffset, animated: !isIOS });
-      if (!feed.refreshing) void feed.refresh();
+      pendingTabRefreshRef.current = null;
+      if (!feed.refreshing) requestProgrammaticRefresh(activeFeed);
     }
   };
 
@@ -592,10 +662,21 @@ export function Social() {
   // Header hide/show driven by the visible feed's scroll. (Only the visible
   // FeedList forwards onScroll.)
   const onScroll = useCallback(
-    (e: NativeSyntheticEvent<NativeScrollEvent>, variant: FeedKey) => {
-      const y = e.nativeEvent.contentOffset.y;
+    (y: number, variant: FeedKey) => {
       const delta = y - lastYByFeedRef.current[variant];
       lastYByFeedRef.current[variant] = y;
+
+      if (
+        pendingTabRefreshRef.current === variant &&
+        Math.abs(y - topOffset) <= SCROLL_TOP_EPSILON
+      ) {
+        pendingTabRefreshRef.current = null;
+        const feed =
+          variant === "discover"
+            ? feedsRef.current.discover
+            : feedsRef.current.following;
+        if (!feed.refreshing) requestProgrammaticRefresh(variant);
+      }
 
       // Only the feed on screen may drive the header. Normally the offscreen
       // one emits nothing, but a programmatic scroll on it would.
@@ -608,56 +689,16 @@ export function Social() {
       if (delta > 3) setHeaderHidden(true);
       else if (delta < -3) setHeaderHidden(false);
     },
-    [setHeaderHidden],
+    [requestProgrammaticRefresh, setHeaderHidden, topOffset],
   );
 
-  // The user taking over an in-flight scroll-to-top cancels its landing
-  // correction, and discharges the deferred refresh immediately. Interrupting
-  // with a drag that comes to rest emits onScrollEndDrag, NOT
-  // onMomentumScrollEnd, so leaving the refresh armed here would either lose it
-  // or fire it much later on an unrelated scroll.
-  const onScrollBeginDrag = useCallback(
-    (variant: FeedKey) => {
-      if (pendingScrollTopRef.current === variant) {
-        pendingScrollTopRef.current = null;
-      }
-      if (pendingRefreshRef.current !== variant) return;
-      pendingRefreshRef.current = null;
-      const feed = variant === "discover" ? discover : following;
-      if (!feed.refreshing) void feed.refresh();
-    },
-    [discover, following],
-  );
-
-  // A deferred tab-re-tap refresh fires here, once the scroll-to-top has landed.
-  // Only the visible feed emits scroll events, and only a pending re-tap sets
-  // the ref — user-driven scrolls leave it null and are ignored.
-  const onMomentumScrollEnd = useCallback(
-    (variant: FeedKey) => {
-      const key = pendingRefreshRef.current;
-      if (!key || key !== variant) return;
-      pendingRefreshRef.current = null;
-
-      const uninterrupted = pendingScrollTopRef.current === key;
-      pendingScrollTopRef.current = null;
-
-      // An animated scrollToOffset targets a fixed offset, but card heights are
-      // not final at request time — they settle as text lays out and as cells
-      // mount on the way up — so the content can shift under the animation and
-      // leave it parked short of the top. Snap the remainder once it lands.
-      // Only when the scroll ran uninterrupted, so this can never fight the
-      // user, and only when actually short (never scrolling back down).
-      if (uninterrupted && lastYByFeedRef.current[key] > topOffset) {
-        const listRef = key === "discover" ? discoverListRef : followingListRef;
-        listRef.current?.scrollToOffset({ offset: topOffset, animated: false });
-        lastYByFeedRef.current[key] = topOffset;
-      }
-
-      const feed = key === "discover" ? discover : following;
-      if (!feed.refreshing) void feed.refresh();
-    },
-    [discover, following, topOffset],
-  );
+  // User input always wins. Taking hold of a tab-triggered scroll cancels its
+  // pending refresh rather than refreshing at an unrelated scroll position.
+  const onScrollBeginDrag = useCallback((variant: FeedKey) => {
+    if (pendingTabRefreshRef.current === variant) {
+      pendingTabRefreshRef.current = null;
+    }
+  }, []);
 
   // Search users (debounced so a fast typist doesn't fire a request per keystroke)
   useFocusEffect(
@@ -834,6 +875,19 @@ export function Social() {
             {hasUnreadActivity && <View style={styles.redDot} />}
           </View>
         </TouchableOpacity>
+
+        {/* Docked to the header's bottom edge so it translates with it: under
+            the header when visible, flush below the safe-area strip when the
+            header is hidden. Never floats over feed content (the old fixed
+            overlay position cut across cards when scrolled down). */}
+        <RefreshProgressLine
+          refreshing={
+            activeFeed === "discover"
+              ? discover.refreshing
+              : following.refreshing
+          }
+          style={styles.headerProgressLine}
+        />
       </Animated.View>
 
       {/* Swipeable pager: Following <-> Discover. Both pages stay mounted
@@ -856,12 +910,12 @@ export function Social() {
               feed={following}
               variant="following"
               onScroll={onScroll}
-              onMomentumScrollEnd={onMomentumScrollEnd}
               onScrollBeginDrag={onScrollBeginDrag}
               onOpenComments={handleOpenComments}
               listRef={followingListRef}
               scrollsToTop={activeFeed === "following" && !searchExpanded}
               isActivePage={activeFeed === "following"}
+              programmaticRefreshRequest={programmaticRefreshRequests.following}
             />
           </View>
           <View key="discover" style={styles.flex1} collapsable={false}>
@@ -869,12 +923,12 @@ export function Social() {
               feed={discover}
               variant="discover"
               onScroll={onScroll}
-              onMomentumScrollEnd={onMomentumScrollEnd}
               onScrollBeginDrag={onScrollBeginDrag}
               onOpenComments={handleOpenComments}
               listRef={discoverListRef}
               scrollsToTop={activeFeed === "discover" && !searchExpanded}
               isActivePage={activeFeed === "discover"}
+              programmaticRefreshRequest={programmaticRefreshRequests.discover}
             />
           </View>
         </PagerView>
@@ -933,6 +987,9 @@ const styles = StyleSheet.create({
     zIndex: 11,
   },
 
+  headerProgressLine: {
+    bottom: 0,
+  },
   searchRow: {
     position: "absolute",
     left: 0,

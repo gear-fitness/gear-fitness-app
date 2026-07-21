@@ -1,5 +1,6 @@
 import { ColorValue, StyleProp, View, ViewStyle } from "react-native";
 import Animated, {
+  cancelAnimation,
   Easing,
   useAnimatedProps,
   useAnimatedStyle,
@@ -19,13 +20,16 @@ const VIEW_BOX = 24;
 const RADIUS = 9.5;
 const STROKE_WIDTH = 3;
 const GAP = 150;
+const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
-// The arc grows over the first 47.5% of the cycle, then holds while the
-// dashoffset keeps sweeping. Splitting it this way is what makes the tail
-// catch up to the head instead of the ring spinning at a fixed length.
+// Grow, briefly hold, then shrink the arc back to the same length it started
+// with. The dash offset travels exactly one circumference, so both animated
+// values are visually continuous when the repeated cycle restarts.
 const CYCLE_MS = 1500;
 const GROW_MS = CYCLE_MS * 0.475;
 const HOLD_MS = CYCLE_MS * 0.05;
+const SHRINK_MS = CYCLE_MS - GROW_MS - HOLD_MS;
+const DASH_MIN = 2;
 const DASH_MAX = 42;
 
 // Deliberately not a multiple of CYCLE_MS: the rotation and the dash sweep
@@ -54,7 +58,7 @@ type Props = {
 export function Spinner({ size = "small", color = "#888", style }: Props) {
   const px = typeof size === "number" ? size : SIZES[size];
 
-  const dash = useSharedValue(0);
+  const dash = useSharedValue(DASH_MIN);
   const offset = useSharedValue(0);
   const spin = useSharedValue(0);
 
@@ -62,22 +66,28 @@ export function Spinner({ size = "small", color = "#888", style }: Props) {
     dash.value = withRepeat(
       withSequence(
         withTiming(DASH_MAX, { duration: GROW_MS, easing: SPLINE }),
-        withTiming(DASH_MAX, { duration: GROW_MS + HOLD_MS }),
+        withTiming(DASH_MAX, { duration: HOLD_MS }),
+        withTiming(DASH_MIN, { duration: SHRINK_MS, easing: SPLINE }),
       ),
       -1,
     );
     offset.value = withRepeat(
-      withSequence(
-        withTiming(-16, { duration: GROW_MS, easing: SPLINE }),
-        withTiming(-59, { duration: GROW_MS, easing: SPLINE }),
-        withTiming(-59, { duration: HOLD_MS }),
-      ),
+      withTiming(-CIRCUMFERENCE, {
+        duration: CYCLE_MS,
+        easing: Easing.linear,
+      }),
       -1,
     );
     spin.value = withRepeat(
       withTiming(360, { duration: ROTATE_MS, easing: Easing.linear }),
       -1,
     );
+
+    return () => {
+      cancelAnimation(dash);
+      cancelAnimation(offset);
+      cancelAnimation(spin);
+    };
   }, [dash, offset, spin]);
 
   const circleProps = useAnimatedProps(() => ({
