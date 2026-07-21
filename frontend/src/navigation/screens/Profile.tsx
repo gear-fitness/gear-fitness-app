@@ -937,7 +937,7 @@ export function Profile() {
           style={[styles.flex1, contentStyle]}
           alwaysBounceVertical
           contentContainerStyle={{
-            paddingTop: isOtherUser ? 30 : 20,
+            paddingTop: isOtherUser ? 48 : 20,
             paddingBottom: MINI_PLAYER_HEIGHT + 30,
           }}
           // No native RefreshControl on iOS: the pull tracker triggers the

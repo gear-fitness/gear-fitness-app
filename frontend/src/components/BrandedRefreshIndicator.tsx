@@ -411,7 +411,11 @@ export function BrandedRefreshIndicator({
     return {
       opacity: interpolate(distance, [16, 36], [0, 1], Extrapolation.CLAMP),
       transform: [
-        { translateY: distance },
+        // 0.6, not 1: the content's pulled-down top edge sits at `distance`,
+        // so riding the full distance centers the spinner on that edge and
+        // overlaps whatever rests there (Social's first post). Sub-unit rate
+        // keeps it inside the revealed gap the whole pull.
+        { translateY: distance * 0.6 },
         {
           scale: interpolate(
             distance,
@@ -432,19 +436,16 @@ export function BrandedRefreshIndicator({
       style={[styles.indicator, { top }]}
     >
       <Animated.View
-        style={[styles.pullField, { backgroundColor: colors.text }, fieldStyle]}
+        style={[
+          styles.pullField,
+          { backgroundColor: colors.background },
+          fieldStyle,
+        ]}
       />
       <Animated.View
-        style={[
-          styles.spinnerBadge,
-          {
-            backgroundColor: colors.text,
-            borderColor: colors.background,
-          },
-          spinnerStyle,
-        ]}
+        style={[styles.spinnerBadge, spinnerStyle]}
       >
-        {engaged && <Spinner size={20} color={colors.background} />}
+        {engaged && <Spinner size={28} color={colors.text} />}
       </Animated.View>
     </Animated.View>
   );
@@ -473,8 +474,6 @@ const styles = StyleSheet.create({
     marginLeft: -SPINNER_BADGE_SIZE / 2,
     width: SPINNER_BADGE_SIZE,
     height: SPINNER_BADGE_SIZE,
-    borderRadius: SPINNER_BADGE_SIZE / 2,
-    borderWidth: 1.5,
     alignItems: "center",
     justifyContent: "center",
   },
