@@ -4,7 +4,6 @@ import {
   View,
   TouchableOpacity,
   ScrollView,
-  ActivityIndicator,
   Dimensions,
   FlatList,
 } from "react-native";
@@ -43,6 +42,7 @@ import {
 } from "../../utils/weight";
 import { useTier } from "../../hooks/useTier";
 import { PlusLockOverlay } from "../../components/PlusLockOverlay";
+import { Spinner } from "../../components/Spinner";
 
 const CHART_HEIGHT = 200;
 const CHART_PADDING = { top: 24, right: 20, bottom: 30, left: 50 };
@@ -544,7 +544,7 @@ export function ExerciseHistory() {
         edges={["bottom"]}
       >
         <FloatingCloseButton direction="left" accessibilityLabel="Back" />
-        <ActivityIndicator size="large" color={colors.accent} />
+        <Spinner size="large" color={colors.accent} />
       </SafeAreaView>
     );
   }

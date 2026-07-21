@@ -1,0 +1,50 @@
+diff --git a/node_modules/react-native-sortables/dist/module/components/SortableGrid.js b/node_modules/react-native-sortables/dist/module/components/SortableGrid.js
+index 0e530a3..113d784 100644
+--- a/node_modules/react-native-sortables/dist/module/components/SortableGrid.js
++++ b/node_modules/react-native-sortables/dist/module/components/SortableGrid.js
+@@ -138,13 +138,16 @@ function SortableGridComponent({
+   const {
+     mainGroupSize
+   } = useGridLayoutContext();
+-  const isFirstRenderRef = useRef(true);
++  const previousGroupsRef = useRef(groups);
+   useOrderUpdater(strategy, GRID_STRATEGIES);
+   useLayoutEffect(() => {
+-    if (isFirstRenderRef.current) {
+-      isFirstRenderRef.current = false;
++    // Reset only on a real column/row count change, not on a bare effect re-run
++    // (e.g. a react-freeze/Offscreen reveal) which would wipe valid measurements.
++    // https://github.com/MatiPl01/react-native-sortables/issues/519
++    if (previousGroupsRef.current === groups) {
+       return;
+     }
++    previousGroupsRef.current = groups;
+     resetMeasurements();
+   }, [groups, resetMeasurements]);
+   const animatedInnerStyle = useAnimatedStyle(() => isVertical ? {
+diff --git a/node_modules/react-native-sortables/src/components/SortableGrid.tsx b/node_modules/react-native-sortables/src/components/SortableGrid.tsx
+index b8a494c..eb11ed0 100644
+--- a/node_modules/react-native-sortables/src/components/SortableGrid.tsx
++++ b/node_modules/react-native-sortables/src/components/SortableGrid.tsx
+@@ -197,15 +197,18 @@ function SortableGridComponent<I>({
+     useMeasurementsContext();
+   const { mainGroupSize } = useGridLayoutContext();
+ 
+-  const isFirstRenderRef = useRef(true);
++  const previousGroupsRef = useRef(groups);
+ 
+   useOrderUpdater(strategy, GRID_STRATEGIES);
+ 
+   useLayoutEffect(() => {
+-    if (isFirstRenderRef.current) {
+-      isFirstRenderRef.current = false;
++    // Reset only on a real column/row count change, not on a bare effect re-run
++    // (e.g. a react-freeze/Offscreen reveal) which would wipe valid measurements.
++    // https://github.com/MatiPl01/react-native-sortables/issues/519
++    if (previousGroupsRef.current === groups) {
+       return;
+     }
++    previousGroupsRef.current = groups;
+     resetMeasurements();
+   }, [groups, resetMeasurements]);
+ 

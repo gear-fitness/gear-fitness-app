@@ -1,12 +1,5 @@
 import React, { useMemo, useState, ReactNode } from "react";
-import {
-  View,
-  StyleSheet,
-  Pressable,
-  ScrollView,
-  Alert,
-  ActivityIndicator,
-} from "react-native";
+import { View, StyleSheet, Pressable, ScrollView, Alert } from "react-native";
 import { Text } from "../../../components/Text";
 import { SymbolView } from "expo-symbols";
 import { PurchasesPackage } from "react-native-purchases";
@@ -14,6 +7,7 @@ import { useOnboardingColors } from "./useOnboardingColors";
 import { makeOnboardingStyles } from "./makeOnboardingStyles";
 import { usePurchases } from "../../../context/PurchasesContext";
 import { openTerms, openPrivacy } from "../../../constants/legal";
+import { Spinner } from "../../../components/Spinner";
 
 type Plan = "annual" | "monthly";
 
@@ -411,7 +405,7 @@ export function PaywallContent({
           ]}
         >
           {busy ? (
-            <ActivityIndicator color={colors.accentText} />
+            <Spinner color={colors.accentText} />
           ) : (
             <Text style={shared.continueBtnText}>
               {showTrial ? "Continue" : "Subscribe"}

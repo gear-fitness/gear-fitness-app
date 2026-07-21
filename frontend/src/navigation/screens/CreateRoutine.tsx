@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   ScrollView,
   FlatList,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Alert,
@@ -29,6 +28,7 @@ import { useThemeColors } from "../../hooks/useThemeColors";
 import { useExerciseList } from "../../hooks/useExerciseList";
 import { useUserWorkouts } from "../../hooks/useUserWorkouts";
 import { renderBodyParts } from "../../utils/exerciseUtils";
+import { Spinner } from "../../components/Spinner";
 
 type Step = "details" | "source" | "scratch" | "workout";
 
@@ -260,7 +260,7 @@ export function CreateRoutine({
             disabled={submitting}
           >
             {submitting ? (
-              <ActivityIndicator color={colors.text} />
+              <Spinner color={colors.text} />
             ) : (
               <Text style={[styles.primaryButtonText, { color: colors.text }]}>
                 {prefilledWorkoutId ? "Save Routine" : "Continue →"}
@@ -347,7 +347,7 @@ export function CreateRoutine({
 
         {exercisesLoading ? (
           <View style={styles.centered}>
-            <ActivityIndicator color={colors.tint} />
+            <Spinner color={colors.tint} />
           </View>
         ) : (
           <FlatList
@@ -427,7 +427,7 @@ export function CreateRoutine({
             disabled={submitting}
           >
             {submitting ? (
-              <ActivityIndicator color={colors.text} />
+              <Spinner color={colors.text} />
             ) : (
               <Text style={[styles.primaryButtonText, { color: colors.text }]}>
                 Create Routine
@@ -445,7 +445,7 @@ export function CreateRoutine({
       {renderTopChrome()}
       {workoutsLoading ? (
         <View style={styles.centered}>
-          <ActivityIndicator color={colors.tint} />
+          <Spinner color={colors.tint} />
         </View>
       ) : workouts.length === 0 ? (
         <View style={styles.centered}>
@@ -517,7 +517,7 @@ export function CreateRoutine({
           disabled={!selectedWorkoutId || submitting}
         >
           {submitting ? (
-            <ActivityIndicator color={colors.text} />
+            <Spinner color={colors.text} />
           ) : (
             <Text style={[styles.primaryButtonText, { color: colors.text }]}>
               Create Routine

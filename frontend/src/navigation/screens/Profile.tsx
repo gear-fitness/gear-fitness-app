@@ -2,10 +2,9 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   StyleSheet,
   View,
-  ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
+  Platform,
   RefreshControl,
   useColorScheme,
   Animated,
@@ -18,7 +17,12 @@ import {
   useRoute,
   useFocusEffect,
 } from "@react-navigation/native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import Reanimated from "react-native-reanimated";
+import { GestureDetector } from "react-native-gesture-handler";
 import { Ionicons } from "@expo/vector-icons";
 import Svg, { Path } from "react-native-svg";
 
@@ -53,6 +57,11 @@ import {
 } from "../../utils/pendingPosts";
 import { retryPendingWorkout } from "../../utils/workoutQueue";
 import { subscribePostUploadEvents } from "../../utils/postUploadProgress";
+import {
+  BrandedRefreshIndicator,
+  RefreshProgressLine,
+  useRefreshPullTracker,
+} from "../../components/BrandedRefreshIndicator";
 
 // Accent for Gear Plus UI (sparkle icon + badge).
 const PLUS_ACCENT = "#4F6BF6";
@@ -136,6 +145,7 @@ function useSkeletonPulse() {
 export function Profile() {
   const navigation = useNavigation() as any;
   const route = useRoute<any>();
+  const insets = useSafeAreaInsets();
   const scheme = useColorScheme();
   const isDark = scheme === "dark";
 
@@ -159,6 +169,14 @@ export function Profile() {
   );
   const [loading, setLoading] = useState(isOtherUser ? true : authUser == null);
   const [refreshing, setRefreshing] = useState(false);
+  const refreshInFlightRef = useRef(false);
+  const { pullDistance, contentStyle, gesture, scrollHandler } =
+    useRefreshPullTracker({
+      refreshing,
+      // Arrow, not a bare reference: handleRefresh is declared further down
+      // and only needs to exist by the time a release fires it.
+      onTriggerRefresh: () => void handleRefresh(),
+    });
   const [error, setError] = useState<string | null>(null);
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [postsLoading, setPostsLoading] = useState(false);
@@ -287,6 +305,27 @@ export function Profile() {
       // every focus is the intended behavior.
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [profile, isOtherUser]),
+  );
+
+  // Refresh the own-profile header (follower/following counts, streak) on
+  // refocus. HomeTabs now keeps its tabs mounted while covered
+  // (inactiveBehavior "none"), so the mount-only load above no longer replays
+  // when a pushed screen pops; without this, counts would freeze at their
+  // first-load values for the rest of the session. First focus is skipped:
+  // the mount effect already fetched, and it also owns the initial posts load.
+  const headerRefreshArmedRef = useRef(false);
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!headerRefreshArmedRef.current) {
+        headerRefreshArmedRef.current = true;
+        return;
+      }
+      if (isOtherUser) return;
+      loadProfile();
+      // loadProfile is a stable closure captured at render; refreshing with
+      // whichever instance is current is fine.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOtherUser]),
   );
 
   // Resolve the pending card in place when the outbox delivers while this
@@ -520,6 +559,22 @@ export function Profile() {
       setActivityPostsByDate(map);
     } catch (err) {
       console.error("Error loading activity posts:", err);
+    }
+  };
+
+  const handleRefresh = async () => {
+    if (refreshInFlightRef.current) return;
+    refreshInFlightRef.current = true;
+    setRefreshing(true);
+    try {
+      const profileData = await loadProfile();
+      if (profileData) {
+        await loadUserPosts(profileData);
+        await loadActivityPosts(profileData);
+      }
+    } finally {
+      refreshInFlightRef.current = false;
+      setRefreshing(false);
     }
   };
 
@@ -877,87 +932,104 @@ export function Profile() {
       {isOtherUser && (
         <FloatingCloseButton direction="left" accessibilityLabel="Back" />
       )}
-      <ScrollView
-        contentContainerStyle={{
-          paddingTop: isOtherUser ? 30 : 20,
-          paddingBottom: MINI_PLAYER_HEIGHT + 30,
-        }}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            tintColor={t.text}
-            onRefresh={async () => {
-              setRefreshing(true);
-              const profileData = await loadProfile();
-              if (profileData) {
-                await loadUserPosts(profileData);
-                await loadActivityPosts(profileData);
-              }
-              setRefreshing(false);
-            }}
-          />
-        }
-      >
-        {/* Call as a function (not <ProfileHeader />) so its output is inlined
+      <GestureDetector gesture={gesture}>
+        <Reanimated.ScrollView
+          style={[styles.flex1, contentStyle]}
+          alwaysBounceVertical
+          contentContainerStyle={{
+            paddingTop: isOtherUser ? 48 : 20,
+            paddingBottom: MINI_PLAYER_HEIGHT + 30,
+          }}
+          // No native RefreshControl on iOS: the pull tracker triggers the
+          // refresh on release instead (see onTriggerRefresh in the hook).
+          // UIRefreshControl begins/ends refreshing while the finger is still
+          // down and its contentInset churn snaps the offset mid-drag,
+          // resetting the pull visuals.
+          refreshControl={
+            Platform.OS === "ios" ? undefined : (
+              <RefreshControl
+                refreshing={false}
+                enabled={!refreshing}
+                tintColor="transparent"
+                colors={["transparent"]}
+                progressBackgroundColor="transparent"
+                onRefresh={handleRefresh}
+              />
+            )
+          }
+          onScroll={scrollHandler}
+          scrollEventThrottle={16}
+        >
+          {/* Call as a function (not <ProfileHeader />) so its output is inlined
             into this tree; rendering it as a nested component type would remount
             the subtree — and reset the Avatar's presigned-url state — on every
             Profile re-render. ProfileHeader uses no hooks, so this is safe. */}
-        {profile ? ProfileHeader() : <ProfileHeaderSkeleton t={t} />}
+          {profile ? ProfileHeader() : <ProfileHeaderSkeleton t={t} />}
 
-        {profile ? (
-          profile.isPrivate &&
-          (profile.followStatus ??
-            (profile.isFollowing ? "ACCEPTED" : "NONE")) !== "ACCEPTED" &&
-          isOtherUser ? (
-            <View style={styles.privateContainer}>
-              <Ionicons
-                name="lock-closed-outline"
-                size={48}
-                color={t.textMuted}
+          {profile ? (
+            profile.isPrivate &&
+            (profile.followStatus ??
+              (profile.isFollowing ? "ACCEPTED" : "NONE")) !== "ACCEPTED" &&
+            isOtherUser ? (
+              <View style={styles.privateContainer}>
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={48}
+                  color={t.textMuted}
+                />
+                <Text style={[styles.privateTitle, { color: t.text }]}>
+                  This Account is Private
+                </Text>
+                <Text style={[styles.privateSubtitle, { color: t.textMuted }]}>
+                  Follow this account to see their posts.
+                </Text>
+              </View>
+            ) : headlinePost ? (
+              <FeedPostCard
+                post={headlinePost}
+                onOpenComments={handleOpenComments}
+                isPending={headlinePending != null}
+                pendingFailed={headlinePending?.pendingStatus === "failed"}
+                pendingQueueId={headlinePending?.pendingQueueId}
+                onRetryPending={
+                  headlinePending
+                    ? () => {
+                        void handleRetryPendingPost(
+                          headlinePending.pendingQueueId,
+                        );
+                      }
+                    : undefined
+                }
+                onDiscardPending={
+                  headlinePending
+                    ? () =>
+                        handleDiscardPendingPost(headlinePending.pendingQueueId)
+                    : undefined
+                }
               />
-              <Text style={[styles.privateTitle, { color: t.text }]}>
-                This Account is Private
-              </Text>
-              <Text style={[styles.privateSubtitle, { color: t.textMuted }]}>
-                Follow this account to see their posts.
-              </Text>
-            </View>
-          ) : headlinePost ? (
-            <FeedPostCard
-              post={headlinePost}
-              onOpenComments={handleOpenComments}
-              isPending={headlinePending != null}
-              pendingFailed={headlinePending?.pendingStatus === "failed"}
-              pendingQueueId={headlinePending?.pendingQueueId}
-              onRetryPending={
-                headlinePending
-                  ? () => {
-                      void handleRetryPendingPost(
-                        headlinePending.pendingQueueId,
-                      );
-                    }
-                  : undefined
-              }
-              onDiscardPending={
-                headlinePending
-                  ? () =>
-                      handleDiscardPendingPost(headlinePending.pendingQueueId)
-                  : undefined
-              }
-            />
-          ) : postsLoading ? (
-            <PostCardSkeleton t={t} />
+            ) : postsLoading ? (
+              <PostCardSkeleton t={t} />
+            ) : (
+              <View style={styles.emptyPosts}>
+                <Text style={[styles.emptyText, { color: t.textMuted }]}>
+                  No posts yet
+                </Text>
+              </View>
+            )
           ) : (
-            <View style={styles.emptyPosts}>
-              <Text style={[styles.emptyText, { color: t.textMuted }]}>
-                No posts yet
-              </Text>
-            </View>
-          )
-        ) : (
-          <PostCardSkeleton t={t} />
-        )}
-      </ScrollView>
+            <PostCardSkeleton t={t} />
+          )}
+        </Reanimated.ScrollView>
+      </GestureDetector>
+      <BrandedRefreshIndicator
+        pullDistance={pullDistance}
+        top={insets.top + (isOtherUser ? 56 : 12)}
+      />
+      {/* Same y the line occupied inside the old combined indicator. */}
+      <RefreshProgressLine
+        refreshing={refreshing}
+        style={{ top: insets.top + (isOtherUser ? 56 : 12), zIndex: 3 }}
+      />
     </SafeAreaView>
   );
 }
@@ -1130,6 +1202,9 @@ const DOT_SIZE = 28;
 const RING_SIZE = 36;
 
 const styles = StyleSheet.create({
+  flex1: {
+    flex: 1,
+  },
   center: {
     flex: 1,
     justifyContent: "center",

@@ -4,7 +4,6 @@ import {
   Modal,
   StyleSheet,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
   Keyboard,
 } from "react-native";
@@ -12,6 +11,7 @@ import { Text, TextInput } from "./Text";
 import { Ionicons } from "@expo/vector-icons";
 import { followUserByUsername } from "../api/userService";
 import { useTheme } from "@react-navigation/native";
+import { Spinner } from "./Spinner";
 
 interface Props {
   visible: boolean;
@@ -119,7 +119,7 @@ export function FollowModal({ visible, onClose, onSuccess }: Props) {
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator color="#fff" />
+                <Spinner color="#fff" />
               ) : (
                 <Text style={styles.followButtonText}>Follow</Text>
               )}
