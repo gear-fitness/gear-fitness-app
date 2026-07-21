@@ -27,6 +27,9 @@ import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
+  Easing,
+  Extrapolation,
+  interpolate,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
@@ -64,6 +67,136 @@ const GOLD_MILESTONE_HEART_SIZE = 170;
 const BLUE_MILESTONE_HEART_SIZE = 220;
 const PURPLE_MILESTONE_HEART_SIZE = 280;
 const HEART_STREAK_TIMEOUT_MS = 1200;
+
+// IG-style alternating byline (like the "AI info" / song-attribution swap):
+// each state holds, then both lines run a downward waterfall — the incoming
+// line drops in from above the slot while the outgoing one drops out below,
+// both fading. Travel measured off the reference recording (~one line-height);
+// hold and swap run deliberately a beat slower than IG's ~2.5s/300ms.
+const BYLINE_HOLD_MS = 3000;
+const BYLINE_SWAP_MS = 450;
+const BYLINE_DROP = 13;
+// Staggered fades: the outgoing line is fully gone by 65% of the swap and the
+// incoming one only starts appearing at 35%, so mid-swap never shows two
+// half-opacity lines double-exposed on top of each other. Motion still spans
+// the full swap, so the incoming line travels invisibly before it fades up.
+const BYLINE_FADE_IN_START = 0.35;
+const BYLINE_FADE_OUT_END = 0.65;
+
+/**
+ * Alternates two single-line children in one slot. `first` is settled on
+ * mount and is the in-flow child (it sizes the slot); `second` overlays it
+ * absolutely. Only the settled layer accepts touches, so the hidden line's
+ * tap target can never swallow a tap meant for the visible one. The swap is
+ * kicked from a JS interval (so React knows which layer is live) but the
+ * transform/opacity run on the UI thread.
+ */
+function AlternatingByline({
+  first,
+  second,
+}: {
+  first: React.ReactNode;
+  second: React.ReactNode;
+}) {
+  // 0 = `first` is settled/incoming, 1 = `second` is. progress runs 0 -> 1
+  // per swap; at rest it sits at 1 with the active layer settled.
+  const [active, setActive] = useState(0);
+  const progress = useSharedValue(1);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setActive((a) => 1 - a);
+      progress.value = 0;
+      progress.value = withTiming(1, {
+        duration: BYLINE_SWAP_MS,
+        easing: Easing.out(Easing.cubic),
+      });
+    }, BYLINE_HOLD_MS + BYLINE_SWAP_MS);
+    return () => clearInterval(id);
+  }, [progress]);
+
+  const firstStyle = useAnimatedStyle(() => {
+    return active === 0
+      ? {
+          opacity: interpolate(
+            progress.value,
+            [BYLINE_FADE_IN_START, 1],
+            [0, 1],
+            Extrapolation.CLAMP,
+          ),
+          transform: [
+            {
+              translateY: interpolate(
+                progress.value,
+                [0, 1],
+                [-BYLINE_DROP, 0],
+              ),
+            },
+          ],
+        }
+      : {
+          opacity: interpolate(
+            progress.value,
+            [0, BYLINE_FADE_OUT_END],
+            [1, 0],
+            Extrapolation.CLAMP,
+          ),
+          transform: [
+            {
+              translateY: interpolate(progress.value, [0, 1], [0, BYLINE_DROP]),
+            },
+          ],
+        };
+  }, [active]);
+
+  const secondStyle = useAnimatedStyle(() => {
+    return active === 1
+      ? {
+          opacity: interpolate(
+            progress.value,
+            [BYLINE_FADE_IN_START, 1],
+            [0, 1],
+            Extrapolation.CLAMP,
+          ),
+          transform: [
+            {
+              translateY: interpolate(
+                progress.value,
+                [0, 1],
+                [-BYLINE_DROP, 0],
+              ),
+            },
+          ],
+        }
+      : {
+          opacity: interpolate(
+            progress.value,
+            [0, BYLINE_FADE_OUT_END],
+            [1, 0],
+            Extrapolation.CLAMP,
+          ),
+          transform: [
+            {
+              translateY: interpolate(progress.value, [0, 1], [0, BYLINE_DROP]),
+            },
+          ],
+        };
+  }, [active]);
+
+  return (
+    <View style={styles.bylineStack}>
+      <Animated.View
+        style={[styles.bylineLayer, secondStyle]}
+        pointerEvents={active === 1 ? "auto" : "none"}
+      >
+        {second}
+      </Animated.View>
+      <Animated.View style={firstStyle} pointerEvents="none">
+        {first}
+      </Animated.View>
+    </View>
+  );
+}
 
 interface Props {
   post: FeedPost;
@@ -256,7 +389,60 @@ export function FeedPostCard({
             />
           )}
         </View>
-        <View style={styles.timestampLine}>
+        {post.locationId && post.locationName ? (
+          <AlternatingByline
+            first={
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.timestamp,
+                  timestampStyle,
+                  hasPhotos && styles.photoTextShadow,
+                ]}
+              >
+                {formatTimeAgo(post.createdAt)}
+              </Text>
+            }
+            second={
+              // Nested touchable: claims the tap over the header's
+              // profile-navigation wrapper, IG-style location link.
+              <TouchableOpacity
+                activeOpacity={0.7}
+                hitSlop={6}
+                onPress={() =>
+                  (navigation as any).push("LocationPage", {
+                    locationId: post.locationId,
+                    name: post.locationName,
+                  })
+                }
+                style={styles.locationLink}
+                accessibilityRole="button"
+                accessibilityLabel={`View posts at ${post.locationName}`}
+              >
+                <Ionicons
+                  name="location-outline"
+                  size={11}
+                  color={hasPhotos ? "#FFFFFF" : colors.text}
+                  style={[
+                    hasPhotos ? styles.photoLocationIcon : styles.locationIcon,
+                    hasPhotos && styles.photoTextShadow,
+                  ]}
+                />
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.timestamp,
+                    timestampStyle,
+                    hasPhotos && styles.photoTextShadow,
+                    styles.locationName,
+                  ]}
+                >
+                  {post.locationName}
+                </Text>
+              </TouchableOpacity>
+            }
+          />
+        ) : (
           <Text
             numberOfLines={1}
             style={[
@@ -267,45 +453,7 @@ export function FeedPostCard({
           >
             {formatTimeAgo(post.createdAt)}
           </Text>
-          {post.locationId && post.locationName ? (
-            // Nested touchable: claims the tap over the header's
-            // profile-navigation wrapper, IG-style location link.
-            <TouchableOpacity
-              activeOpacity={0.7}
-              hitSlop={6}
-              onPress={() =>
-                (navigation as any).push("LocationPage", {
-                  locationId: post.locationId,
-                  name: post.locationName,
-                })
-              }
-              style={styles.locationLink}
-              accessibilityRole="button"
-              accessibilityLabel={`View posts at ${post.locationName}`}
-            >
-              <Ionicons
-                name="location-outline"
-                size={11}
-                color={hasPhotos ? "#FFFFFF" : colors.text}
-                style={[
-                  hasPhotos ? styles.photoLocationIcon : styles.locationIcon,
-                  hasPhotos && styles.photoTextShadow,
-                ]}
-              />
-              <Text
-                numberOfLines={1}
-                style={[
-                  styles.timestamp,
-                  timestampStyle,
-                  hasPhotos && styles.photoTextShadow,
-                  styles.locationName,
-                ]}
-              >
-                {post.locationName}
-              </Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
+        )}
       </View>
     </View>
   );
@@ -949,16 +1097,25 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontVariant: ["tabular-nums"],
   },
-  timestampLine: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
+  // The alternating slot: `first` renders in-flow and sizes it; the second
+  // layer overlays absolutely. Stretched so the overlay can pin right:0 and
+  // its text can ellipsize. No overflow clipping — the incoming line's ghost
+  // deliberately drifts over the username, matching the reference.
+  bylineStack: {
+    alignSelf: "stretch",
+  },
+  bylineLayer: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
   },
   locationLink: {
     flexDirection: "row",
     alignItems: "center",
     gap: 2,
     flexShrink: 1,
+    alignSelf: "flex-start",
   },
   locationIcon: {
     marginTop: 2,
