@@ -45,6 +45,9 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	// In-memory DB for @DataJpaTest repository tests (schema generated from
+	// the entities; the PostgreSQL Flyway migrations are skipped there).
+	testRuntimeOnly 'com.h2database:h2'
 	implementation 'com.google.genai:google-genai:1.0.0'
 }
 

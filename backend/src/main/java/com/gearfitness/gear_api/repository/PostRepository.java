@@ -1,6 +1,7 @@
 package com.gearfitness.gear_api.repository;
 
 import com.gearfitness.gear_api.entity.Post;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -141,6 +142,97 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
   Page<Post> findLocationPosts(
     @Param("locationId") UUID locationId,
     @Param("userId") UUID userId,
+    Pageable pageable
+  );
+
+  /**
+   * One person the viewer follows who has viewer-visible posts at a gym,
+   * with the timestamp of their newest such post for ordering.
+   */
+  interface FriendAtLocation {
+    UUID getUserId();
+    String getUsername();
+    String getDisplayName();
+    String getProfilePictureUrl();
+    LocalDateTime getLastPostedAt();
+  }
+
+  /**
+   * The viewer's followed users who have at least one post tagged at this
+   * gym that the viewer is permitted to see, ordered by their most recent
+   * such post. Feed-grade visibility, same rules as findFollowedUsersPosts:
+   * PUBLIC posts, or FRIENDS posts when the follow is mutual, minus blocks
+   * in either direction. Unlike the location post grid (discover-grade),
+   * followed private accounts DO appear here — the viewer already follows
+   * them, so nothing is revealed that their own feed wouldn't show. Users
+   * the viewer doesn't follow never appear regardless of what they post.
+   */
+  @Query(
+    value = """
+    SELECT u.userId AS userId, u.username AS username,
+           u.displayName AS displayName,
+           u.profilePictureUrl AS profilePictureUrl,
+           MAX(p.createdAt) AS lastPostedAt
+    FROM Post p JOIN p.user u
+    WHERE p.workout.location.locationId = :locationId
+    AND EXISTS (
+        SELECT f FROM Follow f
+        WHERE f.follower.userId = :viewerId
+          AND f.followee.userId = u.userId
+          AND f.status = 'ACCEPTED'
+    )
+    AND (
+        p.visibility = 'PUBLIC'
+        OR (
+            p.visibility = 'FRIENDS'
+            AND EXISTS (
+                SELECT f2 FROM Follow f2
+                WHERE f2.follower.userId = u.userId
+                  AND f2.followee.userId = :viewerId
+                  AND f2.status = 'ACCEPTED'
+            )
+        )
+    )
+    AND NOT EXISTS (
+        SELECT b FROM Follow b WHERE
+        (b.follower.userId = :viewerId AND b.followee.userId = u.userId AND b.status = 'BLOCKED')
+        OR (b.follower.userId = u.userId AND b.followee.userId = :viewerId AND b.status = 'BLOCKED')
+    )
+    GROUP BY u.userId, u.username, u.displayName, u.profilePictureUrl
+    ORDER BY MAX(p.createdAt) DESC
+    """,
+    countQuery = """
+    SELECT COUNT(DISTINCT u.userId)
+    FROM Post p JOIN p.user u
+    WHERE p.workout.location.locationId = :locationId
+    AND EXISTS (
+        SELECT f FROM Follow f
+        WHERE f.follower.userId = :viewerId
+          AND f.followee.userId = u.userId
+          AND f.status = 'ACCEPTED'
+    )
+    AND (
+        p.visibility = 'PUBLIC'
+        OR (
+            p.visibility = 'FRIENDS'
+            AND EXISTS (
+                SELECT f2 FROM Follow f2
+                WHERE f2.follower.userId = u.userId
+                  AND f2.followee.userId = :viewerId
+                  AND f2.status = 'ACCEPTED'
+            )
+        )
+    )
+    AND NOT EXISTS (
+        SELECT b FROM Follow b WHERE
+        (b.follower.userId = :viewerId AND b.followee.userId = u.userId AND b.status = 'BLOCKED')
+        OR (b.follower.userId = u.userId AND b.followee.userId = :viewerId AND b.status = 'BLOCKED')
+    )
+    """
+  )
+  Page<FriendAtLocation> findFriendsWhoTrainAt(
+    @Param("locationId") UUID locationId,
+    @Param("viewerId") UUID viewerId,
     Pageable pageable
   );
 

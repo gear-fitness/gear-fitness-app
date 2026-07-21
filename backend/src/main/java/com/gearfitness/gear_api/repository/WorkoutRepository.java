@@ -34,6 +34,14 @@ public interface WorkoutRepository extends JpaRepository<Workout, UUID> {
   long countByUser(AppUser user);
 
   /**
+   * A user's own training history at a gym, for the location page's personal
+   * stat. Deliberately ignores post visibility — users always see their own
+   * workouts — so it must only ever be called with the authenticated
+   * caller's id.
+   */
+  long countByUser_UserIdAndLocation_LocationId(UUID userId, UUID locationId);
+
+  /**
    * Count workouts for a user within a date range
    */
   long countByUserAndDatePerformedBetween(

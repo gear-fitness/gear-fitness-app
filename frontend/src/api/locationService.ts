@@ -42,6 +42,16 @@ export interface TaggedLocation {
   postCount: number;
 }
 
+// One person the viewer follows who has at least one post at this gym the
+// viewer is permitted to see.
+export interface LocationFriend {
+  userId: string;
+  username: string;
+  displayName?: string | null;
+  // S3 key, resolved to a renderable URI by Avatar/useCachedAvatarUri.
+  profilePictureUrl?: string | null;
+}
+
 // Header data for a gym's location page.
 export interface LocationPageInfo {
   locationId: string;
@@ -51,6 +61,14 @@ export interface LocationPageInfo {
   longitude?: number | null;
   postCount: number;
   athleteCount: number;
+  // The viewer's own workout count at this gym (all their workouts,
+  // regardless of post visibility). Personal to the requesting user.
+  viewerWorkoutCount: number;
+  // Followed users with viewer-visible posts here, most recent post first,
+  // capped server-side; friendsWhoTrainHereCount is the uncapped total.
+  // Personal to the requesting user, like viewerWorkoutCount.
+  friendsWhoTrainHere: LocationFriend[];
+  friendsWhoTrainHereCount: number;
 }
 
 // Social search: only gyms that have at least one publicly visible post,

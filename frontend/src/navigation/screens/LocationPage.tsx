@@ -9,13 +9,14 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { Text } from "../../components/Text";
-import { useRoute } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
 import { FeedPost, socialFeedApi } from "../../api/socialFeedApi";
 import { LocationPageInfo, getLocationPage } from "../../api/locationService";
 import { useNormalizeFeedPosts } from "../../context/LikesContext";
+import { Avatar } from "../../components/Avatar";
 import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
 import { CompactPostCard } from "../../components/CompactPostCard";
 import { FeedPostCard } from "../../components/FeedPostCard";
@@ -30,14 +31,35 @@ const GRID_GAP = 10;
 
 type ViewMode = "grid" | "square";
 
+const FRIEND_AVATAR_SIZE = 34;
+
 /**
- * A gym's location page: header with the gym's identity and visible-post
- * stats, then every publicly visible post tagged there (discover-grade
- * audience, enforced server-side). Layout mirrors UserPosts — grid of
- * CompactPostCards with a toggle to full FeedPostCards.
+ * "Alex trains here" / "Alex and Sam train here" / "Alex, Sam and 3 others
+ * train here". `total` is the uncapped server count, so the "others" figure
+ * stays truthful when the avatar list is truncated.
+ */
+function friendsWhoTrainHereLabel(names: string[], total: number): string {
+  if (total <= 0 || names.length === 0) return "";
+  if (total === 1) return `${names[0]} trains here`;
+  if (total === 2 && names.length >= 2)
+    return `${names[0]} and ${names[1]} train here`;
+  const shown = names.slice(0, 2);
+  const others = total - shown.length;
+  return `${shown.join(", ")} and ${others} ${
+    others === 1 ? "other" : "others"
+  } train here`;
+}
+
+/**
+ * A gym's location page: header with the gym's identity, visible-post stats
+ * and the viewer's followed users who train here, then every publicly
+ * visible post tagged there (discover-grade audience, enforced
+ * server-side). Layout mirrors UserPosts — grid of CompactPostCards with a
+ * toggle to full FeedPostCards.
  */
 export function LocationPage() {
   const route = useRoute<any>();
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const scheme = useColorScheme();
   const isDark = scheme === "dark";
@@ -131,6 +153,8 @@ export function LocationPage() {
 
   const isGrid = viewMode === "grid";
   const name = info?.name ?? initialName;
+  const friends = info?.friendsWhoTrainHere ?? [];
+  const friendsTotal = info?.friendsWhoTrainHereCount ?? 0;
 
   const header = (
     <View style={styles.headerBlock}>
@@ -166,6 +190,67 @@ export function LocationPage() {
           </Text>
         </View>
       </View>
+      {info && info.viewerWorkoutCount > 0 ? (
+        // Personal stat: the viewer's own history here, hidden entirely when
+        // they've never trained at this gym.
+        <View
+          style={[
+            styles.workoutChip,
+            { backgroundColor: isDark ? t.chipBg : "#F2F2F4" },
+          ]}
+        >
+          <Ionicons
+            name="barbell-outline"
+            size={15}
+            color={isDark ? t.text : "#111"}
+          />
+          <Text
+            style={[
+              styles.workoutChipText,
+              { color: isDark ? t.text : "#111" },
+            ]}
+          >
+            {info.viewerWorkoutCount}
+            {info.viewerWorkoutCount === 1 ? " workout" : " workouts"}
+            {" logged here"}
+          </Text>
+        </View>
+      ) : null}
+      {friends.length > 0 ? (
+        // People the viewer follows with posts here they can see — hidden
+        // entirely when none qualify. Each avatar opens that profile.
+        <View style={styles.friendsSection}>
+          <View style={styles.avatarStack}>
+            {friends.map((friend, index) => (
+              <View
+                key={friend.userId}
+                style={[
+                  styles.avatarWrap,
+                  { borderColor: t.bg },
+                  index > 0 && styles.avatarOverlap,
+                ]}
+              >
+                <Avatar
+                  username={friend.username}
+                  profilePictureUrl={friend.profilePictureUrl}
+                  size={FRIEND_AVATAR_SIZE}
+                  onPress={() =>
+                    (navigation as any).push("UserProfile", {
+                      username: friend.username,
+                    })
+                  }
+                />
+              </View>
+            ))}
+          </View>
+          <Text style={[styles.friendsText, { color: t.textMuted }]}>
+            {friendsWhoTrainHereLabel(
+              friends.map((friend) => friend.displayName || friend.username),
+              friendsTotal,
+            )}
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 
@@ -308,9 +393,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   gymName: {
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: "700",
-    letterSpacing: -0.4,
+    letterSpacing: -0.5,
     textAlign: "center",
   },
   address: {
@@ -335,6 +420,42 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 12,
     marginTop: 1,
+  },
+  workoutChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: 100,
+    marginTop: 18,
+  },
+  workoutChipText: {
+    fontSize: 13,
+    fontWeight: "600",
+    fontVariant: ["tabular-nums"],
+  },
+  friendsSection: {
+    alignItems: "center",
+    marginTop: 18,
+  },
+  avatarStack: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  avatarWrap: {
+    // Ring in the page background color so overlapped avatars read as a
+    // stack rather than bleeding into each other.
+    borderWidth: 2,
+    borderRadius: FRIEND_AVATAR_SIZE / 2 + 2,
+  },
+  avatarOverlap: {
+    marginLeft: -10,
+  },
+  friendsText: {
+    fontSize: 13,
+    marginTop: 8,
+    textAlign: "center",
   },
   row: {
     gap: GRID_GAP,

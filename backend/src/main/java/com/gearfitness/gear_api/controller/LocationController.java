@@ -79,7 +79,11 @@ public class LocationController {
     return ResponseEntity.ok(locationPageService.searchTagged(query));
   }
 
-  /** Gym page header: identity plus visible post/athlete counts. */
+  /**
+   * Gym page header: identity plus visible post/athlete counts, and the
+   * caller's own workout count there (personal — derived from the token
+   * identity, never someone else's).
+   */
   @GetMapping("/{locationId}")
   public ResponseEntity<LocationPageDTO> getLocationPage(
     @RequestHeader("Authorization") String authHeader,
@@ -89,6 +93,8 @@ public class LocationController {
     if (userId == null) {
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
-    return ResponseEntity.ok(locationPageService.getLocationPage(locationId));
+    return ResponseEntity.ok(
+      locationPageService.getLocationPage(locationId, userId)
+    );
   }
 }

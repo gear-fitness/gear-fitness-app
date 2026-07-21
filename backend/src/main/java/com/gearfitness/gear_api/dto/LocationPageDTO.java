@@ -1,6 +1,7 @@
 package com.gearfitness.gear_api.dto;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,4 +22,18 @@ public class LocationPageDTO {
   private BigDecimal longitude;
   private Long postCount;
   private Long athleteCount;
+
+  // The requesting user's own workout count at this gym. Personal to the
+  // caller (computed from their token identity), unlike the public counts
+  // above; includes their non-public posts.
+  private Long viewerWorkoutCount;
+
+  // People the viewer follows with at least one viewer-visible post here,
+  // most recent post first, capped server-side. Viewer-specific like
+  // viewerWorkoutCount.
+  private List<LocationFriendDTO> friendsWhoTrainHere;
+
+  // Uncapped total behind friendsWhoTrainHere, so the UI can say
+  // "... and N others" truthfully when the list is truncated.
+  private Long friendsWhoTrainHereCount;
 }
