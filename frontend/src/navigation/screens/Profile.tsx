@@ -47,6 +47,7 @@ import { StreakIcon } from "../../components/StreakIcon";
 import { getStreakAccentColor } from "../../utils/streak";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 import { getPendingPosts, isPendingPostId } from "../../utils/pendingPosts";
+import { track } from "../../analytics";
 
 // Accent for Gear Plus UI (sparkle icon + badge).
 const PLUS_ACCENT = "#4F6BF6";
@@ -352,6 +353,7 @@ export function Profile() {
       );
       try {
         const response = await followUser(profile.userId);
+        track("user_followed", { source: "profile" });
         const confirmedStatus = response.status as UserProfile["followStatus"];
         setProfile((prev) =>
           prev

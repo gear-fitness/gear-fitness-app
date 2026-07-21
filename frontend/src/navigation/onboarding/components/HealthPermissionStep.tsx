@@ -4,6 +4,7 @@ import { StepProps } from "../stepProps";
 import { PermissionScreen } from "./PermissionScreen";
 import { HealthSyncGraphic } from "./HealthSyncGraphic";
 import { syncOnboardingDataToHealthKit } from "../../../utils/healthKitSync";
+import { track } from "../../../analytics";
 
 export function HealthPermissionStep({
   draft,
@@ -33,9 +34,11 @@ export function HealthPermissionStep({
         height: draft.height,
         weight: draft.weight,
       });
+      track("healthkit_step_completed", { granted: true });
       updateDraft({ permissions: { ...draft.permissions, health: true } });
     } catch (err) {
       console.error("HealthKit sync failed:", err);
+      track("healthkit_step_completed", { granted: false });
       // The user said yes; the sync just didn't take this time.
       updateDraft({ permissions: { ...draft.permissions, health: true } });
     } finally {

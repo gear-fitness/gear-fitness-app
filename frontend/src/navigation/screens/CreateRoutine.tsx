@@ -29,6 +29,7 @@ import { useThemeColors } from "../../hooks/useThemeColors";
 import { useExerciseList } from "../../hooks/useExerciseList";
 import { useUserWorkouts } from "../../hooks/useUserWorkouts";
 import { renderBodyParts } from "../../utils/exerciseUtils";
+import { track } from "../../analytics";
 
 type Step = "details" | "source" | "scratch" | "workout";
 
@@ -150,6 +151,10 @@ export function CreateRoutine({
     try {
       const days = selectedDays.map((d) => DAY_FULL[d]);
       await createRoutine(name.trim(), days, selectedExerciseIds);
+      track("routine_created", {
+        source: "scratch",
+        exercise_count: selectedExerciseIds.length,
+      });
       navigation.goBack();
     } catch (err: any) {
       if (err?.response?.status === 403) {
@@ -169,6 +174,7 @@ export function CreateRoutine({
     try {
       const days = selectedDays.map((d) => DAY_FULL[d]);
       await createRoutineFromWorkout(workoutId, name.trim(), days);
+      track("routine_created", { source: "from_workout" });
       navigation.goBack();
     } catch (err: any) {
       if (err?.response?.status === 403) {

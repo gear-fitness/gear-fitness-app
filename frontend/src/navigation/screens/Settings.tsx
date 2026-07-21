@@ -50,6 +50,11 @@ import { useUnitPreference } from "../../context/UnitPreferenceContext";
 import { formatWeight as formatWeightWithUnit } from "../../utils/weight";
 import * as Notifications from "expo-notifications";
 import { openTerms, openPrivacy } from "../../constants/legal";
+import {
+  track,
+  isAnalyticsEnabled,
+  setAnalyticsEnabled,
+} from "../../analytics";
 
 const GENDER_LABELS: Record<string, string> = {
   male: "Male",
@@ -323,6 +328,7 @@ export function Settings() {
     setPrivacyBusy(true);
     try {
       await updateUserPrivacy(next);
+      track("privacy_toggled", { is_private: next });
       if (typeof refreshUser === "function") await refreshUser();
     } catch {
       setIsPrivate(!next);
@@ -330,6 +336,15 @@ export function Settings() {
     } finally {
       setPrivacyBusy(false);
     }
+  };
+
+  const [shareAnalytics, setShareAnalytics] = useState(isAnalyticsEnabled());
+
+  const handleShareAnalyticsToggle = (next: boolean) => {
+    // Opt-out is handled entirely client-side by the PostHog SDK (persisted
+    // across launches); no server call involved.
+    setShareAnalytics(next);
+    void setAnalyticsEnabled(next);
   };
 
   const handleLogout = () => {
@@ -686,6 +701,13 @@ export function Settings() {
               value: isPrivate,
               onValueChange: handlePrivacyToggle,
               disabled: privacyBusy,
+            },
+            {
+              id: "share_analytics",
+              type: "toggle" as const,
+              label: "Share Anonymous Usage Data",
+              value: shareAnalytics,
+              onValueChange: handleShareAnalyticsToggle,
             },
             {
               id: "blocked_users",

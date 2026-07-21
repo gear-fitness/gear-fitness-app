@@ -8,6 +8,7 @@ import React, {
   useSyncExternalStore,
 } from "react";
 import { FeedPost, socialFeedApi } from "../api/socialFeedApi";
+import { track } from "../analytics";
 
 type LikeRecord = {
   serverLiked: boolean;
@@ -121,6 +122,8 @@ export function LikesProvider({ children }: { children: React.ReactNode }) {
             serverCount: response.likeCount,
             localDelta: newDelta,
           });
+          // Only the like direction is an engagement signal, not the unlike.
+          if (response.liked) track("post_liked");
         } catch (err) {
           console.error("toggleLike failed:", err);
           const after = recordsRef.current[postId];

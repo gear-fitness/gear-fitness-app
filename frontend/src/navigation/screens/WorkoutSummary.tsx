@@ -338,7 +338,7 @@ export function WorkoutSummary() {
         ) : (
           <TouchableOpacity
             activeOpacity={0.85}
-            onPress={start}
+            onPress={() => start()}
             style={[styles.resumeBtn, { backgroundColor: ACCENT }]}
           >
             <Text

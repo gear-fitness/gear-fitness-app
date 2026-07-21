@@ -24,6 +24,7 @@ import { Avatar } from "../../components/Avatar";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 import { useFollowStatus } from "../../context/FollowStatusContext";
+import { track } from "../../analytics";
 
 type Tab = "followers" | "following";
 
@@ -134,6 +135,7 @@ export default function FollowScreen() {
       } else {
         // Private accounts return PENDING (Requested), public return ACCEPTED
         const response = await followUserByUsername(user.username);
+        track("user_followed", { source: "follow_list" });
         setStatus(response.status === "ACCEPTED" ? "ACCEPTED" : "PENDING");
       }
     } catch (e) {

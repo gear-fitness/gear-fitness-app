@@ -37,6 +37,7 @@ import { FeedKey, useSocialFeed } from "../../context/SocialFeedContext";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
 import { useHealthKitForegroundSync } from "../../hooks/useHealthKitSync";
+import { track } from "../../analytics";
 
 const SEARCH_ROW_HEIGHT = 64;
 
@@ -210,6 +211,19 @@ export function Social() {
   // scroll lands (onMomentumScrollEnd) so the RefreshControl's spinner-reveal
   // can't race the scroll. Holds the feed key awaiting that refresh, else null.
   const pendingRefreshRef = useRef<FeedKey | null>(null);
+
+  // Which feed is on screen: fires on each focus of the Explore tab and on
+  // every Following <-> Discover switch while focused ($screen can't tell
+  // them apart — the pager isn't navigation).
+  useFocusEffect(
+    useCallback(() => {
+      // Narrowing also keeps future `group:<id>` keys out of analytics —
+      // group ids are identifiers, so tracking them needs its own decision.
+      if (activeFeed === "following" || activeFeed === "discover") {
+        track("social_feed_viewed", { feed: activeFeed });
+      }
+    }, [activeFeed]),
+  );
 
   // Tab tap -> page the swiper (which fires onPageSelected -> setActiveFeed).
   const goToFeed = (key: FeedKey) => {

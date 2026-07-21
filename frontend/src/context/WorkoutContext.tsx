@@ -10,6 +10,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
 import { BodyPartDTO } from "../api/exerciseService";
 import { WeightUnit } from "../utils/weight";
+import { track, type AnalyticsEvents } from "../analytics";
+
+type WorkoutStartSource = AnalyticsEvents["workout_started"]["source"];
 
 export interface WorkoutSet {
   reps: string;
@@ -111,7 +114,7 @@ interface WorkoutContextValue {
   // Write-once epoch (ms) of when the current workout began; null when no
   // workout is in progress. Used at submission to date the workout by its start.
   workoutStartedAtEpoch: number | null;
-  start: () => void;
+  start: (source?: WorkoutStartSource) => void;
   pause: () => void;
   reset: () => void;
 
@@ -160,6 +163,7 @@ interface WorkoutContextValue {
 
   loadFromRoutine: (
     exercises: Array<{ exerciseId: string; name: string }>,
+    source?: Extract<WorkoutStartSource, "routine" | "todays_routine">,
   ) => Promise<void>;
 }
 
@@ -574,7 +578,7 @@ export function WorkoutTimerProvider({
     setActiveExerciseStartedAt(Date.now());
   };
 
-  const start = () => {
+  const start = (source: WorkoutStartSource = "exercise_select") => {
     // Mounting ExerciseDetail (or any explicit start) means the user is
     // actively working out — release the post-reset write barrier.
     suppressWritesRef.current = false;
@@ -585,8 +589,11 @@ export function WorkoutTimerProvider({
     }
     // Record when this workout first began, once. Never overwritten for the life
     // of the workout (reset() clears it), so it survives pauses and app kills.
+    // The same write-once guard means workout_started fires exactly once per
+    // workout — resumes and mid-session exercise adds don't re-fire it.
     if (workoutStartedAtEpoch === null) {
       setWorkoutStartedAtEpoch(Date.now());
+      track("workout_started", { source });
     }
     // If we resumed with an active exercise that was frozen on pause, restart
     // its live ticker so it accumulates from now forward — without this the
@@ -673,6 +680,10 @@ export function WorkoutTimerProvider({
       name: string;
       bodyParts?: BodyPartDTO[];
     }>,
+    source: Extract<
+      WorkoutStartSource,
+      "routine" | "todays_routine"
+    > = "routine",
   ): Promise<void> => {
     // Fully reset any prior workout first (also engages the write barrier
     // and cancels notifications/pending saves).
@@ -697,6 +708,9 @@ export function WorkoutTimerProvider({
       setRunning(true);
       setStartTimestamp(Date.now());
       setWorkoutStartedAtEpoch(Date.now());
+      // loadFromRoutine bypasses start(), so capture here; the reset() above
+      // guarantees this is always a fresh workout.
+      track("workout_started", { source });
       setCurrentExerciseId(newExercises[0].workoutExerciseId);
       setPlayerVisible(true);
     }

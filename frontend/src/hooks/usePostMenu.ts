@@ -9,6 +9,7 @@ import { reportService, ReportReason } from "../api/reportService";
 import { PostAction } from "../components/PostActionsSheet";
 import { useAuth } from "../context/AuthContext";
 import { useSocialFeed } from "../context/SocialFeedContext";
+import { track } from "../analytics";
 
 type Visibility = "PUBLIC" | "FRIENDS" | "PRIVATE";
 
@@ -95,6 +96,7 @@ export function usePostMenu(args: {
         await unfollowUser(targetId);
       } else {
         await followUser(targetId);
+        track("user_followed", { source: "post_menu" });
       }
       invalidateAll();
     } catch {

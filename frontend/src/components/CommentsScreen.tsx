@@ -27,6 +27,7 @@ import { PostActionsSheet, PostAction } from "./PostActionsSheet";
 import { ReportCommentSheet } from "./ReportCommentSheet";
 import { MentionableText } from "./MentionableText";
 import { MentionTextInput } from "./MentionTextInput";
+import { track } from "../analytics";
 
 export function CommentsScreen() {
   const { colors } = useTheme();
@@ -355,6 +356,7 @@ export function CommentsScreen() {
         commentText.trim(),
         replyTo?.commentId,
       );
+      track("comment_added");
       if (newComment.parentCommentId) {
         // Reply: bump the thread root's count and expand it.
         const parentId = newComment.parentCommentId;

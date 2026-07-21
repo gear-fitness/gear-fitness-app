@@ -15,6 +15,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { useThemeColors } from "../../../hooks/useThemeColors";
 import { FloatingCloseButton } from "../../../components/FloatingCloseButton";
 import { deleteAccount } from "../../../api/userService";
+import { track } from "../../../analytics";
 
 export function DeleteAccount() {
   const { user, logout } = useAuth();
@@ -45,6 +46,9 @@ export function DeleteAccount() {
             setSubmitting(true);
             try {
               await deleteAccount(typed.trim());
+              // The logout below triggers AnalyticsIdentitySync's flush+reset,
+              // so this event still ships with the deleted user's identity.
+              track("account_deleted");
               try {
                 await logout();
               } catch {

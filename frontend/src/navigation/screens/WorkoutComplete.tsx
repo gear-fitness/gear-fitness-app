@@ -39,6 +39,7 @@ import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 import { MentionTextInput } from "../../components/MentionTextInput";
 import { formatTag } from "../../utils/formatTag";
 import { getAllBodyPartNames } from "../../utils/exerciseUtils";
+import { track } from "../../analytics";
 import { MUSCLE_GROUPS } from "../../constants/muscleGroups";
 
 const ACCENT = "#111";
@@ -235,6 +236,13 @@ export function WorkoutComplete() {
     setLoading(true);
     void saveCapturedPhotosIfEnabled();
 
+    const completionProps = {
+      duration_min: durationMin,
+      exercise_count: exercises.length,
+      set_count: exercises.reduce((n, ex) => n + ex.sets.length, 0),
+      visibility,
+    };
+
     const buildSubmission = (uploadedUrls: string[]): WorkoutSubmission => ({
       name: workoutName,
       durationMin,
@@ -273,6 +281,8 @@ export function WorkoutComplete() {
         buildSubmission(alreadyUploadedUrls),
         stillPendingUris,
       );
+      // PostHog queues offline too, so this arrives when connectivity returns.
+      track("workout_completed", { ...completionProps, offline_queued: true });
       await reset();
       Alert.alert(
         "Saved offline",
@@ -315,6 +325,7 @@ export function WorkoutComplete() {
       const submission = buildSubmission(uploadedUrls);
 
       await submitWorkout(submission);
+      track("workout_completed", { ...completionProps, offline_queued: false });
       // Clear in-memory + persisted state BEFORE the Alert so that any path
       // out of this screen — tapping OK, backgrounding, force-quitting — is
       // safe. reset() also engages the write barrier so late side-effect
@@ -355,6 +366,7 @@ export function WorkoutComplete() {
           text: "Discard",
           style: "destructive",
           onPress: () => {
+            track("workout_discarded", { exercise_count: exercises.length });
             reset();
             popOutOfFlow();
           },

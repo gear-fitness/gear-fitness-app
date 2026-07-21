@@ -104,3 +104,24 @@ export const STEP_COMPONENTS: React.ComponentType<StepProps>[] = [
   AccountStep, // 13
   PaywallStep, // 14
 ];
+
+// Analytics names for the funnel, index-aligned with STEP_COMPONENTS (kept
+// explicit because component .name is mangled by release minification).
+// Update together with STEP_COMPONENTS.
+export const STEP_NAMES: string[] = [
+  "welcome",
+  "name",
+  "gender",
+  "birthday",
+  "height",
+  "weight",
+  "activity",
+  "goal_weight",
+  "progress_chart",
+  "health_permission",
+  "notifications_permission",
+  "username",
+  "profile_photo",
+  "account",
+  "paywall",
+];

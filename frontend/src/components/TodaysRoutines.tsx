@@ -37,6 +37,7 @@ export function TodaysRoutines() {
             exerciseId: ex.exerciseId,
             name: ex.exerciseName,
           })),
+          "todays_routine",
         );
         (navigation as any).navigate("WorkoutFlow", {
           screen: "WorkoutSummary",

@@ -17,6 +17,7 @@ import { StreakDropdown } from "../../components/StreakDropdown";
 import { StreakIcon } from "../../components/StreakIcon";
 import { streakService, type StreakInfo } from "../../api/streakService";
 import { QUOTES } from "../../constants/quotes";
+import { track } from "../../analytics";
 
 const SERIF = "LibreCaslonText_400Regular";
 
@@ -71,6 +72,7 @@ export function Workout() {
     setStreakLoading(true);
     try {
       const updated = await streakService.logRestDay();
+      track("rest_day_logged");
       setStreakInfo(updated);
       refreshUser();
     } catch (e: any) {
@@ -84,6 +86,7 @@ export function Workout() {
     setStreakLoading(true);
     try {
       const updated = await streakService.useRestoreToken();
+      track("streak_restored");
       setStreakInfo(updated);
       refreshUser();
     } catch (e: any) {

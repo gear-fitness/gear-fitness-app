@@ -33,7 +33,8 @@ import { useAuth } from "../../context/AuthContext";
 import { useOnboardingColors } from "../onboarding/components/useOnboardingColors";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { StepProps } from "../onboarding/stepProps";
-import { STEP_COMPONENTS } from "../onboarding/steps";
+import { STEP_COMPONENTS, STEP_NAMES } from "../onboarding/steps";
+import { track } from "../../analytics";
 import {
   runPostSignupSync,
   resolveDisplayName,
@@ -48,8 +49,7 @@ import { AccountExistsScreen } from "../onboarding/components/AccountExistsScree
  * native Alerts that used to handle "sign in" and "account already exists".
  */
 type AuthOverlay =
-  | { mode: "signIn" }
-  | { mode: "accountExists"; provider: "google" | "apple" };
+  { mode: "signIn" } | { mode: "accountExists"; provider: "google" | "apple" };
 
 const initialBg =
   Appearance.getColorScheme() === "dark" ? "#0a0a0a" : "#fafafa";
@@ -117,7 +117,13 @@ export function OnboardingScreen() {
 
   // ─── Step navigation ─────────────────────────────────────────
   const goTo = useCallback(
-    (step: OnboardingStep) => updateDraft({ step }),
+    (step: OnboardingStep) => {
+      track("onboarding_step_viewed", {
+        step: STEP_NAMES[step] ?? String(step),
+        step_index: step,
+      });
+      updateDraft({ step });
+    },
     [updateDraft],
   );
   const goBack = useCallback(
@@ -130,12 +136,17 @@ export function OnboardingScreen() {
   );
 
   const completeOnboarding = useCallback(async () => {
+    // Sign-ins also route through here from step 0 — only a user who reached
+    // the final step actually finished the onboarding funnel.
+    if (draft.step >= LAST_STEP) {
+      track("onboarding_completed");
+    }
     await markOnboardingSeen();
     await clearOnboardingDraft();
     navigation.dispatch(
       CommonActions.reset({ index: 0, routes: [{ name: "HomeTabs" }] }),
     );
-  }, [navigation]);
+  }, [navigation, draft.step]);
 
   const handleGoogleAuth = useCallback(
     async (intent: GoogleAuthIntent) => {
@@ -181,6 +192,7 @@ export function OnboardingScreen() {
                         throw new Error("Missing tokens in restore response");
                       }
                       await login(restored.token, restored.refreshToken);
+                      track("sign_in", { method: "google" });
                       await completeOnboarding();
                     } catch (err) {
                       console.error("Google restore failed:", err);
@@ -204,6 +216,9 @@ export function OnboardingScreen() {
             );
           }
           await login(result.token, result.refreshToken);
+          track(intent === "sign_up" ? "sign_up" : "sign_in", {
+            method: "google",
+          });
 
           if (intent === "sign_up") {
             // Persist everything collected so far, then continue the flow
@@ -341,6 +356,7 @@ export function OnboardingScreen() {
                       throw new Error("Missing tokens in restore response");
                     }
                     await login(restored.token, restored.refreshToken);
+                    track("sign_in", { method: "apple" });
                     await completeOnboarding();
                   } catch (err) {
                     console.error("Apple restore failed:", err);
@@ -388,6 +404,7 @@ export function OnboardingScreen() {
                       throw new Error("Missing tokens in link response");
                     }
                     await login(linked.token, linked.refreshToken);
+                    track("sign_in", { method: "apple" });
                     // Attaching to an existing account — keep its profile,
                     // don't sync the onboarding draft over it.
                     await completeOnboarding();
@@ -411,6 +428,9 @@ export function OnboardingScreen() {
           throw new Error("Apple sign-in did not return valid session tokens");
         }
         await login(result.token, result.refreshToken);
+        track(intent === "sign_up" ? "sign_up" : "sign_in", {
+          method: "apple",
+        });
 
         if (intent === "sign_up") {
           // Persist everything collected so far, then continue the flow

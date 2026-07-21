@@ -26,6 +26,7 @@ import { Avatar } from "../../components/Avatar";
 import { PresignedImage } from "../../components/PresignedImage";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
+import { track } from "../../analytics";
 
 const THUMBNAIL_SIZE = 48;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -197,6 +198,7 @@ export function Activity() {
     if (!item.actorUserId) return;
     try {
       await acceptFollowRequest(item.actorUserId);
+      track("follow_request_accepted");
       setNotifications((prev) =>
         prev.map((n) =>
           n.notificationId === item.notificationId

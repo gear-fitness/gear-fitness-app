@@ -26,6 +26,7 @@ import { FollowStatusProvider } from "./context/FollowStatusContext";
 import { UnitPreferenceProvider } from "./context/UnitPreferenceContext";
 import { NutritionProvider } from "./context/NutritionContext";
 import { WorkoutPlayer } from "./components/WorkoutPlayer";
+import { AnalyticsIdentitySync, trackScreen } from "./analytics";
 import { getPendingAnnouncement } from "./api/announcementService";
 import { hasSeenAnnouncement } from "./utils/announcementStorage";
 import * as Notifications from "expo-notifications";
@@ -209,6 +210,30 @@ function AppContent({
     }
   }, [isNavigationReady, isLoading, fontsLoaded]);
 
+  const lastTrackedScreen = React.useRef<string | null>(null);
+
+  useEffect(() => {
+    // Screen tracking: PostHog's autocapture can't hook react-navigation's
+    // static API, so listen on navigationRef like the What's New effect below.
+    // Route name only — params carry postId/username and must never be sent.
+    if (!isNavigationReady) return;
+
+    const trackCurrentScreen = () => {
+      const name = navigationRef.current?.getCurrentRoute()?.name;
+      if (name && name !== lastTrackedScreen.current) {
+        lastTrackedScreen.current = name;
+        trackScreen(name);
+      }
+    };
+
+    trackCurrentScreen();
+    const unsubscribe = navigationRef.current?.addListener(
+      "state",
+      trackCurrentScreen,
+    );
+    return () => unsubscribe?.();
+  }, [isNavigationReady]);
+
   useEffect(() => {
     // What's New popup: at most one attempt per app session, and only once
     // the user has actually landed on HomeTabs. AuthLoading holds the root
@@ -263,6 +288,7 @@ function AppContent({
     <GestureHandlerRootView
       style={{ flex: 1, backgroundColor: theme.colors.background }}
     >
+      <AnalyticsIdentitySync />
       <SafeAreaProvider>
         <WorkoutTimerProvider>
           <LikesProvider>
