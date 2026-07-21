@@ -442,9 +442,7 @@ export function BrandedRefreshIndicator({
           fieldStyle,
         ]}
       />
-      <Animated.View
-        style={[styles.spinnerBadge, spinnerStyle]}
-      >
+      <Animated.View style={[styles.spinnerBadge, spinnerStyle]}>
         {engaged && <Spinner size={28} color={colors.text} />}
       </Animated.View>
     </Animated.View>
