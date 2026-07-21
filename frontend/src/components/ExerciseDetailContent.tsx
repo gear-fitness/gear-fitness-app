@@ -35,6 +35,7 @@ import { useSwipeableDelete } from "../hooks/useSwipeableDelete";
 import { BodyPartDTO } from "../api/exerciseService";
 import { FloatingCloseButton } from "./FloatingCloseButton";
 import { FloatingKeyboardDismiss } from "./FloatingKeyboardDismiss";
+import { dismissWorkoutFlow } from "../utils/dismissWorkoutFlow";
 
 interface ExerciseDetailContentProps {
   exercise: {
@@ -582,13 +583,7 @@ export const ExerciseDetailContent = forwardRef<
             { backgroundColor: colors.bg, paddingTop: insets.top },
           ]}
         >
-          <FloatingCloseButton
-            onPress={() => {
-              const parent = navigation.getParent();
-              if (parent) parent.goBack();
-              else navigation.goBack();
-            }}
-          />
+          <FloatingCloseButton onPress={() => dismissWorkoutFlow(navigation)} />
           <View style={styles.topBar}>
             <TouchableOpacity
               activeOpacity={0.7}

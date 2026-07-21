@@ -16,8 +16,13 @@ export function ExerciseDetail() {
   const route = useRoute<any>();
   const routeExercise = route.params.exercise;
 
-  const { start, exercises, setCurrentExercise, setActiveExercise } =
-    useWorkoutTimer();
+  const {
+    start,
+    exercises,
+    hasActiveWorkout,
+    setCurrentExercise,
+    setActiveExercise,
+  } = useWorkoutTimer();
   const liveExercise = exercises.find(
     (e) => e.workoutExerciseId === routeExercise.workoutExerciseId,
   );
@@ -25,10 +30,20 @@ export function ExerciseDetail() {
   const contentRef = useRef<ExerciseDetailContentRef>(null);
 
   useEffect(() => {
+    // start() releases the post-reset write barrier and sets running, so it
+    // must only run when a workout genuinely exists. Every legitimate path
+    // into this screen already satisfies that: ExerciseSelect and
+    // CreateExercise call start() in their press handlers before navigating
+    // here, and every other entry arrives with live workout state. A stale
+    // mount after a posted workout has neither; calling start() there would
+    // resurrect a zombie running state whose next background event re-arms
+    // the unfinished-workout reminder.
+    if (!hasActiveWorkout) return;
     start();
     if (exercise.workoutExerciseId) {
       setActiveExercise(exercise.workoutExerciseId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exercise.workoutExerciseId]);
 
   // Save before leaving screen

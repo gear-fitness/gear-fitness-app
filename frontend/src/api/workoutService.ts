@@ -38,6 +38,10 @@ export interface WorkoutSubmission {
   caption?: string;
   imageUrl?: string;
   photoUrls?: string[];
+  // Session-scoped dedupe key (see utils/idempotency). The server returns
+  // the existing workout for a resubmit with the same key instead of
+  // creating a duplicate.
+  idempotencyKey?: string;
   // Optional gym tag; backend find-or-creates the location row at submit time.
   location?: GymLocation;
 }
@@ -150,6 +154,11 @@ export async function submitWorkout(
   const { data } = await apiClient.post<WorkoutDetailResponse>(
     "/workouts/submit",
     submission,
+    // Per-request timeout (the axios instance deliberately has none; AI
+    // endpoints can be slow). A suspend-severed request surfaces as
+    // ECONNABORTED, which isNetworkError classifies as retryable; the
+    // idempotency key makes the retry safe.
+    { timeout: 15000 },
   );
   await cacheSubmittedWorkout(data);
   return data;

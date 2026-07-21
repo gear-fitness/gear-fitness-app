@@ -34,11 +34,16 @@ import {
 } from "../../api/locationService";
 import { notificationService } from "../../api/notificationService";
 import { FeedPostCard } from "../../components/FeedPostCard";
+import {
+  SocialUploadPill,
+  usePostUploadHeadline,
+} from "../../components/UploadStatusPill";
 import { SearchBar } from "../../components/SearchBar";
 import { UserSearchCard } from "../../components/UserSearchCard";
 import { LocationSearchCard } from "../../components/LocationSearchCard";
 import { useAuth } from "../../context/AuthContext";
 import { FeedKey, useSocialFeed } from "../../context/SocialFeedContext";
+import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
 import { useHealthKitForegroundSync } from "../../hooks/useHealthKitSync";
@@ -126,6 +131,8 @@ function FeedList({
     );
   };
 
+  const hasContent = feed.posts.length > 0;
+
   return (
     <View style={styles.flex1}>
       <FlatList
@@ -136,9 +143,9 @@ function FeedList({
           <FeedPostCard post={item} onOpenComments={onOpenComments} />
         )}
         keyExtractor={(item) => String(item.postId)}
-        scrollEnabled={feed.posts.length > 0}
+        scrollEnabled={hasContent}
         contentContainerStyle={
-          feed.posts.length === 0
+          !hasContent
             ? { flexGrow: 1, justifyContent: "center" }
             : {
                 paddingTop: isIOS ? 0 : HEADER_HEIGHT - insets.top,
@@ -151,13 +158,9 @@ function FeedList({
         // ourselves so the first post clears the header instead of slipping
         // under it.
         contentInsetAdjustmentBehavior="never"
-        contentInset={
-          isIOS && feed.posts.length > 0 ? { top: HEADER_HEIGHT } : undefined
-        }
+        contentInset={isIOS && hasContent ? { top: HEADER_HEIGHT } : undefined}
         contentOffset={
-          isIOS && feed.posts.length > 0
-            ? { x: 0, y: -HEADER_HEIGHT }
-            : undefined
+          isIOS && hasContent ? { x: 0, y: -HEADER_HEIGHT } : undefined
         }
         scrollIndicatorInsets={{ top: HEADER_HEIGHT }}
         ListFooterComponent={renderFooter}
@@ -176,12 +179,49 @@ function FeedList({
       />
 
       {/* Empty state as a screen-anchored overlay (not inside the FlatList) so
-          the RefreshControl's inset can't shift its position. */}
+          the RefreshControl's inset can't shift its position. The floating
+          upload pill (screen-level overlay, docked above the tab bar) is
+          meant to coexist with this guidance: "follow people" stays centered
+          mid-screen, pill down at the bottom. Neither may hide the other. */}
       {feed.posts.length === 0 && (
         <View style={styles.emptyOverlay} pointerEvents="none">
           {renderEmpty()}
         </View>
       )}
+    </View>
+  );
+}
+
+/**
+ * Floating upload status pill, docked above the tab bar while the feed
+ * scrolls beneath it. Hosts the upload headline subscription so the
+ * per-progress-tick state changes re-render only this overlay, never the
+ * feed screen and its mounted cards. Static position (never translates), so
+ * the rasterize-while-moving glass treatment is not needed.
+ */
+function UploadPillOverlay({ onDelivered }: { onDelivered: () => void }) {
+  const insets = useSafeAreaInsets();
+  const upload = usePostUploadHeadline(onDelivered);
+  const { playerVisible } = useWorkoutTimer();
+
+  if (!upload.headline) return null;
+
+  // iOS 26 native tabs float over full-bleed content, so the pill must clear
+  // the bar itself (WorkoutPlayer's canonical 49 + bottom inset); older iOS
+  // and Android lay the JS tab bar out in flow, so the screen already ends
+  // above it. An active workout's mini player docks in the same corner;
+  // stack the pill above it.
+  const isIOS26 =
+    Platform.OS === "ios" && parseInt(String(Platform.Version), 10) >= 26;
+  const bottom =
+    (isIOS26 ? 49 + insets.bottom : 0) +
+    12 +
+    (playerVisible ? MINI_PLAYER_HEIGHT : 0);
+
+  // box-none so feed touches pass through everywhere except the pill itself.
+  return (
+    <View style={[styles.uploadPillWrap, { bottom }]} pointerEvents="box-none">
+      <SocialUploadPill headline={upload.headline} fraction={upload.fraction} />
     </View>
   );
 }
@@ -205,6 +245,15 @@ export function Social() {
   const following = useSocialFeed("following");
   const discover = useSocialFeed("discover");
   const pagerRef = useRef<PagerView>(null);
+
+  // Outbox upload pill ("Keep Gear open to finish posting..."), floating just
+  // above the tab bar while a post is being delivered. One screen-level
+  // instance covers both feeds. When the post lands, refresh both feeds so
+  // the pill resolves into the real post.
+  const handlePostDelivered = useCallback(() => {
+    void following.refresh();
+    void discover.refresh();
+  }, [following.refresh, discover.refresh]);
 
   // Per-feed list refs so a re-tap of the tab can scroll the *visible* feed to
   // top. Each list keeps its own scroll, so we only ever touch the active one.
@@ -616,6 +665,8 @@ export function Social() {
           </View>
         </PagerView>
 
+        <UploadPillOverlay onDelivered={handlePostDelivered} />
+
         {searchExpanded && (
           <View
             style={[
@@ -755,6 +806,16 @@ const styles = StyleSheet.create({
   searchResults: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 2,
+  },
+  // Above the pager, below searchResults (2) so opening search covers the
+  // pill; the header rows (10/11) stay above everything regardless.
+  uploadPillWrap: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    paddingHorizontal: 24,
+    zIndex: 1,
   },
 
   tabsRow: {

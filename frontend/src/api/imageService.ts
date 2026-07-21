@@ -139,7 +139,13 @@ export function resolveImageKey(key: string): Promise<CacheEntry | null> {
 export async function requestPostImageUploadUrl(
   contentType: string,
 ): Promise<{ key: string; uploadUrl: string }> {
-  const { data } = await apiClient.post("/images/upload-url", { contentType });
+  const { data } = await apiClient.post(
+    "/images/upload-url",
+    { contentType },
+    // Per-request timeout so a severed presign call can't hang the outbox
+    // flush; ECONNABORTED classifies as a retryable network error.
+    { timeout: 15000 },
+  );
   return data;
 }
 
@@ -164,25 +170,66 @@ export async function requestFoodImageUploadUrl(
  * SignatureDoesNotMatch. FormData does not work for a direct S3 PUT — the bytes
  * must be sent raw, which is what BINARY_CONTENT does.
  */
+// Generous ceiling for one photo PUT on a slow link. The PUT has no native
+// timeout; without a watchdog a suspend-severed upload hangs forever, which
+// would wedge the workout outbox drain behind it.
+const S3_UPLOAD_TIMEOUT_MS = 60_000;
+
 export async function uploadImageToS3(
   uploadUrl: string,
   fileUri: string,
   contentType: string,
+  onProgress?: (fraction: number) => void,
 ): Promise<void> {
-  const result = await FileSystem.uploadAsync(uploadUrl, fileUri, {
-    httpMethod: "PUT",
-    uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
-    headers: { "Content-Type": contentType },
-  });
+  const task = FileSystem.createUploadTask(
+    uploadUrl,
+    fileUri,
+    {
+      httpMethod: "PUT",
+      uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+      headers: { "Content-Type": contentType },
+    },
+    onProgress
+      ? ({ totalBytesSent, totalBytesExpectedToSend }) => {
+          if (totalBytesExpectedToSend > 0) {
+            onProgress(Math.min(1, totalBytesSent / totalBytesExpectedToSend));
+          }
+        }
+      : undefined,
+  );
 
+  let timedOut = false;
+  const watchdog = setTimeout(() => {
+    timedOut = true;
+    void task.cancelAsync();
+  }, S3_UPLOAD_TIMEOUT_MS);
+
+  let result: FileSystem.FileSystemUploadResult | null | undefined;
+  try {
+    result = await task.uploadAsync();
+  } catch (err) {
+    // The message must contain "timeout": isNetworkError keys on it to
+    // classify the failure as retryable.
+    if (timedOut) throw new Error("S3 upload timeout");
+    throw err;
+  } finally {
+    clearTimeout(watchdog);
+  }
+
+  if (timedOut || !result) {
+    throw new Error("S3 upload timeout");
+  }
   if (result.status < 200 || result.status >= 300) {
     throw new Error(`S3 upload failed (status ${result.status})`);
   }
 }
 
-export async function uploadPostImage(fileUri: string): Promise<string> {
+export async function uploadPostImage(
+  fileUri: string,
+  onProgress?: (fraction: number) => void,
+): Promise<string> {
   const contentType = "image/jpeg";
   const { key, uploadUrl } = await requestPostImageUploadUrl(contentType);
-  await uploadImageToS3(uploadUrl, fileUri, contentType);
+  await uploadImageToS3(uploadUrl, fileUri, contentType, onProgress);
   return key;
 }

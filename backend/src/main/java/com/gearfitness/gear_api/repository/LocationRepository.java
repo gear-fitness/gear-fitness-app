@@ -20,7 +20,7 @@ public interface LocationRepository extends JpaRepository<Location, UUID> {
   /**
    * Local-DB gym name search — the fallback when the Places API is
    * unconfigured, over its spend caps, or failing. Native so it can use the
-   * pg_trgm GIN index on LOWER(name) from V49.
+   * pg_trgm GIN index on LOWER(name) from V50.
    */
   @Query(
     value = """

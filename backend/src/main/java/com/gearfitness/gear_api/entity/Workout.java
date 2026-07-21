@@ -63,7 +63,7 @@ public class Workout {
   private List<String> photoUrls = new ArrayList<>();
 
   // Optional gym tag. Shared row — no cascade; deleting a location nulls
-  // this FK (ON DELETE SET NULL in V49).
+  // this FK (ON DELETE SET NULL in V50).
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "location_id")
   @ToString.Exclude
@@ -73,6 +73,11 @@ public class Workout {
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
   private LocalDateTime createdAt;
+
+  // Client-minted key; UNIQUE (user_id, idempotency_key) dedupes resubmits of
+  // the same workout session (retries after a lost response).
+  @Column(name = "idempotency_key", length = 64, updatable = false)
+  private String idempotencyKey;
 
   // Relationships
   // CHANGED: fetch = FetchType.EAGER to load exercises when workout is loaded

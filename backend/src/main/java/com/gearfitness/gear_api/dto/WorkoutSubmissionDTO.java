@@ -32,6 +32,10 @@ public class WorkoutSubmissionDTO {
   // Optional - S3 URLs of photos attached to the workout
   private List<String> photoUrls;
 
+  // Optional - client-minted key, unique per workout session per user.
+  // Resubmits with the same key return the already-created workout.
+  private String idempotencyKey;
+
   // Optional - gym tag chosen in the picker. The backend find-or-creates the
   // location row at submit time, so nothing is persisted for search results
   // the user merely scrolled past.

@@ -19,20 +19,18 @@ import { useEffect, useState, useRef, useMemo } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
-import * as ImageManipulator from "expo-image-manipulator";
 import * as MediaLibrary from "expo-media-library";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { useSocialFeed } from "../../context/SocialFeedContext";
-import { submitWorkout, WorkoutSubmission } from "../../api/workoutService";
+import { WorkoutSubmission } from "../../api/workoutService";
 import { GymLocation } from "../../api/locationService";
-import { uploadPostImage } from "../../api/imageService";
 import { addRecentGym } from "../../utils/locationRecents";
 import { LocationPicker } from "../../components/LocationPicker";
-import { isNetworkError } from "../../utils/network";
 import { openCamera } from "../../utils/inAppCamera";
 import { PhotoSourceMenu } from "../../components/PhotoSourceMenu";
 import { getSavePhotosOnPost } from "../../utils/photoPrefs";
-import { enqueueWorkout } from "../../utils/workoutQueue";
+import { enqueueWorkout, flushWorkoutQueue } from "../../utils/workoutQueue";
+import { dismissWorkoutFlow } from "../../utils/dismissWorkoutFlow";
 import {
   getCurrentLocalDateString,
   getLocalDateStringFromEpoch,
@@ -67,8 +65,16 @@ export function WorkoutComplete() {
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const photoTileSize = Math.floor((screenWidth - 40 - 24) / 4);
-  const { exercises, seconds, workoutStartedAtEpoch, reset } =
-    useWorkoutTimer();
+  const {
+    exercises,
+    seconds,
+    workoutStartedAtEpoch,
+    reset,
+    beginFinishing,
+    endFinishing,
+    getSessionGeneration,
+    getOrMintIdempotencyKey,
+  } = useWorkoutTimer();
   const { invalidateAll: invalidateFeeds } = useSocialFeed();
 
   const initialBodyTags = useMemo(() => {
@@ -222,9 +228,19 @@ export function WorkoutComplete() {
   };
 
   const popOutOfFlow = () => {
-    const parent = navigation.getParent();
-    if (parent) parent.goBack();
-    else navigation.goBack();
+    dismissWorkoutFlow(navigation);
+  };
+
+  // Fire-and-forget delivery kick. The outbox owns the post from here;
+  // refresh the feeds when a pass lands something so the upload bar on the
+  // social feed resolves into the real post. invalidateFeeds is a context
+  // function, safe to call after this screen unmounts.
+  const kickFlush = () => {
+    flushWorkoutQueue()
+      .then((posted) => {
+        if (posted > 0) invalidateFeeds();
+      })
+      .catch((err) => console.error("Workout queue flush failed:", err));
   };
 
   const handlePost = async () => {
@@ -237,10 +253,29 @@ export function WorkoutComplete() {
       return;
     }
 
+    // Open the finishing window synchronously, before the first await, so a
+    // background/inactive event during the enqueue (including the iOS
+    // permission dialog saveCapturedPhotosIfEnabled can trigger) can neither
+    // arm the unfinished-workout reminder nor re-persist state. Must come
+    // AFTER the validation early-returns above: they exit outside the
+    // try/finally that closes the window. Closed in finally.
+    beginFinishing();
+    // If the user tears this flow down and starts a new workout while the
+    // enqueue is suspended mid-await, the generation changes and this flow
+    // must not reset() the new session or pop its navigation.
+    const sessionAtPost = getSessionGeneration();
+    // Read synchronously before the first await: ties the queue entry, the
+    // persisted blob, and the server row to this workout session so any
+    // resubmit (queue re-flush, restored ghost) dedupes server-side.
+    const idempotencyKey = getOrMintIdempotencyKey();
+
     setLoading(true);
     void saveCapturedPhotosIfEnabled();
 
-    const buildSubmission = (uploadedUrls: string[]): WorkoutSubmission => ({
+    // Photo fields (imageUrl/photoUrls) are deliberately absent: photos ride
+    // on the queue entry as local URIs and are compressed + uploaded at
+    // flush time.
+    const buildSubmission = (): WorkoutSubmission => ({
       name: workoutName,
       durationMin,
       // Date the workout by when it was STARTED, not when it's submitted, so a
@@ -264,92 +299,66 @@ export function WorkoutComplete() {
       createPost: true,
       visibility,
       caption: caption || undefined,
-      imageUrl: uploadedUrls.length > 0 ? uploadedUrls[0] : undefined,
-      photoUrls: uploadedUrls,
       location: location ?? undefined,
     });
 
-    const finishOffline = async (
-      alreadyUploadedUrls: string[],
-      stillPendingUris: string[],
-    ) => {
-      // Hand off to the queue. Photos that already made it to S3 are kept
-      // verbatim; the rest are kept as local URIs and uploaded at flush time.
-      await enqueueWorkout(
-        buildSubmission(alreadyUploadedUrls),
-        stillPendingUris,
-      );
-      await reset();
-      Alert.alert(
-        "Saved offline",
-        "You're offline. Your workout was saved on this device and will post automatically when you're back online.",
-        [{ text: "OK", onPress: popOutOfFlow }],
-      );
-    };
+    // Remember the tagged gym so the picker can offer it instantly next time.
+    // Recorded before the enqueue (not after) so nothing lands inside the
+    // enqueue→reset() kill-safety window below; a failed enqueue leaving a
+    // recent behind is harmless — recents are only suggestions.
+    if (location) void addRecentGym(location);
 
-    // Under the secure-s3 model these hold S3 object keys (not public URLs),
-    // returned by uploadPostImage. The field names on WorkoutSubmission keep
-    // their legacy "Url" naming; the backend stores whatever string it's given.
-    let uploadedUrls: string[] = [];
     try {
-      if (photos.length > 0) {
-        try {
-          const compressed = await Promise.all(
-            photos.map((uri) =>
-              ImageManipulator.manipulateAsync(
-                uri,
-                [{ resize: { width: 1600 } }],
-                { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG },
-              ),
-            ),
-          );
-          uploadedUrls = await Promise.all(
-            compressed.map((m) => uploadPostImage(m.uri)),
-          );
-        } catch (uploadError) {
-          if (isNetworkError(uploadError)) {
-            await finishOffline([], [...photos]);
-            return;
-          }
-          console.error("Failed to upload workout photos:", uploadError);
-          Alert.alert("Error", "Failed to upload photos. Please try again.");
-          setLoading(false);
-          return;
-        }
+      // COMMIT POINT. Once the entry is in the outbox, the workout is posted
+      // from the user's point of view; delivery (photo upload + submit) is
+      // the queue's job, online and offline alike, and the server dedupes on
+      // the idempotency key.
+      await enqueueWorkout(buildSubmission(), [...photos], idempotencyKey);
+
+      if (getSessionGeneration() !== sessionAtPost) {
+        // The session this flow was posting no longer exists (the user tore
+        // the flow down and started another one while we were awaiting). The
+        // queue entry is safe; leave the new session alone.
+        kickFlush();
+        return;
       }
-
-      const submission = buildSubmission(uploadedUrls);
-
-      await submitWorkout(submission);
-      // Remember the tagged gym so the picker can offer it instantly next
-      // time (fire-and-forget; storage failures never block the post).
-      if (location) void addRecentGym(location);
-      // Clear in-memory + persisted state BEFORE the Alert so that any path
-      // out of this screen — tapping OK, backgrounding, force-quitting — is
-      // safe. reset() also engages the write barrier so late side-effect
-      // writes (ExerciseDetail.beforeRemove, AppState background) can't
-      // resurrect state during the unmount that follows popOutOfFlow.
+      // INVARIANT: nothing may be inserted between enqueueWorkout resolving
+      // and the synchronous head of reset(). A kill inside this window
+      // leaves both the queue entry and the live blob; restore reconciles
+      // that by idempotency key, but the window must stay minimal.
       await reset();
 
-      invalidateFeeds();
-
-      Alert.alert("Posted!", "Your workout has been posted.", [
-        { text: "OK", onPress: popOutOfFlow },
-      ]);
+      kickFlush();
+      // Instant close: no confirmation alert. Land where the post will
+      // actually surface: the social feed (whose upload bar shows delivery
+      // progress) for PUBLIC/FRIENDS, but Profile for PRIVATE ("Only me"),
+      // which never appears in the public feeds; its pending card shows the
+      // same delivery state there. Dismiss the flow first, then switch tabs
+      // on the navigator underneath. popTo (not navigate) reaches the
+      // EXISTING HomeTabs instance even if another route (e.g. a PostDetail
+      // pushed above the modal) survived the targeted pop; navigate would
+      // only reuse HomeTabs when it is already on top and would otherwise
+      // push a second instance, presented modally. Tabs must never open that
+      // way. Dispatched on the root navigator (like dismissWorkoutFlow)
+      // because this screen's own navigator is being unmounted by the pop
+      // and can't be trusted to bubble the action.
+      const rootNavigation = navigation.getParent();
+      popOutOfFlow();
+      (rootNavigation ?? navigation).popTo("HomeTabs", {
+        screen: visibility === "PRIVATE" ? "Profile" : "Explore",
+      });
     } catch (error) {
-      if (isNetworkError(error)) {
-        try {
-          // Photos already uploaded to S3 keep their URLs; the upload phase
-          // succeeded, so there are no remaining local URIs to re-try.
-          await finishOffline(uploadedUrls, []);
-          return;
-        } catch (queueErr) {
-          console.error("Failed to queue workout offline:", queueErr);
-        }
-      }
-      console.error("Failed to post workout:", error);
-      Alert.alert("Error", "Failed to post workout. Please try again.");
+      // Only the enqueue itself can land here (storage failure, no active
+      // user). Nothing was committed; keep the composer so the user can try
+      // again.
+      console.error("Failed to queue workout for posting:", error);
+      Alert.alert("Error", "Failed to save workout. Please try again.");
     } finally {
+      // Close the finishing window. On success reset() has already engaged
+      // the write barrier, so the AppState handler stays inert; on failure
+      // the workout is genuinely unfinished again and the reminder semantics
+      // must come back.
+      endFinishing();
       setLoading(false);
     }
   };
@@ -391,7 +400,7 @@ export function WorkoutComplete() {
       <FloatingCloseButton
         direction="left"
         accessibilityLabel="Back to summary"
-        onPress={() => navigation.navigate("WorkoutSummary")}
+        onPress={() => navigation.popTo("WorkoutSummary")}
       />
 
       <ScrollView

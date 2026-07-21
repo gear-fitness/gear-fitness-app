@@ -95,7 +95,7 @@ export function useSwipeableDelete({
     ) => <DeleteAction progress={progress} onPress={() => confirmDelete(id)} />,
   });
 
-  return { getSwipeableProps, swipeRefs, closeSwipe };
+  return { getSwipeableProps, swipeRefs, closeSwipe, confirmDelete };
 }
 
 const styles = StyleSheet.create({

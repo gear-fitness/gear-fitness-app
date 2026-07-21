@@ -4,7 +4,7 @@ export default {
   expo: {
     name: IS_DEV ? "Gear (Dev)" : "Gear Fitness",
     slug: "gear-fitness",
-    version: "1.0.1",
+    version: "1.0.2",
     orientation: "portrait",
     icon: IS_DEV ? "./assets/GearLogoInverse.png" : "./assets/GearLogo.png",
     userInterfaceStyle: "automatic",
