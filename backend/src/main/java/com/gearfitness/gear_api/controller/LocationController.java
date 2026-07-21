@@ -1,7 +1,10 @@
 package com.gearfitness.gear_api.controller;
 
+import com.gearfitness.gear_api.dto.LocationPageDTO;
 import com.gearfitness.gear_api.dto.LocationSearchResultDTO;
+import com.gearfitness.gear_api.dto.LocationSummaryDTO;
 import com.gearfitness.gear_api.security.JwtService;
+import com.gearfitness.gear_api.service.LocationPageService;
 import com.gearfitness.gear_api.service.LocationSearchService;
 import java.util.List;
 import java.util.UUID;
@@ -18,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 public class LocationController {
 
   private final LocationSearchService locationSearchService;
+  private final LocationPageService locationPageService;
   private final JwtService jwtService;
 
   /**
@@ -56,5 +60,35 @@ public class LocationController {
     return ResponseEntity.ok(
       locationSearchService.search(userId, query, lat, lng)
     );
+  }
+
+  /**
+   * Social-tab gym search: only gyms with at least one publicly visible
+   * post, ranked by post count. Distinct from /search, which is the workout
+   * picker's Places-backed lookup of any gym in the world.
+   */
+  @GetMapping("/tagged-search")
+  public ResponseEntity<List<LocationSummaryDTO>> taggedSearch(
+    @RequestHeader("Authorization") String authHeader,
+    @RequestParam String query
+  ) {
+    UUID userId = resolveUserId(authHeader);
+    if (userId == null) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+    return ResponseEntity.ok(locationPageService.searchTagged(query));
+  }
+
+  /** Gym page header: identity plus visible post/athlete counts. */
+  @GetMapping("/{locationId}")
+  public ResponseEntity<LocationPageDTO> getLocationPage(
+    @RequestHeader("Authorization") String authHeader,
+    @PathVariable UUID locationId
+  ) {
+    UUID userId = resolveUserId(authHeader);
+    if (userId == null) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+    return ResponseEntity.ok(locationPageService.getLocationPage(locationId));
   }
 }

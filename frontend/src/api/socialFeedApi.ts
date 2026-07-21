@@ -32,6 +32,8 @@ export interface FeedPost {
   likedByCurrentUser: boolean;
   visibility?: "PUBLIC" | "FRIENDS" | "PRIVATE";
   viewerFollowsAuthor?: boolean;
+  locationId?: string | null;
+  locationName?: string | null;
 }
 
 export interface Comment {
@@ -77,6 +79,18 @@ export const socialFeedApi = {
 
   getPost: async (postId: string): Promise<FeedPost> => {
     const { data } = await apiClient.get(`/feed/posts/${postId}`);
+    return data;
+  },
+
+  // Posts tagged at one gym (discover-grade audience), for its location page.
+  getLocationPosts: async (
+    locationId: string,
+    page: number,
+    size: number = 20,
+  ): Promise<Page<FeedPost>> => {
+    const { data } = await apiClient.get(`/feed/location/${locationId}`, {
+      params: { page, size },
+    });
     return data;
   },
 

@@ -36,6 +36,7 @@ import { RoutineDetail } from "./screens/RoutineDetail";
 import { CreateRoutine } from "./screens/CreateRoutine";
 import { EditRoutine } from "./screens/EditRoutine";
 import { UserPosts } from "./screens/UserPosts";
+import { LocationPage } from "./screens/LocationPage";
 import { DayPosts } from "./screens/DayPosts";
 import { Activity } from "./screens/Activity";
 import FollowScreen from "./screens/FollowScreen";
@@ -167,6 +168,14 @@ const RootStack = createNativeStackNavigator({
 
     UserPosts: {
       screen: UserPosts,
+      options: {
+        headerShown: false,
+        gestureEnabled: true,
+      },
+    },
+
+    LocationPage: {
+      screen: LocationPage,
       options: {
         headerShown: false,
         gestureEnabled: true,
@@ -401,6 +410,7 @@ declare global {
       Profile: undefined;
       UserProfile: { username: string };
       UserPosts: { userId: string; username: string };
+      LocationPage: { locationId: string; name?: string };
       DayPosts: {
         posts: import("../api/socialFeedApi").FeedPost[];
         dateLabel: string;

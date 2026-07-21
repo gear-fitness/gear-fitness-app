@@ -88,6 +88,46 @@ public class SocialFeedService {
     );
   }
 
+  /**
+   * Posts tagged at one gym, for its location page. Discover-grade audience
+   * only (see PostRepository.findLocationPosts).
+   */
+  public Page<FeedPostDTO> getLocationPosts(
+    UUID userId,
+    UUID locationId,
+    int page,
+    int size
+  ) {
+    Pageable pageable = PageRequest.of(page, size);
+    Page<Post> posts = postRepository.findLocationPosts(
+      locationId,
+      userId,
+      pageable
+    );
+
+    List<UUID> postIds = posts
+      .getContent()
+      .stream()
+      .map(Post::getPostId)
+      .collect(Collectors.toList());
+    Map<UUID, Long> likeCounts = postLikeRepository.countByPostIds(postIds);
+    Map<UUID, Long> commentCounts = postCommentRepository.countByPostIds(
+      postIds
+    );
+    Set<UUID> likedPostIds = postLikeRepository.findPostIdsLikedByUser(
+      userId,
+      postIds
+    );
+    Set<UUID> followedAuthorIds = followRepository.findFollowedAuthorIds(
+      userId,
+      authorIds(posts)
+    );
+
+    return posts.map(post ->
+      mapToDTO(post, likeCounts, commentCounts, likedPostIds, followedAuthorIds)
+    );
+  }
+
   public Page<FeedPostDTO> getUserPosts(
     UUID targetUserId,
     UUID viewingUserId,

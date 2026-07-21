@@ -57,6 +57,24 @@ public class SocialFeedController {
     return ResponseEntity.ok(feed);
   }
 
+  @GetMapping("/location/{locationId}")
+  public ResponseEntity<Page<FeedPostDTO>> getLocationPosts(
+    @PathVariable UUID locationId,
+    @RequestHeader("Authorization") String authHeader,
+    @RequestParam(defaultValue = "0") int page,
+    @RequestParam(defaultValue = "20") int size
+  ) {
+    String token = authHeader.substring(7);
+    UUID currentUserId = jwtService.extractUserId(token);
+    Page<FeedPostDTO> posts = socialFeedService.getLocationPosts(
+      currentUserId,
+      locationId,
+      page,
+      size
+    );
+    return ResponseEntity.ok(posts);
+  }
+
   @GetMapping("/user/{userId}")
   public ResponseEntity<Page<FeedPostDTO>> getUserPosts(
     @PathVariable UUID userId,

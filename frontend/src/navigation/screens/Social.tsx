@@ -28,10 +28,15 @@ import {
 
 import { SearchUserResult } from "../../api/types";
 import { searchUsers } from "../../api/userService";
+import {
+  TaggedLocation,
+  searchTaggedLocations,
+} from "../../api/locationService";
 import { notificationService } from "../../api/notificationService";
 import { FeedPostCard } from "../../components/FeedPostCard";
 import { SearchBar } from "../../components/SearchBar";
 import { UserSearchCard } from "../../components/UserSearchCard";
+import { LocationSearchCard } from "../../components/LocationSearchCard";
 import { useAuth } from "../../context/AuthContext";
 import { FeedKey, useSocialFeed } from "../../context/SocialFeedContext";
 import { useTrackTab } from "../../hooks/useTrackTab";
@@ -236,6 +241,7 @@ export function Social() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [userResults, setUserResults] = useState<SearchUserResult[]>([]);
+  const [gymResults, setGymResults] = useState<TaggedLocation[]>([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
   const searchInputRef = useRef<TextInput>(null);
 
@@ -387,24 +393,31 @@ export function Social() {
     if (!feed.refreshing) void feed.refresh();
   };
 
-  // Search users (debounced so a fast typist doesn't fire a request per keystroke)
+  // Search users + gyms (debounced so a fast typist doesn't fire a request
+  // per keystroke). Gym results come from tagged-search: only gyms with at
+  // least one publicly visible post.
   useFocusEffect(
     useCallback(() => {
       if (!searchQuery.trim()) {
         setUserResults([]);
+        setGymResults([]);
         return;
       }
 
       const timer = setTimeout(async () => {
         try {
           setSearchingUsers(true);
-          const results = await searchUsers(searchQuery);
+          const [results, gyms] = await Promise.all([
+            searchUsers(searchQuery),
+            searchTaggedLocations(searchQuery).catch(() => []),
+          ]);
 
           const filteredResults = user
             ? results.filter((u) => u.userId !== user.userId)
             : results;
 
           setUserResults(filteredResults);
+          setGymResults(gyms);
         } finally {
           setSearchingUsers(false);
         }
@@ -616,6 +629,44 @@ export function Social() {
               contentContainerStyle={{ paddingTop: HEADER_HEIGHT }}
               scrollIndicatorInsets={{ top: HEADER_HEIGHT }}
               keyboardShouldPersistTaps="handled"
+              ListHeaderComponent={
+                gymResults.length > 0 ? (
+                  <View>
+                    <Text
+                      style={[
+                        styles.searchSectionLabel,
+                        { color: colors.border },
+                      ]}
+                    >
+                      GYMS
+                    </Text>
+                    {gymResults.map((gym) => (
+                      <LocationSearchCard
+                        key={gym.locationId}
+                        name={gym.name}
+                        address={gym.address}
+                        postCount={gym.postCount}
+                        onPress={() => {
+                          navigation.push("LocationPage", {
+                            locationId: gym.locationId,
+                            name: gym.name,
+                          });
+                        }}
+                      />
+                    ))}
+                    {userResults.length > 0 && (
+                      <Text
+                        style={[
+                          styles.searchSectionLabel,
+                          { color: colors.border },
+                        ]}
+                      >
+                        PEOPLE
+                      </Text>
+                    )}
+                  </View>
+                ) : null
+              }
               renderItem={({ item }) => (
                 <UserSearchCard
                   username={item.username}
@@ -646,6 +697,15 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
 
   content: { flex: 1 },
+
+  searchSectionLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    letterSpacing: 1.2,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 6,
+  },
 
   flex1: { flex: 1 },
 

@@ -33,3 +33,44 @@ export async function searchLocations(
   });
   return response.data;
 }
+
+// One gym row in the Social tab's location search results.
+export interface TaggedLocation {
+  locationId: string;
+  name: string;
+  address?: string | null;
+  postCount: number;
+}
+
+// Header data for a gym's location page.
+export interface LocationPageInfo {
+  locationId: string;
+  name: string;
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  postCount: number;
+  athleteCount: number;
+}
+
+// Social search: only gyms that have at least one publicly visible post,
+// ranked by post count (distinct from searchLocations, the picker's
+// Places-backed lookup of any gym in the world).
+export async function searchTaggedLocations(
+  query: string,
+): Promise<TaggedLocation[]> {
+  const response = await apiClient.get<TaggedLocation[]>(
+    "/locations/tagged-search",
+    { params: { query } },
+  );
+  return response.data;
+}
+
+export async function getLocationPage(
+  locationId: string,
+): Promise<LocationPageInfo> {
+  const response = await apiClient.get<LocationPageInfo>(
+    `/locations/${locationId}`,
+  );
+  return response.data;
+}

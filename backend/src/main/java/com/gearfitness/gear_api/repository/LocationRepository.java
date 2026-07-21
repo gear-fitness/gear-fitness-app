@@ -36,6 +36,75 @@ public interface LocationRepository extends JpaRepository<Location, UUID> {
     @Param("limit") int limit
   );
 
+  /** One gym page's search-result row: identity plus its visible-post count. */
+  interface TaggedLocationSummary {
+    UUID getLocationId();
+    String getName();
+    String getAddress();
+    Long getPostCount();
+  }
+
+  /** Aggregate counts for a gym page header. */
+  interface LocationStats {
+    Long getPostCount();
+    Long getAthleteCount();
+  }
+
+  /**
+   * Social search: gyms that have at least one publicly visible post, ranked
+   * by post count. Backs the gym results in the Social tab search — gyms
+   * nobody has posted at are findable in the picker but not here.
+   *
+   * <p>Native (not JPQL) so it can aggregate the count in one pass; that
+   * bypasses the Post entity's {@code @SQLRestriction}, so the moderation
+   * filter — and app_user's soft-delete — are replicated explicitly, same as
+   * AppUserRepository.rankedSearch. Only discover-grade posts are counted
+   * (PUBLIC, non-private author): the count must not leak how often private
+   * accounts train somewhere.
+   */
+  @Query(
+    value = """
+        SELECT l.location_id AS locationId, l.name AS name,
+               l.address AS address, COUNT(p.post_id) AS postCount
+        FROM location l
+        JOIN workout w ON w.location_id = l.location_id
+        JOIN post p ON p.workout_id = w.workout_id
+        JOIN app_user u ON u.user_id = p.user_id
+        WHERE p.visibility = 'PUBLIC'
+          AND p.moderation_status = 'VISIBLE' AND p.hidden_at IS NULL
+          AND u.is_private = false AND u.deleted_at IS NULL
+          AND LOWER(l.name) LIKE '%' || LOWER(:query) || '%'
+        GROUP BY l.location_id, l.name, l.address
+        ORDER BY COUNT(p.post_id) DESC, LOWER(l.name) ASC
+        LIMIT :limit
+    """,
+    nativeQuery = true
+  )
+  List<TaggedLocationSummary> searchTagged(
+    @Param("query") String query,
+    @Param("limit") int limit
+  );
+
+  /**
+   * Post + distinct-athlete counts for a gym page header. Same visibility
+   * filters as {@link #searchTagged} so the header numbers match the grid.
+   */
+  @Query(
+    value = """
+        SELECT COUNT(p.post_id) AS postCount,
+               COUNT(DISTINCT p.user_id) AS athleteCount
+        FROM workout w
+        JOIN post p ON p.workout_id = w.workout_id
+        JOIN app_user u ON u.user_id = p.user_id
+        WHERE w.location_id = :locationId
+          AND p.visibility = 'PUBLIC'
+          AND p.moderation_status = 'VISIBLE' AND p.hidden_at IS NULL
+          AND u.is_private = false AND u.deleted_at IS NULL
+    """,
+    nativeQuery = true
+  )
+  LocationStats getStats(@Param("locationId") UUID locationId);
+
   /**
    * Nearest stored gyms for the no-query fallback. Squared-degree distance,
    * not great-circle: longitude degrees shrink with latitude, but inside the

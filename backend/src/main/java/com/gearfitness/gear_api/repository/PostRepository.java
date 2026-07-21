@@ -118,6 +118,32 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
   )
   Page<Post> findDiscoverPosts(@Param("userId") UUID userId, Pageable pageable);
 
+  /**
+   * Posts tagged at one gym, for the location page. Same audience rules as
+   * the discover feed (PUBLIC posts from non-private accounts, minus blocks
+   * in either direction) — a gym page is public surface area, so nothing a
+   * stranger couldn't already see in discover may appear here.
+   */
+  @Query(
+    """
+    SELECT p FROM Post p
+    WHERE p.workout.location.locationId = :locationId
+    AND p.visibility = 'PUBLIC'
+    AND p.user.isPrivate = false
+    AND NOT EXISTS (
+        SELECT b FROM Follow b WHERE
+        (b.follower.userId = :userId AND b.followee.userId = p.user.userId AND b.status = 'BLOCKED')
+        OR (b.follower.userId = p.user.userId AND b.followee.userId = :userId AND b.status = 'BLOCKED')
+    )
+    ORDER BY p.createdAt DESC
+    """
+  )
+  Page<Post> findLocationPosts(
+    @Param("locationId") UUID locationId,
+    @Param("userId") UUID userId,
+    Pageable pageable
+  );
+
   Optional<Post> findByWorkout_WorkoutId(UUID workoutId);
 
   /**

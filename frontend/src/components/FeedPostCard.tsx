@@ -174,9 +174,36 @@ export function FeedPostCard({ post, isPending = false }: Props) {
             />
           )}
         </View>
-        <Text style={[styles.timestamp, textFaint]}>
-          {formatTimeAgo(post.createdAt)}
-        </Text>
+        <View style={styles.timestampLine}>
+          <Text style={[styles.timestamp, textFaint]}>
+            {formatTimeAgo(post.createdAt)}
+          </Text>
+          {post.locationId && post.locationName ? (
+            // Nested touchable: claims the tap over the header's
+            // profile-navigation wrapper, IG-style location link.
+            <TouchableOpacity
+              activeOpacity={0.7}
+              hitSlop={6}
+              onPress={() =>
+                (navigation as any).push("LocationPage", {
+                  locationId: post.locationId,
+                  name: post.locationName,
+                })
+              }
+              style={styles.locationLink}
+            >
+              <Ionicons
+                name="location-outline"
+                size={11}
+                color={colors.text}
+                style={{ opacity: 0.5 }}
+              />
+              <Text style={[styles.locationName, textMuted]} numberOfLines={1}>
+                {post.locationName}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
       </View>
     </View>
   );
@@ -527,6 +554,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
     fontVariant: ["tabular-nums"],
+  },
+  timestampLine: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  locationLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    marginTop: 2,
+    flexShrink: 1,
+  },
+  locationName: {
+    fontSize: 12,
+    flexShrink: 1,
   },
   carouselWrap: {
     marginHorizontal: CAROUSEL_MARGIN_HORIZONTAL,
