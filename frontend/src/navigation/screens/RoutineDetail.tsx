@@ -4,7 +4,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
   Animated,
   Easing,
@@ -20,6 +19,7 @@ import { formatDay } from "../../utils/days";
 import { useThemeColors } from "../../hooks/useThemeColors";
 import { formatPrimaryBodyParts } from "../../utils/exerciseUtils";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
+import { Spinner } from "../../components/Spinner";
 
 function useSkeletonPulse() {
   const opacity = useRef(new Animated.Value(0.4)).current;
@@ -472,7 +472,7 @@ export function RoutineDetail({
           activeOpacity={0.7}
         >
           {starting ? (
-            <ActivityIndicator color={colors.text} />
+            <Spinner color={colors.text} />
           ) : (
             <Text style={[styles.startButtonText, { color: colors.text }]}>
               Start Workout

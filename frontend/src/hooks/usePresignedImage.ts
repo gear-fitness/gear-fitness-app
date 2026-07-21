@@ -7,6 +7,11 @@ import {
 
 const REFRESH_SKEW_MS = 30_000;
 const MIN_REFRESH_MS = 5_000;
+// Failed resolutions (imageService resolves network/auth failures to null and
+// does not cache them) retry with exponential backoff instead of giving up:
+// without a retry, the consumer sits on the loading placeholder forever.
+const FAILED_RETRY_BASE_MS = 5_000;
+const FAILED_RETRY_MAX_MS = 60_000;
 
 export function usePresignedImage(key?: string | null): string | null {
   // Seed from the in-memory cache so a remount whose url is already cached shows
@@ -31,6 +36,7 @@ export function usePresignedImage(key?: string | null): string | null {
 
     let active = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let failedAttempts = 0;
 
     const load = async () => {
       const entry = await resolveImageKey(key);
@@ -38,9 +44,19 @@ export function usePresignedImage(key?: string | null): string | null {
       // Keep showing the last good url if a re-resolve transiently fails, rather
       // than flashing back to the placeholder.
       setUri((prev) => entry?.url ?? prev ?? null);
-      if (entry && entry.expiresAt !== Number.MAX_SAFE_INTEGER) {
-        const refreshIn = entry.expiresAt - Date.now() - REFRESH_SKEW_MS;
-        timer = setTimeout(load, Math.max(refreshIn, MIN_REFRESH_MS));
+      if (entry) {
+        failedAttempts = 0;
+        if (entry.expiresAt !== Number.MAX_SAFE_INTEGER) {
+          const refreshIn = entry.expiresAt - Date.now() - REFRESH_SKEW_MS;
+          timer = setTimeout(load, Math.max(refreshIn, MIN_REFRESH_MS));
+        }
+      } else {
+        const delay = Math.min(
+          FAILED_RETRY_BASE_MS * 2 ** failedAttempts,
+          FAILED_RETRY_MAX_MS,
+        );
+        failedAttempts += 1;
+        timer = setTimeout(load, delay);
       }
     };
 

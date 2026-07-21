@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Dimensions,
   NativeScrollEvent,
@@ -28,6 +27,7 @@ import {
 } from "../../components/ShareWorkoutCard";
 import { Checkerboard } from "../../components/Checkerboard";
 import { resolveBodyVariant } from "../../utils/muscleActivations";
+import { Spinner } from "../../components/Spinner";
 
 type RootStackParamList = {
   ShareWorkout: {
@@ -194,7 +194,7 @@ export function ShareWorkout({ route }: Props) {
     <View style={[styles.root, { backgroundColor: screenTheme.bg }]}>
       {loading || !workout ? (
         <View style={styles.center}>
-          <ActivityIndicator color={screenTheme.text} />
+          <Spinner color={screenTheme.text} />
         </View>
       ) : (
         <>
@@ -339,7 +339,7 @@ function ActionButton({
     >
       <View style={[styles.actionCircle, { backgroundColor: theme.actionBg }]}>
         {busy ? (
-          <ActivityIndicator color={theme.actionFg} size="small" />
+          <Spinner color={theme.actionFg} size="small" />
         ) : (
           <Ionicons name={icon} size={20} color={theme.actionFg} />
         )}

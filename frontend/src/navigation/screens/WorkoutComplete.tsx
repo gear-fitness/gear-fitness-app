@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
-  ActivityIndicator,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -38,6 +37,7 @@ import { MentionTextInput } from "../../components/MentionTextInput";
 import { formatTag } from "../../utils/formatTag";
 import { getAllBodyPartNames } from "../../utils/exerciseUtils";
 import { MUSCLE_GROUPS } from "../../constants/muscleGroups";
+import { Spinner } from "../../components/Spinner";
 
 const ACCENT = "#111";
 const DESTRUCTIVE = "#C93838";
@@ -701,7 +701,7 @@ export function WorkoutComplete() {
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator color={isDark ? "#000" : "#fff"} />
+                <Spinner color={isDark ? "#000" : "#fff"} />
               ) : (
                 <View style={styles.footerBtnContent}>
                   <Text

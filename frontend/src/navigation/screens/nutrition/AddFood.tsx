@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Animated,
   FlatList,
   StyleSheet,
@@ -30,6 +29,7 @@ import {
   looksVolumetric,
   servingGramsOf,
 } from "../../../utils/nutritionUnits";
+import { Spinner } from "../../../components/Spinner";
 
 const round = (n: number | null | undefined) => Math.round(n ?? 0);
 
@@ -291,7 +291,7 @@ export function AddFood() {
         }
         ListEmptyComponent={
           loading ? (
-            <ActivityIndicator style={{ marginTop: 32 }} color={t.secondary} />
+            <Spinner style={{ marginTop: 32 }} color={t.secondary} />
           ) : isSearching ? (
             <Text style={[styles.empty, { color: t.secondary }]}>
               No foods found
@@ -469,7 +469,7 @@ function FoodRow({
               onPress={onSaveFavorite}
             >
               {favBusy ? (
-                <ActivityIndicator size="small" color={t.tint} />
+                <Spinner size="small" color={t.tint} />
               ) : (
                 <Ionicons
                   name={favSaved ? "bookmark" : "bookmark-outline"}
@@ -490,7 +490,7 @@ function FoodRow({
               onPress={() => onLog(food)}
             >
               {busy ? (
-                <ActivityIndicator size="small" color={t.tint} />
+                <Spinner size="small" color={t.tint} />
               ) : added ? (
                 <Ionicons name="checkmark" size={22} color={t.tint} />
               ) : (
@@ -604,7 +604,7 @@ function FoodRow({
             onPress={handleLog}
           >
             {busy ? (
-              <ActivityIndicator size="small" color={t.accentText} />
+              <Spinner size="small" color={t.accentText} />
             ) : (
               <Text style={[styles.logBtnText, { color: t.accentText }]}>
                 Log

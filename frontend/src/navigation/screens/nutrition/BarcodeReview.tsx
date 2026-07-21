@@ -1,11 +1,5 @@
 import React, { useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import { Text, TextInput } from "../../../components/Text";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -20,6 +14,7 @@ import {
   looksVolumetric,
   servingGramsOf,
 } from "../../../utils/nutritionUnits";
+import { Spinner } from "../../../components/Spinner";
 
 // Review screen for a scanned barcode hit, presented as a pageSheet modal.
 // The user picks the product's own serving or a custom amount, sets a
@@ -180,7 +175,7 @@ export function BarcodeReview() {
           ]}
         >
           {adding ? (
-            <ActivityIndicator size="small" color={t.accentText} />
+            <Spinner size="small" color={t.accentText} />
           ) : (
             <Text style={[styles.headerPillText, { color: t.accentText }]}>
               Add

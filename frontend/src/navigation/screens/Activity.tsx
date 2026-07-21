@@ -4,7 +4,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   SectionList,
-  ActivityIndicator,
   Alert,
 } from "react-native";
 import { Text } from "../../components/Text";
@@ -26,6 +25,7 @@ import { Avatar } from "../../components/Avatar";
 import { PresignedImage } from "../../components/PresignedImage";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { useSwipeableDelete } from "../../hooks/useSwipeableDelete";
+import { Spinner } from "../../components/Spinner";
 
 const THUMBNAIL_SIZE = 48;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -368,7 +368,7 @@ export function Activity() {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <Spinner size="large" color={colors.primary} />
         </View>
       ) : sections.length === 0 ? (
         <View style={styles.center}>
