@@ -1,5 +1,12 @@
 import React, { useState } from "react";
-import { Alert, StyleSheet, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  Dimensions,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { BottomSheet } from "../BottomSheet";
@@ -57,11 +64,6 @@ export function BarbellsSheet({
   const [form, setForm] = useState<FormState | null>(null);
 
   const closeForm = () => setForm(null);
-
-  const handleClose = () => {
-    closeForm();
-    onClose();
-  };
 
   const openAdd = () => {
     Haptics.selectionAsync().catch(() => {});
@@ -143,7 +145,8 @@ export function BarbellsSheet({
   return (
     <BottomSheet
       visible={visible}
-      onClose={handleClose}
+      onClose={onClose}
+      onClosed={closeForm}
       avoidKeyboard
       keyboardDismiss
       bodyDrag={false}
@@ -152,7 +155,7 @@ export function BarbellsSheet({
         <Text style={[styles.title, { color: t.text }]}>
           {form ? (form.id ? "Edit Barbell" : "New Barbell") : "Barbells"}
         </Text>
-        <TouchableOpacity onPress={form ? closeForm : handleClose} hitSlop={10}>
+        <TouchableOpacity onPress={form ? closeForm : onClose} hitSlop={10}>
           <Ionicons
             name={form ? "chevron-back" : "close"}
             size={22}
@@ -231,7 +234,10 @@ export function BarbellsSheet({
           )}
         </View>
       ) : (
-        <>
+        <ScrollView
+          style={{ maxHeight: Dimensions.get("window").height * 0.72 }}
+          showsVerticalScrollIndicator={false}
+        >
           {bars.map((bar) => {
             const isSelected = bar.id === activeBarId;
             return (
@@ -289,7 +295,7 @@ export function BarbellsSheet({
               Add barbell
             </Text>
           </TouchableOpacity>
-        </>
+        </ScrollView>
       )}
     </BottomSheet>
   );

@@ -72,7 +72,9 @@ function newBarId(): string {
 
 export function useBarLoaderConfig() {
   const [config, setConfig] = useState<BarLoaderConfig>(DEFAULTS);
-  const hydrated = useRef(false);
+  // A write that lands before hydration resolves has already persisted, so
+  // applying the older stored blob afterwards would revert the edit on screen.
+  const edited = useRef(false);
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
@@ -80,30 +82,48 @@ export function useBarLoaderConfig() {
         if (stored) {
           const parsed = JSON.parse(stored) as Partial<BarLoaderConfig>;
           // Merge over defaults so new fields survive old stored shapes.
-          setConfig((prev) => ({
-            ...prev,
-            ...parsed,
-            kgInventory: { ...DEFAULT_KG_INVENTORY, ...parsed.kgInventory },
-            lbInventory: { ...DEFAULT_LB_INVENTORY, ...parsed.lbInventory },
-            bars: parsed.bars?.length ? parsed.bars : prev.bars,
-          }));
+          setConfig((prev) =>
+            edited.current
+              ? prev
+              : {
+                  ...prev,
+                  ...parsed,
+                  kgInventory: {
+                    ...DEFAULT_KG_INVENTORY,
+                    ...parsed.kgInventory,
+                  },
+                  lbInventory: {
+                    ...DEFAULT_LB_INVENTORY,
+                    ...parsed.lbInventory,
+                  },
+                  bars: parsed.bars?.length ? parsed.bars : prev.bars,
+                },
+          );
         }
       })
-      .catch((err) => console.warn("Failed to load bar loader config:", err))
-      .finally(() => {
-        hydrated.current = true;
-      });
+      .catch((err) => console.warn("Failed to load bar loader config:", err));
   }, []);
 
-  const update = useCallback((patch: Partial<BarLoaderConfig>) => {
-    setConfig((prev) => {
-      const next = { ...prev, ...patch };
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next)).catch((err) =>
-        console.warn("Failed to persist bar loader config:", err),
-      );
-      return next;
-    });
-  }, []);
+  const update = useCallback(
+    (
+      patch:
+        | Partial<BarLoaderConfig>
+        | ((prev: BarLoaderConfig) => Partial<BarLoaderConfig>),
+    ) => {
+      edited.current = true;
+      setConfig((prev) => {
+        const next = {
+          ...prev,
+          ...(typeof patch === "function" ? patch(prev) : patch),
+        };
+        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next)).catch((err) =>
+          console.warn("Failed to persist bar loader config:", err),
+        );
+        return next;
+      });
+    },
+    [],
+  );
 
   const activeBar = useMemo(
     () =>
@@ -119,39 +139,45 @@ export function useBarLoaderConfig() {
   const addBar = useCallback(
     (bar: Omit<BarSpec, "id">) => {
       const withId = { ...bar, id: newBarId() };
-      update({ bars: [...config.bars, withId], activeBarId: withId.id });
+      update((prev) => ({
+        bars: [...prev.bars, withId],
+        activeBarId: withId.id,
+      }));
     },
-    [config.bars, update],
+    [update],
   );
 
   const updateBar = useCallback(
     (bar: BarSpec) => {
-      update({ bars: config.bars.map((b) => (b.id === bar.id ? bar : b)) });
+      update((prev) => ({
+        bars: prev.bars.map((b) => (b.id === bar.id ? bar : b)),
+      }));
     },
-    [config.bars, update],
+    [update],
   );
 
   const deleteBar = useCallback(
     (id: string) => {
-      if (config.bars.length <= 1) return;
-      const bars = config.bars.filter((b) => b.id !== id);
-      update({
-        bars,
-        activeBarId:
-          config.activeBarId === id ? bars[0].id : config.activeBarId,
+      update((prev) => {
+        if (prev.bars.length <= 1) return {};
+        const bars = prev.bars.filter((b) => b.id !== id);
+        return {
+          bars,
+          activeBarId: prev.activeBarId === id ? bars[0].id : prev.activeBarId,
+        };
       });
     },
-    [config.bars, config.activeBarId, update],
+    [update],
   );
 
   const setPlatePairs = useCallback(
     (unit: WeightUnit, denom: number, pairs: number) => {
       const key = unit === "kg" ? "kgInventory" : "lbInventory";
-      update({
-        [key]: { ...config[key], [denom]: Math.max(0, pairs) },
-      });
+      update((prev) => ({
+        [key]: { ...prev[key], [denom]: Math.max(0, pairs) },
+      }));
     },
-    [config, update],
+    [update],
   );
 
   const setCollar = useCallback(

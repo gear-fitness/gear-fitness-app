@@ -15,7 +15,6 @@ import * as Haptics from "expo-haptics";
 import * as Sharing from "expo-sharing";
 import { captureRef } from "react-native-view-shot";
 import PagerView from "react-native-pager-view";
-import Svg, { Path } from "react-native-svg";
 
 import { Text, TextInput, FontScaleProvider } from "../../components/Text";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
@@ -57,20 +56,6 @@ const TABS: { key: Tab; label: string }[] = [
   // { key: "calculators", label: "CALCULATORS" },
 ];
 
-/** Mini loaded-barbell glyph for the header buttons. */
-function BarbellGlyph({ color }: { color: string }) {
-  return (
-    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M3 12h18M7 6v12M10.5 8.5v7M13.5 8.5v7M17 6v12"
-        stroke={color}
-        strokeWidth={1.8}
-        strokeLinecap="round"
-      />
-    </Svg>
-  );
-}
-
 export function BarLoader() {
   const route = useRoute();
   const t = useThemeColors();
@@ -95,16 +80,17 @@ export function BarLoader() {
   // leaving and re-entering the screen mid-workout (it resets only when
   // the app process dies). An explicit initialWeightLbs param wins over
   // the remembered input.
-  const [unit, setUnit] = useState<WeightUnit>(
-    barLoaderSession.unit ?? weightUnit,
-  );
+  // The session's remembered unit can differ from the global preference, and
+  // the seeded weight must be converted against the unit the readout labels.
+  const seededUnit = barLoaderSession.unit ?? weightUnit;
+  const [unit, setUnit] = useState<WeightUnit>(seededUnit);
   const [tab, setTab] = useState<Tab>(barLoaderSession.tab);
   const [weightInput, setWeightInput] = useState(() => {
     if (initialWeightLbs == null || initialWeightLbs <= 0) {
       return barLoaderSession.weightInput;
     }
     const value =
-      weightUnit === "kg" ? initialWeightLbs / LBS_PER_KG : initialWeightLbs;
+      seededUnit === "kg" ? initialWeightLbs / LBS_PER_KG : initialWeightLbs;
     return formatNumber(Math.round(value * 10) / 10);
   });
   // One side's reverse-mode plates in tap order, bottom of the stack
@@ -382,7 +368,7 @@ export function BarLoader() {
                   isInteractive
                 />
               )}
-              <BarbellGlyph color={t.text} />
+              <Ionicons name="barbell-outline" size={22} color={t.text} />
             </TouchableOpacity>
             <TouchableOpacity
               accessibilityLabel="Inventory"

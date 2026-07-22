@@ -180,7 +180,7 @@ export function expandPlates(
   return stack;
 }
 
-/** kg value of a weight expressed in `unit` (for the dual readout). */
+/** Opposite unit's value of a weight expressed in `unit` (for the dual readout). */
 export function toOtherUnit(value: number, unit: WeightUnit): number {
   return unit === "kg" ? value * LBS_PER_KG : value / LBS_PER_KG;
 }

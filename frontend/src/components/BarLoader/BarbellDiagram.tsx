@@ -204,23 +204,21 @@ export function BarbellDiagram({
                 </SvgText>
               ))}
             {stacked ? (
-              unitLabel
-                .split("")
-                .map((ch, ci, arr) => (
-                  <SvgText
-                    key={`u${ci}`}
-                    x={x + w / 2}
-                    y={centerY + h / 2 - 8 - (arr.length - 1 - ci) * 7}
-                    fontSize={6.5}
-                    fontWeight="700"
-                    fill="#fff"
-                    stroke="rgba(0,0,0,0.55)"
-                    strokeWidth={0.4}
-                    textAnchor="middle"
-                  >
-                    {ch}
-                  </SvgText>
-                ))
+              unitLabel.split("").map((ch, ci, arr) => (
+                <SvgText
+                  key={`u${ci}`}
+                  x={x + w / 2}
+                  y={centerY + h / 2 - 8 - (arr.length - 1 - ci) * 7}
+                  fontSize={6.5}
+                  fontWeight="700"
+                  fill="#fff"
+                  stroke="rgba(0,0,0,0.55)"
+                  strokeWidth={0.4}
+                  textAnchor="middle"
+                >
+                  {ch}
+                </SvgText>
+              ))
             ) : (
               <SvgText
                 x={x + w / 2}
