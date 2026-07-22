@@ -38,6 +38,13 @@ export async function getUserFollowing(
   return data;
 }
 
+// People the current user follows who also follow this user — on the current
+// user's own profile, their followbacks. Always relative to the caller.
+export async function getUserMutuals(userId: string): Promise<FollowerUser[]> {
+  const { data } = await apiClient.get(`/follows/${userId}/mutuals`);
+  return data;
+}
+
 export async function followUser(userId: string): Promise<FollowResponse> {
   const { data } = await apiClient.post(`/follows/${userId}`);
   return data;

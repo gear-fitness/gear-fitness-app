@@ -5,12 +5,17 @@ import static org.assertj.core.groups.Tuple.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.gearfitness.gear_api.dto.FollowerDTO;
 import com.gearfitness.gear_api.dto.LocationFriendDTO;
 import com.gearfitness.gear_api.dto.LocationPageDTO;
+import com.gearfitness.gear_api.entity.AppUser;
+import com.gearfitness.gear_api.entity.Follow;
 import com.gearfitness.gear_api.entity.Location;
+import com.gearfitness.gear_api.repository.FollowRepository;
 import com.gearfitness.gear_api.repository.LocationRepository;
 import com.gearfitness.gear_api.repository.LocationRepository.LocationStats;
 import com.gearfitness.gear_api.repository.PostRepository;
@@ -43,6 +48,9 @@ class LocationPageServiceTest {
 
   @Mock
   private PostRepository postRepository;
+
+  @Mock
+  private FollowRepository followRepository;
 
   @InjectMocks
   private LocationPageService locationPageService;
@@ -100,9 +108,15 @@ class LocationPageServiceTest {
         Location.builder().locationId(locationId).name("Iron Temple").build()
       )
     );
-    when(locationRepository.getStats(locationId)).thenReturn(stats(5, 3));
-    // lenient: the friends-mapping test replaces this default with its own
-    // stub, which would otherwise trip strict-stubbing.
+    // lenient: the lifters/mutuals tests never build the page header, and the
+    // mapping tests replace these defaults with their own stubs — either
+    // would otherwise trip strict-stubbing.
+    lenient()
+      .when(locationRepository.getStats(locationId))
+      .thenReturn(stats(5, 99));
+    lenient()
+      .when(postRepository.countLiftersAt(eq(locationId), any(UUID.class)))
+      .thenReturn(3L);
     lenient()
       .when(
         postRepository.findFriendsWhoTrainAt(
@@ -129,9 +143,31 @@ class LocationPageServiceTest {
     );
 
     assertThat(dto.getViewerWorkoutCount()).isEqualTo(7L);
-    // The public counts are unaffected by the personal stat.
+    // The other counts are unaffected by the personal stat.
     assertThat(dto.getPostCount()).isEqualTo(5L);
     assertThat(dto.getAthleteCount()).isEqualTo(3L);
+  }
+
+  @Test
+  void athleteCountIsTheViewerAwareLiftersCount() {
+    // The header stat opens the Lifters list, so it must be the same
+    // viewer-scoped count that list uses — not the discover-grade stats
+    // figure (stubbed to a distinctly wrong 99 in setup).
+    when(postRepository.countLiftersAt(locationId, viewerId)).thenReturn(4L);
+    when(
+      workoutRepository.countByUser_UserIdAndLocation_LocationId(
+        viewerId,
+        locationId
+      )
+    ).thenReturn(0L);
+
+    LocationPageDTO dto = locationPageService.getLocationPage(
+      locationId,
+      viewerId
+    );
+
+    assertThat(dto.getAthleteCount()).isEqualTo(4L);
+    verify(postRepository).countLiftersAt(locationId, viewerId);
   }
 
   @Test
@@ -253,5 +289,104 @@ class LocationPageServiceTest {
 
     assertThat(dto.getFriendsWhoTrainHere()).isEmpty();
     assertThat(dto.getFriendsWhoTrainHereCount()).isZero();
+  }
+
+  private static Follow edge(
+    UUID followerId,
+    UUID followeeId,
+    Follow.FollowStatus status
+  ) {
+    return Follow.builder()
+      .follower(AppUser.builder().userId(followerId).build())
+      .followee(AppUser.builder().userId(followeeId).build())
+      .status(status)
+      .build();
+  }
+
+  @Test
+  void liftersRowsCarryTheViewersRealFollowStatus() {
+    // The Lifters tab mixes followed and non-followed people, so each row's
+    // button state must reflect the viewer's actual edge toward them.
+    UUID followedId = UUID.randomUUID();
+    UUID strangerId = UUID.randomUUID();
+    when(
+      postRepository.findLiftersAt(
+        eq(locationId),
+        eq(viewerId),
+        any(Pageable.class)
+      )
+    ).thenReturn(
+      new PageImpl<>(
+        List.of(friend(followedId, "followed"), friend(strangerId, "stranger"))
+      )
+    );
+    when(followRepository.findViewerEdgesToward(eq(viewerId), any())).thenReturn(
+      List.of(edge(viewerId, followedId, Follow.FollowStatus.ACCEPTED))
+    );
+
+    List<FollowerDTO> rows = locationPageService.getLifters(
+      locationId,
+      viewerId
+    );
+
+    assertThat(rows)
+      .extracting(
+        FollowerDTO::getUserId,
+        FollowerDTO::getFollowStatus,
+        FollowerDTO::isFollowing
+      )
+      .containsExactly(
+        tuple(followedId, "ACCEPTED", true),
+        tuple(strangerId, "NONE", false)
+      );
+  }
+
+  @Test
+  void gymMutualsAreTheFriendsWhoTrainHereQueryUncapped() {
+    // The Mutuals tab must show every qualifying followed lifter (not the
+    // header's capped 10) and must be the same query as the header section,
+    // so the "and N others" figure always matches this list.
+    UUID friendId = UUID.randomUUID();
+    when(
+      postRepository.findFriendsWhoTrainAt(
+        eq(locationId),
+        eq(viewerId),
+        any(Pageable.class)
+      )
+    ).thenReturn(new PageImpl<>(List.of(friend(friendId, "friend"))));
+    when(followRepository.findViewerEdgesToward(eq(viewerId), any())).thenReturn(
+      List.of(edge(viewerId, friendId, Follow.FollowStatus.ACCEPTED))
+    );
+
+    List<FollowerDTO> rows = locationPageService.getLifterMutuals(
+      locationId,
+      viewerId
+    );
+
+    ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
+    verify(postRepository).findFriendsWhoTrainAt(
+      eq(locationId),
+      eq(viewerId),
+      pageable.capture()
+    );
+    assertThat(pageable.getValue().isUnpaged()).isTrue();
+    assertThat(rows).extracting(FollowerDTO::getUserId).containsExactly(
+      friendId
+    );
+    assertThat(rows.get(0).isFollowing()).isTrue();
+  }
+
+  @Test
+  void emptyLiftersListSkipsTheFollowLookup() {
+    when(
+      postRepository.findLiftersAt(
+        eq(locationId),
+        eq(viewerId),
+        any(Pageable.class)
+      )
+    ).thenReturn(Page.empty());
+
+    assertThat(locationPageService.getLifters(locationId, viewerId)).isEmpty();
+    verify(followRepository, never()).findViewerEdgesToward(any(), any());
   }
 }

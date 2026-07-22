@@ -21,6 +21,10 @@ public class LocationPageDTO {
   private BigDecimal latitude;
   private BigDecimal longitude;
   private Long postCount;
+
+  // Distinct people with at least one post here the viewer can see — the
+  // count behind the tappable "Lifters" stat, and viewer-specific for the
+  // same reason the lifters list is (following someone widens what counts).
   private Long athleteCount;
 
   // The requesting user's own workout count at this gym. Personal to the

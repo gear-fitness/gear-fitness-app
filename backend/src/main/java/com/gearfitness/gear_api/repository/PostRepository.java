@@ -236,6 +236,166 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
     Pageable pageable
   );
 
+  /**
+   * Everyone with at least one post tagged at this gym that the viewer is
+   * permitted to see, ordered by their most recent such post. The visibility
+   * rule per author unifies the existing surfaces:
+   * - The viewer themself: all their own posts count.
+   * - Someone the viewer follows (ACCEPTED): feed-grade — PUBLIC posts, or
+   *   FRIENDS posts when the follow is mutual. Followed private accounts
+   *   appear, same as findFriendsWhoTrainAt.
+   * - Anyone else: discover-grade — PUBLIC posts from non-private accounts,
+   *   same as findLocationPosts.
+   * Blocks in either direction hide the person entirely. Restricting this
+   * result to followed users yields exactly findFriendsWhoTrainAt, so the
+   * gym's Mutuals tab is always a subset of its Lifters tab.
+   */
+  @Query(
+    value = """
+    SELECT u.userId AS userId, u.username AS username,
+           u.displayName AS displayName,
+           u.profilePictureUrl AS profilePictureUrl,
+           MAX(p.createdAt) AS lastPostedAt
+    FROM Post p JOIN p.user u
+    WHERE p.workout.location.locationId = :locationId
+    AND (
+        u.userId = :viewerId
+        OR (
+            p.visibility = 'PUBLIC'
+            AND (
+                u.isPrivate = false
+                OR EXISTS (
+                    SELECT f FROM Follow f
+                    WHERE f.follower.userId = :viewerId
+                      AND f.followee.userId = u.userId
+                      AND f.status = 'ACCEPTED'
+                )
+            )
+        )
+        OR (
+            p.visibility = 'FRIENDS'
+            AND EXISTS (
+                SELECT f FROM Follow f
+                WHERE f.follower.userId = :viewerId
+                  AND f.followee.userId = u.userId
+                  AND f.status = 'ACCEPTED'
+            )
+            AND EXISTS (
+                SELECT f2 FROM Follow f2
+                WHERE f2.follower.userId = u.userId
+                  AND f2.followee.userId = :viewerId
+                  AND f2.status = 'ACCEPTED'
+            )
+        )
+    )
+    AND NOT EXISTS (
+        SELECT b FROM Follow b WHERE
+        (b.follower.userId = :viewerId AND b.followee.userId = u.userId AND b.status = 'BLOCKED')
+        OR (b.follower.userId = u.userId AND b.followee.userId = :viewerId AND b.status = 'BLOCKED')
+    )
+    GROUP BY u.userId, u.username, u.displayName, u.profilePictureUrl
+    ORDER BY MAX(p.createdAt) DESC
+    """,
+    countQuery = """
+    SELECT COUNT(DISTINCT u.userId)
+    FROM Post p JOIN p.user u
+    WHERE p.workout.location.locationId = :locationId
+    AND (
+        u.userId = :viewerId
+        OR (
+            p.visibility = 'PUBLIC'
+            AND (
+                u.isPrivate = false
+                OR EXISTS (
+                    SELECT f FROM Follow f
+                    WHERE f.follower.userId = :viewerId
+                      AND f.followee.userId = u.userId
+                      AND f.status = 'ACCEPTED'
+                )
+            )
+        )
+        OR (
+            p.visibility = 'FRIENDS'
+            AND EXISTS (
+                SELECT f FROM Follow f
+                WHERE f.follower.userId = :viewerId
+                  AND f.followee.userId = u.userId
+                  AND f.status = 'ACCEPTED'
+            )
+            AND EXISTS (
+                SELECT f2 FROM Follow f2
+                WHERE f2.follower.userId = u.userId
+                  AND f2.followee.userId = :viewerId
+                  AND f2.status = 'ACCEPTED'
+            )
+        )
+    )
+    AND NOT EXISTS (
+        SELECT b FROM Follow b WHERE
+        (b.follower.userId = :viewerId AND b.followee.userId = u.userId AND b.status = 'BLOCKED')
+        OR (b.follower.userId = u.userId AND b.followee.userId = :viewerId AND b.status = 'BLOCKED')
+    )
+    """
+  )
+  Page<FriendAtLocation> findLiftersAt(
+    @Param("locationId") UUID locationId,
+    @Param("viewerId") UUID viewerId,
+    Pageable pageable
+  );
+
+  /**
+   * Count of distinct people findLiftersAt would return — the gym page's
+   * "Lifters" stat. Kept as its own query so the header doesn't have to load
+   * the whole list; the WHERE clause must stay identical to findLiftersAt so
+   * the stat always agrees with the list it opens.
+   */
+  @Query(
+    """
+    SELECT COUNT(DISTINCT u.userId)
+    FROM Post p JOIN p.user u
+    WHERE p.workout.location.locationId = :locationId
+    AND (
+        u.userId = :viewerId
+        OR (
+            p.visibility = 'PUBLIC'
+            AND (
+                u.isPrivate = false
+                OR EXISTS (
+                    SELECT f FROM Follow f
+                    WHERE f.follower.userId = :viewerId
+                      AND f.followee.userId = u.userId
+                      AND f.status = 'ACCEPTED'
+                )
+            )
+        )
+        OR (
+            p.visibility = 'FRIENDS'
+            AND EXISTS (
+                SELECT f FROM Follow f
+                WHERE f.follower.userId = :viewerId
+                  AND f.followee.userId = u.userId
+                  AND f.status = 'ACCEPTED'
+            )
+            AND EXISTS (
+                SELECT f2 FROM Follow f2
+                WHERE f2.follower.userId = u.userId
+                  AND f2.followee.userId = :viewerId
+                  AND f2.status = 'ACCEPTED'
+            )
+        )
+    )
+    AND NOT EXISTS (
+        SELECT b FROM Follow b WHERE
+        (b.follower.userId = :viewerId AND b.followee.userId = u.userId AND b.status = 'BLOCKED')
+        OR (b.follower.userId = u.userId AND b.followee.userId = :viewerId AND b.status = 'BLOCKED')
+    )
+    """
+  )
+  long countLiftersAt(
+    @Param("locationId") UUID locationId,
+    @Param("viewerId") UUID viewerId
+  );
+
   Optional<Post> findByWorkout_WorkoutId(UUID workoutId);
 
   /**

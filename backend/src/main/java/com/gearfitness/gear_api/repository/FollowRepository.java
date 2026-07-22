@@ -114,6 +114,48 @@ public interface FollowRepository
   }
 
   /**
+   * The viewer's mutual connections with a profile: everyone the viewer
+   * follows (ACCEPTED) who also follows the target user (ACCEPTED). When the
+   * target is the viewer themself this degenerates to "people I follow who
+   * follow me back". Returned as the viewer's own follow edges so callers map
+   * f.getFollowee() the same way getFollowing does.
+   */
+  @Query(
+    """
+        SELECT f FROM Follow f
+        WHERE f.follower.userId = :viewerId
+          AND f.status = com.gearfitness.gear_api.entity.Follow.FollowStatus.ACCEPTED
+          AND EXISTS (
+              SELECT f2 FROM Follow f2
+              WHERE f2.follower.userId = f.followee.userId
+                AND f2.followee.userId = :targetUserId
+                AND f2.status = com.gearfitness.gear_api.entity.Follow.FollowStatus.ACCEPTED
+          )
+    """
+  )
+  List<Follow> findMutuals(
+    @Param("viewerId") UUID viewerId,
+    @Param("targetUserId") UUID targetUserId
+  );
+
+  /**
+   * All of the viewer's outgoing follow edges toward the given users, whatever
+   * their status. Lets a user-list screen resolve every row's follow button
+   * (Follow / Requested / Following) in one query instead of one per row.
+   */
+  @Query(
+    """
+        SELECT f FROM Follow f
+        WHERE f.follower.userId = :viewerId
+          AND f.followee.userId IN :userIds
+    """
+  )
+  List<Follow> findViewerEdgesToward(
+    @Param("viewerId") UUID viewerId,
+    @Param("userIds") List<UUID> userIds
+  );
+
+  /**
    * Check whether a block exists in either direction between two users.
    */
   @Query(

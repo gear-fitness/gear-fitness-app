@@ -37,6 +37,7 @@ import { CreateRoutine } from "./screens/CreateRoutine";
 import { EditRoutine } from "./screens/EditRoutine";
 import { UserPosts } from "./screens/UserPosts";
 import { LocationPage } from "./screens/LocationPage";
+import { LocationLifters } from "./screens/LocationLifters";
 import { DayPosts } from "./screens/DayPosts";
 import { Activity } from "./screens/Activity";
 import FollowScreen from "./screens/FollowScreen";
@@ -179,6 +180,17 @@ const RootStack = createNativeStackNavigator({
       options: {
         headerShown: false,
         gestureEnabled: true,
+      },
+    },
+
+    LocationLifters: {
+      screen: LocationLifters,
+      options: {
+        headerShown: false,
+        gestureEnabled: true,
+        // See FollowScreen: prevents the lifters list from reloading (and
+        // losing scroll) when you return from a tapped profile.
+        inactiveBehavior: "none",
       },
     },
 
@@ -411,6 +423,11 @@ declare global {
       UserProfile: { username: string };
       UserPosts: { userId: string; username: string };
       LocationPage: { locationId: string; name?: string };
+      LocationLifters: {
+        locationId: string;
+        name?: string;
+        initialTab?: "lifters" | "mutuals";
+      };
       DayPosts: {
         posts: import("../api/socialFeedApi").FeedPost[];
         dateLabel: string;
@@ -425,7 +442,7 @@ declare global {
       NutritionSetup: { forced?: boolean } | undefined;
 
       FollowScreen: {
-        initialTab: "followers" | "following";
+        initialTab: "followers" | "following" | "mutuals";
         userId: string;
       };
       ExerciseDetail: {

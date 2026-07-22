@@ -6,6 +6,7 @@
  */
 
 import apiClient from "./apiClient";
+import { FollowerUser } from "./types";
 
 // Shape shared by search results, the WorkoutComplete selection, the recents
 // store, and the submission payload's `location` field — a picked result is
@@ -60,6 +61,8 @@ export interface LocationPageInfo {
   latitude?: number | null;
   longitude?: number | null;
   postCount: number;
+  // Distinct people with at least one post here the viewer can see — always
+  // equals the length of getLocationLifters, since the stat opens that list.
   athleteCount: number;
   // The viewer's own workout count at this gym (all their workouts,
   // regardless of post visibility). Personal to the requesting user.
@@ -89,6 +92,29 @@ export async function getLocationPage(
 ): Promise<LocationPageInfo> {
   const response = await apiClient.get<LocationPageInfo>(
     `/locations/${locationId}`,
+  );
+  return response.data;
+}
+
+// Everyone with at least one post at this gym the caller can see, most
+// recent post first — the list behind the page's "Lifters" stat. Same user
+// row shape as the follower lists so the screens can share rendering.
+export async function getLocationLifters(
+  locationId: string,
+): Promise<FollowerUser[]> {
+  const response = await apiClient.get<FollowerUser[]>(
+    `/locations/${locationId}/lifters`,
+  );
+  return response.data;
+}
+
+// The lifters the caller follows — the uncapped version of the page's
+// "friends who train here" section.
+export async function getLocationLifterMutuals(
+  locationId: string,
+): Promise<FollowerUser[]> {
+  const response = await apiClient.get<FollowerUser[]>(
+    `/locations/${locationId}/lifters/mutuals`,
   );
   return response.data;
 }

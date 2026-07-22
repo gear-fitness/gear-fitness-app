@@ -145,6 +145,30 @@ public class FollowController {
   }
 
   /**
+   * GET /api/follows/{userId}/mutuals
+   * People the current user follows who also follow the specified user.
+   * When userId is the current user, this is their followbacks.
+   */
+  @GetMapping("/{userId}/mutuals")
+  public ResponseEntity<?> getMutuals(
+    @RequestHeader("Authorization") String authHeader,
+    @PathVariable UUID userId
+  ) {
+    try {
+      String token = authHeader.substring(7);
+      UUID currentUserId = jwtService.extractUserId(token);
+
+      List<FollowerDTO> mutuals = followService.getMutuals(
+        userId,
+        currentUserId
+      );
+      return ResponseEntity.ok(mutuals);
+    } catch (RuntimeException e) {
+      return ResponseEntity.badRequest().body(e.getMessage());
+    }
+  }
+
+  /**
    * GET /api/follows/{userId}/status
    * Check if current user is following the specified user
    */

@@ -7,7 +7,14 @@
     "start": "node scripts/set-ip.js && cross-env APP_VARIANT=development expo start --dev-client",
     "web": "expo start --web",
     "android": "expo run:android",
-    "ios": "expo run:ios"
+    "ios": "expo run:ios",
+    "test": "jest"
+  },
+  "jest": {
+    "preset": "jest-expo",
+    "transformIgnorePatterns": [
+      "node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|native-base|react-native-svg))"
+    ]
   },
   "dependencies": {
     "@expo-google-fonts/libre-caslon-text": "^0.4.0",
@@ -74,9 +81,13 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
+    "@testing-library/react-native": "^14.0.1",
+    "@types/jest": "^30.0.0",
     "@types/react": "~19.2.10",
     "baseline-browser-mapping": "^2.10.0",
     "cross-env": "^10.1.0",
+    "jest": "^29.7.0",
+    "jest-expo": "~55.0.0",
     "patch-package": "^8.0.1",
     "typescript": "~5.9.2"
   },

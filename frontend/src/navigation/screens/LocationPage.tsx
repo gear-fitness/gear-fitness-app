@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Pressable,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -14,7 +15,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
 import { FeedPost, socialFeedApi } from "../../api/socialFeedApi";
-import { LocationPageInfo, getLocationPage } from "../../api/locationService";
+import {
+  LocationFriend,
+  LocationPageInfo,
+  getLocationPage,
+} from "../../api/locationService";
 import { useNormalizeFeedPosts } from "../../context/LikesContext";
 import { Avatar } from "../../components/Avatar";
 import { MINI_PLAYER_HEIGHT } from "../../components/WorkoutPlayer";
@@ -33,21 +38,56 @@ type ViewMode = "grid" | "square";
 
 const FRIEND_AVATAR_SIZE = 34;
 
+export type FriendsLineSegment =
+  | { type: "text"; text: string }
+  // A shown name — tappable, opens that person's profile.
+  | { type: "user"; text: string; username: string }
+  // The "N other(s)" tail — tappable, opens the gym's Mutuals list.
+  | { type: "others"; text: string };
+
 /**
  * "Alex trains here" / "Alex and Sam train here" / "Alex, Sam and 3 others
- * train here". `total` is the uncapped server count, so the "others" figure
- * stays truthful when the avatar list is truncated.
+ * train here", split into segments so the names and the "others" figure can
+ * be individually bold and tappable. `total` is the uncapped server count,
+ * so the "others" figure stays truthful when the avatar list is truncated.
  */
-function friendsWhoTrainHereLabel(names: string[], total: number): string {
-  if (total <= 0 || names.length === 0) return "";
-  if (total === 1) return `${names[0]} trains here`;
-  if (total === 2 && names.length >= 2)
-    return `${names[0]} and ${names[1]} train here`;
-  const shown = names.slice(0, 2);
+export function friendsWhoTrainHereSegments(
+  friends: LocationFriend[],
+  total: number,
+): FriendsLineSegment[] {
+  if (total <= 0 || friends.length === 0) return [];
+  const user = (friend: LocationFriend): FriendsLineSegment => ({
+    type: "user",
+    text: friend.displayName || friend.username,
+    username: friend.username,
+  });
+  if (total === 1) {
+    return [user(friends[0]), { type: "text", text: " trains here" }];
+  }
+  if (total === 2 && friends.length >= 2) {
+    return [
+      user(friends[0]),
+      { type: "text", text: " and " },
+      user(friends[1]),
+      { type: "text", text: " train here" },
+    ];
+  }
+  const shown = friends.slice(0, 2);
   const others = total - shown.length;
-  return `${shown.join(", ")} and ${others} ${
-    others === 1 ? "other" : "others"
-  } train here`;
+  const segments: FriendsLineSegment[] = [];
+  shown.forEach((friend, index) => {
+    if (index > 0) segments.push({ type: "text", text: ", " });
+    segments.push(user(friend));
+  });
+  segments.push(
+    { type: "text", text: " and " },
+    {
+      type: "others",
+      text: `${others} ${others === 1 ? "other" : "others"}`,
+    },
+    { type: "text", text: " train here" },
+  );
+  return segments;
 }
 
 /**
@@ -156,6 +196,16 @@ export function LocationPage() {
   const friends = info?.friendsWhoTrainHere ?? [];
   const friendsTotal = info?.friendsWhoTrainHereCount ?? 0;
 
+  // Everything in the friends-who-train-here section (avatars, names, the
+  // "N others" tail) opens the gym's mutuals list — the people the section
+  // summarizes — rather than jumping to an individual profile.
+  const openMutualsList = () =>
+    (navigation as any).push("LocationLifters", {
+      locationId,
+      name,
+      initialTab: "mutuals",
+    });
+
   const header = (
     <View style={styles.headerBlock}>
       <View
@@ -181,14 +231,25 @@ export function LocationPage() {
             {info?.postCount === 1 ? "Post" : "Posts"}
           </Text>
         </View>
-        <View style={styles.stat}>
+        <TouchableOpacity
+          style={styles.stat}
+          activeOpacity={0.7}
+          accessibilityLabel="View lifters"
+          onPress={() =>
+            (navigation as any).push("LocationLifters", {
+              locationId,
+              name,
+              initialTab: "lifters",
+            })
+          }
+        >
           <Text style={[styles.statValue, { color: t.text }]}>
             {info?.athleteCount ?? "–"}
           </Text>
           <Text style={[styles.statLabel, { color: t.textMuted }]}>
             {info?.athleteCount === 1 ? "Lifter" : "Lifters"}
           </Text>
-        </View>
+        </TouchableOpacity>
       </View>
       {info && info.viewerWorkoutCount > 0 ? (
         // Personal stat: the viewer's own history here, hidden entirely when
@@ -218,7 +279,8 @@ export function LocationPage() {
       ) : null}
       {friends.length > 0 ? (
         // People the viewer follows with posts here they can see — hidden
-        // entirely when none qualify. Each avatar opens that profile.
+        // entirely when none qualify. The whole section opens the gym's
+        // mutuals list.
         <View style={styles.friendsSection}>
           <View style={styles.avatarStack}>
             {friends.map((friend, index) => (
@@ -234,21 +296,48 @@ export function LocationPage() {
                   username={friend.username}
                   profilePictureUrl={friend.profilePictureUrl}
                   size={FRIEND_AVATAR_SIZE}
-                  onPress={() =>
-                    (navigation as any).push("UserProfile", {
-                      username: friend.username,
-                    })
-                  }
+                  onPress={openMutualsList}
                 />
               </View>
             ))}
           </View>
-          <Text style={[styles.friendsText, { color: t.textMuted }]}>
-            {friendsWhoTrainHereLabel(
-              friends.map((friend) => friend.displayName || friend.username),
-              friendsTotal,
+          {/* Pressables, not Text onPress: a Text press highlight sticks
+              around when the navigation transition interrupts the release.
+              Pressables with no pressed style never highlight, and hitSlop
+              makes the small names comfortably tappable. */}
+          <View style={styles.friendsLine}>
+            {friendsWhoTrainHereSegments(friends, friendsTotal).map(
+              (segment, index) => {
+                if (segment.type === "text") {
+                  return (
+                    <Text
+                      key={index}
+                      style={[styles.friendsText, { color: t.textMuted }]}
+                    >
+                      {segment.text}
+                    </Text>
+                  );
+                }
+                return (
+                  <Pressable
+                    key={index}
+                    onPress={openMutualsList}
+                    hitSlop={{ top: 12, bottom: 12, left: 3, right: 3 }}
+                  >
+                    <Text
+                      style={[
+                        styles.friendsText,
+                        styles.friendsTextBold,
+                        { color: t.text },
+                      ]}
+                    >
+                      {segment.text}
+                    </Text>
+                  </Pressable>
+                );
+              },
             )}
-          </Text>
+          </View>
         </View>
       ) : null}
     </View>
@@ -452,10 +541,19 @@ const styles = StyleSheet.create({
   avatarOverlap: {
     marginLeft: -10,
   },
+  friendsLine: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "baseline",
+    justifyContent: "center",
+    marginTop: 8,
+    paddingHorizontal: 8,
+  },
   friendsText: {
     fontSize: 13,
-    marginTop: 8,
-    textAlign: "center",
+  },
+  friendsTextBold: {
+    fontWeight: "700",
   },
   row: {
     gap: GRID_GAP,

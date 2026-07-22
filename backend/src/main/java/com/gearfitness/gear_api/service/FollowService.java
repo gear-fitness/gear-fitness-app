@@ -263,6 +263,34 @@ public class FollowService {
   }
 
   /**
+   * The viewer's mutual connections with a profile: people the viewer follows
+   * who also follow that profile's owner. On the viewer's own profile this is
+   * "people I follow who follow me back". Every row is by construction
+   * someone the viewer already follows, so followStatus is always ACCEPTED —
+   * no per-row status lookup needed.
+   */
+  @Transactional(readOnly = true)
+  public List<FollowerDTO> getMutuals(UUID userId, UUID currentUserId) {
+    userRepository
+      .findById(userId)
+      .orElseThrow(() -> new RuntimeException("User not found"));
+
+    return followRepository
+      .findMutuals(currentUserId, userId)
+      .stream()
+      .map(f ->
+        new FollowerDTO(
+          f.getFollowee().getUserId(),
+          f.getFollowee().getUsername(),
+          f.getFollowee().getDisplayName(),
+          f.getFollowee().getProfilePictureUrl(),
+          Follow.FollowStatus.ACCEPTED.name()
+        )
+      )
+      .collect(Collectors.toList());
+  }
+
+  /**
    * The viewer's follow relationship toward a target user, as a status string
    * ("ACCEPTED", "PENDING", "BLOCKED", or "NONE"). The viewer is never shown a
    * button for themselves, so self is reported as "NONE".

@@ -1,5 +1,6 @@
 package com.gearfitness.gear_api.controller;
 
+import com.gearfitness.gear_api.dto.FollowerDTO;
 import com.gearfitness.gear_api.dto.LocationPageDTO;
 import com.gearfitness.gear_api.dto.LocationSearchResultDTO;
 import com.gearfitness.gear_api.dto.LocationSummaryDTO;
@@ -95,6 +96,41 @@ public class LocationController {
     }
     return ResponseEntity.ok(
       locationPageService.getLocationPage(locationId, userId)
+    );
+  }
+
+  /**
+   * Gym lifters list: everyone with at least one post here the caller can
+   * see. Viewer-dependent (their follow graph widens what's visible), so the
+   * identity always comes from the token.
+   */
+  @GetMapping("/{locationId}/lifters")
+  public ResponseEntity<List<FollowerDTO>> getLifters(
+    @RequestHeader("Authorization") String authHeader,
+    @PathVariable UUID locationId
+  ) {
+    UUID userId = resolveUserId(authHeader);
+    if (userId == null) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+    return ResponseEntity.ok(locationPageService.getLifters(locationId, userId));
+  }
+
+  /**
+   * Gym mutuals list: the lifters the caller follows — the uncapped version
+   * of the page header's "friends who train here" section.
+   */
+  @GetMapping("/{locationId}/lifters/mutuals")
+  public ResponseEntity<List<FollowerDTO>> getLifterMutuals(
+    @RequestHeader("Authorization") String authHeader,
+    @PathVariable UUID locationId
+  ) {
+    UUID userId = resolveUserId(authHeader);
+    if (userId == null) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+    return ResponseEntity.ok(
+      locationPageService.getLifterMutuals(locationId, userId)
     );
   }
 }
