@@ -31,6 +31,7 @@ import stopwatch from "../assets/stopwatch.png";
 import { useWorkoutTimer, WorkoutSet } from "../context/WorkoutContext";
 import { useUnitPreference } from "../context/UnitPreferenceContext";
 import { toDisplayWeight, toLbs, type WeightUnit } from "../utils/weight";
+import { plateColor } from "../utils/plateMath";
 import { useSwipeableDelete } from "../hooks/useSwipeableDelete";
 import { BodyPartDTO } from "../api/exerciseService";
 import { FloatingCloseButton } from "./FloatingCloseButton";
@@ -759,6 +760,7 @@ export const ExerciseDetailContent = forwardRef<
                   <PlateLoader
                     colors={colors}
                     isDark={isDark}
+                    unit={weightUnit}
                     stack={plateStack}
                     sideTotal={plateSideTotal}
                     bar={plateBar}
@@ -1250,6 +1252,7 @@ function PlateLoaderToggle({
 function PlateLoader({
   colors,
   isDark,
+  unit,
   stack,
   sideTotal,
   bar,
@@ -1265,6 +1268,7 @@ function PlateLoader({
 }: {
   colors: ThemeColors;
   isDark: boolean;
+  unit: WeightUnit;
   stack: number[];
   sideTotal: number;
   bar: number;
@@ -1280,6 +1284,33 @@ function PlateLoader({
 }) {
   const reverseStack = [...stack].reverse();
   const summary = plateMath(bar, sideTotal, mode);
+
+  // kg plates carry the Bar Loader's IPF competition colors; lbs stays
+  // monochrome. The hairline dark rim keeps the white 5 kg plate legible
+  // on the light surface.
+  const sliverStyle = (p: number) => [
+    plateStyles.plateBar,
+    { height: plateHeight(p, plateOptions) },
+    unit === "kg"
+      ? {
+          backgroundColor: plateColor(p, "kg").bg,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: "rgba(0,0,0,0.4)",
+        }
+      : { backgroundColor: colors.text },
+  ];
+  const plateButtonStyle = (p: number) =>
+    unit === "kg"
+      ? {
+          backgroundColor: plateColor(p, "kg").bg,
+          borderColor: "rgba(0,0,0,0.35)",
+        }
+      : {
+          backgroundColor: colors.stepperBg,
+          borderColor: colors.stepperBorder,
+        };
+  const plateButtonTextColor = (p: number) =>
+    unit === "kg" ? plateColor(p, "kg").text : colors.text;
   const slideAnim = useRef(new Animated.Value(mode === "dual" ? 0 : 1)).current;
   const [segmentedWidth, setSegmentedWidth] = useState(0);
 
@@ -1374,16 +1405,7 @@ function PlateLoader({
           <>
             <View style={plateStyles.visualSideLeft}>
               {reverseStack.map((p, i) => (
-                <View
-                  key={`l${i}`}
-                  style={[
-                    plateStyles.plateBar,
-                    {
-                      height: plateHeight(p, plateOptions),
-                      backgroundColor: colors.text,
-                    },
-                  ]}
-                />
+                <View key={`l${i}`} style={sliverStyle(p)} />
               ))}
             </View>
             <View
@@ -1410,16 +1432,7 @@ function PlateLoader({
             </View>
             <View style={plateStyles.visualSideRight}>
               {stack.map((p, i) => (
-                <View
-                  key={`r${i}`}
-                  style={[
-                    plateStyles.plateBar,
-                    {
-                      height: plateHeight(p, plateOptions),
-                      backgroundColor: colors.text,
-                    },
-                  ]}
-                />
+                <View key={`r${i}`} style={sliverStyle(p)} />
               ))}
             </View>
           </>
@@ -1450,16 +1463,7 @@ function PlateLoader({
             </View>
             <View style={plateStyles.visualSideRight}>
               {stack.map((p, i) => (
-                <View
-                  key={`s${i}`}
-                  style={[
-                    plateStyles.plateBar,
-                    {
-                      height: plateHeight(p, plateOptions),
-                      backgroundColor: colors.text,
-                    },
-                  ]}
-                />
+                <View key={`s${i}`} style={sliverStyle(p)} />
               ))}
             </View>
           </>
@@ -1472,15 +1476,14 @@ function PlateLoader({
             key={p}
             onPress={() => onAddPlate(p)}
             activeOpacity={0.7}
-            style={[
-              plateStyles.plateButton,
-              {
-                backgroundColor: colors.stepperBg,
-                borderColor: colors.stepperBorder,
-              },
-            ]}
+            style={[plateStyles.plateButton, plateButtonStyle(p)]}
           >
-            <Text style={[plateStyles.plateButtonText, { color: colors.text }]}>
+            <Text
+              style={[
+                plateStyles.plateButtonText,
+                { color: plateButtonTextColor(p) },
+              ]}
+            >
               {p}
             </Text>
           </TouchableOpacity>

@@ -32,6 +32,7 @@ import { ExerciseList } from "./screens/ExerciseList";
 import { ExerciseHistory } from "./screens/ExerciseHistory";
 import { CreateExerciseScreen } from "./screens/CreateExerciseScreen";
 import { RoutineList } from "./screens/RoutineList";
+import { BarLoader } from "./screens/BarLoader";
 import { RoutineDetail } from "./screens/RoutineDetail";
 import { CreateRoutine } from "./screens/CreateRoutine";
 import { EditRoutine } from "./screens/EditRoutine";
@@ -363,6 +364,11 @@ const RootStack = createNativeStackNavigator({
       options: { headerShown: false },
     },
 
+    BarLoader: {
+      screen: BarLoader,
+      options: { headerShown: false },
+    },
+
     RoutineDetail: {
       screen: RoutineDetail,
       options: { headerShown: false },
@@ -484,6 +490,7 @@ declare global {
       CreateRoutine: { prefilledWorkoutId?: string } | undefined;
       EditRoutine: { routine: import("../api/types").Routine };
       RoutineList: undefined;
+      BarLoader: { initialWeightLbs?: number } | undefined;
       RoutineDetail: {
         routineId: string;
       };

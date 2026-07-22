@@ -5,7 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useColorScheme } from "react-native";
 import Svg, { Path } from "react-native-svg";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 
 import { useWorkoutTimer } from "../../context/WorkoutContext";
@@ -156,6 +156,28 @@ export function Workout() {
           </TouchableOpacity>
 
           <View style={styles.navRow}>
+            <TouchableOpacity
+              accessibilityLabel="Bar Loader"
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate("BarLoader")}
+              style={[
+                styles.iconBtn,
+                {
+                  backgroundColor: glassAvailable ? "transparent" : t.surface,
+                  borderColor: glassAvailable ? "transparent" : t.border,
+                },
+              ]}
+            >
+              {glassAvailable && (
+                <GlassView
+                  style={[StyleSheet.absoluteFillObject, { borderRadius: 22 }]}
+                  glassEffectStyle="regular"
+                  isInteractive
+                />
+              )}
+              <Ionicons name="calculator-outline" size={22} color={t.text} />
+            </TouchableOpacity>
+
             <TouchableOpacity
               accessibilityLabel="Exercises"
               activeOpacity={0.7}
