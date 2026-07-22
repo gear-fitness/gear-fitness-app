@@ -3,7 +3,7 @@ import { Image, StyleSheet, View } from "react-native";
 import { Text, FontScaleProvider } from "../Text";
 import { WeightUnit } from "../../utils/weight";
 import { StackPlate } from "../../utils/plateMath";
-import { BarbellDiagram } from "./BarbellDiagram";
+import { BarbellDiagram, COLLAR_X } from "./BarbellDiagram";
 import { DualReadout } from "./DualReadout";
 
 const G_LOGO = require("../../assets/share-g.png");
@@ -54,15 +54,26 @@ export const BarShareCard = forwardRef<View, Props>(function BarShareCard(
           height={Math.round(210 * scale)}
         />
 
-        <DualReadout
-          total={total}
-          unit={unit}
-          textColor={TEXT}
-          mutedColor={MUTED}
-          scale={scale * 1.25}
-        />
+        {/* The diagram is card-centered, so the loaded span (collar
+            through sleeve end) has its midpoint COLLAR_X / 2 right of the
+            card's center; shift the readout and brand to match it. */}
+        <View style={styles.loadedSpanCenter}>
+          <DualReadout
+            total={total}
+            unit={unit}
+            textColor={TEXT}
+            mutedColor={MUTED}
+            scale={scale * 1.25}
+          />
+        </View>
 
-        <View style={[styles.brandBlock, { gap: 6 * scale }]}>
+        <View
+          style={[
+            styles.brandBlock,
+            styles.loadedSpanCenter,
+            { gap: 6 * scale },
+          ]}
+        >
           <Image
             source={G_LOGO}
             style={{ width: 28 * scale, height: 28 * scale }}
@@ -92,6 +103,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+  },
+  loadedSpanCenter: {
+    transform: [{ translateX: COLLAR_X / 2 }],
   },
   wordmark: {
     fontWeight: "800",

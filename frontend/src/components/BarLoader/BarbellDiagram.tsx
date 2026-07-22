@@ -11,9 +11,10 @@ import {
 type Props = {
   /**
    * One side's plates as an ordered stack, bottom first: the first entry
-   * renders leftmost against the bar tag and each later plate stacks to
-   * the right, so newly loaded plates land on the right end. Plates carry
-   * their own unit, so kg and lb plates can share the bar.
+   * renders leftmost against the collar and each later plate stacks to
+   * the right along the sleeve, so newly loaded plates land on the right
+   * end. Plates carry their own unit, so kg and lb plates can share the
+   * bar.
    */
   plates: StackPlate[];
   barWeight: number;
@@ -54,6 +55,11 @@ const LB_GEOMETRY: Record<number, { h: number; w: number }> = {
 const FALLBACK_GEOMETRY = { h: 0.4, w: 7 };
 const PLATE_RX = 2.5;
 
+// Where the collar starts (the visible shaft length). Exported so the
+// share card can center content on the loaded span (collar through
+// sleeve end) rather than the full bar including the shaft.
+export const COLLAR_X = 20;
+
 function geometryFor(plate: StackPlate): { h: number; w: number } {
   const map = plate.unit === "kg" ? KG_GEOMETRY : LB_GEOMETRY;
   return map[plate.denom] ?? FALLBACK_GEOMETRY;
@@ -67,32 +73,33 @@ export function BarbellDiagram({
   height = 150,
 }: Props) {
   const isDark = useColorScheme() === "dark";
-  const shaftColor = isDark ? "#6C6C70" : "#AEAEB2";
-  const tagBg = isDark ? "#48484A" : "#8E8E93";
+  const barColor = isDark ? "#6C6C70" : "#AEAEB2";
+  const collarBg = isDark ? "#48484A" : "#8E8E93";
   // Thin outline separating flush plates (two touching reds stay legible).
   const plateOutline = isDark ? "rgba(0,0,0,0.55)" : "rgba(255,255,255,0.9)";
 
   const centerY = height / 2;
   const maxPlateH = height * 0.94;
 
-  // Chunky one-piece bar: a thick shaft spanning the full width with a
-  // taller rounded weight tag overlapping it near the left end.
-  const shaftH = height * 0.1;
-  // Bar end protruding left of the tag: same length as before, but a
-  // smaller diameter than the shaft, like a real bar's tip.
-  const stubH = shaftH * 0.6;
-  const tagX = 10;
-  const tagW = 26;
-  // The tag is part of the barbell, so its height tracks the shaft's.
-  const tagH = shaftH * 1.8;
-  const collarW = collarPerSide > 0 ? 8 : 0;
+  // One side of the bar: the sleeve spans the full width with the taller
+  // rounded collar (carrying the bar-weight label) overlapping it near the
+  // left end; plates load onto the sleeve to the collar's right.
+  const sleeveH = height * 0.1;
+  // Shaft protruding left of the collar: a smaller diameter than the
+  // sleeve, like a real bar's grip section.
+  const shaftH = sleeveH * 0.6;
+  const collarX = COLLAR_X;
+  const collarW = 26;
+  // The collar is part of the barbell, so its height tracks the sleeve's.
+  const collarH = sleeveH * 1.8;
+  const clampW = collarPerSide > 0 ? 8 : 0;
 
   // Plates keep their natural width and simply extend rightward along
   // the bar as the load grows; an extreme load clips at the right edge.
 
-  // Plates sit flush: no gap between the tag and the first plate, none
+  // Plates sit flush: no gap between the collar and the first plate, none
   // between neighbors.
-  let cursor = tagX + tagW;
+  let cursor = collarX + collarW;
 
   // Bottom of the stack leftmost, each later plate to the right.
   const drawn = plates.map((p) => {
@@ -104,41 +111,42 @@ export function BarbellDiagram({
     return { plate: p, x, w, h };
   });
 
-  // Collar clamps the stack from outside, so it sits on top (rightmost).
-  const collarX = cursor;
+  // The clamp collar secures the stack from outside, so it sits on top
+  // (rightmost).
+  const clampX = cursor;
 
   return (
     <Svg width={width} height={height}>
-      {/* Thin bar end, left of the tag */}
+      {/* Shaft, left of the collar */}
       <Rect
         x={0}
-        y={centerY - stubH / 2}
-        width={tagX + 4}
-        height={stubH}
-        rx={3}
-        fill={shaftColor}
-      />
-      {/* Shaft, from the tag to the right edge */}
-      <Rect
-        x={tagX}
         y={centerY - shaftH / 2}
-        width={width - tagX}
+        width={collarX + 4}
         height={shaftH}
-        rx={6}
-        fill={shaftColor}
+        rx={3}
+        fill={barColor}
       />
-      {/* Bar-weight tag, overlapping the shaft */}
+      {/* Sleeve, from the collar to the right edge */}
+      <Rect
+        x={collarX}
+        y={centerY - sleeveH / 2}
+        width={width - collarX}
+        height={sleeveH}
+        rx={6}
+        fill={barColor}
+      />
+      {/* Collar, overlapping the sleeve and carrying the bar weight */}
       <G>
         <Rect
-          x={tagX}
-          y={centerY - tagH / 2}
-          width={tagW}
-          height={tagH}
+          x={collarX}
+          y={centerY - collarH / 2}
+          width={collarW}
+          height={collarH}
           rx={6}
-          fill={tagBg}
+          fill={collarBg}
         />
         <SvgText
-          x={tagX + tagW / 2}
+          x={collarX + collarW / 2}
           y={centerY + 3.5}
           fontSize={10}
           fontWeight="700"
@@ -236,15 +244,15 @@ export function BarbellDiagram({
           </G>
         );
       })}
-      {/* Collar, on top of the stack */}
-      {collarW > 0 && (
+      {/* Clamp collar, on top of the stack */}
+      {clampW > 0 && (
         <Rect
-          x={collarX}
+          x={clampX}
           y={centerY - maxPlateH * 0.14}
-          width={collarW}
+          width={clampW}
           height={maxPlateH * 0.28}
           rx={2}
-          fill={tagBg}
+          fill={collarBg}
         />
       )}
     </Svg>
