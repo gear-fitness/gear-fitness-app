@@ -37,6 +37,10 @@ public class S3StorageService {
   // PUT, analyzed, then deleted immediately; a lifecycle rule on this prefix
   // sweeps any a client uploads but never submits for analysis.
   public static final String AI_FOOD_PREFIX = "ai-food/";
+  // Direct-message image keys (gear-fitness-images). Uploaded via presigned PUT
+  // and referenced by message_media.s3_key. Unlike posts, DM images are not run
+  // through Rekognition moderation.
+  public static final String MESSAGES_PREFIX = "messages/";
 
   public static final Duration VIEW_URL_TTL = Duration.ofMinutes(10);
   private static final Duration UPLOAD_URL_TTL = Duration.ofMinutes(5);
@@ -76,7 +80,8 @@ public class S3StorageService {
     if (
       key.startsWith(WORKOUT_PHOTOS_PREFIX) ||
       key.startsWith(POSTS_PREFIX) ||
-      key.startsWith(AI_FOOD_PREFIX)
+      key.startsWith(AI_FOOD_PREFIX) ||
+      key.startsWith(MESSAGES_PREFIX)
     ) {
       return imagesBucket;
     }
@@ -275,6 +280,41 @@ public class S3StorageService {
     return new PresignedUpload(key, url);
   }
 
+  // --- Direct-message images (presigned PUT, direct-to-S3) -----------------
+
+  /**
+   * Generate a server-side key and a presigned PUT url for a direct-message
+   * image. Mirrors {@link #generatePostImageUploadUrl} but under {@code
+   * messages/}, so DM images are addressable separately from post images (and
+   * are deliberately excluded from Rekognition moderation). The client must PUT
+   * with a Content-Type matching {@code contentType} exactly, then submit the
+   * returned key in the message's mediaKeys.
+   */
+  public PresignedUpload generateMessageImageUploadUrl(
+    UUID userId,
+    String contentType
+  ) {
+    String extension = "image/png".equalsIgnoreCase(contentType)
+      ? "png"
+      : "jpg";
+    String key =
+      MESSAGES_PREFIX + userId + "/" + UUID.randomUUID() + "." + extension;
+
+    PutObjectRequest putRequest = PutObjectRequest.builder()
+      .bucket(imagesBucket)
+      .key(key)
+      .contentType(contentType)
+      .build();
+
+    PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
+      .signatureDuration(UPLOAD_URL_TTL)
+      .putObjectRequest(putRequest)
+      .build();
+
+    String url = s3Presigner.presignPutObject(presignRequest).url().toString();
+    return new PresignedUpload(key, url);
+  }
+
   /**
    * Read an object's content type and length without downloading its body. A
    * presigned PUT is size-unbounded, so callers guard on this before pulling
@@ -311,12 +351,14 @@ public class S3StorageService {
     }
   }
 
-  /** Delete a post/workout image by its stored key. */
+  /** Delete a post/workout or direct-message image by its stored key. */
   public void deleteImageByKey(String key) {
     try {
       if (
         key == null ||
-        !(key.startsWith(WORKOUT_PHOTOS_PREFIX) || key.startsWith(POSTS_PREFIX))
+        !(key.startsWith(WORKOUT_PHOTOS_PREFIX) ||
+          key.startsWith(POSTS_PREFIX) ||
+          key.startsWith(MESSAGES_PREFIX))
       ) {
         return;
       }

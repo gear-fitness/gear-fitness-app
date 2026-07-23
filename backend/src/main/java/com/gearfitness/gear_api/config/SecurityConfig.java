@@ -50,6 +50,10 @@ public class SecurityConfig {
           .permitAll()
           .requestMatchers("/api/webhooks/revenuecat")
           .permitAll()
+          // WebSocket handshake is permitted at the HTTP layer; the STOMP
+          // CONNECT frame is authenticated by StompAuthChannelInterceptor (JWT).
+          .requestMatchers("/ws/**")
+          .permitAll()
           .anyRequest()
           .authenticated()
       )

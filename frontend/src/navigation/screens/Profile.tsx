@@ -31,6 +31,7 @@ import {
 import { blockUser } from "../../api/followService";
 import { UserProfile } from "../../api/types";
 import { useAuth } from "../../context/AuthContext";
+import { useMessages } from "../../context/MessagesContext";
 import { useTier } from "../../hooks/useTier";
 import { usePurchases } from "../../context/PurchasesContext";
 import { SymbolView } from "expo-symbols";
@@ -139,6 +140,7 @@ export function Profile() {
   useTrackTab(isOtherUser ? "UserProfile" : "Profile");
 
   const { user: authUser } = useAuth();
+  const { unreadCount } = useMessages();
   const { atLeast } = useTier();
   const { trialEligible } = usePurchases();
   // Own profile only: non-Plus members see the upsell, Plus members the badge.
@@ -566,13 +568,42 @@ export function Profile() {
             </Text>
           </View>
           {!isOtherUser ? (
-            <TouchableOpacity
-              onPress={() => navigation.navigate("Settings")}
-              hitSlop={10}
-              accessibilityLabel="Settings"
-            >
-              <Ionicons name="settings-outline" size={34} color={t.text} />
-            </TouchableOpacity>
+            <View style={styles.headerActions}>
+              <TouchableOpacity
+                onPress={() => navigation.navigate("Messages")}
+                hitSlop={10}
+                accessibilityLabel={
+                  unreadCount > 0
+                    ? `Messages, ${unreadCount} unread`
+                    : "Messages"
+                }
+              >
+                <View>
+                  <Ionicons
+                    name="chatbubble-ellipses-outline"
+                    size={30}
+                    color={t.text}
+                  />
+                  {unreadCount > 0 ? (
+                    <View style={[styles.dmBadge, { borderColor: t.bg }]}>
+                      <Text
+                        style={styles.dmBadgeText}
+                        maxFontSizeMultiplier={1}
+                      >
+                        {unreadCount > 99 ? "99+" : unreadCount}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => navigation.navigate("Settings")}
+                hitSlop={10}
+                accessibilityLabel="Settings"
+              >
+                <Ionicons name="settings-outline" size={34} color={t.text} />
+              </TouchableOpacity>
+            </View>
           ) : (
             <TouchableOpacity
               onPress={handleProfileMenu}
@@ -1088,6 +1119,32 @@ const styles = StyleSheet.create({
   identityText: {
     flex: 1,
     minWidth: 0,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  // Unread count on the Messages button. The border matches the page bg so the
+  // pill reads as lifted off the icon.
+  dmBadge: {
+    position: "absolute",
+    top: -4,
+    right: -7,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 8.5,
+    borderWidth: 1.5,
+    paddingHorizontal: 4,
+    backgroundColor: "#e5484d",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dmBadgeText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "700",
+    includeFontPadding: false,
   },
   displayName: {
     fontSize: 28,

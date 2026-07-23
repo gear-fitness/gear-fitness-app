@@ -47,6 +47,11 @@ import { CalorieTracker } from "./screens/nutrition/CalorieTracker";
 import { AddFood } from "./screens/nutrition/AddFood";
 import { NutritionGoals } from "./screens/nutrition/NutritionGoals";
 import { NutritionSetup } from "./screens/nutrition/NutritionSetup";
+import { DMInbox } from "./screens/messages/DMInbox";
+import { MessageThread } from "./screens/messages/MessageThread";
+import { MessageRequests } from "./screens/messages/MessageRequests";
+import { NewMessage } from "./screens/messages/NewMessage";
+import { GroupDetails } from "./screens/messages/GroupDetails";
 import { Platform } from "react-native";
 
 /* ---------------------- TABS ---------------------- */
@@ -259,6 +264,50 @@ const RootStack = createNativeStackNavigator({
         headerShown: true,
       },
     },
+
+    /* DIRECT MESSAGES — opened from the Messages button in the Profile header.
+       Inbox, thread, and compose all live on the root stack (there is no DM
+       tab); each renders its own in-screen header. */
+    Messages: {
+      screen: DMInbox,
+      options: {
+        headerShown: false,
+        gestureEnabled: true,
+      },
+    },
+    MessageThread: {
+      screen: MessageThread,
+      options: {
+        headerShown: false,
+        gestureEnabled: true,
+        // Swipe right anywhere on the thread to go back (Instagram-style), not
+        // just from the screen edge. The thread's own swipe-left reveal gesture
+        // is left-only, so rightward swipes pass through to this.
+        fullScreenGestureEnabled: true,
+      },
+    },
+    NewMessage: {
+      screen: NewMessage,
+      options: {
+        presentation: "modal",
+        headerShown: false,
+        gestureEnabled: true,
+      },
+    },
+    MessageRequests: {
+      screen: MessageRequests,
+      options: {
+        headerShown: false,
+        gestureEnabled: true,
+      },
+    },
+    GroupDetails: {
+      screen: GroupDetails,
+      options: {
+        headerShown: false,
+        gestureEnabled: true,
+      },
+    },
     ImageViewer: {
       screen: ImageViewer,
       options: {
@@ -406,6 +455,23 @@ declare global {
         dateLabel: string;
       };
       Activity: undefined;
+      Messages: undefined;
+      // Either an existing conversation, or a draft (no conversation created yet
+      // — it's created on the first send). draftUsers carries just enough to
+      // render the header before the conversation exists.
+      MessageThread: {
+        conversationId?: string;
+        draftUserIds?: string[];
+        draftUsers?: {
+          userId: string;
+          username: string;
+          displayName?: string | null;
+          profilePictureUrl?: string | null;
+        }[];
+      };
+      NewMessage: undefined;
+      MessageRequests: undefined;
+      GroupDetails: { conversationId: string };
       Nutrition: undefined;
       AddFood: undefined;
       NutritionGoals: undefined;

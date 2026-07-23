@@ -15,6 +15,7 @@ import { useEffect } from "react";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { PurchasesProvider } from "./context/PurchasesContext";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { KeyboardProvider } from "react-native-keyboard-controller";
 import {
   WorkoutTimerProvider,
   WORKOUT_STATE_STORAGE_KEY,
@@ -22,6 +23,7 @@ import {
 } from "./context/WorkoutContext";
 import { LikesProvider } from "./context/LikesContext";
 import { SocialFeedProvider } from "./context/SocialFeedContext";
+import { MessagesProvider } from "./context/MessagesContext";
 import { FollowStatusProvider } from "./context/FollowStatusContext";
 import { UnitPreferenceProvider } from "./context/UnitPreferenceContext";
 import { NutritionProvider } from "./context/NutritionContext";
@@ -164,6 +166,15 @@ function AppContent({
           });
         }
         break;
+      case "MESSAGE": {
+        const conversationId = (
+          data.params as { conversationId?: string } | undefined
+        )?.conversationId;
+        if (conversationId) {
+          navigationRef.current.navigate("MessageThread", { conversationId });
+        }
+        break;
+      }
       case "UNFINISHED_WORKOUT":
         // Always dismiss the tapped notification, regardless of whether we
         // navigate. Only route to WorkoutSummary if storage actually has an
@@ -263,30 +274,34 @@ function AppContent({
     <GestureHandlerRootView
       style={{ flex: 1, backgroundColor: theme.colors.background }}
     >
-      <SafeAreaProvider>
+      <KeyboardProvider>
+        <SafeAreaProvider>
         <WorkoutTimerProvider>
           <LikesProvider>
             <SocialFeedProvider>
-              <FollowStatusProvider>
-                <UnitPreferenceProvider>
-                  <NutritionProvider>
-                    <Navigation
-                      ref={navigationRef}
-                      theme={theme}
-                      linking={{
-                        enabled: "auto",
-                        prefixes: [prefix],
-                      }}
-                      onReady={() => setIsNavigationReady(true)}
-                    />
-                    <WorkoutPlayer />
-                  </NutritionProvider>
-                </UnitPreferenceProvider>
-              </FollowStatusProvider>
+              <MessagesProvider>
+                <FollowStatusProvider>
+                  <UnitPreferenceProvider>
+                    <NutritionProvider>
+                      <Navigation
+                        ref={navigationRef}
+                        theme={theme}
+                        linking={{
+                          enabled: "auto",
+                          prefixes: [prefix],
+                        }}
+                        onReady={() => setIsNavigationReady(true)}
+                      />
+                      <WorkoutPlayer />
+                    </NutritionProvider>
+                  </UnitPreferenceProvider>
+                </FollowStatusProvider>
+              </MessagesProvider>
             </SocialFeedProvider>
           </LikesProvider>
         </WorkoutTimerProvider>
       </SafeAreaProvider>
+      </KeyboardProvider>
     </GestureHandlerRootView>
   );
 }

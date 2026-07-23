@@ -99,6 +99,40 @@ public class ImageController {
   }
 
   /**
+   * POST /api/images/message-upload-url
+   * Presigned PUT url for a direct-message image. The client PUTs the compressed
+   * JPEG straight to S3, then submits the returned key in the message's
+   * mediaKeys. DM images are stored under {@code messages/} and are deliberately
+   * not run through Rekognition moderation.
+   */
+  @PostMapping("/message-upload-url")
+  public ResponseEntity<?> createMessageUploadUrl(
+    @RequestHeader("Authorization") String authHeader,
+    @RequestBody ImageUploadUrlRequest request
+  ) {
+    UUID userId;
+    try {
+      userId = jwtService.extractUserId(authHeader.substring(7));
+    } catch (Exception e) {
+      return ResponseEntity.status(401).build();
+    }
+
+    String contentType = request.contentType();
+    if (contentType == null || !ALLOWED_UPLOAD_TYPES.contains(contentType)) {
+      return ResponseEntity.badRequest().body(
+        "Only image/jpeg and image/png uploads are allowed"
+      );
+    }
+
+    S3StorageService.PresignedUpload upload =
+      s3StorageService.generateMessageImageUploadUrl(userId, contentType);
+
+    return ResponseEntity.ok(
+      Map.of("key", upload.key(), "uploadUrl", upload.url())
+    );
+  }
+
+  /**
    * GET /api/images/view-url?key=...
    * Returns a presigned GET url for a single stored key.
    */

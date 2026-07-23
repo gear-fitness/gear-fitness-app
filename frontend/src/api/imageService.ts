@@ -159,6 +159,20 @@ export async function requestFoodImageUploadUrl(
 }
 
 /**
+ * Mint a presigned PUT url for a direct-message image. The key lives under
+ * `messages/` and is persisted in the message's mediaKeys (unlike ai-food keys,
+ * which are ephemeral).
+ */
+export async function requestMessageImageUploadUrl(
+  contentType: string,
+): Promise<{ key: string; uploadUrl: string }> {
+  const { data } = await apiClient.post("/images/message-upload-url", {
+    contentType,
+  });
+  return data;
+}
+
+/**
  * PUT a local image file directly to S3 using a presigned PUT url. The
  * Content-Type MUST match what the backend signed or S3 returns
  * SignatureDoesNotMatch. FormData does not work for a direct S3 PUT — the bytes
@@ -183,6 +197,14 @@ export async function uploadImageToS3(
 export async function uploadPostImage(fileUri: string): Promise<string> {
   const contentType = "image/jpeg";
   const { key, uploadUrl } = await requestPostImageUploadUrl(contentType);
+  await uploadImageToS3(uploadUrl, fileUri, contentType);
+  return key;
+}
+
+/** Upload a direct-message image and return its stored S3 key. */
+export async function uploadMessageImage(fileUri: string): Promise<string> {
+  const contentType = "image/jpeg";
+  const { key, uploadUrl } = await requestMessageImageUploadUrl(contentType);
   await uploadImageToS3(uploadUrl, fileUri, contentType);
   return key;
 }
