@@ -8,7 +8,7 @@
 cp .env.template .env
 ```
 
-Edit `.env` with the secret variables 🤫
+Edit `.env` with the secret variables
 
 2. Install dependencies
 
