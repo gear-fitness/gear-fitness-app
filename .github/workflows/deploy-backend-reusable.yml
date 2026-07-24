@@ -1,0 +1,63 @@
+name: Deploy Backend (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      github-environment:
+        description: "GitHub Environment providing the AWS secrets"
+        required: true
+        type: string
+      eb-environment:
+        description: "Elastic Beanstalk environment name to deploy to"
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.github-environment }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Build with Gradle
+        run: |
+          cd backend
+          chmod +x gradlew
+          ./gradlew clean build -x test
+
+      - name: Archive application jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: packaged-application-${{ inputs.eb-environment }}
+          path: backend/build/libs/gear-api-0.0.1-SNAPSHOT.jar
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.github-environment }}
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: packaged-application-${{ inputs.eb-environment }}
+          path: ./
+
+      - name: Deploy to EB
+        uses: einaregilsson/beanstalk-deploy@v20
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          application_name: Gear Fitness
+          environment_name: ${{ inputs.eb-environment }}
+          version_label: ${{ inputs.eb-environment }}-${{ github.sha }}-${{ github.run_number }}
+          region: us-west-2
+          deployment_package: gear-api-0.0.1-SNAPSHOT.jar

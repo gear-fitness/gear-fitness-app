@@ -1,9 +1,9 @@
-name: Deploy Backend
+name: Deploy Backend (Staging)
 
 on:
   push:
     branches:
-      - main
+      - develop
     paths:
       - "backend/**"
   workflow_dispatch:
@@ -12,6 +12,6 @@ jobs:
   deploy:
     uses: ./.github/workflows/deploy-backend-reusable.yml
     with:
-      github-environment: production
-      eb-environment: gear-fitness-env-2
+      github-environment: staging
+      eb-environment: gear-fitness-staging
     secrets: inherit
