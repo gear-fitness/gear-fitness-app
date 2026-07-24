@@ -15,6 +15,7 @@ public class WorkoutExerciseDTO {
   private String exerciseName;
   private List<BodyPartDTO> bodyParts;
   private Integer position;
+  private Integer supersetGroup;
   private String note;
   private List<WorkoutSetDTO> sets;
 }

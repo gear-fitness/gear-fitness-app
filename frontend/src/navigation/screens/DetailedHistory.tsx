@@ -66,6 +66,61 @@ type Props = NativeStackScreenProps<RootStackParamList, "DetailedHistory">;
 
 const PR_GOLD = "#D4A017";
 
+/**
+ * A display unit in the exercise list: either one ungrouped exercise or a run
+ * of CONSECUTIVE exercises sharing a non-null supersetGroup. Runs of one
+ * (degraded data) render ungrouped, mirroring the server adjacency rule.
+ * `startIndex` is the run's first index in the full exercise list so the
+ * EXERCISE n / total numbering keeps counting through every exercise.
+ */
+type HistoryDisplayBlock = {
+  key: string;
+  exercises: WorkoutExercise[];
+  startIndex: number;
+  grouped: boolean;
+};
+
+function buildSupersetBlocks(
+  exercises: WorkoutExercise[],
+): HistoryDisplayBlock[] {
+  const blocks: HistoryDisplayBlock[] = [];
+  let i = 0;
+  while (i < exercises.length) {
+    const g = exercises[i].supersetGroup;
+    if (g == null) {
+      blocks.push({
+        key: exercises[i].workoutExerciseId,
+        exercises: [exercises[i]],
+        startIndex: i,
+        grouped: false,
+      });
+      i++;
+      continue;
+    }
+    let j = i;
+    while (j < exercises.length && exercises[j].supersetGroup === g) j++;
+    if (j - i >= 2) {
+      // Include the first member's id in the key so two runs that ended up
+      // with the same group id (split by server hygiene) stay distinct.
+      blocks.push({
+        key: `sg-${g}-${exercises[i].workoutExerciseId}`,
+        exercises: exercises.slice(i, j),
+        startIndex: i,
+        grouped: true,
+      });
+    } else {
+      blocks.push({
+        key: exercises[i].workoutExerciseId,
+        exercises: [exercises[i]],
+        startIndex: i,
+        grouped: false,
+      });
+    }
+    i = j;
+  }
+  return blocks;
+}
+
 export function DetailedHistory({ route }: Props) {
   useTrackTab("DetailedHistory");
 
@@ -420,19 +475,86 @@ export function DetailedHistory({ route }: Props) {
         {/* Exercises */}
         {workout.exercises && workout.exercises.length > 0 ? (
           <View style={styles.exercisesList}>
-            {workout.exercises.map((exercise, i) => (
-              <ExerciseBlock
-                key={exercise.workoutExerciseId}
-                exercise={exercise}
-                index={i + 1}
-                total={workout.exercises.length}
-                textColor={colors.text}
-                surfaceBg={colors.card}
-                borderColor={colors.border}
-                textMuted={textMuted}
-                textFaint={textFaint}
-              />
-            ))}
+            {buildSupersetBlocks(workout.exercises).map((block) =>
+              block.grouped ? (
+                <View
+                  key={block.key}
+                  style={[
+                    styles.supersetContainer,
+                    {
+                      borderColor: isDark
+                        ? "rgba(255,255,255,0.14)"
+                        : "rgba(0,0,0,0.12)",
+                      backgroundColor: isDark
+                        ? "rgba(255,255,255,0.015)"
+                        : "rgba(0,0,0,0.015)",
+                    },
+                  ]}
+                >
+                  <View style={styles.supersetHeader}>
+                    <Svg width={13} height={13} viewBox="0 0 24 24" fill="none">
+                      <Path
+                        d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
+                        stroke={colors.text}
+                        strokeOpacity={0.55}
+                        strokeWidth={2.2}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <Path
+                        d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+                        stroke={colors.text}
+                        strokeOpacity={0.55}
+                        strokeWidth={2.2}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </Svg>
+                    <Text style={[styles.supersetOverline, textMuted]}>
+                      SUPERSET
+                    </Text>
+                  </View>
+                  {block.exercises.map((exercise, j) => (
+                    <React.Fragment key={exercise.workoutExerciseId}>
+                      {j > 0 && (
+                        <View
+                          style={[
+                            styles.supersetDivider,
+                            {
+                              backgroundColor: isDark
+                                ? "rgba(255,255,255,0.08)"
+                                : "rgba(0,0,0,0.08)",
+                            },
+                          ]}
+                        />
+                      )}
+                      <ExerciseBlock
+                        exercise={exercise}
+                        index={block.startIndex + j + 1}
+                        total={workout.exercises.length}
+                        textColor={colors.text}
+                        surfaceBg={colors.card}
+                        borderColor={colors.border}
+                        textMuted={textMuted}
+                        textFaint={textFaint}
+                      />
+                    </React.Fragment>
+                  ))}
+                </View>
+              ) : (
+                <ExerciseBlock
+                  key={block.key}
+                  exercise={block.exercises[0]}
+                  index={block.startIndex + 1}
+                  total={workout.exercises.length}
+                  textColor={colors.text}
+                  surfaceBg={colors.card}
+                  borderColor={colors.border}
+                  textMuted={textMuted}
+                  textFaint={textFaint}
+                />
+              ),
+            )}
           </View>
         ) : (
           <View style={styles.centerContent}>
@@ -727,6 +849,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     gap: 28,
+  },
+  supersetContainer: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 16,
+    paddingTop: 14,
+    paddingHorizontal: 14,
+    paddingBottom: 6,
+  },
+  supersetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    marginBottom: 14,
+  },
+  supersetOverline: {
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 1.2,
+  },
+  supersetDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginTop: 8,
+    marginBottom: 16,
   },
   exerciseBlock: {},
   exerciseHeader: {

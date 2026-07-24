@@ -16,6 +16,17 @@ import {
   removePendingRoutine,
 } from "../utils/routineQueue";
 
+/**
+ * Exercise entry for the routine create/update contract. Sent alongside the
+ * legacy flat `exerciseIds` array, permanently: old backends read only
+ * `exerciseIds` (rollback safety), new backends prefer `exercises` when
+ * present. `supersetGroup` omitted/undefined means ungrouped.
+ */
+export interface RoutineExerciseInput {
+  exerciseId: string;
+  supersetGroup?: number;
+}
+
 async function loadCachedRoutines(): Promise<Routine[]> {
   const userId = await getActiveUserId();
   if (!userId) return [];
@@ -37,14 +48,20 @@ async function synthesizePendingRoutine(
   if (pending.payload.kind === "scratch") {
     const catalog = await getCachedExercises();
     const byId = new Map(catalog.map((e) => [e.exerciseId, e]));
-    exercises = pending.payload.exerciseIds.map((exerciseId, idx) => {
-      const match = byId.get(exerciseId);
+    // Prefer the structured entries (they carry supersetGroup); fall back to
+    // the flat id list for queue entries written before the field existed.
+    const entries: RoutineExerciseInput[] =
+      pending.payload.exercises ??
+      pending.payload.exerciseIds.map((exerciseId) => ({ exerciseId }));
+    exercises = entries.map((entry, idx) => {
+      const match = byId.get(entry.exerciseId);
       return {
         routineExerciseId: `${pending.id}_${idx}`,
         exerciseName: match?.name ?? "Exercise",
         bodyParts: match?.bodyParts ?? [],
         position: idx,
-        exerciseId,
+        exerciseId: entry.exerciseId,
+        supersetGroup: entry.supersetGroup,
       };
     });
   }
@@ -177,11 +194,24 @@ export async function updateRoutine(
     name?: string;
     scheduledDays?: string[];
     exerciseIds?: string[];
+    exercises?: RoutineExerciseInput[];
   },
 ): Promise<Routine> {
+  // When the caller provides structured entries, send BOTH shapes: the new
+  // `exercises` (which the server prefers) and legacy `exerciseIds` derived
+  // from it, permanently, so an old backend still applies the exercise list.
+  // When the caller sends only `exerciseIds` (or neither), pass the payload
+  // through untouched: the legacy shape triggers the server's supersetGroup
+  // carry-over, so a metadata-only edit never wipes an existing superset.
+  const payload = updateData.exercises
+    ? {
+        ...updateData,
+        exerciseIds: updateData.exercises.map((ex) => ex.exerciseId),
+      }
+    : updateData;
   const { data } = await apiClient.put<Routine>(
     `/routines/${routineId}`,
-    updateData,
+    payload,
   );
   return data;
 }
@@ -190,12 +220,23 @@ export async function createRoutine(
   name: string,
   scheduledDays: string[],
   exerciseIds: string[],
+  exercises?: RoutineExerciseInput[],
 ): Promise<Routine> {
+  // Always send BOTH shapes, permanently: legacy `exerciseIds` keeps an old
+  // backend working (rollback safety), `exercises` carries supersetGroup for
+  // new backends. When structured entries are given they are the source of
+  // truth and the flat list is derived from them so the two can't diverge.
+  // A fresh routine has no prior groups to preserve, so deriving ungrouped
+  // entries from `exerciseIds` is always safe here (unlike update).
+  const entries: RoutineExerciseInput[] =
+    exercises ?? exerciseIds.map((exerciseId) => ({ exerciseId }));
+  const ids = entries.map((ex) => ex.exerciseId);
   try {
     const { data } = await apiClient.post<Routine>("/routines", {
       name,
       scheduledDays,
-      exerciseIds,
+      exerciseIds: ids,
+      exercises: entries,
     });
     return data;
   } catch (err) {
@@ -204,7 +245,8 @@ export async function createRoutine(
         kind: "scratch",
         name,
         scheduledDays,
-        exerciseIds,
+        exerciseIds: ids,
+        exercises: entries,
       });
       return synthesizePendingRoutine(pending);
     }

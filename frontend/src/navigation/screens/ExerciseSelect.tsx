@@ -17,10 +17,23 @@ export function ExerciseSelect() {
   const route = useRoute<any>();
   const isDark = useColorScheme() === "dark";
   const { exercises } = useExerciseList();
-  const { showPlayer, start, swapExercise, setActiveExercise } =
-    useWorkoutTimer();
+  const {
+    showPlayer,
+    start,
+    swapExercise,
+    setActiveExercise,
+    addExercise,
+    linkExercises,
+    exercises: workoutExercises,
+  } = useWorkoutTimer();
   const insets = useSafeAreaInsets();
   const swapTargetId: string | undefined = route.params?.swapTargetId;
+  // Superset "Pick from library": add the picked exercise to the workout,
+  // link it into the target's group, then land back on the ORIGINATING
+  // exercise (linking is configuration, not navigation). Mirrors the
+  // swapTargetId contract.
+  const supersetTargetId: string | undefined = (route.params as any)
+    ?.supersetTargetId;
 
   const handleExercisePress = (exercise: Exercise) => {
     start();
@@ -41,6 +54,25 @@ export function ExerciseSelect() {
           sets: [],
         },
       });
+      return;
+    }
+
+    if (supersetTargetId) {
+      const workoutExerciseId = Date.now().toString();
+      addExercise({
+        workoutExerciseId,
+        exerciseId: exercise.exerciseId,
+        name: exercise.name,
+        bodyParts: exercise.bodyParts,
+        sets: [],
+      });
+      linkExercises(supersetTargetId, workoutExerciseId);
+      const originating =
+        workoutExercises.find(
+          (e) => e.workoutExerciseId === supersetTargetId,
+        ) ?? (route.params as any)?.exercise;
+      setActiveExercise(supersetTargetId);
+      (navigation as any).replace("ExerciseDetail", { exercise: originating });
       return;
     }
 

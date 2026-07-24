@@ -5,6 +5,7 @@ import com.gearfitness.gear_api.dto.CreateRoutineDTO;
 import com.gearfitness.gear_api.dto.CreateRoutineFromWorkoutDTO;
 import com.gearfitness.gear_api.dto.RoutineDTO;
 import com.gearfitness.gear_api.dto.RoutineExerciseDTO;
+import com.gearfitness.gear_api.dto.RoutineExerciseEntryDTO;
 import com.gearfitness.gear_api.dto.UpdateRoutineDTO;
 import com.gearfitness.gear_api.entity.AppUser;
 import com.gearfitness.gear_api.entity.Exercise;
@@ -20,8 +21,13 @@ import com.gearfitness.gear_api.repository.WorkoutRepository;
 import jakarta.transaction.Transactional;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -75,11 +81,21 @@ public class RoutineService {
       .scheduledDays(mappedDays)
       .build();
 
-    for (WorkoutExercise workoutExercise : workout.getWorkoutExercises()) {
+    List<WorkoutExercise> sourceExercises = workout
+      .getWorkoutExercises()
+      .stream()
+      .sorted(Comparator.comparing(WorkoutExercise::getPosition))
+      .toList();
+    List<Integer> supersetGroups = SupersetHygiene.normalize(
+      sourceExercises.stream().map(WorkoutExercise::getSupersetGroup).toList()
+    );
+    for (int i = 0; i < sourceExercises.size(); i++) {
+      WorkoutExercise workoutExercise = sourceExercises.get(i);
       RoutineExercise routineExercise = RoutineExercise.builder()
         .routine(routine)
         .exercise(workoutExercise.getExercise())
         .position(workoutExercise.getPosition())
+        .supersetGroup(supersetGroups.get(i))
         .build();
       routine.getRoutineExercises().add(routineExercise);
     }
@@ -116,21 +132,10 @@ public class RoutineService {
       .scheduledDays(mappedDays)
       .build();
 
-    if (dto.getExerciseIds() != null) {
-      for (int i = 0; i < dto.getExerciseIds().size(); i++) {
-        UUID exerciseId = dto.getExerciseIds().get(i);
-        Exercise exercise = exerciseRepository
-          .findById(exerciseId)
-          .orElseThrow(() ->
-            new RuntimeException("Exercise not found: " + exerciseId)
-          );
-        RoutineExercise routineExercise = RoutineExercise.builder()
-          .routine(routine)
-          .exercise(exercise)
-          .position(i + 1)
-          .build();
-        routine.getRoutineExercises().add(routineExercise);
-      }
+    if (dto.getExercises() != null) {
+      applyExercises(routine, dto.getExercises());
+    } else if (dto.getExerciseIds() != null) {
+      applyExercises(routine, legacyEntries(dto.getExerciseIds()));
     }
 
     Routine saved = routineRepository.save(routine);
@@ -204,26 +209,83 @@ public class RoutineService {
         .collect(Collectors.toCollection(LinkedHashSet::new));
       routine.setScheduledDays(mapped);
     }
-    if (dto.getExerciseIds() != null) {
+    if (dto.getExercises() != null) {
       routine.getRoutineExercises().clear();
-      for (int i = 0; i < dto.getExerciseIds().size(); i++) {
-        UUID exerciseId = dto.getExerciseIds().get(i);
-        Exercise exercise = exerciseRepository
-          .findById(exerciseId)
-          .orElseThrow(() ->
-            new RuntimeException("Exercise not found: " + exerciseId)
-          );
-        RoutineExercise routineExercise = RoutineExercise.builder()
-          .routine(routine)
-          .exercise(exercise)
-          .position(i + 1)
-          .build();
-        routine.getRoutineExercises().add(routineExercise);
-      }
+      applyExercises(routine, dto.getExercises());
+    } else if (dto.getExerciseIds() != null) {
+      List<RoutineExerciseEntryDTO> entries = carryOverGroups(
+        routine,
+        dto.getExerciseIds()
+      );
+      routine.getRoutineExercises().clear();
+      applyExercises(routine, entries);
     }
 
     Routine saved = routineRepository.save(routine);
     return toRoutineDTO(saved);
+  }
+
+  // Old clients send only exerciseIds and cannot see superset groups, so a
+  // legacy-shaped update carries each exercise's previous group over by
+  // matching exerciseId against the prior list, consuming matches in position
+  // order for duplicates. The hygiene pass in applyExercises then drops any
+  // group the update broke apart.
+  private List<RoutineExerciseEntryDTO> carryOverGroups(
+    Routine routine,
+    List<UUID> exerciseIds
+  ) {
+    Map<UUID, LinkedList<Integer>> priorGroups = new HashMap<>();
+    routine
+      .getRoutineExercises()
+      .stream()
+      .sorted(Comparator.comparing(RoutineExercise::getPosition))
+      .forEach(re ->
+        priorGroups
+          .computeIfAbsent(
+            re.getExercise().getExerciseId(),
+            k -> new LinkedList<>()
+          )
+          .add(re.getSupersetGroup())
+      );
+
+    List<RoutineExerciseEntryDTO> entries = new ArrayList<>();
+    for (UUID exerciseId : exerciseIds) {
+      LinkedList<Integer> queue = priorGroups.get(exerciseId);
+      Integer carried = queue == null ? null : queue.pollFirst();
+      entries.add(new RoutineExerciseEntryDTO(exerciseId, carried));
+    }
+    return entries;
+  }
+
+  private List<RoutineExerciseEntryDTO> legacyEntries(List<UUID> exerciseIds) {
+    return exerciseIds
+      .stream()
+      .map(id -> new RoutineExerciseEntryDTO(id, null))
+      .toList();
+  }
+
+  private void applyExercises(
+    Routine routine,
+    List<RoutineExerciseEntryDTO> entries
+  ) {
+    List<Integer> supersetGroups = SupersetHygiene.normalize(
+      entries.stream().map(RoutineExerciseEntryDTO::getSupersetGroup).toList()
+    );
+    for (int i = 0; i < entries.size(); i++) {
+      UUID exerciseId = entries.get(i).getExerciseId();
+      Exercise exercise = exerciseRepository
+        .findById(exerciseId)
+        .orElseThrow(() ->
+          new RuntimeException("Exercise not found: " + exerciseId)
+        );
+      RoutineExercise routineExercise = RoutineExercise.builder()
+        .routine(routine)
+        .exercise(exercise)
+        .position(i + 1)
+        .supersetGroup(supersetGroups.get(i))
+        .build();
+      routine.getRoutineExercises().add(routineExercise);
+    }
   }
 
   @Transactional
@@ -277,6 +339,7 @@ public class RoutineService {
                   .toList()
               );
               e.setPosition(re.getPosition());
+              e.setSupersetGroup(re.getSupersetGroup());
               e.setExerciseId(re.getExercise().getExerciseId());
               return e;
             })

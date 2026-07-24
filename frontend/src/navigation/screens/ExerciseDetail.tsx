@@ -58,7 +58,22 @@ export function ExerciseDetail() {
     const currentIdx = exercises.findIndex(
       (e) => e.workoutExerciseId === exercise.workoutExerciseId,
     );
-    const next = currentIdx >= 0 ? exercises[currentIdx + 1] : undefined;
+    // A superset is one station: alternating inside it happens via log
+    // auto-swap and the partner chip, so "Next exercise" leaves the whole
+    // group. Members are position-adjacent, so skipping the consecutive run
+    // that shares this group id lands on the first exercise after it.
+    let nextIdx = currentIdx + 1;
+    const group =
+      currentIdx >= 0 ? exercises[currentIdx].supersetGroup : undefined;
+    if (group !== undefined) {
+      while (
+        nextIdx < exercises.length &&
+        exercises[nextIdx].supersetGroup === group
+      ) {
+        nextIdx++;
+      }
+    }
+    const next = currentIdx >= 0 ? exercises[nextIdx] : undefined;
     if (next) {
       setCurrentExercise(next.workoutExerciseId);
       navigation.replace("ExerciseDetail", { exercise: next });
@@ -78,6 +93,18 @@ export function ExerciseDetail() {
     });
   };
 
+  // "Pick from library" in the superset partner sheet. Mirrors the
+  // swapTargetId contract; ExerciseSelect links the picked exercise into this
+  // one's group and lands back here (linking is configuration, not
+  // navigation). The replace fires beforeRemove, which flushes this exercise.
+  const handleSupersetFromLibrary = () => {
+    (navigation as any).replace("ExerciseSelect", {
+      returnTo: "ExerciseDetail",
+      exercise,
+      supersetTargetId: exercise.workoutExerciseId,
+    });
+  };
+
   return (
     <ExerciseDetailContent
       ref={contentRef}
@@ -86,6 +113,9 @@ export function ExerciseDetail() {
       onAddExercise={handleNextExercise}
       onSwapExercise={
         exercise.workoutExerciseId ? handleSwapExercise : undefined
+      }
+      onSupersetFromLibrary={
+        exercise.workoutExerciseId ? handleSupersetFromLibrary : undefined
       }
     />
   );

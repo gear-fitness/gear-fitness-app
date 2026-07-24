@@ -26,9 +26,17 @@ import { useNavigation } from "@react-navigation/native";
 import { SymbolView } from "expo-symbols";
 import Svg, { Path } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as Haptics from "expo-haptics";
 
 import stopwatch from "../assets/stopwatch.png";
-import { useWorkoutTimer, WorkoutSet } from "../context/WorkoutContext";
+import {
+  useWorkoutTimer,
+  WorkoutExercise,
+  WorkoutSet,
+} from "../context/WorkoutContext";
+import { SupersetLinkIcon } from "./SupersetLinkIcon";
+import { ExerciseOptionsMenu, ExerciseMenuItem } from "./ExerciseOptionsMenu";
+import { SupersetPartnerSheet } from "./SupersetPartnerSheet";
 import { useUnitPreference } from "../context/UnitPreferenceContext";
 import { toDisplayWeight, toLbs, type WeightUnit } from "../utils/weight";
 import { useSwipeableDelete } from "../hooks/useSwipeableDelete";
@@ -53,6 +61,11 @@ interface ExerciseDetailContentProps {
   onSummary: () => void;
   onAddExercise: () => void;
   onSwapExercise?: () => void;
+  // "Pick from library" in the partner sheet: navigate to ExerciseSelect with
+  // supersetTargetId (mirrors the onSwapExercise contract; the host screen
+  // owns the navigation). Invoked from the sheet's onClosed so iOS never has
+  // to present over the still-open modal.
+  onSupersetFromLibrary?: () => void;
   isInPlayer?: boolean;
 }
 
@@ -68,6 +81,7 @@ type ThemeColors = {
   textFaint: string;
   border: string;
   chipBg: string;
+  chipBorder: string;
   primaryBg: string;
   primaryText: string;
   accent: string;
@@ -77,6 +91,13 @@ type ThemeColors = {
 };
 
 type LoggedSet = WorkoutSet & { id: string };
+
+type SaveOverrides = {
+  sets?: WorkoutSet[];
+  draftReps?: string;
+  draftWeight?: string;
+  weightUnit?: WeightUnit;
+};
 
 type EditingState = {
   id: string;
@@ -165,552 +186,930 @@ function plateMath(bar: number, sideTotal: number, mode: PlateMode): string {
 export const ExerciseDetailContent = forwardRef<
   ExerciseDetailContentRef,
   ExerciseDetailContentProps
->(({ exercise, onSummary, onAddExercise, onSwapExercise }, ref) => {
-  const {
-    seconds,
-    exercises,
-    addExercise,
-    activeExerciseId,
-    activeExerciseStartedAt,
-  } = useWorkoutTimer();
-  const navigation = useNavigation<any>();
-  const isDark = useColorScheme() === "dark";
-  const insets = useSafeAreaInsets();
-  const glassAvailable = isLiquidGlassAvailable();
-  const { weightUnit: globalUnit } = useUnitPreference();
-  // Per-exercise unit override, scoped to this workout (persisted on the
-  // WorkoutExercise, not globally). Lets you log everything in lbs but track,
-  // say, bench in kg. Resets to the global Settings unit for the next workout.
-  const [overrideUnit, setOverrideUnit] = useState<WeightUnit | undefined>(
-    exercise.weightUnit,
-  );
-  const weightUnit = overrideUnit ?? globalUnit;
+>(
+  (
+    {
+      exercise,
+      onSummary,
+      onAddExercise,
+      onSwapExercise,
+      onSupersetFromLibrary,
+    },
+    ref,
+  ) => {
+    const {
+      seconds,
+      exercises,
+      addExercise,
+      linkExercises,
+      unlinkExercise,
+      setCurrentExercise,
+      setActiveExercise,
+      activeExerciseId,
+      activeExerciseStartedAt,
+    } = useWorkoutTimer();
+    const navigation = useNavigation<any>();
+    const isDark = useColorScheme() === "dark";
+    const insets = useSafeAreaInsets();
+    const glassAvailable = isLiquidGlassAvailable();
+    const { weightUnit: globalUnit } = useUnitPreference();
+    // Per-exercise unit override, scoped to this workout (persisted on the
+    // WorkoutExercise, not globally). Lets you log everything in lbs but track,
+    // say, bench in kg. Resets to the global Settings unit for the next workout.
+    const [overrideUnit, setOverrideUnit] = useState<WeightUnit | undefined>(
+      exercise.weightUnit,
+    );
+    const weightUnit = overrideUnit ?? globalUnit;
 
-  // The hero weight input (currentWeight) and draftWeight are held in the
-  // user's display unit; everything persisted — loggedSets, WorkoutSet, and the
-  // submitted payload — stays canonical lbs. Convert only at this boundary.
-  const BAR_WEIGHT = barWeightFor(weightUnit);
-  const PLATE_OPTIONS = plateOptionsFor(weightUnit);
-  const lbsToInput = (lbs: string): string => {
-    const n = Number(lbs);
-    if (!lbs || lbs.trim() === "" || Number.isNaN(n)) return "";
-    return String(toDisplayWeight(n, weightUnit));
-  };
-  const inputToLbs = (display: string): string => {
-    const n = Number(display);
-    if (display.trim() === "" || Number.isNaN(n)) return "";
-    return String(toLbs(n, weightUnit));
-  };
+    // The hero weight input (currentWeight) and draftWeight are held in the
+    // user's display unit; everything persisted — loggedSets, WorkoutSet, and the
+    // submitted payload — stays canonical lbs. Convert only at this boundary.
+    const BAR_WEIGHT = barWeightFor(weightUnit);
+    const PLATE_OPTIONS = plateOptionsFor(weightUnit);
+    const lbsToInput = (lbs: string): string => {
+      const n = Number(lbs);
+      if (!lbs || lbs.trim() === "" || Number.isNaN(n)) return "";
+      return String(toDisplayWeight(n, weightUnit));
+    };
+    const inputToLbs = (display: string): string => {
+      const n = Number(display);
+      if (display.trim() === "" || Number.isNaN(n)) return "";
+      return String(toLbs(n, weightUnit));
+    };
 
-  const colors: ThemeColors = isDark
-    ? {
-        bg: "#0a0a0a",
-        surface: "#141414",
-        text: "#fff",
-        textMuted: "rgba(255,255,255,0.55)",
-        textFaint: "rgba(255,255,255,0.4)",
-        border: "rgba(255,255,255,0.08)",
-        chipBg: "rgba(255,255,255,0.08)",
-        primaryBg: "#fff",
-        primaryText: "#000",
-        accent: "#fff",
-        accentText: "#000",
-        stepperBg: "rgba(255,255,255,0.06)",
-        stepperBorder: "rgba(255,255,255,0.12)",
+    const colors: ThemeColors = isDark
+      ? {
+          bg: "#0a0a0a",
+          surface: "#141414",
+          text: "#fff",
+          textMuted: "rgba(255,255,255,0.55)",
+          textFaint: "rgba(255,255,255,0.4)",
+          border: "rgba(255,255,255,0.08)",
+          chipBg: "rgba(255,255,255,0.08)",
+          chipBorder: "rgba(255,255,255,0.22)",
+          primaryBg: "#fff",
+          primaryText: "#000",
+          accent: "#fff",
+          accentText: "#000",
+          stepperBg: "rgba(255,255,255,0.06)",
+          stepperBorder: "rgba(255,255,255,0.12)",
+        }
+      : {
+          bg: "#fafafa",
+          surface: "#fff",
+          text: "#000",
+          textMuted: "rgba(0,0,0,0.5)",
+          textFaint: "rgba(0,0,0,0.4)",
+          border: "rgba(0,0,0,0.08)",
+          chipBg: "rgba(0,0,0,0.05)",
+          chipBorder: "rgba(0,0,0,0.18)",
+          primaryBg: "#000",
+          primaryText: "#fff",
+          accent: "#000",
+          accentText: "#fff",
+          stepperBg: "#fff",
+          stepperBorder: "rgba(0,0,0,0.1)",
+        };
+
+    const formatTime = (t: number) =>
+      `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(
+        2,
+        "0",
+      )}`;
+
+    const initialLogged: LoggedSet[] = (exercise.sets || [])
+      .filter((s) => s.reps?.trim() && s.weight?.trim())
+      .map((s, i) => ({ id: `seed-${i}`, reps: s.reps, weight: s.weight }));
+
+    const [loggedSets, setLoggedSets] = useState<LoggedSet[]>(initialLogged);
+    const [currentReps, setCurrentReps] = useState(exercise.draftReps ?? "");
+    const [currentWeight, setCurrentWeight] = useState(
+      exercise.draftWeight ?? "",
+    );
+    const [note, setNote] = useState(exercise.note || "");
+    const [noteModalVisible, setNoteModalVisible] = useState(false);
+    const [noteDraft, setNoteDraft] = useState("");
+    const [expanded, setExpanded] = useState(false);
+    const [showingTotal, setShowingTotal] = useState(false);
+    const [now, setNow] = useState(() => Date.now());
+    const [platesEnabled, setPlatesEnabled] = useState(false);
+    const [platesOpen, setPlatesOpen] = useState(false);
+    const [plateMode, setPlateMode] = useState<PlateMode>("dual");
+    const [plateBarOn, setPlateBarOn] = useState(false);
+    const [editing, setEditing] = useState<EditingState>(null);
+
+    const plateBar = plateBarOn ? BAR_WEIGHT : 0;
+    const plateMultiplier = plateMode === "single" ? 1 : 2;
+    const plateStack = platesFromWeight(
+      currentWeight,
+      plateMode,
+      plateBar,
+      PLATE_OPTIONS,
+    );
+    const plateSideTotal = plateStack.reduce((a, b) => a + b, 0);
+
+    const togglePlatesEnabled = () => {
+      const next = !platesEnabled;
+      setPlatesEnabled(next);
+      setPlatesOpen(next);
+      if (next) {
+        const current = Number(currentWeight || 0);
+        if (current > 0) {
+          const useBar = current >= BAR_WEIGHT;
+          const bar = useBar ? BAR_WEIGHT : 0;
+          setPlateBarOn(useBar);
+          setCurrentWeight(
+            formatWeight(
+              roundToPlateWeight(current, plateMode, bar, PLATE_OPTIONS),
+            ),
+          );
+        } else {
+          setCurrentWeight(formatWeight(plateBar));
+        }
       }
-    : {
-        bg: "#fafafa",
-        surface: "#fff",
-        text: "#000",
-        textMuted: "rgba(0,0,0,0.5)",
-        textFaint: "rgba(0,0,0,0.4)",
-        border: "rgba(0,0,0,0.08)",
-        chipBg: "rgba(0,0,0,0.05)",
-        primaryBg: "#000",
-        primaryText: "#fff",
-        accent: "#000",
-        accentText: "#fff",
-        stepperBg: "#fff",
-        stepperBorder: "rgba(0,0,0,0.1)",
-      };
+    };
 
-  const formatTime = (t: number) =>
-    `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(
-      2,
-      "0",
-    )}`;
+    const handleAddPlate = (p: number) => {
+      const next = Number(currentWeight || 0) + p * plateMultiplier;
+      setCurrentWeight(formatWeight(next));
+    };
 
-  const initialLogged: LoggedSet[] = (exercise.sets || [])
-    .filter((s) => s.reps?.trim() && s.weight?.trim())
-    .map((s, i) => ({ id: `seed-${i}`, reps: s.reps, weight: s.weight }));
+    const handlePopPlate = () => {
+      if (plateStack.length === 0) return;
+      const top = plateStack[plateStack.length - 1];
+      const next = Number(currentWeight || 0) - top * plateMultiplier;
+      setCurrentWeight(formatWeight(Math.max(plateBar, next)));
+    };
 
-  const [loggedSets, setLoggedSets] = useState<LoggedSet[]>(initialLogged);
-  const [currentReps, setCurrentReps] = useState(exercise.draftReps ?? "");
-  const [currentWeight, setCurrentWeight] = useState(
-    exercise.draftWeight ?? "",
-  );
-  const [note, setNote] = useState(exercise.note || "");
-  const [noteModalVisible, setNoteModalVisible] = useState(false);
-  const [noteDraft, setNoteDraft] = useState("");
-  const [expanded, setExpanded] = useState(false);
-  const [showingTotal, setShowingTotal] = useState(false);
-  const [now, setNow] = useState(() => Date.now());
-  const [platesEnabled, setPlatesEnabled] = useState(false);
-  const [platesOpen, setPlatesOpen] = useState(false);
-  const [plateMode, setPlateMode] = useState<PlateMode>("dual");
-  const [plateBarOn, setPlateBarOn] = useState(false);
-  const [editing, setEditing] = useState<EditingState>(null);
+    const handleClearPlates = () => {
+      setCurrentWeight(formatWeight(plateBar));
+    };
 
-  const plateBar = plateBarOn ? BAR_WEIGHT : 0;
-  const plateMultiplier = plateMode === "single" ? 1 : 2;
-  const plateStack = platesFromWeight(
-    currentWeight,
-    plateMode,
-    plateBar,
-    PLATE_OPTIONS,
-  );
-  const plateSideTotal = plateStack.reduce((a, b) => a + b, 0);
+    const handlePlateModeChange = (m: PlateMode) => {
+      if (m === plateMode) return;
+      const newMultiplier = m === "single" ? 1 : 2;
+      const next = plateBar + plateSideTotal * newMultiplier;
+      setPlateMode(m);
+      setCurrentWeight(formatWeight(next));
+    };
 
-  const togglePlatesEnabled = () => {
-    const next = !platesEnabled;
-    setPlatesEnabled(next);
-    setPlatesOpen(next);
-    if (next) {
-      const current = Number(currentWeight || 0);
-      if (current > 0) {
-        const useBar = current >= BAR_WEIGHT;
-        const bar = useBar ? BAR_WEIGHT : 0;
-        setPlateBarOn(useBar);
-        setCurrentWeight(
-          formatWeight(
-            roundToPlateWeight(current, plateMode, bar, PLATE_OPTIONS),
-          ),
-        );
-      } else {
-        setCurrentWeight(formatWeight(plateBar));
-      }
-    }
-  };
+    const handlePlateBarToggle = () => {
+      const nextBarOn = !plateBarOn;
+      const nextBar = nextBarOn ? BAR_WEIGHT : 0;
+      const next = nextBar + plateSideTotal * plateMultiplier;
+      setPlateBarOn(nextBarOn);
+      setCurrentWeight(formatWeight(next));
+    };
 
-  const handleAddPlate = (p: number) => {
-    const next = Number(currentWeight || 0) + p * plateMultiplier;
-    setCurrentWeight(formatWeight(next));
-  };
+    // Tapping the unit label flips THIS exercise's unit for the current workout
+    // (not the app-wide default — that lives in Settings). The in-progress input
+    // is converted so the physical weight is preserved (e.g. 100 lbs → 45 kg).
+    // Logged sets are stored in canonical lbs and re-render in the new unit
+    // automatically; the plate calculator switches to that unit's plates. The
+    // override is workout-scoped and resets to the global default next workout.
+    const handleToggleUnit = () => {
+      const next: WeightUnit = weightUnit === "kg" ? "lbs" : "kg";
+      const n = Number(currentWeight);
+      const converted =
+        currentWeight.trim() !== "" && !Number.isNaN(n)
+          ? String(toDisplayWeight(toLbs(n, weightUnit), next))
+          : currentWeight;
+      setCurrentWeight(converted);
+      setOverrideUnit(next);
+      // Persist atomically so a save racing this toggle can't drop the unit or
+      // the freshly-converted draft.
+      saveExercise({ weightUnit: next, draftWeight: converted });
+    };
 
-  const handlePopPlate = () => {
-    if (plateStack.length === 0) return;
-    const top = plateStack[plateStack.length - 1];
-    const next = Number(currentWeight || 0) - top * plateMultiplier;
-    setCurrentWeight(formatWeight(Math.max(plateBar, next)));
-  };
+    useEffect(() => {
+      const id = setInterval(() => setNow(Date.now()), 1000);
+      return () => clearInterval(id);
+    }, []);
 
-  const handleClearPlates = () => {
-    setCurrentWeight(formatWeight(plateBar));
-  };
+    const isActiveExercise =
+      !!exercise.workoutExerciseId &&
+      activeExerciseId === exercise.workoutExerciseId;
+    const liveDelta =
+      isActiveExercise && activeExerciseStartedAt !== null
+        ? Math.max(0, Math.floor((now - activeExerciseStartedAt) / 1000))
+        : 0;
+    const exerciseSeconds = (exercise.durationSeconds ?? 0) + liveDelta;
 
-  const handlePlateModeChange = (m: PlateMode) => {
-    if (m === plateMode) return;
-    const newMultiplier = m === "single" ? 1 : 2;
-    const next = plateBar + plateSideTotal * newMultiplier;
-    setPlateMode(m);
-    setCurrentWeight(formatWeight(next));
-  };
+    useEffect(() => {
+      if (!showingTotal) return;
+      const id = setTimeout(() => setShowingTotal(false), 5000);
+      return () => clearTimeout(id);
+    }, [showingTotal]);
 
-  const handlePlateBarToggle = () => {
-    const nextBarOn = !plateBarOn;
-    const nextBar = nextBarOn ? BAR_WEIGHT : 0;
-    const next = nextBar + plateSideTotal * plateMultiplier;
-    setPlateBarOn(nextBarOn);
-    setCurrentWeight(formatWeight(next));
-  };
+    const exerciseNum = useMemo(() => {
+      const idx = exercises.findIndex(
+        (e) => e.workoutExerciseId === exercise.workoutExerciseId,
+      );
+      return idx >= 0 ? idx + 1 : exercises.length + 1;
+    }, [exercises, exercise.workoutExerciseId]);
 
-  // Tapping the unit label flips THIS exercise's unit for the current workout
-  // (not the app-wide default — that lives in Settings). The in-progress input
-  // is converted so the physical weight is preserved (e.g. 100 lbs → 45 kg).
-  // Logged sets are stored in canonical lbs and re-render in the new unit
-  // automatically; the plate calculator switches to that unit's plates. The
-  // override is workout-scoped and resets to the global default next workout.
-  const handleToggleUnit = () => {
-    const next: WeightUnit = weightUnit === "kg" ? "lbs" : "kg";
-    const n = Number(currentWeight);
-    const converted =
-      currentWeight.trim() !== "" && !Number.isNaN(n)
-        ? String(toDisplayWeight(toLbs(n, weightUnit), next))
-        : currentWeight;
-    setCurrentWeight(converted);
-    setOverrideUnit(next);
-    // Persist atomically so a save racing this toggle can't drop the unit or
-    // the freshly-converted draft.
-    saveExercise({ weightUnit: next, draftWeight: converted });
-  };
-
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  const isActiveExercise =
-    !!exercise.workoutExerciseId &&
-    activeExerciseId === exercise.workoutExerciseId;
-  const liveDelta =
-    isActiveExercise && activeExerciseStartedAt !== null
-      ? Math.max(0, Math.floor((now - activeExerciseStartedAt) / 1000))
-      : 0;
-  const exerciseSeconds = (exercise.durationSeconds ?? 0) + liveDelta;
-
-  useEffect(() => {
-    if (!showingTotal) return;
-    const id = setTimeout(() => setShowingTotal(false), 5000);
-    return () => clearTimeout(id);
-  }, [showingTotal]);
-
-  const exerciseNum = useMemo(() => {
-    const idx = exercises.findIndex(
+    // ---- Superset membership (live from context, so the chip/caption update
+    // the moment a link or unlink lands). Members keep array (position) order;
+    // a "group" of one is not a superset.
+    const liveSelf = exercises.find(
       (e) => e.workoutExerciseId === exercise.workoutExerciseId,
     );
-    return idx >= 0 ? idx + 1 : exercises.length + 1;
-  }, [exercises, exercise.workoutExerciseId]);
+    const supersetGroupId = liveSelf?.supersetGroup;
+    const groupMembers = useMemo(
+      () =>
+        supersetGroupId === undefined
+          ? []
+          : exercises.filter((e) => e.supersetGroup === supersetGroupId),
+      [exercises, supersetGroupId],
+    );
+    const isSuperset = groupMembers.length >= 2;
+    const selfGroupIdx = groupMembers.findIndex(
+      (e) => e.workoutExerciseId === exercise.workoutExerciseId,
+    );
+    // Next member in position order, wrapping (A, B, C, A...).
+    const nextMember =
+      isSuperset && selfGroupIdx >= 0
+        ? groupMembers[(selfGroupIdx + 1) % groupMembers.length]
+        : undefined;
+    const nextMemberSetCount = nextMember
+      ? nextMember.sets.filter((s) => s.reps?.trim() && s.weight?.trim()).length
+      : 0;
 
-  const { getSwipeableProps } = useSwipeableDelete({
-    onDelete: (id) => {
-      const idx = loggedSets.findIndex((s) => s.id === id);
-      if (idx < 0) return;
-      const nextLogged = loggedSets.filter((s) => s.id !== id);
-      setLoggedSets(nextLogged);
-      if (editing && idx < editing.originalIndex) {
-        setEditing((e) =>
-          e ? { ...e, originalIndex: e.originalIndex - 1 } : e,
-        );
+    // Partner sheet. `sheetOptions` is snapshotted when the sheet opens and held
+    // through the close animation (BottomSheet consumer contract: never yank
+    // content mid-slide). The library follow-up navigates from onClosed.
+    const [partnerSheetVisible, setPartnerSheetVisible] = useState(false);
+    const [sheetOptions, setSheetOptions] = useState<WorkoutExercise[]>([]);
+    const libraryPendingRef = useRef(false);
+
+    const openPartnerSheet = () => {
+      setSheetOptions(
+        exercises.filter(
+          (e) =>
+            e.workoutExerciseId !== exercise.workoutExerciseId &&
+            e.supersetGroup === undefined,
+        ),
+      );
+      setPartnerSheetVisible(true);
+    };
+
+    const { getSwipeableProps } = useSwipeableDelete({
+      onDelete: (id) => {
+        const idx = loggedSets.findIndex((s) => s.id === id);
+        if (idx < 0) return;
+        const nextLogged = loggedSets.filter((s) => s.id !== id);
+        setLoggedSets(nextLogged);
+        if (editing && idx < editing.originalIndex) {
+          setEditing((e) =>
+            e ? { ...e, originalIndex: e.originalIndex - 1 } : e,
+          );
+        }
+        // Persist with the new state explicitly — addExercise is write-through.
+        saveExercise({
+          sets: nextLogged.map(({ reps, weight }) => ({ reps, weight })),
+        });
+      },
+      deleteTitle: "Delete Set",
+      deleteMessage: "Are you sure you want to delete this set?",
+    });
+
+    // Set right before an auto-swap replaces this screen. The replace fires
+    // ExerciseDetail's beforeRemove save(), which reads this component's
+    // not-yet-rerendered state; without this pin, that save would persist the
+    // PRE-log sets and clobber the set logged an instant earlier. The screen
+    // unmounts immediately after, so the pin never goes stale.
+    const flushOnRemoveRef = useRef<SaveOverrides | null>(null);
+
+    // `overrides` lets discrete callers (Log Set, edit, delete) pass the new
+    // state explicitly, bypassing React's batched-setState closure staleness.
+    // Without this, a save triggered right after setLoggedSets/setCurrentReps
+    // would persist the PRE-update values — which is the root cause of the
+    // "logged set returns to the hero on kill" bug.
+    const saveExercise = (explicitOverrides?: SaveOverrides) => {
+      const overrides =
+        explicitOverrides ?? flushOnRemoveRef.current ?? undefined;
+      let allSets: WorkoutSet[];
+      if (overrides?.sets) {
+        allSets = overrides.sets;
+      } else {
+        allSets = loggedSets.map(({ reps, weight }) => ({
+          reps,
+          weight,
+        }));
+        if (editing) {
+          const r = currentReps.trim() || editing.originalReps;
+          // currentWeight is in the display unit; originalWeight is already lbs.
+          const w = currentWeight.trim()
+            ? inputToLbs(currentWeight.trim())
+            : editing.originalWeight;
+          if (r && w) {
+            allSets.splice(editing.originalIndex, 0, { reps: r, weight: w });
+          }
+        }
       }
-      // Persist with the new state explicitly — addExercise is write-through.
-      saveExercise({
-        sets: nextLogged.map(({ reps, weight }) => ({ reps, weight })),
+      const setsToPersist: WorkoutSet[] =
+        allSets.length > 0 ? allSets : [{ reps: "", weight: "" }];
+      addExercise({
+        workoutExerciseId: exercise.workoutExerciseId || Date.now().toString(),
+        exerciseId: exercise.exerciseId,
+        name: exercise.name,
+        bodyParts: exercise.bodyParts,
+        sets: setsToPersist,
+        note: note.trim(),
+        durationSeconds: exercise.durationSeconds,
+        draftReps: overrides?.draftReps ?? currentReps,
+        draftWeight: overrides?.draftWeight ?? currentWeight,
+        weightUnit: overrides?.weightUnit ?? overrideUnit,
       });
-    },
-    deleteTitle: "Delete Set",
-    deleteMessage: "Are you sure you want to delete this set?",
-  });
+    };
 
-  // `overrides` lets discrete callers (Log Set, edit, delete) pass the new
-  // state explicitly, bypassing React's batched-setState closure staleness.
-  // Without this, a save triggered right after setLoggedSets/setCurrentReps
-  // would persist the PRE-update values — which is the root cause of the
-  // "logged set returns to the hero on kill" bug.
-  const saveExercise = (overrides?: {
-    sets?: WorkoutSet[];
-    draftReps?: string;
-    draftWeight?: string;
-    weightUnit?: WeightUnit;
-  }) => {
-    let allSets: WorkoutSet[];
-    if (overrides?.sets) {
-      allSets = overrides.sets;
-    } else {
-      allSets = loggedSets.map(({ reps, weight }) => ({
+    useImperativeHandle(ref, () => ({ save: saveExercise }));
+
+    const handleSave = (callback: () => void) => {
+      saveExercise();
+      callback();
+    };
+
+    const handleLogSet = () => {
+      if (!currentReps.trim() || !currentWeight.trim()) return;
+      if (editing) {
+        const reps = currentReps.trim();
+        // Persisted set weight is canonical lbs; the input is in the display unit.
+        const weight = inputToLbs(currentWeight.trim());
+        const editingId = editing.id;
+        const insertAt = editing.originalIndex;
+        const previousReps = editing.previousReps;
+        const previousWeight = editing.previousWeight;
+        const nextLogged = [...loggedSets];
+        nextLogged.splice(insertAt, 0, { id: editingId, reps, weight });
+        setLoggedSets(nextLogged);
+        setCurrentReps(previousReps);
+        setCurrentWeight(previousWeight);
+        setEditing(null);
+        Keyboard.dismiss();
+        // Pass the new state explicitly — addExercise is write-through, but it
+        // would otherwise read stale closure values from loggedSets/currentReps.
+        saveExercise({
+          sets: nextLogged.map(({ reps: r, weight: w }) => ({
+            reps: r,
+            weight: w,
+          })),
+          draftReps: previousReps,
+          draftWeight: previousWeight,
+        });
+        return;
+      }
+      const nextLogged: LoggedSet[] = [
+        ...loggedSets,
+        {
+          id: Date.now().toString(),
+          reps: currentReps.trim(),
+          // Store canonical lbs; the input is in the display unit.
+          weight: inputToLbs(currentWeight.trim()),
+        },
+      ];
+      setLoggedSets(nextLogged);
+      setCurrentReps("");
+      Keyboard.dismiss();
+      const flushedSets = nextLogged.map(({ reps, weight }) => ({
         reps,
         weight,
       }));
+      saveExercise({
+        sets: flushedSets,
+        draftReps: "",
+        draftWeight: currentWeight,
+      });
+      // Core superset mechanic: a FRESH log on a grouped exercise immediately
+      // swaps the screen to the next member so the user alternates sets. The
+      // editing path above returns before this, so saving an edit to an old
+      // set never swaps. The set itself was flushed through saveExercise's
+      // overrides just above; the pin keeps the beforeRemove re-save honest.
+      if (nextMember) {
+        flushOnRemoveRef.current = {
+          sets: flushedSets,
+          draftReps: "",
+          draftWeight: currentWeight,
+        };
+        Haptics.selectionAsync().catch(() => {});
+        setCurrentExercise(nextMember.workoutExerciseId);
+        setActiveExercise(nextMember.workoutExerciseId);
+        (navigation as any).replace("ExerciseDetail", { exercise: nextMember });
+      }
+    };
+
+    // Partner chip tap: hop to the next member WITHOUT logging anything (uneven
+    // schemes, fixing a typo after landing on the other side). Flush this
+    // exercise first so nothing typed here is lost.
+    const hopToPartner = (member: WorkoutExercise) => {
+      saveExercise();
+      Haptics.selectionAsync().catch(() => {});
+      setCurrentExercise(member.workoutExerciseId);
+      setActiveExercise(member.workoutExerciseId);
+      (navigation as any).replace("ExerciseDetail", { exercise: member });
+    };
+
+    // Sheet pick: linking is configuration, not navigation. The user stays on
+    // this exercise; the partner chip appears via the context update.
+    const handlePickPartner = (partnerId: string) => {
+      if (!exercise.workoutExerciseId) return;
+      // Make sure this exercise exists in context before linking (a brand-new
+      // exercise is only written on its first save).
+      saveExercise();
+      linkExercises(exercise.workoutExerciseId, partnerId);
+      Haptics.selectionAsync().catch(() => {});
+      setPartnerSheetVisible(false);
+    };
+
+    const handlePickFromLibrary = () => {
+      libraryPendingRef.current = true;
+      setPartnerSheetVisible(false);
+    };
+
+    // iOS cannot present the picker while the sheet's modal is still up, so the
+    // library navigation chains through onClosed.
+    const handlePartnerSheetClosed = () => {
+      if (!libraryPendingRef.current) return;
+      libraryPendingRef.current = false;
+      onSupersetFromLibrary?.();
+    };
+
+    const handleRemoveSuperset = () => {
+      if (!exercise.workoutExerciseId) return;
+      unlinkExercise(exercise.workoutExerciseId);
+    };
+
+    const handleEditSet = (set: LoggedSet) => {
+      let workingSets = loggedSets;
+      let stashedPrevReps = currentReps;
+      let stashedPrevWeight = currentWeight;
+
       if (editing) {
-        const r = currentReps.trim() || editing.originalReps;
+        if (editing.id === set.id) return;
+        const reps = currentReps.trim() || editing.originalReps;
         // currentWeight is in the display unit; originalWeight is already lbs.
-        const w = currentWeight.trim()
+        const weight = currentWeight.trim()
           ? inputToLbs(currentWeight.trim())
           : editing.originalWeight;
-        if (r && w) {
-          allSets.splice(editing.originalIndex, 0, { reps: r, weight: w });
-        }
+        workingSets = [...loggedSets];
+        workingSets.splice(editing.originalIndex, 0, {
+          id: editing.id,
+          reps,
+          weight,
+        });
+        stashedPrevReps = editing.previousReps;
+        stashedPrevWeight = editing.previousWeight;
+      }
+
+      const idx = workingSets.findIndex((s) => s.id === set.id);
+      if (idx < 0) return;
+
+      setLoggedSets(workingSets.filter((s) => s.id !== set.id));
+      setEditing({
+        id: set.id,
+        originalIndex: idx,
+        originalReps: set.reps,
+        originalWeight: set.weight,
+        previousReps: stashedPrevReps,
+        previousWeight: stashedPrevWeight,
+      });
+      setCurrentReps(set.reps);
+      // Stored set weight is canonical lbs; show it in the display unit.
+      setCurrentWeight(lbsToInput(set.weight));
+    };
+
+    const getDisplayIdx = (arrayIdx: number) =>
+      editing && arrayIdx >= editing.originalIndex ? arrayIdx + 1 : arrayIdx;
+
+    const setNumberLabel = editing
+      ? editing.originalIndex + 1
+      : loggedSets.length + 1;
+
+    useEffect(() => {
+      const listener = Keyboard.addListener("keyboardDidHide", () => {
+        saveExercise();
+      });
+      return () => listener.remove();
+    }, [loggedSets, currentReps, currentWeight, note, editing]);
+
+    const canLog = !!currentReps.trim() && !!currentWeight.trim();
+    const timerValue = showingTotal ? seconds : exerciseSeconds;
+
+    const openNoteModal = () => {
+      setNoteDraft(note);
+      setNoteModalVisible(true);
+    };
+
+    const saveNote = () => {
+      setNote(noteDraft);
+      setNoteModalVisible(false);
+    };
+
+    const handleInfoPress = () => {
+      navigation.navigate("ExerciseHistory", { exercise });
+    };
+
+    const handleSwapPress = () => {
+      if (!onSwapExercise) return;
+      Alert.alert("Swap exercise?", "All current exercise data will be lost.", [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Swap",
+          style: "destructive",
+          onPress: () => onSwapExercise(),
+        },
+      ]);
+    };
+
+    // Ellipsis menu in the title row. Unlinked: Superset + Swap. Linked: Add to
+    // superset + Remove superset + Swap.
+    const menuItems: ExerciseMenuItem[] = [];
+    if (exercise.workoutExerciseId && onSupersetFromLibrary) {
+      menuItems.push({
+        key: "superset",
+        label: isSuperset ? "Add to superset" : "Superset",
+        systemImage: "link",
+        onPress: openPartnerSheet,
+      });
+      if (isSuperset) {
+        menuItems.push({
+          key: "remove-superset",
+          label: "Remove superset",
+          systemImage: "minus.circle",
+          onPress: handleRemoveSuperset,
+        });
       }
     }
-    const setsToPersist: WorkoutSet[] =
-      allSets.length > 0 ? allSets : [{ reps: "", weight: "" }];
-    addExercise({
-      workoutExerciseId: exercise.workoutExerciseId || Date.now().toString(),
-      exerciseId: exercise.exerciseId,
-      name: exercise.name,
-      bodyParts: exercise.bodyParts,
-      sets: setsToPersist,
-      note: note.trim(),
-      durationSeconds: exercise.durationSeconds,
-      draftReps: overrides?.draftReps ?? currentReps,
-      draftWeight: overrides?.draftWeight ?? currentWeight,
-      weightUnit: overrides?.weightUnit ?? overrideUnit,
-    });
-  };
-
-  useImperativeHandle(ref, () => ({ save: saveExercise }));
-
-  const handleSave = (callback: () => void) => {
-    saveExercise();
-    callback();
-  };
-
-  const handleLogSet = () => {
-    if (!currentReps.trim() || !currentWeight.trim()) return;
-    if (editing) {
-      const reps = currentReps.trim();
-      // Persisted set weight is canonical lbs; the input is in the display unit.
-      const weight = inputToLbs(currentWeight.trim());
-      const editingId = editing.id;
-      const insertAt = editing.originalIndex;
-      const previousReps = editing.previousReps;
-      const previousWeight = editing.previousWeight;
-      const nextLogged = [...loggedSets];
-      nextLogged.splice(insertAt, 0, { id: editingId, reps, weight });
-      setLoggedSets(nextLogged);
-      setCurrentReps(previousReps);
-      setCurrentWeight(previousWeight);
-      setEditing(null);
-      Keyboard.dismiss();
-      // Pass the new state explicitly — addExercise is write-through, but it
-      // would otherwise read stale closure values from loggedSets/currentReps.
-      saveExercise({
-        sets: nextLogged.map(({ reps: r, weight: w }) => ({
-          reps: r,
-          weight: w,
-        })),
-        draftReps: previousReps,
-        draftWeight: previousWeight,
+    if (onSwapExercise) {
+      menuItems.push({
+        key: "swap",
+        label: "Swap",
+        systemImage: "arrow.left.arrow.right",
+        onPress: handleSwapPress,
       });
-      return;
-    }
-    const nextLogged: LoggedSet[] = [
-      ...loggedSets,
-      {
-        id: Date.now().toString(),
-        reps: currentReps.trim(),
-        // Store canonical lbs; the input is in the display unit.
-        weight: inputToLbs(currentWeight.trim()),
-      },
-    ];
-    setLoggedSets(nextLogged);
-    setCurrentReps("");
-    Keyboard.dismiss();
-    saveExercise({
-      sets: nextLogged.map(({ reps, weight }) => ({ reps, weight })),
-      draftReps: "",
-      draftWeight: currentWeight,
-    });
-  };
-
-  const handleEditSet = (set: LoggedSet) => {
-    let workingSets = loggedSets;
-    let stashedPrevReps = currentReps;
-    let stashedPrevWeight = currentWeight;
-
-    if (editing) {
-      if (editing.id === set.id) return;
-      const reps = currentReps.trim() || editing.originalReps;
-      // currentWeight is in the display unit; originalWeight is already lbs.
-      const weight = currentWeight.trim()
-        ? inputToLbs(currentWeight.trim())
-        : editing.originalWeight;
-      workingSets = [...loggedSets];
-      workingSets.splice(editing.originalIndex, 0, {
-        id: editing.id,
-        reps,
-        weight,
-      });
-      stashedPrevReps = editing.previousReps;
-      stashedPrevWeight = editing.previousWeight;
     }
 
-    const idx = workingSets.findIndex((s) => s.id === set.id);
-    if (idx < 0) return;
-
-    setLoggedSets(workingSets.filter((s) => s.id !== set.id));
-    setEditing({
-      id: set.id,
-      originalIndex: idx,
-      originalReps: set.reps,
-      originalWeight: set.weight,
-      previousReps: stashedPrevReps,
-      previousWeight: stashedPrevWeight,
-    });
-    setCurrentReps(set.reps);
-    // Stored set weight is canonical lbs; show it in the display unit.
-    setCurrentWeight(lbsToInput(set.weight));
-  };
-
-  const getDisplayIdx = (arrayIdx: number) =>
-    editing && arrayIdx >= editing.originalIndex ? arrayIdx + 1 : arrayIdx;
-
-  const setNumberLabel = editing
-    ? editing.originalIndex + 1
-    : loggedSets.length + 1;
-
-  useEffect(() => {
-    const listener = Keyboard.addListener("keyboardDidHide", () => {
-      saveExercise();
-    });
-    return () => listener.remove();
-  }, [loggedSets, currentReps, currentWeight, note, editing]);
-
-  const canLog = !!currentReps.trim() && !!currentWeight.trim();
-  const timerValue = showingTotal ? seconds : exerciseSeconds;
-
-  const openNoteModal = () => {
-    setNoteDraft(note);
-    setNoteModalVisible(true);
-  };
-
-  const saveNote = () => {
-    setNote(noteDraft);
-    setNoteModalVisible(false);
-  };
-
-  const handleInfoPress = () => {
-    navigation.navigate("ExerciseHistory", { exercise });
-  };
-
-  const handleSwapPress = () => {
-    if (!onSwapExercise) return;
-    Alert.alert("Swap exercise?", "All current exercise data will be lost.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Swap",
-        style: "destructive",
-        onPress: () => onSwapExercise(),
-      },
-    ]);
-  };
-
-  return (
-    <>
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-        <View
-          style={[
-            styles.container,
-            { backgroundColor: colors.bg, paddingTop: insets.top },
-          ]}
-        >
-          <FloatingCloseButton onPress={() => dismissWorkoutFlow(navigation)} />
-          <View style={styles.topBar}>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => setShowingTotal((v) => !v)}
-              style={styles.timerTap}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Image
-                source={stopwatch}
-                style={[styles.timerIcon, { tintColor: colors.text }]}
-              />
-              <Text style={[styles.timerText, { color: colors.text }]}>
-                {formatTime(timerValue)}
-              </Text>
-              {showingTotal && (
-                <Text
-                  style={[styles.timerCaption, { color: colors.textMuted }]}
-                >
-                  TOTAL
-                </Text>
-              )}
-            </TouchableOpacity>
-            <View style={styles.topBarActions}>
-              <TouchableOpacity
-                onPress={openNoteModal}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                style={[
-                  styles.topBarButton,
-                  {
-                    backgroundColor: glassAvailable
-                      ? "transparent"
-                      : colors.chipBg,
-                    borderColor: glassAvailable ? "transparent" : colors.border,
-                    borderWidth: glassAvailable ? 0 : StyleSheet.hairlineWidth,
-                  },
-                ]}
-              >
-                {glassAvailable && (
-                  <GlassView
-                    style={[
-                      StyleSheet.absoluteFillObject,
-                      { borderRadius: 20 },
-                    ]}
-                    glassEffectStyle="regular"
-                    isInteractive
-                  />
-                )}
-                <SymbolView
-                  name={note.trim() ? "note.text" : "square.and.pencil"}
-                  tintColor={colors.text}
-                  size={20}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleInfoPress}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                style={[
-                  styles.topBarButton,
-                  {
-                    backgroundColor: glassAvailable
-                      ? "transparent"
-                      : colors.chipBg,
-                    borderColor: glassAvailable ? "transparent" : colors.border,
-                    borderWidth: glassAvailable ? 0 : StyleSheet.hairlineWidth,
-                  },
-                ]}
-              >
-                {glassAvailable && (
-                  <GlassView
-                    style={[
-                      StyleSheet.absoluteFillObject,
-                      { borderRadius: 20 },
-                    ]}
-                    glassEffectStyle="regular"
-                    isInteractive
-                  />
-                )}
-                <SymbolView
-                  name="chart.xyaxis.line"
-                  tintColor={colors.text}
-                  size={20}
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
+    return (
+      <>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
           <View
-            style={[styles.divider, { borderBottomColor: colors.border }]}
-          />
-
-          <ScrollView
-            style={styles.scroll}
-            contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
-            onScrollBeginDrag={Keyboard.dismiss}
-            showsVerticalScrollIndicator={false}
+            style={[
+              styles.container,
+              { backgroundColor: colors.bg, paddingTop: insets.top },
+            ]}
           >
-            <View style={styles.header}>
-              <Text style={[styles.caption, { color: colors.textMuted }]}>
-                EXERCISE {exerciseNum} · SET {setNumberLabel}
-              </Text>
+            <FloatingCloseButton
+              onPress={() => dismissWorkoutFlow(navigation)}
+            />
+            <View style={styles.topBar}>
               <TouchableOpacity
-                onPress={handleSwapPress}
-                activeOpacity={0.6}
-                disabled={!onSwapExercise}
-                style={styles.titleRow}
-                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                activeOpacity={0.7}
+                onPress={() => setShowingTotal((v) => !v)}
+                style={styles.timerTap}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Text
-                  style={[styles.title, { color: colors.text }]}
-                  numberOfLines={2}
-                >
-                  {exercise.name}
+                <Image
+                  source={stopwatch}
+                  style={[styles.timerIcon, { tintColor: colors.text }]}
+                />
+                <Text style={[styles.timerText, { color: colors.text }]}>
+                  {formatTime(timerValue)}
                 </Text>
-                {onSwapExercise && (
-                  <SymbolView
-                    name="arrow.left.arrow.right"
-                    tintColor={colors.textMuted}
-                    size={22}
-                    style={styles.titleSwapIcon}
-                  />
+                {showingTotal && (
+                  <Text
+                    style={[styles.timerCaption, { color: colors.textMuted }]}
+                  >
+                    TOTAL
+                  </Text>
                 )}
               </TouchableOpacity>
+              <View style={styles.topBarActions}>
+                <TouchableOpacity
+                  onPress={openNoteModal}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={[
+                    styles.topBarButton,
+                    {
+                      backgroundColor: glassAvailable
+                        ? "transparent"
+                        : colors.chipBg,
+                      borderColor: glassAvailable
+                        ? "transparent"
+                        : colors.border,
+                      borderWidth: glassAvailable
+                        ? 0
+                        : StyleSheet.hairlineWidth,
+                    },
+                  ]}
+                >
+                  {glassAvailable && (
+                    <GlassView
+                      style={[
+                        StyleSheet.absoluteFillObject,
+                        { borderRadius: 20 },
+                      ]}
+                      glassEffectStyle="regular"
+                      isInteractive
+                    />
+                  )}
+                  <SymbolView
+                    name={note.trim() ? "note.text" : "square.and.pencil"}
+                    tintColor={colors.text}
+                    size={20}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleInfoPress}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={[
+                    styles.topBarButton,
+                    {
+                      backgroundColor: glassAvailable
+                        ? "transparent"
+                        : colors.chipBg,
+                      borderColor: glassAvailable
+                        ? "transparent"
+                        : colors.border,
+                      borderWidth: glassAvailable
+                        ? 0
+                        : StyleSheet.hairlineWidth,
+                    },
+                  ]}
+                >
+                  {glassAvailable && (
+                    <GlassView
+                      style={[
+                        StyleSheet.absoluteFillObject,
+                        { borderRadius: 20 },
+                      ]}
+                      glassEffectStyle="regular"
+                      isInteractive
+                    />
+                  )}
+                  <SymbolView
+                    name="chart.xyaxis.line"
+                    tintColor={colors.text}
+                    size={20}
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
+            <View
+              style={[styles.divider, { borderBottomColor: colors.border }]}
+            />
+
+            <ScrollView
+              style={styles.scroll}
+              contentContainerStyle={styles.scrollContent}
+              keyboardShouldPersistTaps="handled"
+              onScrollBeginDrag={Keyboard.dismiss}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.header}>
+                {isSuperset ? (
+                  <View style={styles.captionRow}>
+                    <SupersetLinkIcon
+                      size={12}
+                      color={colors.textMuted}
+                      strokeWidth={2.4}
+                    />
+                    <Text
+                      style={[
+                        styles.caption,
+                        styles.captionInRow,
+                        { color: colors.textMuted },
+                      ]}
+                    >
+                      SUPERSET · SET {setNumberLabel}
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={[styles.caption, { color: colors.textMuted }]}>
+                    EXERCISE {exerciseNum} · SET {setNumberLabel}
+                  </Text>
+                )}
+                <View style={styles.titleRow}>
+                  <TouchableOpacity
+                    onPress={handleSwapPress}
+                    activeOpacity={0.6}
+                    disabled={!onSwapExercise}
+                    style={styles.titleTap}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  >
+                    <Text
+                      style={[styles.title, { color: colors.text }]}
+                      numberOfLines={2}
+                    >
+                      {exercise.name}
+                    </Text>
+                  </TouchableOpacity>
+                  {menuItems.length > 0 && (
+                    <ExerciseOptionsMenu
+                      items={menuItems}
+                      color={colors.textMuted}
+                    />
+                  )}
+                </View>
+                {isSuperset && nextMember && (
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => hopToPartner(nextMember)}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    style={[
+                      styles.partnerChip,
+                      { borderColor: colors.chipBorder },
+                    ]}
+                  >
+                    <SupersetLinkIcon
+                      size={12}
+                      color={colors.textMuted}
+                      strokeWidth={2.4}
+                    />
+                    <Text
+                      style={[styles.partnerChipName, { color: colors.text }]}
+                      numberOfLines={1}
+                    >
+                      {nextMember.name}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.partnerChipCount,
+                        { color: colors.textFaint },
+                      ]}
+                    >
+                      {nextMemberSetCount}{" "}
+                      {nextMemberSetCount === 1 ? "set" : "sets"}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <View
+                style={[
+                  styles.heroCard,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                    borderWidth: isDark ? 1 : 0,
+                  },
+                ]}
+              >
+                <HeroInput
+                  label="Reps"
+                  value={currentReps}
+                  onChangeText={setCurrentReps}
+                  colors={colors}
+                />
+                <View
+                  style={[
+                    styles.heroDivider,
+                    { backgroundColor: colors.border },
+                  ]}
+                />
+                <HeroInput
+                  label="Weight"
+                  unit={weightUnit}
+                  value={currentWeight}
+                  onChangeText={setCurrentWeight}
+                  colors={colors}
+                  allowDecimal
+                  onUnitPress={handleToggleUnit}
+                />
+                <View
+                  style={[
+                    styles.heroDivider,
+                    { backgroundColor: colors.border },
+                  ]}
+                />
+                <PlateLoaderToggle
+                  colors={colors}
+                  enabled={platesEnabled}
+                  onToggleEnabled={togglePlatesEnabled}
+                  bar={plateBar}
+                  sideTotal={plateSideTotal}
+                  mode={plateMode}
+                  stackCount={plateStack.length}
+                />
+                {platesEnabled && platesOpen && (
+                  <>
+                    <View
+                      style={[
+                        styles.heroDivider,
+                        { backgroundColor: colors.border },
+                      ]}
+                    />
+                    <PlateLoader
+                      colors={colors}
+                      isDark={isDark}
+                      stack={plateStack}
+                      sideTotal={plateSideTotal}
+                      bar={plateBar}
+                      barOn={plateBarOn}
+                      mode={plateMode}
+                      barWeight={BAR_WEIGHT}
+                      plateOptions={PLATE_OPTIONS}
+                      onAddPlate={handleAddPlate}
+                      onPopPlate={handlePopPlate}
+                      onClear={handleClearPlates}
+                      onModeChange={handlePlateModeChange}
+                      onBarToggle={handlePlateBarToggle}
+                    />
+                  </>
+                )}
+              </View>
+
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={handleLogSet}
+                disabled={!canLog}
+                style={[
+                  styles.logButton,
+                  {
+                    backgroundColor: colors.accent,
+                    opacity: canLog ? 1 : 0.4,
+                  },
+                ]}
+              >
+                <Text
+                  style={[styles.logButtonText, { color: colors.accentText }]}
+                >
+                  {editing
+                    ? `Save set ${setNumberLabel}`
+                    : `Log set ${setNumberLabel}`}
+                </Text>
+                <Text
+                  style={[styles.logButtonArrow, { color: colors.accentText }]}
+                >
+                  →
+                </Text>
+              </TouchableOpacity>
+
+              <View style={styles.setsSection}>
+                <View style={styles.setsHeader}>
+                  <Text style={[styles.caption, { color: colors.textMuted }]}>
+                    SETS
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setExpanded((v) => !v)}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    style={styles.setsToggle}
+                  >
+                    <Text
+                      style={[styles.setsCount, { color: colors.textMuted }]}
+                    >
+                      {loggedSets.length} logged
+                    </Text>
+                    <Text
+                      style={[styles.setsChevron, { color: colors.textMuted }]}
+                    >
+                      {expanded ? "▴" : "▾"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {loggedSets.length === 0 ? (
+                  <Text style={[styles.empty, { color: colors.textFaint }]}>
+                    No sets logged yet
+                  </Text>
+                ) : expanded ? (
+                  <View>
+                    {[...loggedSets].reverse().map((item, index) => (
+                      <View key={item.id} style={styles.setRowWrapper}>
+                        <ReanimatedSwipeable
+                          {...getSwipeableProps(item.id)}
+                          containerStyle={stackStyles.swipeContainer}
+                        >
+                          <SetRow
+                            colors={colors}
+                            idx={getDisplayIdx(loggedSets.length - 1 - index)}
+                            reps={item.reps}
+                            weight={item.weight}
+                            unit={weightUnit}
+                            onEdit={() => handleEditSet(item)}
+                          />
+                        </ReanimatedSwipeable>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <StackedSets
+                    colors={colors}
+                    loggedSets={loggedSets}
+                    unit={weightUnit}
+                    onExpand={() => setExpanded(true)}
+                    newestDisplayIdx={getDisplayIdx(loggedSets.length - 1)}
+                    onEditNewest={() =>
+                      handleEditSet(loggedSets[loggedSets.length - 1])
+                    }
+                    getSwipeableProps={getSwipeableProps}
+                  />
+                )}
+              </View>
+            </ScrollView>
 
             <View
               style={[
-                styles.heroCard,
+                styles.footerCard,
                 {
                   backgroundColor: colors.surface,
                   borderColor: colors.border,
@@ -718,254 +1117,117 @@ export const ExerciseDetailContent = forwardRef<
                 },
               ]}
             >
-              <HeroInput
-                label="Reps"
-                value={currentReps}
-                onChangeText={setCurrentReps}
-                colors={colors}
-              />
-              <View
-                style={[styles.heroDivider, { backgroundColor: colors.border }]}
-              />
-              <HeroInput
-                label="Weight"
-                unit={weightUnit}
-                value={currentWeight}
-                onChangeText={setCurrentWeight}
-                colors={colors}
-                allowDecimal
-                onUnitPress={handleToggleUnit}
-              />
-              <View
-                style={[styles.heroDivider, { backgroundColor: colors.border }]}
-              />
-              <PlateLoaderToggle
-                colors={colors}
-                enabled={platesEnabled}
-                onToggleEnabled={togglePlatesEnabled}
-                bar={plateBar}
-                sideTotal={plateSideTotal}
-                mode={plateMode}
-                stackCount={plateStack.length}
-              />
-              {platesEnabled && platesOpen && (
-                <>
-                  <View
-                    style={[
-                      styles.heroDivider,
-                      { backgroundColor: colors.border },
-                    ]}
-                  />
-                  <PlateLoader
-                    colors={colors}
-                    isDark={isDark}
-                    stack={plateStack}
-                    sideTotal={plateSideTotal}
-                    bar={plateBar}
-                    barOn={plateBarOn}
-                    mode={plateMode}
-                    barWeight={BAR_WEIGHT}
-                    plateOptions={PLATE_OPTIONS}
-                    onAddPlate={handleAddPlate}
-                    onPopPlate={handlePopPlate}
-                    onClear={handleClearPlates}
-                    onModeChange={handlePlateModeChange}
-                    onBarToggle={handlePlateBarToggle}
-                  />
-                </>
-              )}
-            </View>
-
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={handleLogSet}
-              disabled={!canLog}
-              style={[
-                styles.logButton,
-                {
-                  backgroundColor: colors.accent,
-                  opacity: canLog ? 1 : 0.4,
-                },
-              ]}
-            >
-              <Text
-                style={[styles.logButtonText, { color: colors.accentText }]}
+              <TouchableOpacity
+                style={styles.footerSecondary}
+                onPress={() => handleSave(onSummary)}
               >
-                {editing
-                  ? `Save set ${setNumberLabel}`
-                  : `Log set ${setNumberLabel}`}
-              </Text>
-              <Text
-                style={[styles.logButtonArrow, { color: colors.accentText }]}
-              >
-                →
-              </Text>
-            </TouchableOpacity>
-
-            <View style={styles.setsSection}>
-              <View style={styles.setsHeader}>
-                <Text style={[styles.caption, { color: colors.textMuted }]}>
-                  SETS
-                </Text>
-                <TouchableOpacity
-                  onPress={() => setExpanded((v) => !v)}
-                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                  style={styles.setsToggle}
+                <Text
+                  style={[styles.footerSecondaryText, { color: colors.text }]}
                 >
-                  <Text style={[styles.setsCount, { color: colors.textMuted }]}>
-                    {loggedSets.length} logged
-                  </Text>
-                  <Text
-                    style={[styles.setsChevron, { color: colors.textMuted }]}
-                  >
-                    {expanded ? "▴" : "▾"}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {loggedSets.length === 0 ? (
-                <Text style={[styles.empty, { color: colors.textFaint }]}>
-                  No sets logged yet
+                  Summary
                 </Text>
-              ) : expanded ? (
-                <View>
-                  {[...loggedSets].reverse().map((item, index) => (
-                    <View key={item.id} style={styles.setRowWrapper}>
-                      <ReanimatedSwipeable
-                        {...getSwipeableProps(item.id)}
-                        containerStyle={stackStyles.swipeContainer}
-                      >
-                        <SetRow
-                          colors={colors}
-                          idx={getDisplayIdx(loggedSets.length - 1 - index)}
-                          reps={item.reps}
-                          weight={item.weight}
-                          unit={weightUnit}
-                          onEdit={() => handleEditSet(item)}
-                        />
-                      </ReanimatedSwipeable>
-                    </View>
-                  ))}
-                </View>
-              ) : (
-                <StackedSets
-                  colors={colors}
-                  loggedSets={loggedSets}
-                  unit={weightUnit}
-                  onExpand={() => setExpanded(true)}
-                  newestDisplayIdx={getDisplayIdx(loggedSets.length - 1)}
-                  onEditNewest={() =>
-                    handleEditSet(loggedSets[loggedSets.length - 1])
-                  }
-                  getSwipeableProps={getSwipeableProps}
-                />
-              )}
-            </View>
-          </ScrollView>
-
-          <View
-            style={[
-              styles.footerCard,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-                borderWidth: isDark ? 1 : 0,
-              },
-            ]}
-          >
-            <TouchableOpacity
-              style={styles.footerSecondary}
-              onPress={() => handleSave(onSummary)}
-            >
-              <Text
-                style={[styles.footerSecondaryText, { color: colors.text }]}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.footerPrimary,
+                  { backgroundColor: colors.accent },
+                ]}
+                onPress={() => handleSave(onAddExercise)}
               >
-                Summary
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.footerPrimary, { backgroundColor: colors.accent }]}
-              onPress={() => handleSave(onAddExercise)}
-            >
-              <Text
-                style={[styles.footerPrimaryText, { color: colors.accentText }]}
-              >
-                Next exercise →
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </TouchableWithoutFeedback>
-      <FloatingKeyboardDismiss />
-      <Modal
-        visible={noteModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setNoteModalVisible(false)}
-      >
-        <TouchableWithoutFeedback onPress={() => setNoteModalVisible(false)}>
-          <View style={styles.modalBackdrop}>
-            <TouchableWithoutFeedback>
-              <View
-                style={[styles.modalCard, { backgroundColor: colors.surface }]}
-              >
-                <Text style={[styles.modalTitle, { color: colors.text }]}>
-                  Note
-                </Text>
-                <TextInput
-                  value={noteDraft}
-                  onChangeText={setNoteDraft}
-                  placeholder="Add a note for this exercise"
-                  placeholderTextColor={colors.textFaint}
-                  multiline
-                  autoFocus
+                <Text
                   style={[
-                    styles.modalInput,
-                    {
-                      color: colors.text,
-                      backgroundColor: colors.chipBg,
-                    },
+                    styles.footerPrimaryText,
+                    { color: colors.accentText },
                   ]}
-                />
-                <View style={styles.modalActions}>
-                  <TouchableOpacity
-                    onPress={() => setNoteModalVisible(false)}
-                    style={styles.modalSecondary}
-                  >
-                    <Text
-                      style={[
-                        styles.modalSecondaryText,
-                        { color: colors.text },
-                      ]}
-                    >
-                      Cancel
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={saveNote}
-                    style={[
-                      styles.modalPrimary,
-                      { backgroundColor: colors.accent },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.modalPrimaryText,
-                        { color: colors.accentText },
-                      ]}
-                    >
-                      Save
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </TouchableWithoutFeedback>
+                >
+                  Next exercise →
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </TouchableWithoutFeedback>
-      </Modal>
-    </>
-  );
-});
+        <FloatingKeyboardDismiss />
+        <Modal
+          visible={noteModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setNoteModalVisible(false)}
+        >
+          <TouchableWithoutFeedback onPress={() => setNoteModalVisible(false)}>
+            <View style={styles.modalBackdrop}>
+              <TouchableWithoutFeedback>
+                <View
+                  style={[
+                    styles.modalCard,
+                    { backgroundColor: colors.surface },
+                  ]}
+                >
+                  <Text style={[styles.modalTitle, { color: colors.text }]}>
+                    Note
+                  </Text>
+                  <TextInput
+                    value={noteDraft}
+                    onChangeText={setNoteDraft}
+                    placeholder="Add a note for this exercise"
+                    placeholderTextColor={colors.textFaint}
+                    multiline
+                    autoFocus
+                    style={[
+                      styles.modalInput,
+                      {
+                        color: colors.text,
+                        backgroundColor: colors.chipBg,
+                      },
+                    ]}
+                  />
+                  <View style={styles.modalActions}>
+                    <TouchableOpacity
+                      onPress={() => setNoteModalVisible(false)}
+                      style={styles.modalSecondary}
+                    >
+                      <Text
+                        style={[
+                          styles.modalSecondaryText,
+                          { color: colors.text },
+                        ]}
+                      >
+                        Cancel
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={saveNote}
+                      style={[
+                        styles.modalPrimary,
+                        { backgroundColor: colors.accent },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.modalPrimaryText,
+                          { color: colors.accentText },
+                        ]}
+                      >
+                        Save
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </TouchableWithoutFeedback>
+            </View>
+          </TouchableWithoutFeedback>
+        </Modal>
+        <SupersetPartnerSheet
+          visible={partnerSheetVisible}
+          options={sheetOptions}
+          onPick={handlePickPartner}
+          onPickFromLibrary={handlePickFromLibrary}
+          onClose={() => setPartnerSheetVisible(false)}
+          onClosed={handlePartnerSheetClosed}
+        />
+      </>
+    );
+  },
+);
 
 function EditPencilIcon({ color }: { color: string }) {
   return (
@@ -1591,10 +1853,27 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
 
+  captionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    marginBottom: 6,
+  },
+
+  captionInRow: {
+    marginBottom: 0,
+  },
+
   titleRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
+  },
+
+  // The name claims the row's width so the ellipsis menu stays pinned to the
+  // right edge regardless of lift-name length.
+  titleTap: {
+    flex: 1,
   },
 
   title: {
@@ -1605,9 +1884,28 @@ const styles = StyleSheet.create({
     lineHeight: 36,
   },
 
-  titleSwapIcon: {
-    width: 22,
-    height: 22,
+  partnerChip: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderRadius: 20,
+  },
+
+  partnerChipName: {
+    flexShrink: 1,
+    fontSize: 13,
+    fontWeight: "600",
+    letterSpacing: -0.1,
+  },
+
+  partnerChipCount: {
+    fontSize: 13,
+    fontWeight: "500",
   },
 
   heroCard: {

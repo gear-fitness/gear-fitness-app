@@ -13,13 +13,81 @@ import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { getRoutineDetail, deleteRoutine } from "../../api/routineService";
-import { Routine } from "../../api/types";
+import { Routine, RoutineExercise } from "../../api/types";
 import { useWorkoutTimer } from "../../context/WorkoutContext";
 import { formatDay } from "../../utils/days";
 import { useThemeColors } from "../../hooks/useThemeColors";
 import { formatPrimaryBodyParts } from "../../utils/exerciseUtils";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 import { Spinner } from "../../components/Spinner";
+
+/**
+ * A display unit in the exercise card: either one ungrouped exercise or a
+ * run of CONSECUTIVE exercises sharing a non-null supersetGroup. Runs of one
+ * (degraded data) render ungrouped, mirroring the server adjacency rule.
+ */
+type RoutineDisplayBlock = {
+  key: string;
+  exercises: RoutineExercise[];
+  grouped: boolean;
+};
+
+function buildSupersetBlocks(
+  exercises: RoutineExercise[],
+): RoutineDisplayBlock[] {
+  const blocks: RoutineDisplayBlock[] = [];
+  let i = 0;
+  while (i < exercises.length) {
+    const g = exercises[i].supersetGroup;
+    if (g == null) {
+      blocks.push({
+        key: exercises[i].routineExerciseId,
+        exercises: [exercises[i]],
+        grouped: false,
+      });
+      i++;
+      continue;
+    }
+    let j = i;
+    while (j < exercises.length && exercises[j].supersetGroup === g) j++;
+    if (j - i >= 2) {
+      blocks.push({
+        key: `sg-${g}-${exercises[i].routineExerciseId}`,
+        exercises: exercises.slice(i, j),
+        grouped: true,
+      });
+    } else {
+      blocks.push({
+        key: exercises[i].routineExerciseId,
+        exercises: [exercises[i]],
+        grouped: false,
+      });
+    }
+    i = j;
+  }
+  return blocks;
+}
+
+function LinkGlyph({ color, size = 12 }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
+        stroke={color}
+        strokeWidth={2.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+        stroke={color}
+        strokeWidth={2.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
 
 function useSkeletonPulse() {
   const opacity = useRef(new Animated.Value(0.4)).current;
@@ -214,6 +282,7 @@ export function RoutineDetail({
           exerciseId: ex.exerciseId,
           name: ex.exerciseName,
           bodyParts: ex.bodyParts,
+          supersetGroup: ex.supersetGroup,
         })),
       );
       (navigation as any).navigate("WorkoutFlow", {
@@ -314,6 +383,28 @@ export function RoutineDetail({
     );
   }
 
+  const blocks = buildSupersetBlocks(routine.exercises);
+
+  const renderExerciseRow = (ex: RoutineExercise) => (
+    <View style={styles.exerciseRow}>
+      <View
+        style={[styles.positionBadge, { backgroundColor: colors.positionBg }]}
+      >
+        <Text style={[styles.positionText, { color: colors.secondary }]}>
+          {ex.position}
+        </Text>
+      </View>
+      <View style={styles.exerciseInfo}>
+        <Text style={[styles.exerciseName, { color: colors.text }]}>
+          {ex.exerciseName}
+        </Text>
+        <Text style={[styles.exerciseBodyPart, { color: colors.secondary }]}>
+          {formatPrimaryBodyParts(ex.bodyParts)}
+        </Text>
+      </View>
+    </View>
+  );
+
   return (
     <View style={[styles.container, { backgroundColor: colors.appBg }]}>
       <FloatingCloseButton direction="left" accessibilityLabel="Back" />
@@ -397,45 +488,54 @@ export function RoutineDetail({
               No exercises in this routine yet.
             </Text>
           ) : (
-            routine.exercises.map((ex, index) => (
-              <View key={ex.routineExerciseId}>
-                <View style={styles.exerciseRow}>
-                  <View
-                    style={[
-                      styles.positionBadge,
-                      { backgroundColor: colors.positionBg },
-                    ]}
-                  >
+            blocks.map((block, bi) =>
+              block.grouped ? (
+                <View
+                  key={block.key}
+                  style={[
+                    styles.supersetContainer,
+                    {
+                      borderColor: colors.cardBorder,
+                      backgroundColor: colors.cardBg,
+                    },
+                  ]}
+                >
+                  <View style={styles.supersetHeader}>
+                    <LinkGlyph color={colors.secondary} />
                     <Text
-                      style={[styles.positionText, { color: colors.secondary }]}
+                      style={[styles.supersetLabel, { color: colors.secondary }]}
                     >
-                      {ex.position}
+                      SUPERSET
                     </Text>
                   </View>
-                  <View style={styles.exerciseInfo}>
-                    <Text style={[styles.exerciseName, { color: colors.text }]}>
-                      {ex.exerciseName}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.exerciseBodyPart,
-                        { color: colors.secondary },
-                      ]}
-                    >
-                      {formatPrimaryBodyParts(ex.bodyParts)}
-                    </Text>
-                  </View>
+                  {block.exercises.map((ex, j) => (
+                    <View key={ex.routineExerciseId}>
+                      {renderExerciseRow(ex)}
+                      {j < block.exercises.length - 1 && (
+                        <View
+                          style={[
+                            styles.separator,
+                            { backgroundColor: colors.separator },
+                          ]}
+                        />
+                      )}
+                    </View>
+                  ))}
                 </View>
-                {index < routine.exercises.length - 1 && (
-                  <View
-                    style={[
-                      styles.separator,
-                      { backgroundColor: colors.separator },
-                    ]}
-                  />
-                )}
-              </View>
-            ))
+              ) : (
+                <View key={block.key}>
+                  {renderExerciseRow(block.exercises[0])}
+                  {bi < blocks.length - 1 && !blocks[bi + 1].grouped && (
+                    <View
+                      style={[
+                        styles.separator,
+                        { backgroundColor: colors.separator },
+                      ]}
+                    />
+                  )}
+                </View>
+              ),
+            )
           )}
         </View>
 
@@ -577,6 +677,26 @@ const styles = StyleSheet.create({
   separator: {
     height: StyleSheet.hairlineWidth,
     marginLeft: 60,
+  },
+  supersetContainer: {
+    borderWidth: 1,
+    borderRadius: 12,
+    overflow: "hidden",
+    marginHorizontal: 12,
+    marginVertical: 8,
+  },
+  supersetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    paddingTop: 10,
+    paddingHorizontal: 12,
+    paddingBottom: 2,
+  },
+  supersetLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    letterSpacing: 1,
   },
   emptyText: {
     textAlign: "center",

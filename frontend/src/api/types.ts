@@ -132,6 +132,10 @@ export interface WorkoutExercise {
   position: number;
   note: string | null;
   sets: WorkoutSet[];
+  // Superset membership: consecutive exercises sharing a value form one
+  // superset. Optional (may also be null from the server) so responses and
+  // caches from before the field existed still parse; absence means ungrouped.
+  supersetGroup?: number | null;
 }
 
 export interface WorkoutDetail {
@@ -157,6 +161,8 @@ export interface RoutineExercise {
   bodyParts: BodyPartDTO[];
   position: number;
   exerciseId: string;
+  // Superset membership; same contract as WorkoutExercise.supersetGroup.
+  supersetGroup?: number | null;
 }
 
 export interface Routine {

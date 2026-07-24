@@ -43,6 +43,11 @@ export interface WorkoutExercise {
   // app-wide default. Workout-scoped: a fresh workout starts without it, so it
   // resets to the global default. `weight` stays canonical lbs.
   weightUnit?: WeightUnit;
+  // Superset membership: exercises sharing a value form one superset, and its
+  // members are kept adjacent in the array (every mutation below preserves
+  // that invariant). Undefined means ungrouped. Additive and optional, so
+  // persisted blobs restore fine with no WORKOUT_STATE_VERSION bump.
+  supersetGroup?: number;
 }
 
 export type LastModalScreen = "WorkoutSummary" | "ExerciseDetail" | null;
@@ -147,6 +152,13 @@ interface WorkoutContextValue {
       bodyParts?: BodyPartDTO[];
     },
   ) => void;
+  // Put `partnerId` in `targetId`'s superset (minting a new group id when the
+  // target is ungrouped) and move it to immediately after the group's last
+  // member so members stay contiguous.
+  linkExercises: (targetId: string, partnerId: string) => void;
+  // Take the exercise out of its superset. A one-member superset isn't a
+  // superset, so if the group drops to a single survivor it is cleared too.
+  unlinkExercise: (workoutExerciseId: string) => void;
   // True when there's an in-flight workout: any exercises, a running timer,
   // or accumulated elapsed time. Use this to gate new-workout entry points
   // (routines etc.) so a Start tap doesn't silently destroy a live workout.
@@ -173,7 +185,11 @@ interface WorkoutContextValue {
   setLastModalScreen: (screen: LastModalScreen) => void;
 
   loadFromRoutine: (
-    exercises: Array<{ exerciseId: string; name: string }>,
+    exercises: Array<{
+      exerciseId: string;
+      name: string;
+      supersetGroup?: number | null;
+    }>,
   ) => Promise<void>;
 }
 
@@ -578,8 +594,17 @@ export function WorkoutTimerProvider({
         (e) => e.workoutExerciseId === exercise.workoutExerciseId,
       );
       if (exists) {
+        // addExercise is a sets/drafts write-through; group membership is
+        // owned by link/unlink/remove/swap. Callers (ExerciseDetail's save)
+        // don't carry supersetGroup, so this wholesale replace must keep the
+        // existing one or every save would silently dissolve the superset.
         return prev.map((e) =>
-          e.workoutExerciseId === exercise.workoutExerciseId ? exercise : e,
+          e.workoutExerciseId === exercise.workoutExerciseId
+            ? {
+                ...exercise,
+                supersetGroup: exercise.supersetGroup ?? e.supersetGroup,
+              }
+            : e,
         );
       }
       return [...prev, exercise];
@@ -601,12 +626,124 @@ export function WorkoutTimerProvider({
     );
   };
 
+  // A superset needs 2+ members. Clear the field on any exercise whose group
+  // has shrunk to a single survivor. Shared by every mutation that can shrink
+  // a group; returns `list` untouched when nothing needs clearing.
+  const dissolveSingletonGroups = (
+    list: WorkoutExercise[],
+  ): WorkoutExercise[] => {
+    const memberCounts = new Map<number, number>();
+    for (const ex of list) {
+      if (ex.supersetGroup === undefined) continue;
+      memberCounts.set(
+        ex.supersetGroup,
+        (memberCounts.get(ex.supersetGroup) ?? 0) + 1,
+      );
+    }
+    let changed = false;
+    const next = list.map((ex) => {
+      if (
+        ex.supersetGroup !== undefined &&
+        (memberCounts.get(ex.supersetGroup) ?? 0) < 2
+      ) {
+        changed = true;
+        return { ...ex, supersetGroup: undefined };
+      }
+      return ex;
+    });
+    return changed ? next : list;
+  };
+
   const removeExercise = (workoutExerciseId: string) => {
     if (suppressWritesRef.current) return;
     setImmediateSaveCounter((c) => c + 1);
+    // Deleting a superset member can leave its group with one survivor;
+    // dissolve it. Removal never splits the remaining members, so contiguity
+    // is preserved without any reordering.
     setExercises((prev) =>
-      prev.filter((ex) => ex.workoutExerciseId !== workoutExerciseId),
+      dissolveSingletonGroups(
+        prev.filter((ex) => ex.workoutExerciseId !== workoutExerciseId),
+      ),
     );
+  };
+
+  // Add `partnerId` to `targetId`'s superset. If the target is ungrouped, a
+  // fresh numeric group id is minted as max(existing ids) + 1 and stamped on
+  // both. The partner MOVES to immediately after the group's last member, so
+  // the contiguity invariant holds by construction.
+  const linkExercises = (targetId: string, partnerId: string) => {
+    if (suppressWritesRef.current) return;
+    setImmediateSaveCounter((c) => c + 1);
+    setExercises((prev) => {
+      if (targetId === partnerId) return prev;
+      const target = prev.find((ex) => ex.workoutExerciseId === targetId);
+      const partner = prev.find((ex) => ex.workoutExerciseId === partnerId);
+      if (!target || !partner) return prev;
+
+      const groupId =
+        target.supersetGroup ??
+        Math.max(0, ...prev.map((ex) => ex.supersetGroup ?? 0)) + 1;
+
+      // Pull the partner out, stamp the target's group, then reinsert the
+      // partner right after the group's last remaining member.
+      const without = prev
+        .filter((ex) => ex.workoutExerciseId !== partnerId)
+        .map((ex) =>
+          ex.workoutExerciseId === targetId
+            ? { ...ex, supersetGroup: groupId }
+            : ex,
+        );
+      let lastMemberIndex = -1;
+      for (let i = 0; i < without.length; i++) {
+        if (without[i].supersetGroup === groupId) lastMemberIndex = i;
+      }
+      const next = [...without];
+      next.splice(lastMemberIndex + 1, 0, {
+        ...partner,
+        supersetGroup: groupId,
+      });
+      // The partner sheet only offers ungrouped exercises, but if the partner
+      // somehow came out of another group, that group may now be a singleton.
+      return dissolveSingletonGroups(next);
+    });
+  };
+
+  // Take one exercise out of its superset. Unlinking a MIDDLE member of a 3+
+  // group would leave the survivors split around it, so in that case the
+  // unlinked exercise moves to just past the group's last member; unlinking
+  // the first or last member disturbs no one. A single survivor is cleared.
+  const unlinkExercise = (workoutExerciseId: string) => {
+    if (suppressWritesRef.current) return;
+    setImmediateSaveCounter((c) => c + 1);
+    setExercises((prev) => {
+      const index = prev.findIndex(
+        (ex) => ex.workoutExerciseId === workoutExerciseId,
+      );
+      if (index === -1) return prev;
+      const groupId = prev[index].supersetGroup;
+      if (groupId === undefined) return prev;
+
+      const next = prev.map((ex) =>
+        ex.workoutExerciseId === workoutExerciseId
+          ? { ...ex, supersetGroup: undefined }
+          : ex,
+      );
+      const memberIndexes: number[] = [];
+      for (let i = 0; i < next.length; i++) {
+        if (next[i].supersetGroup === groupId) memberIndexes.push(i);
+      }
+      if (memberIndexes.length > 0) {
+        const first = memberIndexes[0];
+        const last = memberIndexes[memberIndexes.length - 1];
+        if (index > first && index < last) {
+          const [moved] = next.splice(index, 1);
+          // `last` shifted down by one when the earlier element was removed,
+          // so inserting at `last` lands immediately after the group.
+          next.splice(last, 0, moved);
+        }
+      }
+      return dissolveSingletonGroups(next);
+    });
   };
 
   const reorderExercises = (orderedIds: string[]) => {
@@ -650,6 +787,9 @@ export function WorkoutTimerProvider({
               durationSeconds: 0,
               draftReps: "",
               draftWeight: "",
+              // The replacement takes the outgoing exercise's superset slot;
+              // position is unchanged, so contiguity is unaffected.
+              supersetGroup: ex.supersetGroup,
             }
           : ex,
       ),
@@ -812,6 +952,7 @@ export function WorkoutTimerProvider({
       exerciseId: string;
       name: string;
       bodyParts?: BodyPartDTO[];
+      supersetGroup?: number | null;
     }>,
   ): Promise<void> => {
     // Fully reset any prior workout first (also engages the write barrier
@@ -825,6 +966,8 @@ export function WorkoutTimerProvider({
         name: ex.name,
         bodyParts: ex.bodyParts,
         sets: [{ reps: "", weight: "" }],
+        // Server nulls mean ungrouped; the client field is undefined-based.
+        supersetGroup: ex.supersetGroup ?? undefined,
       }),
     );
 
@@ -890,6 +1033,8 @@ export function WorkoutTimerProvider({
         removeExercise,
         reorderExercises,
         swapExercise,
+        linkExercises,
+        unlinkExercise,
         hasActiveWorkout,
         playerVisible,
         currentExerciseId,

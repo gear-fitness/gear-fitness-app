@@ -1,4 +1,7 @@
 import apiClient from "../api/apiClient";
+// Type-only, so the runtime routineService -> routineQueue import direction
+// stays acyclic.
+import type { RoutineExerciseInput } from "../api/routineService";
 import { isNetworkError } from "./network";
 import {
   CACHE_KEYS,
@@ -17,6 +20,10 @@ export type PendingRoutinePayload =
       name: string;
       scheduledDays: string[];
       exerciseIds: string[];
+      // Structured entries carrying supersetGroup, stored alongside the flat
+      // id list and replayed verbatim at flush time. Optional so queue
+      // entries persisted before the field existed still parse.
+      exercises?: RoutineExerciseInput[];
     }
   | {
       kind: "fromWorkout";
@@ -119,6 +126,12 @@ export async function flushRoutineQueue(): Promise<number> {
             name: item.payload.name,
             scheduledDays: item.payload.scheduledDays,
             exerciseIds: item.payload.exerciseIds,
+            // Both shapes, matching createRoutine's online path. Derive the
+            // structured entries for pre-supersets queue entries so the two
+            // paths send identical payloads.
+            exercises:
+              item.payload.exercises ??
+              item.payload.exerciseIds.map((exerciseId) => ({ exerciseId })),
           });
         } else {
           await apiClient.post("/routines/from-workout", {

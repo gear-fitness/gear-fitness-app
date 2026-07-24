@@ -47,6 +47,9 @@ export interface ExerciseSubmission {
   exerciseId: string;
   note?: string;
   sets: SetSubmission[];
+  // Superset membership, normalized to 1..N by first appearance at build
+  // time; omitted for ungrouped exercises. Old backends ignore the field.
+  supersetGroup?: number;
 }
 
 export interface SetSubmission {
@@ -66,6 +69,9 @@ export interface WorkoutDetailResponse {
     bodyParts: BodyPartDTO[];
     position: number;
     note: string;
+    // Optional and possibly null: old backends omit it, new ones send null
+    // for ungrouped exercises.
+    supersetGroup?: number | null;
     sets: Array<{
       workoutSetId: string;
       setNumber: number;
@@ -95,6 +101,7 @@ function responseToDetail(res: WorkoutDetailResponse): WorkoutDetail {
       bodyParts: ex.bodyParts ?? [],
       position: ex.position,
       note: ex.note ?? null,
+      supersetGroup: ex.supersetGroup ?? null,
       sets: ex.sets.map((s) => ({
         workoutSetId: s.workoutSetId,
         setNumber: s.setNumber,
@@ -262,6 +269,7 @@ async function synthesizePendingDetail(
         bodyParts: match?.bodyParts ?? [],
         position,
         note: ex.note ?? null,
+        supersetGroup: ex.supersetGroup ?? null,
         sets: ex.sets.map((s, idx) => ({
           workoutSetId: `${workoutId}_ex_${position}_set_${idx}`,
           setNumber: idx + 1,

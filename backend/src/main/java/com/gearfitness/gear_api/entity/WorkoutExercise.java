@@ -40,6 +40,9 @@ public class WorkoutExercise {
   @Column(nullable = false)
   private Integer position;
 
+  @Column(name = "superset_group")
+  private Integer supersetGroup;
+
   @Column(columnDefinition = "TEXT")
   private String note;
 

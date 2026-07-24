@@ -42,6 +42,7 @@ public class WorkoutSubmissionDTO {
 
     private UUID exerciseId;
     private String note;
+    private Integer supersetGroup;
     private List<SetSubmissionDTO> sets;
   }
 

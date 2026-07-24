@@ -270,31 +270,55 @@ export function WorkoutComplete() {
     // Photo fields (imageUrl/photoUrls) are deliberately absent: photos ride
     // on the queue entry as local URIs and are compressed + uploaded at
     // flush time.
-    const buildSubmission = (): WorkoutSubmission => ({
-      name: workoutName,
-      durationMin,
-      // Date the workout by when it was STARTED, not when it's submitted, so a
-      // session that crosses local midnight counts on the day training began.
-      // Falls back to "now" if the start stamp is somehow missing.
-      datePerformed:
-        workoutStartedAtEpoch != null
-          ? getLocalDateStringFromEpoch(workoutStartedAtEpoch)
-          : getCurrentLocalDateString(),
-      bodyTags: bodyTags, // Send all selected tags to backend
-      exercises: exercises.map((ex) => ({
-        exerciseId: ex.exerciseId,
-        sets: ex.sets.map((set) => ({
-          reps: set.reps,
-          weight: set.weight,
+    const buildSubmission = (): WorkoutSubmission => {
+      // Renumber superset ids to 1..N in first-appearance order and strip any
+      // group left with fewer than 2 members; ungrouped exercises (and
+      // stripped singletons) omit the field entirely.
+      const groupCounts = new Map<number, number>();
+      for (const ex of exercises) {
+        if (ex.supersetGroup === undefined) continue;
+        groupCounts.set(
+          ex.supersetGroup,
+          (groupCounts.get(ex.supersetGroup) ?? 0) + 1,
+        );
+      }
+      const renumbered = new Map<number, number>();
+      const normalizeGroup = (
+        group: number | undefined,
+      ): number | undefined => {
+        if (group === undefined) return undefined;
+        if ((groupCounts.get(group) ?? 0) < 2) return undefined;
+        if (!renumbered.has(group)) renumbered.set(group, renumbered.size + 1);
+        return renumbered.get(group);
+      };
+
+      return {
+        name: workoutName,
+        durationMin,
+        // Date the workout by when it was STARTED, not when it's submitted, so a
+        // session that crosses local midnight counts on the day training began.
+        // Falls back to "now" if the start stamp is somehow missing.
+        datePerformed:
+          workoutStartedAtEpoch != null
+            ? getLocalDateStringFromEpoch(workoutStartedAtEpoch)
+            : getCurrentLocalDateString(),
+        bodyTags: bodyTags, // Send all selected tags to backend
+        exercises: exercises.map((ex) => ({
+          exerciseId: ex.exerciseId,
+          sets: ex.sets.map((set) => ({
+            reps: set.reps,
+            weight: set.weight,
+          })),
+          note: ex.note || "",
+          supersetGroup: normalizeGroup(ex.supersetGroup),
         })),
-        note: ex.note || "",
-      })),
-      // Privacy model: always create a post; the visibility selector controls
-      // the audience (PUBLIC / FRIENDS / PRIVATE), where PRIVATE is "Only me".
-      createPost: true,
-      visibility,
-      caption: caption || undefined,
-    });
+        // Privacy model: always create a post; the visibility selector controls
+        // the audience (PUBLIC / FRIENDS / PRIVATE), where PRIVATE is "Only me".
+        createPost: true,
+        visibility,
+        caption: caption || undefined,
+      };
+    };
 
     try {
       // COMMIT POINT. Once the entry is in the outbox, the workout is posted

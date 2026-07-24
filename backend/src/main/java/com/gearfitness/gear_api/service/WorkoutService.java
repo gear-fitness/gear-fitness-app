@@ -107,6 +107,7 @@ public class WorkoutService {
             .map(bp -> new BodyPartDTO(bp.getBodyPart(), bp.getTargetType()))
             .toList(),
           we.getPosition(),
+          we.getSupersetGroup(),
           isOwner ? we.getNote() : null,
           sets
         );
@@ -393,8 +394,17 @@ public class WorkoutService {
     workout = workoutRepository.saveAndFlush(workout);
 
     // Create workout exercises
-    int position = 1;
-    for (WorkoutSubmissionDTO.ExerciseSubmissionDTO exerciseDto : submission.getExercises()) {
+    List<Integer> supersetGroups = SupersetHygiene.normalize(
+      submission
+        .getExercises()
+        .stream()
+        .map(WorkoutSubmissionDTO.ExerciseSubmissionDTO::getSupersetGroup)
+        .toList()
+    );
+    for (int i = 0; i < submission.getExercises().size(); i++) {
+      WorkoutSubmissionDTO.ExerciseSubmissionDTO exerciseDto = submission
+        .getExercises()
+        .get(i);
       Exercise exercise = exerciseRepository
         .findById(exerciseDto.getExerciseId())
         .orElseThrow(() -> new IllegalArgumentException("Exercise not found"));
@@ -402,7 +412,8 @@ public class WorkoutService {
       WorkoutExercise workoutExercise = WorkoutExercise.builder()
         .workout(workout)
         .exercise(exercise)
-        .position(position++)
+        .position(i + 1)
+        .supersetGroup(supersetGroups.get(i))
         .note(exerciseDto.getNote())
         .workoutSets(new ArrayList<>())
         .build();

@@ -30,4 +30,7 @@ public class RoutineExercise {
 
   @Column(nullable = false)
   private Integer position;
+
+  @Column(name = "superset_group")
+  private Integer supersetGroup;
 }

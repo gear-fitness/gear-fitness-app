@@ -14,4 +14,8 @@ public class CreateRoutineDTO {
   private String name;
   private List<String> scheduledDays;
   private List<UUID> exerciseIds;
+
+  // Optional - superset-aware clients send this alongside exerciseIds.
+  // When present it wins; exerciseIds stays supported forever.
+  private List<RoutineExerciseEntryDTO> exercises;
 }
