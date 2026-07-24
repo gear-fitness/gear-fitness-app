@@ -1,6 +1,6 @@
 # This is our backend
 
-## How to run
+## How to run backend
 
 1. Set up environment variables
 
