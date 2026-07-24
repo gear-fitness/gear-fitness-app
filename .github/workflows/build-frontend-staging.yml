@@ -19,7 +19,7 @@ concurrency:
 jobs:
   build:
     # Pin an image whose Xcode satisfies the current Expo SDK; bump on SDK upgrades.
-    runs-on: macos-15
+    runs-on: macos-26
     environment: staging
 
     steps:
