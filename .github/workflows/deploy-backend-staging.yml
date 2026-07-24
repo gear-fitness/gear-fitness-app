@@ -13,5 +13,5 @@ jobs:
     uses: ./.github/workflows/deploy-backend-reusable.yml
     with:
       github-environment: staging
-      eb-environment: gear-fitness-staging
+      eb-environment: GearFitness-env-staging
     secrets: inherit
