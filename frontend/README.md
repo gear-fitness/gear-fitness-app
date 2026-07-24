@@ -8,7 +8,7 @@
 cp .env.template .env
 ```
 
-Edit `.env` with the secret variables 🤫 🤐
+Edit `.env` with the secret variables 🤫
 
 2. Install dependencies
 
@@ -22,7 +22,8 @@ npm install
 npm start
 ```
 
-If you install any packages you will need to do a development build: 
+If you install any packages you will need to do a development build:
+
 ```bash
 npx eas build --platform ios --profile development
 ```
