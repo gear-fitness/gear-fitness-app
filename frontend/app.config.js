@@ -4,7 +4,7 @@ const VARIANTS = {
   development: {
     name: "Gear (Dev)",
     bundleIdentifier: "com.gearfitness.dev.build",
-    icon: "./assets/GearLogoInverse.png",
+    icon: "./assets/GearLogoDev.png",
     scheme: "gearfitness",
     googleIosUrlScheme:
       "com.googleusercontent.apps.637676049223-rfl13bv4l2lqs2ncdjvah95g0d01f076",
@@ -12,9 +12,7 @@ const VARIANTS = {
   staging: {
     name: "Gear (Staging)",
     bundleIdentifier: "com.gearfitness.staging",
-    icon: "./assets/GearLogoInverse.png",
-    // Distinct scheme so deep links don't open the wrong app when several
-    // variants are installed side by side.
+    icon: "./assets/GearLogoStaging.png",
     scheme: "gearfitness-staging",
     googleIosUrlScheme:
       "com.googleusercontent.apps.637676049223-rfl13bv4l2lqs2ncdjvah95g0d01f076",
