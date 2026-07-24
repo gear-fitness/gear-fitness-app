@@ -1,12 +1,7 @@
 import React from "react";
-import {
-  View,
-  StyleSheet,
-  ActivityIndicator,
-  StyleProp,
-  ViewStyle,
-} from "react-native";
+import { View, StyleSheet, StyleProp, ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { Spinner } from "./Spinner";
 
 type Props = {
   children: React.ReactNode;
@@ -32,12 +27,12 @@ export function AvatarWithCameraOverlay({
           ]}
           pointerEvents="none"
         >
-          <ActivityIndicator size="large" color="#fff" />
+          <Spinner size="large" color="#fff" />
         </View>
       )}
       <View style={styles.badge} pointerEvents="none">
         {uploading ? (
-          <ActivityIndicator size="small" color="#fff" />
+          <Spinner size="small" color="#fff" />
         ) : (
           <Ionicons name="camera" size={14} color="#fff" />
         )}

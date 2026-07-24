@@ -315,11 +315,48 @@ public class WorkoutService {
     return dailyVolumes;
   }
 
+  /**
+   * Normalize a client-supplied idempotency key: trimmed, empty treated as
+   * absent. Shared with the controller's duplicate-race recovery so both
+   * sides look up the exact string that was stored.
+   */
+  public static String normalizeIdempotencyKey(String raw) {
+    if (raw == null) {
+      return null;
+    }
+    String key = raw.trim();
+    if (key.isEmpty()) {
+      return null;
+    }
+    if (key.length() > 64) {
+      throw new IllegalArgumentException("idempotencyKey exceeds 64 chars");
+    }
+    return key;
+  }
+
   @Transactional
   public WorkoutDetailDTO submitWorkout(
     WorkoutSubmissionDTO submission,
     UUID userId
   ) {
+    // Idempotent resubmit: a retry of an already-committed submission (lost
+    // response, offline-queue re-flush) returns the existing workout instead
+    // of creating a duplicate. Side effects (PRs, streak, post, moderation)
+    // already ran when the first submission committed.
+    String idempotencyKey = normalizeIdempotencyKey(
+      submission.getIdempotencyKey()
+    );
+    if (idempotencyKey != null) {
+      Optional<Workout> existing =
+        workoutRepository.findFirstByUser_UserIdAndIdempotencyKey(
+          userId,
+          idempotencyKey
+        );
+      if (existing.isPresent()) {
+        return getWorkoutDetails(existing.get().getWorkoutId(), userId);
+      }
+    }
+
     AppUser user = appUserRepository
       .findById(userId)
       .orElseThrow(() -> new IllegalArgumentException("User not found"));
@@ -345,10 +382,15 @@ public class WorkoutService {
           : new ArrayList<>()
       )
       .workoutExercises(new ArrayList<>())
+      .idempotencyKey(idempotencyKey)
       .build();
 
-    // Save workout first to get ID
-    workout = workoutRepository.save(workout);
+    // Save workout first to get ID. saveAndFlush (not save) so a concurrent
+    // duplicate of the same idempotency key raises
+    // DataIntegrityViolationException here, inside the method body, where the
+    // controller can catch it; a commit-time violation would surface as
+    // TransactionSystemException instead.
+    workout = workoutRepository.saveAndFlush(workout);
 
     // Create workout exercises
     int position = 1;
@@ -459,6 +501,26 @@ public class WorkoutService {
 
     // Return workout details
     return getWorkoutDetails(workout.getWorkoutId(), userId);
+  }
+
+  /**
+   * Recovery lookup for the controller after a concurrent-duplicate
+   * DataIntegrityViolationException: the losing transaction is rollback-only,
+   * so the winner's row must be read in this fresh transaction.
+   */
+  @Transactional(readOnly = true)
+  public WorkoutDetailDTO getWorkoutDetailsByIdempotencyKey(
+    UUID userId,
+    String idempotencyKey
+  ) {
+    String key = normalizeIdempotencyKey(idempotencyKey);
+    if (key == null) {
+      return null;
+    }
+    return workoutRepository
+      .findFirstByUser_UserIdAndIdempotencyKey(userId, key)
+      .map(w -> getWorkoutDetails(w.getWorkoutId(), userId))
+      .orElse(null);
   }
 
   @Transactional

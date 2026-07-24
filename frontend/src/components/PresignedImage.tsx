@@ -1,13 +1,8 @@
 import { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Image,
-  ImageStyle,
-  StyleProp,
-  View,
-} from "react-native";
+import { Image, ImageStyle, StyleProp, View } from "react-native";
 import { useTheme } from "@react-navigation/native";
 import { usePresignedImage } from "../hooks/usePresignedImage";
+import { Spinner } from "./Spinner";
 
 type Props = {
   imageKey?: string | null;
@@ -15,6 +10,12 @@ type Props = {
   resizeMode?: "cover" | "contain" | "stretch" | "center";
   showLoader?: boolean;
 };
+
+// After this long without a resolved url, drop the spinner and keep the
+// static placeholder. The spinner animates on the UI thread every frame, and
+// a resolution that keeps failing (retried with backoff in usePresignedImage)
+// would otherwise leave it running for the life of the card.
+const SPINNER_TIMEOUT_MS = 12_000;
 
 export function PresignedImage({
   imageKey,
@@ -32,6 +33,19 @@ export function PresignedImage({
     setFailed(false);
   }, [uri]);
 
+  // A still-loading image shows the spinner only for a bounded time; if the
+  // url arrives later (retry succeeded), the image swaps in regardless.
+  const [spinnerTimedOut, setSpinnerTimedOut] = useState(false);
+  useEffect(() => {
+    if (uri) return;
+    setSpinnerTimedOut(false);
+    const timer = setTimeout(
+      () => setSpinnerTimedOut(true),
+      SPINNER_TIMEOUT_MS,
+    );
+    return () => clearTimeout(timer);
+  }, [uri, imageKey]);
+
   if (!uri || failed) {
     return (
       <View
@@ -44,8 +58,8 @@ export function PresignedImage({
           },
         ]}
       >
-        {showLoader && !failed ? (
-          <ActivityIndicator size="small" color={colors.text} />
+        {showLoader && !failed && !spinnerTimedOut ? (
+          <Spinner size="small" color={colors.text} />
         ) : null}
       </View>
     );

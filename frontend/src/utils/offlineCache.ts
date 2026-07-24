@@ -32,6 +32,11 @@ export const CACHE_KEYS = {
   routines: (userId: string) => `@offline_routines_${userId}`,
   userProfile: (userId: string) => `@offline_user_profile_${userId}`,
   lastUserId: "@offline_last_user_id",
+  // Global (NOT per-user) ring of idempotency keys for workouts the outbox
+  // has taken ownership of. Survives logout by design: it holds only opaque
+  // keys and lets restore reject an already-committed ghost blob even when no
+  // user id is resolvable (or the queue entry already flushed).
+  enqueuedWorkoutKeys: "@workout_enqueued_idempotency_keys",
   pendingWorkouts: (userId: string) => `@offline_pending_workouts_${userId}`,
   pendingRoutines: (userId: string) => `@offline_pending_routines_${userId}`,
   userWorkouts: (userId: string) => `@offline_workouts_${userId}`,

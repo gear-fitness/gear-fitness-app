@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Animated,
   Image,
   ScrollView,
@@ -24,6 +23,7 @@ import {
   requestFoodImageUploadUrl,
   uploadImageToS3,
 } from "../../../../api/imageService";
+import { Spinner } from "../../../../components/Spinner";
 
 // Photo food logging sheet. Flow: compose (thumbnail + optional caption for
 // context) -> analyzing (AI vision estimate) -> results (per-item review,
@@ -325,7 +325,7 @@ export function PhotoEstimateSheet({
               />
             )}
             <Animated.View style={[styles.analyzingRow, { opacity: pulse }]}>
-              <ActivityIndicator size="small" color={t.tint} />
+              <Spinner size="small" color={t.tint} />
               <Text style={[styles.analyzingText, { color: t.text }]}>
                 Analyzing photo
               </Text>
@@ -438,7 +438,7 @@ export function PhotoEstimateSheet({
               onPress={logAll}
             >
               {logging ? (
-                <ActivityIndicator size="small" color={t.accentText} />
+                <Spinner size="small" color={t.accentText} />
               ) : (
                 <Text style={[styles.primaryBtnText, { color: t.accentText }]}>
                   Log {pendingFoods.length}{" "}

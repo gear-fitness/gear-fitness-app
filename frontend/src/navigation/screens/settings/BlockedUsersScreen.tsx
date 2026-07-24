@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  ActivityIndicator,
 } from "react-native";
 import { Text } from "../../../components/Text";
 import { useTheme, useNavigation } from "@react-navigation/native";
@@ -18,6 +17,7 @@ import {
   FollowActivityDTO,
 } from "../../../api/followService";
 import { Avatar } from "../../../components/Avatar";
+import { Spinner } from "../../../components/Spinner";
 
 export function BlockedUsersScreen() {
   const { colors } = useTheme();
@@ -87,7 +87,7 @@ export function BlockedUsersScreen() {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator color={colors.primary} />
+          <Spinner color={colors.primary} />
         </View>
       ) : blocked.length === 0 ? (
         <View style={styles.center}>

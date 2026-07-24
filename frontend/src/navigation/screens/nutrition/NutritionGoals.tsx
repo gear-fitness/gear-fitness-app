@@ -1,10 +1,5 @@
 import React, { useCallback, useState } from "react";
-import {
-  ActivityIndicator,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { Text, TextInput } from "../../../components/Text";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -12,6 +7,7 @@ import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useThemeColors } from "../../../hooks/useThemeColors";
 import { useNutrition } from "../../../context/NutritionContext";
 import { getGoal, updateGoal } from "../../../api/nutritionService";
+import { Spinner } from "../../../components/Spinner";
 
 const FIELDS = [
   { key: "calorieGoal", label: "Calories", suffix: "cal" },
@@ -94,7 +90,7 @@ export function NutritionGoals() {
       </View>
 
       {loading ? (
-        <ActivityIndicator style={{ marginTop: 40 }} color={t.secondary} />
+        <Spinner style={{ marginTop: 40 }} color={t.secondary} />
       ) : (
         <View style={styles.body}>
           <View

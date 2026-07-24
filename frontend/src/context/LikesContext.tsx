@@ -12,7 +12,8 @@ import { FeedPost, socialFeedApi } from "../api/socialFeedApi";
 type LikeRecord = {
   serverLiked: boolean;
   serverCount: number;
-  localDelta: 0 | 1 | -1;
+  /** Desired state while one or more toggle requests converge; null at rest. */
+  intent: boolean | null;
 };
 
 type Records = Record<string, LikeRecord>;
@@ -26,6 +27,7 @@ type LikesContextValue = {
   ensureRecord: (postId: string, fallback: Fallback) => void;
   seedLikeState: (postId: string, server: SeedInput) => void;
   toggleLike: (postId: string) => void;
+  setLiked: (postId: string, liked: boolean) => void;
 };
 
 const LikesContext = createContext<LikesContextValue | null>(null);
@@ -65,7 +67,7 @@ export function LikesProvider({ children }: { children: React.ReactNode }) {
       writeRecord(postId, {
         serverLiked: fallback.likedByCurrentUser,
         serverCount: fallback.likeCount,
-        localDelta: 0,
+        intent: null,
       });
     },
     [writeRecord],
@@ -74,12 +76,12 @@ export function LikesProvider({ children }: { children: React.ReactNode }) {
   const seedLikeState = useCallback(
     (postId: string, server: SeedInput) => {
       const existing = recordsRef.current[postId];
-      // Phase 5 rule: if user has a pending action, ignore the seed entirely.
-      if (existing && existing.localDelta !== 0) return;
+      // A feed refresh must not overwrite intent while a request is converging.
+      if (existing && existing.intent !== null) return;
       writeRecord(postId, {
         serverLiked: server.serverLiked,
         serverCount: server.serverCount,
-        localDelta: 0,
+        intent: null,
       });
     },
     [writeRecord],
@@ -96,7 +98,14 @@ export function LikesProvider({ children }: { children: React.ReactNode }) {
 
       while (iterations++ < MAX_ITERATIONS) {
         const current = recordsRef.current[postId];
-        if (!current || current.localDelta === 0) return;
+        if (!current || current.intent === null) return;
+
+        // Intent may return to the known server state while no request is in
+        // flight. Clear it without issuing a redundant toggle.
+        if (current.intent === current.serverLiked) {
+          writeRecord(postId, { ...current, intent: null });
+          return;
+        }
 
         inFlightRef.current[postId] = true;
         try {
@@ -107,31 +116,26 @@ export function LikesProvider({ children }: { children: React.ReactNode }) {
             return;
           }
 
-          // User's intent at the moment the API resolved.
-          const intent =
-            after.localDelta !== 0 ? after.localDelta === 1 : after.serverLiked;
-
-          // Reconcile: server values become truth. localDelta becomes whatever
-          // is needed to keep the displayed state matching the user's intent.
-          const newDelta: 0 | 1 | -1 =
-            intent === response.liked ? 0 : intent ? 1 : -1;
+          // Preserve the latest intent, including a reversal made while this
+          // request was in flight, and keep toggling until the server matches.
+          const intent = after.intent ?? after.serverLiked;
 
           writeRecord(postId, {
             serverLiked: response.liked,
             serverCount: response.likeCount,
-            localDelta: newDelta,
+            intent: intent === response.liked ? null : intent,
           });
         } catch (err) {
           console.error("toggleLike failed:", err);
           const after = recordsRef.current[postId];
           if (after) {
-            writeRecord(postId, { ...after, localDelta: 0 });
+            writeRecord(postId, { ...after, intent: null });
           }
           inFlightRef.current[postId] = false;
           return;
         }
         inFlightRef.current[postId] = false;
-        // Loop condition will exit if localDelta is now 0 (converged).
+        // Loop condition exits once intent is null (converged).
       }
     },
     [writeRecord],
@@ -142,12 +146,22 @@ export function LikesProvider({ children }: { children: React.ReactNode }) {
       const existing = recordsRef.current[postId];
       if (!existing) return;
 
-      // Each tap either creates a delta against server (when delta=0) or
-      // cancels an existing delta (returning to server state).
-      const newDelta: 0 | 1 | -1 =
-        existing.localDelta === 0 ? (existing.serverLiked ? -1 : 1) : 0;
+      const currentLiked = existing.intent ?? existing.serverLiked;
+      writeRecord(postId, { ...existing, intent: !currentLiked });
+      void processQueue(postId);
+    },
+    [processQueue, writeRecord],
+  );
 
-      writeRecord(postId, { ...existing, localDelta: newDelta });
+  const setLiked = useCallback(
+    (postId: string, liked: boolean) => {
+      const existing = recordsRef.current[postId];
+      if (!existing) return;
+
+      const currentLiked = existing.intent ?? existing.serverLiked;
+      if (currentLiked === liked) return;
+
+      writeRecord(postId, { ...existing, intent: liked });
       void processQueue(postId);
     },
     [processQueue, writeRecord],
@@ -160,8 +174,9 @@ export function LikesProvider({ children }: { children: React.ReactNode }) {
       ensureRecord,
       seedLikeState,
       toggleLike,
+      setLiked,
     }),
-    [subscribe, getRecord, ensureRecord, seedLikeState, toggleLike],
+    [subscribe, getRecord, ensureRecord, seedLikeState, toggleLike, setLiked],
   );
 
   return (
@@ -180,7 +195,7 @@ function useLikesContext(): LikesContextValue {
 export function useLikeState(
   postId: string,
   fallback?: Fallback,
-): { liked: boolean; count: number; toggle: () => void } {
+): { liked: boolean; count: number; toggle: () => void; like: () => void } {
   const ctx = useLikesContext();
 
   // Seed the record on first read so the very first paint is correct.
@@ -195,14 +210,16 @@ export function useLikeState(
   const serverLiked =
     record?.serverLiked ?? fallback?.likedByCurrentUser ?? false;
   const serverCount = record?.serverCount ?? fallback?.likeCount ?? 0;
-  const localDelta = record?.localDelta ?? 0;
+  const intent = record?.intent ?? null;
 
-  const liked = localDelta !== 0 ? localDelta === 1 : serverLiked;
-  const count = serverCount + localDelta;
+  const liked = intent ?? serverLiked;
+  const count =
+    serverCount + (intent === null ? 0 : Number(intent) - Number(serverLiked));
 
   const toggle = useCallback(() => ctx.toggleLike(postId), [ctx, postId]);
+  const like = useCallback(() => ctx.setLiked(postId, true), [ctx, postId]);
 
-  return { liked, count, toggle };
+  return { liked, count, toggle, like };
 }
 
 export function useNormalizeFeedPosts() {

@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   ScrollView,
   StyleProp,
   StyleSheet,
@@ -16,6 +15,7 @@ import { FeedPostCard } from "../../components/FeedPostCard";
 import { useSeedLikeState } from "../../context/LikesContext";
 import { useTrackTab } from "../../hooks/useTrackTab";
 import { FloatingCloseButton } from "../../components/FloatingCloseButton";
+import { Spinner } from "../../components/Spinner";
 
 type RootStackParamList = {
   PostDetail: {
@@ -92,7 +92,7 @@ export function PostDetail({ route }: Props) {
         ]}
       >
         {backButton}
-        <ActivityIndicator size="large" color={colors.text} />
+        <Spinner size="large" color={colors.text} />
         <Text style={[styles.loadingText, { color: colors.text }]}>
           Loading post...
         </Text>

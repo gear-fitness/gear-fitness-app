@@ -20,6 +20,14 @@ export const WorkoutFlowNavigator = createNativeStackNavigator({
     },
     WorkoutSummary: {
       screen: WorkoutSummary,
+      options: {
+        // The default 'pause' hides this screen with React's <Activity> while
+        // WorkoutComplete covers it, which unmounts effects and wipes the
+        // Sortable.Grid item measurements; they never re-measure on reveal
+        // (no layout change), leaving drag-to-reorder dead after Finish ->
+        // back. Keep the screen live instead.
+        inactiveBehavior: "none",
+      },
     },
     WorkoutComplete: {
       screen: WorkoutComplete,

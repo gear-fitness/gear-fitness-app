@@ -4,7 +4,6 @@ import {
   View,
   Dimensions,
   useColorScheme,
-  ActivityIndicator,
 } from "react-native";
 import { Text } from "../../components/Text";
 import React, { useState, useEffect } from "react";
@@ -23,6 +22,7 @@ import { FloatingCloseButton } from "../../components/FloatingCloseButton";
 import { subscribeOnlineStatus } from "../../utils/network";
 import { useUnitPreference } from "../../context/UnitPreferenceContext";
 import { toDisplayWeight } from "../../utils/weight";
+import { Spinner } from "../../components/Spinner";
 
 type RootStackParamList = {
   PR: { userId: string };
@@ -112,7 +112,7 @@ export function PR({ route }: Props) {
         ]}
       >
         <FloatingCloseButton direction="left" accessibilityLabel="Back" />
-        <ActivityIndicator size="large" color={isDark ? "#fff" : "#000"} />
+        <Spinner size="large" color={isDark ? "#fff" : "#000"} />
         <Text style={[styles.loadingText, { color: isDark ? "#fff" : "#000" }]}>
           Loading PRs...
         </Text>

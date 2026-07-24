@@ -3,7 +3,6 @@ import {
   View,
   ScrollView,
   useColorScheme,
-  ActivityIndicator,
   TouchableOpacity,
   StyleProp,
   TextStyle,
@@ -40,6 +39,7 @@ import {
   defaultDiagramPalette,
   resolveBodyVariant,
 } from "../../utils/muscleActivations";
+import { Spinner } from "../../components/Spinner";
 
 type RootStackParamList = {
   DetailedHistory: {
@@ -106,6 +106,8 @@ export function DetailedHistory({ route }: Props) {
     ownerUserId,
     ownerUsername,
     viewerFollowsAuthor,
+    // The screen is showing the workout that was just deleted, so leave it.
+    onDeleted: () => navigation.goBack(),
   });
 
   const { user } = useAuth();
@@ -259,7 +261,7 @@ export function DetailedHistory({ route }: Props) {
         {backButton}
         {dotsButton}
         {floatingActions}
-        <ActivityIndicator size="large" color={colors.text} />
+        <Spinner size="large" color={colors.text} />
         <Text style={[styles.loadingText, { color: colors.text }]}>
           Loading workout...
         </Text>

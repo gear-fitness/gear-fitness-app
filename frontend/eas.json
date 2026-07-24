@@ -18,8 +18,19 @@
     "preview": {
       "distribution": "internal"
     },
+    "staging": {
+      "distribution": "internal",
+      "autoIncrement": true,
+      "environment": "preview",
+      "env": {
+        "APP_VARIANT": "staging"
+      }
+    },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "APP_VARIANT": "production"
+      }
     },
     "simulator": {
       "developmentClient": true,

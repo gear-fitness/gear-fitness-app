@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   ScrollView,
   StyleSheet,
@@ -24,6 +23,7 @@ import {
 import { FoodItem } from "../../../../api/types";
 import { BottomSheet } from "../../../../components/BottomSheet";
 import { SearchBar } from "../../../../components/SearchBar";
+import { Spinner } from "../../../../components/Spinner";
 
 type Theme = ReturnType<typeof useThemeColors>;
 
@@ -346,7 +346,7 @@ export function SavedFoodsSheet({
               accessibilityLabel="Create meal"
             >
               {saving ? (
-                <ActivityIndicator size="small" color={t.accentText} />
+                <Spinner size="small" color={t.accentText} />
               ) : (
                 <Text
                   style={[
@@ -369,7 +369,7 @@ export function SavedFoodsSheet({
               accessibilityLabel="Save meal"
             >
               {saving ? (
-                <ActivityIndicator size="small" color={t.accentText} />
+                <Spinner size="small" color={t.accentText} />
               ) : (
                 <Ionicons
                   name="checkmark"
@@ -397,10 +397,7 @@ export function SavedFoodsSheet({
               keyboardDismissMode="on-drag"
             >
               {loading && foods.length === 0 ? (
-                <ActivityIndicator
-                  style={{ marginTop: 24 }}
-                  color={t.secondary}
-                />
+                <Spinner style={{ marginTop: 24 }} color={t.secondary} />
               ) : filtered.length === 0 ? (
                 <View style={styles.emptyState}>
                   <Ionicons
@@ -492,7 +489,7 @@ export function SavedFoodsSheet({
                   accessibilityLabel="Calculate calories for me"
                 >
                   {estimating ? (
-                    <ActivityIndicator size="small" color={t.tint} />
+                    <Spinner size="small" color={t.tint} />
                   ) : (
                     <MaterialCommunityIcons
                       name="creation"
@@ -637,7 +634,7 @@ function FoodCard({
           accessibilityLabel={`Log ${food.nickname ?? food.description}`}
         >
           {busy ? (
-            <ActivityIndicator size="small" color={t.accentText} />
+            <Spinner size="small" color={t.accentText} />
           ) : (
             <Ionicons
               name={logged ? "checkmark" : "add"}

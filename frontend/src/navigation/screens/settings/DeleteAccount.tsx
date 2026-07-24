@@ -4,7 +4,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
@@ -15,6 +14,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { useThemeColors } from "../../../hooks/useThemeColors";
 import { FloatingCloseButton } from "../../../components/FloatingCloseButton";
 import { deleteAccount } from "../../../api/userService";
+import { Spinner } from "../../../components/Spinner";
 
 export function DeleteAccount() {
   const { user, logout } = useAuth();
@@ -137,7 +137,7 @@ export function DeleteAccount() {
             ]}
           >
             {submitting ? (
-              <ActivityIndicator color="#fff" />
+              <Spinner color="#fff" />
             ) : (
               <Text
                 style={[

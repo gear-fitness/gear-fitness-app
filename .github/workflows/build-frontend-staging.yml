@@ -1,0 +1,58 @@
+name: Staging Frontend Build
+
+on:
+  push:
+    branches:
+      - develop
+    paths:
+      - "frontend/**"
+  workflow_dispatch:
+
+# macOS runners are free for public repos; builds run with `eas build --local`
+# so no EAS build credits are consumed. EAS still supplies the ad-hoc signing
+# credentials (via EXPO_TOKEN), and Firebase App Distribution delivers the ipa
+# to the staging-testers group.
+concurrency:
+  group: staging-frontend-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # Pin an image whose Xcode satisfies the current Expo SDK; bump on SDK upgrades.
+    runs-on: macos-15
+    environment: staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Set up EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build iOS staging app
+        run: eas build --platform ios --profile staging --local --non-interactive --output build/gear-staging.ipa
+        working-directory: frontend
+
+      - name: Upload to Firebase App Distribution
+        working-directory: frontend
+        env:
+          FIREBASE_SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-sa.json
+        run: |
+          printf '%s' "$FIREBASE_SA_JSON" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          npx firebase-tools appdistribution:distribute build/gear-staging.ipa \
+            --app "${{ secrets.FIREBASE_IOS_APP_ID }}" \
+            --groups staging-testers \
+            --release-notes "develop @ ${GITHUB_SHA:0:7}"
